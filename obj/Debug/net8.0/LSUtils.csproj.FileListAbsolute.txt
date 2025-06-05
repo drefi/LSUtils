@@ -1,0 +1,11 @@
+D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.deps.json
+D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.runtimeconfig.json
+D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll
+D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.pdb
+D:\Projetos\LSUtils\obj\Debug\net8.0\LSUtils.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projetos\LSUtils\obj\Debug\net8.0\LSUtils.csproj.CoreCompileInputs.cache
+D:\Projetos\LSUtils\obj\Debug\net8.0\LSUtils.dll
+D:\Projetos\LSUtils\obj\Debug\net8.0\refint\LSUtils.dll
+D:\Projetos\LSUtils\obj\Debug\net8.0\LSUtils.pdb
+D:\Projetos\LSUtils\obj\Debug\net8.0\LSUtils.genruntimeconfig.cache
+D:\Projetos\LSUtils\obj\Debug\net8.0\ref\LSUtils.dll
