@@ -130,8 +130,6 @@ public abstract class LSEvent {
     }
     #endregion
 }
-
-
 public abstract class LSEvent<TInstance> : LSEvent where TInstance : ILSEventable {
     private readonly ILSEventable[] _instances;
     /// <summary>

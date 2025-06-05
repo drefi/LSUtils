@@ -105,7 +105,7 @@ public class FormatterToken : ILSEventable {
     /// <remarks>
     /// If a token is found but has no associated value for the current language, the token is treated as not found.
     /// </remarks>
-    public string[] Parse(string text, out string parsedText) {
+    public string[] Parse(string text, out string parsedText, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
         string log = $"{ClassName}::Parse";
         parsedText = text;
         List<string> missingKeys = new List<string>();
@@ -115,10 +115,10 @@ public class FormatterToken : ILSEventable {
             isProcessing = replaceTokens(matches, parsedText, missingKeys, out parsedText);
             matches = _regex.Matches(parsedText);
         }
-        foreach (string key in missingKeys) {
-            if (_missingKeys.Add(key))
-                LSSignals.Warning($"{log}::{key}::not_found");
-        }
+        foreach (string key in missingKeys) _missingKeys.Add(key);
+
+        OnParseEvent @event = new OnParseEvent(this, text, parsedText, missingKeys.ToArray());
+        @event.Dispatch(onFailure, dispatcher);
         return missingKeys.ToArray();
     }
     /// <summary>
@@ -169,6 +169,18 @@ public class FormatterToken : ILSEventable {
             Value = value;
         }
     }
+    public class OnParseEvent : LSEvent<FormatterToken> {
+        public string Text { get; }
+        public string ParsedText { get; }
+        public string[] MissingKeys { get; }
+
+        public OnParseEvent(FormatterToken instance, string text, string parsedText, string[] missingKeys) : base(instance) {
+            Text = text;
+            ParsedText = parsedText;
+            MissingKeys = missingKeys;
+        }
+    }
+
     #endregion
 }
 [System.Flags]
