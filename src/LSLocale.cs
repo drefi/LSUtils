@@ -33,6 +33,34 @@ public class FormatterToken : ILSEventable {
         Pattern = pattern;
         _regex = new Regex(Pattern);
     }
+
+    /// <summary>
+    /// Replaces tokens in the given text with their associated value, if found, or adds them to the list of missing keys if not found.
+    /// </summary>
+    /// <param name="matches">A collection of matches from the regular expression pattern.</param>
+    /// <param name="text">The text to parse and replace tokens in.</param>
+    /// <param name="missingKeys">A list of tokens that were not found in the formatter's dictionary.</param>
+    /// <param name="parsedText">The parsed text with tokens replaced, or the original text if no tokens were found.</param>
+    /// <returns>true if any tokens were replaced, false if no tokens were replaced.</returns>
+    protected bool replaceTokens(MatchCollection matches, string text, List<string> missingKeys, out string parsedText) {
+        var filteredMatches = matches.Cast<Match>().Where(m => !missingKeys.Contains(m.Groups[1].Value));
+        parsedText = text;
+        foreach (Match match in filteredMatches) {
+            var groups = match.Groups;
+            var key = groups[1].Value;
+            string value = key;
+            if (_tokens.TryGetValue(key, out var token)) {
+                value = token.TryGetValue(CurrentLanguage, out var langValue) ? langValue :
+                token.TryGetValue(Languages.VALUE, out var anyValue) ? anyValue : key;
+            }
+            if (value == key && missingKeys.Contains(key) == false) {
+                missingKeys.Add(key);
+            } else if (value != key) {
+                text = text.Replace(match.Value, value);
+            }
+        }
+        return filteredMatches.Count() > 0;
+    }
     public bool Initialize(LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
         var @event = OnInitializeEvent.Create<FormatterToken>(this, onSuccess, onFailure);
         dispatcher ??= LSDispatcher.Instance;
@@ -48,7 +76,7 @@ public class FormatterToken : ILSEventable {
     /// <remarks>
     /// If the language is Locale.NONE or Locale.ANY, this function will do nothing.
     /// </remarks>
-    public bool SetLocale(Languages locale, Dictionary<string, string> tokens, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) {
+    public bool SetLocale(Languages locale, Dictionary<string, string>? tokens = null, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) {
         if (locale == Languages.NONE || locale == Languages.VALUE) return false;
         var oldLanguage = CurrentLanguage;
         CurrentLanguage = locale;
@@ -121,32 +149,17 @@ public class FormatterToken : ILSEventable {
         @event.Dispatch(onFailure, dispatcher);
         return missingKeys.ToArray();
     }
-    /// <summary>
-    /// Replaces tokens in the given text with their associated value, if found, or adds them to the list of missing keys if not found.
-    /// </summary>
-    /// <param name="matches">A collection of matches from the regular expression pattern.</param>
-    /// <param name="text">The text to parse and replace tokens in.</param>
-    /// <param name="missingKeys">A list of tokens that were not found in the formatter's dictionary.</param>
-    /// <param name="parsedText">The parsed text with tokens replaced, or the original text if no tokens were found.</param>
-    /// <returns>true if any tokens were replaced, false if no tokens were replaced.</returns>
-    protected bool replaceTokens(MatchCollection matches, string text, List<string> missingKeys, out string parsedText) {
-        var filteredMatches = matches.Cast<Match>().Where(m => !missingKeys.Contains(m.Groups[1].Value));
-        parsedText = text;
-        foreach (Match match in filteredMatches) {
-            var groups = match.Groups;
-            var key = groups[1].Value;
-            string value = key;
-            if (_tokens.TryGetValue(key, out var token)) {
-                value = token.TryGetValue(CurrentLanguage, out var langValue) ? langValue :
-                token.TryGetValue(Languages.VALUE, out var anyValue) ? anyValue : key;
-            }
-            if (value == key && missingKeys.Contains(key) == false) {
-                missingKeys.Add(key);
-            } else if (value != key) {
-                text = text.Replace(match.Value, value);
-            }
+    public string ParseToken(string token, Languages language = Languages.NONE) {
+        if (string.IsNullOrEmpty(token)) return string.Empty;
+        if (language == Languages.NONE) {
+            language = CurrentLanguage;
         }
-        return filteredMatches.Count() > 0;
+        string value = token;
+        if (_tokens.TryGetValue(token, out var languageValue)) {
+            value = languageValue.TryGetValue(language, out var langValue) ? langValue :
+            languageValue.TryGetValue(Languages.VALUE, out var anyValue) ? anyValue : token;
+        }
+        return value;
     }
 
     public static FormatterToken Instantiate() => new FormatterToken(DefaultPattern);
@@ -156,6 +169,10 @@ public class FormatterToken : ILSEventable {
         public Languages Language { get; }
         public OnSetLocaleEvent(FormatterToken instance, Languages language) : base(instance) {
             Language = language;
+        }
+
+        public static System.Guid Register(LSListener<OnSetLocaleEvent> listener, FormatterToken instance) {
+            return LSEvent.Register<OnSetLocaleEvent>(listener, new ILSEventable[] { instance });
         }
     }
     public class OnAddTokenEvent : LSEvent<FormatterToken> {

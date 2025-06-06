@@ -342,12 +342,7 @@ public static class LSSignals {
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
     public static bool ConfirmationCancel(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        FormatterToken.Instance.Parse(title, out var parsedTitle, onFailure, dispatcher);
-        FormatterToken.Instance.Parse(description, out var parsedDescription, onFailure, dispatcher);
-        FormatterToken.Instance.Parse(buttonConfirmationLabel, out var parsedButtonConfirmationLabel, onFailure, dispatcher);
-        FormatterToken.Instance.Parse(buttonCancelLabel, out var parsedButtonCancelLabel, onFailure, dispatcher);
-
-        OnConfirmationEvent @event = new OnConfirmationEvent(parsedTitle, parsedDescription, parsedButtonConfirmationLabel, buttonConfirmationCallback, parsedButtonCancelLabel, buttonCancelCallback);
+        OnConfirmationEvent @event = new OnConfirmationEvent(title, description, buttonConfirmationLabel, buttonConfirmationCallback, buttonCancelLabel, buttonCancelCallback);
         @event.FailureCallback += onFailure;
         return @event.Dispatch(onFailure, dispatcher);
     }
