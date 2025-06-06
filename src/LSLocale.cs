@@ -76,19 +76,19 @@ public class FormatterToken : ILSEventable {
     /// <remarks>
     /// If the language is Locale.NONE or Locale.ANY, this function will do nothing.
     /// </remarks>
-    public bool SetLocale(Languages locale, Dictionary<string, string>? tokens = null, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) {
+    public bool SetLocale(Languages locale, Dictionary<string, string>? tokens = null, LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
         if (locale == Languages.NONE || locale == Languages.VALUE) return false;
         var oldLanguage = CurrentLanguage;
         CurrentLanguage = locale;
         if (tokens != null && tokens.Count > 0) {
             foreach (var token in tokens) {
-                AddToken(locale, token.Key, token.Value, false, onSuccess, onFailure);
+                AddToken(locale, token.Key, token.Value, false, null, onFailure, dispatcher);
             }
-            OnSetLocaleEvent @event = new OnSetLocaleEvent(this, locale);
-            @event.SuccessCallback += onSuccess;
-            @event.FailureCallback += onFailure;
-            @event.Dispatch();
         }
+        OnSetLocaleEvent @event = new OnSetLocaleEvent(this, locale);
+        @event.SuccessCallback += onSuccess;
+        @event.FailureCallback += onFailure;
+        @event.Dispatch();
         return true;
     }
     /// <summary>
@@ -115,14 +115,14 @@ public class FormatterToken : ILSEventable {
         }
         return (totalTokens > startTokens);
     }
-    public void AddToken(Languages locale, string token, string value, bool overwrite = true, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) {
+    public void AddToken(Languages locale, string token, string value, bool overwrite = true, LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
         if (_tokens.ContainsKey(token) == false) _tokens.Add(token, new Dictionary<Languages, string>());
-        if (overwrite == false) return;
+        if (_tokens[token].ContainsKey(locale) && overwrite == false) return;
         _tokens[token][locale] = value;
         OnAddTokenEvent @event = new OnAddTokenEvent(this, locale, token, value);
         @event.SuccessCallback += onSuccess;
         @event.FailureCallback += onFailure;
-        @event.Dispatch();
+        @event.Dispatch(onFailure, dispatcher);
     }
     /// <summary>
     /// Parses the given text and replaces any formatter tokens with their associated value.
@@ -134,7 +134,6 @@ public class FormatterToken : ILSEventable {
     /// If a token is found but has no associated value for the current language, the token is treated as not found.
     /// </remarks>
     public string[] Parse(string text, out string parsedText, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        string log = $"{ClassName}::Parse";
         parsedText = text;
         List<string> missingKeys = new List<string>();
         MatchCollection matches = _regex.Matches(parsedText);
@@ -155,9 +154,10 @@ public class FormatterToken : ILSEventable {
             language = CurrentLanguage;
         }
         string value = token;
-        if (_tokens.TryGetValue(token, out var languageValue)) {
-            value = languageValue.TryGetValue(language, out var langValue) ? langValue :
-            languageValue.TryGetValue(Languages.VALUE, out var anyValue) ? anyValue : token;
+        if (_tokens.TryGetValue(token, out var availableLanguages)) {
+            value = availableLanguages.TryGetValue(language, out var parsedToken) ? parsedToken :
+            availableLanguages.TryGetValue(Languages.VALUE, out var parsedValue) ? parsedValue :
+            availableLanguages.First(v => string.IsNullOrEmpty(v.Value) == false).Value is string notFoundLanguage ? notFoundLanguage : token;
         }
         return value;
     }
@@ -171,8 +171,8 @@ public class FormatterToken : ILSEventable {
             Language = language;
         }
 
-        public static System.Guid Register(LSListener<OnSetLocaleEvent> listener, FormatterToken instance) {
-            return LSEvent.Register<OnSetLocaleEvent>(listener, new ILSEventable[] { instance });
+        public static System.Guid Register(LSListener<OnSetLocaleEvent> listener, FormatterToken instance, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
+            return LSEvent.Register<OnSetLocaleEvent>(listener, new ILSEventable[] { instance }, triggers, listenerID, onFailure, dispatcher);
         }
     }
     public class OnAddTokenEvent : LSEvent<FormatterToken> {
