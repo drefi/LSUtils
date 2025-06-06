@@ -84,6 +84,33 @@ public class Random {
     }
 
     /// <summary>
+    /// Returns a random floating-point number that is greater than or equal to 0.0f, and less than 1.0f
+    /// </summary>
+    /// <returns></returns>
+    public float NextFloat() {
+        return GetNextFloat(0.0f, 1.0f);
+    }
+
+    /// <summary>
+    /// Returns a non-negative random floating-point number that is less than the specified maximum.
+    /// </summary>
+    /// <param name="maxValue"></param>
+    /// <returns></returns>
+    public float NextFloat(float maxValue) {
+        return GetNextFloat(0.0f, maxValue);
+    }
+
+    /// <summary>
+    /// Returns a random floating-point number that is within a specified range.
+    /// </summary>
+    /// <param name="minValue"></param>
+    /// <param name="maxValue"></param>
+    /// <returns></returns>
+    public float NextFloat(float minValue, float maxValue) {
+        return GetNextFloat(minValue, maxValue);
+    }
+
+    /// <summary>
     /// Fills the elements of a specified array of bytes with random numbers.
     /// </summary>
     /// <param name="buffer">The array to be filled with random numbers.</param>
@@ -103,6 +130,12 @@ public class Random {
     internal double GetNextDouble(double minValue, double maxValue) {
         _seed = Rnd(_seed);
         return ConvertToDoubleRange(_seed, minValue, maxValue);
+    }
+
+    // Returns a random float and sets the seed for the next pass.
+    internal float GetNextFloat(float minValue, float maxValue) {
+        _seed = Rnd(_seed);
+        return ConvertToFloatRange(_seed, minValue, maxValue);
     }
 
     /// <summary>
@@ -147,12 +180,37 @@ public class Random {
         return GetDouble((uint)System.Environment.TickCount, minValue, maxValue);
     }
 
+    /// <summary>
+    /// Returns a random float that is within a specified range, using the specified seed value.
+    /// </summary>
+    /// <param name="seed"></param>
+    /// <param name="minValue"></param>
+    /// <param name="maxValue"></param>
+    /// <returns></returns>
+    public static float RndFloat(uint seed, float minValue, float maxValue) {
+        return GetFloat(seed, minValue, maxValue);
+    }
+
+    /// <summary>
+    /// Returns a random float that is within a specified range, using a time-dependent default seed value.
+    /// </summary>
+    /// <param name="minValue"></param>
+    /// <param name="maxValue"></param>
+    /// <returns></returns>
+    public static float RndFloat(float minValue, float maxValue) {
+        return GetFloat((uint)System.Environment.TickCount, minValue, maxValue);
+    }
+
     internal static int GetInt(uint seed, int minValue, int maxValue) {
         return ConvertToIntRange(Rnd(seed), minValue, maxValue);
     }
 
     internal static double GetDouble(uint seed, double minValue, double maxValue) {
         return ConvertToDoubleRange(Rnd(seed), minValue, maxValue);
+    }
+
+    internal static float GetFloat(uint seed, float minValue, float maxValue) {
+        return ConvertToFloatRange(Rnd(seed), minValue, maxValue);
     }
 
     // Converts uint to integer within the given range.
@@ -163,6 +221,11 @@ public class Random {
     // Converts uint to double within the given range.
     internal static double ConvertToDoubleRange(uint val, double minValue, double maxValue) {
         return (double)val / uint.MaxValue * (maxValue - minValue) + minValue;
+    }
+
+    // Converts uint to float within the given range.
+    internal static float ConvertToFloatRange(uint val, float minValue, float maxValue) {
+        return (float)val / uint.MaxValue * (maxValue - minValue) + minValue;
     }
 
     // Pseudo-random number generator based on the Lehmer Algorithm

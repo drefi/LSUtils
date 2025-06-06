@@ -173,7 +173,7 @@ public abstract class OnInitializeEvent : LSEvent<ILSEventable> {
     }
 }
 public class OnInitializeEvent<TInstance> : OnInitializeEvent where TInstance : ILSEventable {
-    public new TInstance? Instance => (TInstance)base.Instance!;
+    public new TInstance Instance => (TInstance)base.Instance!;
     public static OnInitializeEvent<TInstance> Create(TInstance instance, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) {
         OnInitializeEvent<TInstance> @event = new OnInitializeEvent<TInstance>(instance);
         @event.SuccessCallback += onSuccess;
