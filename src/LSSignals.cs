@@ -320,11 +320,8 @@ public static class LSSignals {
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
     public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        FormatterToken.Instance.Parse(title, out var parsedTitle, onFailure, dispatcher);
-        FormatterToken.Instance.Parse(description, out var parsedDescription, onFailure, dispatcher);
-        FormatterToken.Instance.Parse(buttonConfirmationLabel, out var parsedButtonConfirmationLabel, onFailure, dispatcher);
-
-        OnConfirmationEvent @event = new OnConfirmationEvent(parsedTitle, parsedDescription, parsedButtonConfirmationLabel, buttonConfirmationCallback);
+        if (LSEvent.GetListenersCount<OnConfirmationEvent>() == 0) throw new LSNotificationException("no_confirmation_handler");
+        OnConfirmationEvent @event = new OnConfirmationEvent(title, description, buttonConfirmationLabel, buttonConfirmationCallback);
         @event.FailureCallback += onFailure;
         return @event.Dispatch(onFailure, dispatcher);
     }
@@ -342,6 +339,7 @@ public static class LSSignals {
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
     public static bool ConfirmationCancel(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
+        if (LSEvent.GetListenersCount<OnConfirmationEvent>() == 0) throw new LSNotificationException("no_confirmation_handler");
         OnConfirmationEvent @event = new OnConfirmationEvent(title, description, buttonConfirmationLabel, buttonConfirmationCallback, buttonCancelLabel, buttonCancelCallback);
         @event.FailureCallback += onFailure;
         return @event.Dispatch(onFailure, dispatcher);

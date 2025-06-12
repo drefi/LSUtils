@@ -38,11 +38,11 @@ public abstract class LSEvent {
     /// <param name="instances">The instances to associate with this event.</param>
     /// <param name="groupType">The type of group to associate with this event.</param>
     /// <param name="eventID">An optional ID to assign to this event. If not specified, a new GUID is generated.</param>
-
-    public bool Dispatch(LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
+    public virtual bool Dispatch(LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
         _dispatcher = dispatcher ?? LSDispatcher.Instance;
+        ListenerGroupEntry searchGroup = ListenerGroupEntry.Create(LSEventType.Get(GetType()), GroupType, GetInstances());
         HasDispatched = true;
-        return _dispatcher.Dispatch(this, onFailure);
+        return _dispatcher.Dispatch(searchGroup, this, onFailure);
     }
 
     public void Wait(float delay = 0f, System.Guid signalID = default, LSAction? delayCallback = null, LSMessageHandler? onFailure = null) {
@@ -165,16 +165,17 @@ public abstract class LSEvent<TPrimaryInstance, TSecondaryInstance> : LSEvent<TP
 public abstract class OnInitializeEvent : LSEvent<ILSEventable> {
     protected OnInitializeEvent(ILSEventable instance) : base(instance) { }
 
-    public static OnInitializeEvent<TInstance> Create<TInstance>(TInstance instance, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) where TInstance : ILSEventable {
+    public static OnInitializeEvent<TInstance> Create<TInstance>(TInstance? instance, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) where TInstance : ILSEventable {
         return OnInitializeEvent<TInstance>.Create(instance, onSuccess, onFailure);
     }
-    public static System.Guid Register<TInstance>(LSListener<OnInitializeEvent<TInstance>> listener, ILSEventable[]? instances = null, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) where TInstance : ILSEventable {
+    public static System.Guid Register<TInstance>(LSListener<OnInitializeEvent<TInstance>> listener, ILSEventable[] instances = null!, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) where TInstance : ILSEventable {
         return LSEvent.Register<OnInitializeEvent<TInstance>>(listener, instances, triggers, listenerID, onFailure, dispatcher);
     }
 }
 public class OnInitializeEvent<TInstance> : OnInitializeEvent where TInstance : ILSEventable {
     public new TInstance Instance => (TInstance)base.Instance!;
-    public static OnInitializeEvent<TInstance> Create(TInstance instance, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) {
+    public static OnInitializeEvent<TInstance> Create(TInstance? instance, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) {
+        if (instance == null) throw new LSArgumentNullException(nameof(instance), "Instance cannot be null for OnInitializeEvent.");
         OnInitializeEvent<TInstance> @event = new OnInitializeEvent<TInstance>(instance);
         @event.SuccessCallback += onSuccess;
         @event.FailureCallback += onFailure;

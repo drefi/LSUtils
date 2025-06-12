@@ -114,8 +114,7 @@ public class TickManagement : ILSEventable {
         if (_hasInitialized == false) return;
         _isPaused = !_isPaused;
         OnPauseEvent @event = new OnPauseEvent(_isPaused);
-        if (_dispatcher != null) _dispatcher.Dispatch(@event);
-        else @event.Dispatch();
+        @event.Dispatch(_onFailure, _dispatcher);
     }
 
     /// <summary>

@@ -14,11 +14,9 @@ public class LSEventableType : ILSEventable {
         EventableType = type;
         ID = System.Guid.NewGuid();
     }
-    
+
     public bool Initialize(LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        var @event = OnInitializeEvent.Create<LSEventableType>(this, onSuccess, onFailure);
-        dispatcher ??= LSDispatcher.Instance;
-        return dispatcher.Dispatch(@event);
+        return OnInitializeEvent.Create<LSEventableType>(this, onSuccess, onFailure).Dispatch(onFailure, dispatcher);
     }
 
     /// <summary>

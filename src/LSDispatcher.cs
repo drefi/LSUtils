@@ -57,12 +57,11 @@ public partial class LSDispatcher {
         LSEvent.SetDelayHandler(delayHandler);
     }
 
-    public bool Dispatch(LSEvent @event, LSMessageHandler? onFailure = null) {
+    internal bool Dispatch(ListenerGroupEntry searchGroup, LSEvent @event, LSMessageHandler? onFailure = null) {
         try {
             if (@event == null) throw new LSException("event_null");
             if (@event.IsCancelled || @event.IsDone) throw new LSException($"event{(@event.IsCancelled ? "_cancelled" : "_done")}");
             LSEventType eventType = LSEventType.Get(@event.GetType());
-            ListenerGroupEntry searchGroup = ListenerGroupEntry.Create(eventType, @event.GroupType, @event.GetInstances());
             var matches = _listeners.Where(entry => entry.Value.Contains(searchGroup));
             foreach (var match in matches) {
                 if (match.Value.NotifyListeners(@event) == false) return false;
@@ -96,7 +95,7 @@ public partial class LSDispatcher {
         ListenerGroupEntry group = ListenerGroupEntry.Create(LSEventType.Get(typeof(TEvent)), groupType, instances);
         if (_listeners.TryGetValue(group.GetHashCode(), out var existingGroup) == false) {
             if (_listeners.TryAdd(group.GetHashCode(), group) == false) {
-                onFailure?.Invoke($"dispatcher_failed_to_new_group");
+                onFailure?.Invoke($"dispatcher_failed_to_add_new_group");
                 return System.Guid.Empty;
             }
         } else group = existingGroup;
@@ -124,7 +123,13 @@ public partial class LSDispatcher {
         }
         return match.Any(entry => _listeners.TryRemove(entry.Key, out _));
     }
-
+    public int GetListenersCount(LSEventType eventType, ListenerGroupType groupType, ILSEventable[]? instances = null) {
+        var searchGroup = ListenerGroupEntry.Create(eventType, groupType, instances);
+        return _listeners
+            .AsParallel()
+            .Where(entry => entry.Value.Contains(searchGroup))
+            .Sum(listener => listener.Value.GetListenersCount());
+    }
     /// <summary>
     /// Gets the number of listeners registered for the given event type and instance set.
     /// </summary>
@@ -135,11 +140,7 @@ public partial class LSDispatcher {
     /// <exception cref="LSArgumentNullException">Thrown if the event type is null.</exception>
     public int GetListenersCount<TEvent>(ListenerGroupType groupType, ILSEventable[]? instances = null) where TEvent : LSEvent {
         LSEventType eventType = LSEventType.Get(typeof(TEvent));
-        var searchGroup = ListenerGroupEntry.Create(eventType, groupType, instances);
-        return _listeners
-            .AsParallel()
-            .Where(entry => entry.Value.Contains(searchGroup))
-            .Sum(listener => listener.Value.GetListenersCount());
+        return GetListenersCount(eventType, groupType, instances);
     }
 
 
