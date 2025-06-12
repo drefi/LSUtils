@@ -132,9 +132,8 @@ public class Semaphore {
             return signalsRemaining;
         }
     }
-    public bool GetFailureCallback(out LSMessageHandler? failureCallback) {
-        failureCallback = FailureCallback;
-        return failureCallback != null;
+    public LSMessageHandler GetFailureCallback() {
+        return FailureCallback == null ? new LSMessageHandler((m) => { return false; }) : FailureCallback;
     }
 
     /// <summary>

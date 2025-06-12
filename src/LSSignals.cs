@@ -27,21 +27,6 @@ public static class LSSignals {
         /// </summary>
         /// <param name="message">The message to print.</param>
         public OnPrintEvent(string message) : base(System.Guid.NewGuid()) => Message = message;
-
-        /// <summary>
-        /// Registers a listener for print events.
-        /// </summary>
-        /// <param name="listener">The listener delegate.</param>
-        /// <param name="triggers">Number of times to trigger (-1 for unlimited).</param>
-        /// <param name="listenerID">Optional listener ID.</param>
-        /// <param name="onFailure">Callback if registration fails.</param>
-        /// <param name="dispatcher">Optional dispatcher instance.</param>
-        /// <returns>The listener's unique identifier.</returns>
-        public static System.Guid Register(LSListener<OnPrintEvent> listener, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-            dispatcher = dispatcher ?? LSDispatcher.Instance;
-            ILSEventable[] instances = new ILSEventable[0];
-            return dispatcher.Register<OnPrintEvent>(listener, instances, triggers, listenerID, onFailure);
-        }
     }
 
     /// <summary>
@@ -58,21 +43,6 @@ public static class LSSignals {
         /// </summary>
         /// <param name="message">The error message.</param>
         public OnErrorEvent(string message) : base(System.Guid.NewGuid()) => Message = message ?? string.Empty;
-
-        /// <summary>
-        /// Registers a listener for error events.
-        /// </summary>
-        /// <param name="listener">The listener delegate.</param>
-        /// <param name="triggers">Number of times to trigger (-1 for unlimited).</param>
-        /// <param name="listenerID">Optional listener ID.</param>
-        /// <param name="onFailure">Callback if registration fails.</param>
-        /// <param name="dispatcher">Optional dispatcher instance.</param>
-        /// <returns>The listener's unique identifier.</returns>
-        public static System.Guid Register(LSListener<OnErrorEvent> listener, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-            dispatcher = dispatcher ?? LSDispatcher.Instance;
-            ILSEventable[] instances = new ILSEventable[0];
-            return dispatcher.Register<OnErrorEvent>(listener, instances, triggers, listenerID, onFailure);
-        }
     }
 
     /// <summary>
@@ -89,21 +59,6 @@ public static class LSSignals {
         /// </summary>
         /// <param name="message">The warning message.</param>
         public OnWarningEvent(string message) : base(System.Guid.NewGuid()) => Message = message ?? string.Empty;
-
-        /// <summary>
-        /// Registers a listener for warning events.
-        /// </summary>
-        /// <param name="listener">The listener delegate.</param>
-        /// <param name="triggers">Number of times to trigger (-1 for unlimited).</param>
-        /// <param name="listenerID">Optional listener ID.</param>
-        /// <param name="onFailure">Callback if registration fails.</param>
-        /// <param name="dispatcher">Optional dispatcher instance.</param>
-        /// <returns>The listener's unique identifier.</returns>
-        public static System.Guid Register(LSListener<OnWarningEvent> listener, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-            dispatcher = dispatcher ?? LSDispatcher.Instance;
-            ILSEventable[] instances = new ILSEventable[0];
-            return dispatcher.Register<OnWarningEvent>(listener, instances, triggers, listenerID, onFailure);
-        }
     }
 
     /// <summary>
@@ -215,7 +170,6 @@ public static class LSSignals {
     /// <returns>True if dispatched successfully.</returns>
     /// <exception cref="LSNotificationException">Thrown if no listeners are registered.</exception>
     public static bool Error(string message, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        if (LSEvent.GetListenersCount<OnErrorEvent>() == 0) throw new LSNotificationException($"no_error_handler:{message}");
         OnErrorEvent @event = new OnErrorEvent(message);
         @event.FailureCallback += onFailure;
         return @event.Dispatch(onFailure, dispatcher);
@@ -243,7 +197,6 @@ public static class LSSignals {
     /// <returns>True if dispatched successfully.</returns>
     /// <exception cref="LSNotificationException">Thrown if no listeners are registered.</exception>
     public static bool Warning(string message, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        if (LSEvent.GetListenersCount<OnWarningEvent>() == 0) throw new LSNotificationException($"no_warning_handler:{message}");
         OnWarningEvent @event = new OnWarningEvent(message);
         return @event.Dispatch(onFailure, dispatcher);
     }
@@ -270,7 +223,6 @@ public static class LSSignals {
     /// <returns>True if dispatched successfully.</returns>
     /// <exception cref="LSNotificationException">Thrown if no listeners are registered.</exception>
     public static bool Print(string message, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        if (LSEvent.GetListenersCount<OnPrintEvent>() == 0) throw new LSNotificationException($"no_print_handler:{message}");
         OnPrintEvent @event = new OnPrintEvent(message);
         @event.FailureCallback += onFailure;
         return @event.Dispatch(onFailure, dispatcher);
@@ -302,7 +254,6 @@ public static class LSSignals {
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <exception cref="LSNotificationException">Thrown if no listeners are registered.</exception>
     public static void Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        if (LSEvent.GetListenersCount<OnNotifyEvent>() == 0) throw new LSNotificationException(message);
         OnNotifyEvent @event = new OnNotifyEvent(message, description, allowDismiss, timeout);
         @event.SuccessCallback += onSuccess;
         @event.FailureCallback += onFailure;
@@ -320,7 +271,6 @@ public static class LSSignals {
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
     public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        if (LSEvent.GetListenersCount<OnConfirmationEvent>() == 0) throw new LSNotificationException("no_confirmation_handler");
         OnConfirmationEvent @event = new OnConfirmationEvent(title, description, buttonConfirmationLabel, buttonConfirmationCallback);
         @event.FailureCallback += onFailure;
         return @event.Dispatch(onFailure, dispatcher);
@@ -339,7 +289,6 @@ public static class LSSignals {
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
     public static bool ConfirmationCancel(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        if (LSEvent.GetListenersCount<OnConfirmationEvent>() == 0) throw new LSNotificationException("no_confirmation_handler");
         OnConfirmationEvent @event = new OnConfirmationEvent(title, description, buttonConfirmationLabel, buttonConfirmationCallback, buttonCancelLabel, buttonCancelCallback);
         @event.FailureCallback += onFailure;
         return @event.Dispatch(onFailure, dispatcher);

@@ -86,12 +86,12 @@ public partial class LSDispatcher {
     /// <returns>The identifier of the registered listener.</returns>
     /// <exception cref="LSArgumentNullException">Thrown if the listener is null.</exception>
     /// <exception cref="LSException">Thrown if the event type is invalid, or if any errors occur during registration.</exception>
-    public System.Guid Register<TEvent>(LSListener<TEvent> listener, ILSEventable[] instances, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null) where TEvent : LSEvent {
+    public System.Guid Register<TEvent>(LSListener<TEvent> listener, ILSEventable[]? instances = null, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null) where TEvent : LSEvent {
         if (listener == null) {
             onFailure?.Invoke($"dispatcher_register_listener_cannot_be_null");
             return System.Guid.Empty;
         }
-        ListenerGroupType groupType = instances.Length == 0 ? ListenerGroupType.STATIC : instances.Length == 1 ? ListenerGroupType.SINGLE : ListenerGroupType.MULTI;
+        ListenerGroupType groupType = instances == null || instances.Length == 0 ? ListenerGroupType.STATIC : instances.Length == 1 ? ListenerGroupType.SINGLE : ListenerGroupType.MULTI;
         ListenerGroupEntry group = ListenerGroupEntry.Create(LSEventType.Get(typeof(TEvent)), groupType, instances);
         if (_listeners.TryGetValue(group.GetHashCode(), out var existingGroup) == false) {
             if (_listeners.TryAdd(group.GetHashCode(), group) == false) {

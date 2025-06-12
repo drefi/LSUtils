@@ -6,7 +6,7 @@ public abstract class LSState<TState, TContext> : ILSState where TState : LSStat
     public TContext Context { get; protected set; }
     public virtual string ClassName => nameof(LSState<TState, TContext>);
 
-    protected virtual void onInitialize(System.Guid listenerID, OnInitializeEvent @event) { }
+    protected virtual void onInitialize(System.Guid listenerID, OnInitializeEvent<TState> @event) { }
     protected virtual void onEnter(System.Guid listenerID, OnEnterEvent @event) { }
     protected virtual void onExit(System.Guid listenerID, OnExitEvent @event) { }
     protected LSState(TContext context) {
@@ -16,10 +16,8 @@ public abstract class LSState<TState, TContext> : ILSState where TState : LSStat
 
     public bool Initialize(LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
         ILSEventable[] instances = new ILSEventable[] { Context, this };
-        LSEvent.Register<OnInitializeEvent<TState>>(onInitialize, new ILSEventable[] { this }, 1, default, onFailure, dispatcher);
-        LSEvent.Register<OnEnterEvent>(onEnter, instances, -1, default, onFailure, dispatcher);
-        LSEvent.Register<OnExitEvent>(onExit, instances, -1, default, onFailure, dispatcher);
-        OnInitializeEvent @event = OnInitializeEvent.Create<TState>((TState)this, onSuccess, onFailure);
+        var @event = OnInitializeEvent.Create<TState>((TState)this, onSuccess, onFailure);
+        onInitialize(default, @event);
         return @event.Dispatch(onFailure, dispatcher);
     }
     public void Enter<T>(LSAction<T>? enterCallback = null, LSAction<T>? exitCallback = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) where T : ILSState {
@@ -27,7 +25,8 @@ public abstract class LSState<TState, TContext> : ILSState where TState : LSStat
         LSAction? successCallback = enterCallback == null ? null : new LSAction(() => enterCallback((T)(object)this));
         if (this is not TState stateInstance)
             throw new System.InvalidCastException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
-        OnEnterEvent @event = new OnEnterEvent(Context, stateInstance);
+        var @event = new OnEnterEvent(Context, stateInstance);
+        onEnter(default, @event);
         @event.SuccessCallback += successCallback;
         @event.FailureCallback += onFailure;
         @event.Dispatch(onFailure, dispatcher);
@@ -35,12 +34,10 @@ public abstract class LSState<TState, TContext> : ILSState where TState : LSStat
     public void Exit(LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
         if (this is not TState stateInstance)
             throw new System.InvalidCastException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
-        OnExitEvent @event = new OnExitEvent(Context, stateInstance);
-        LSAction? successCallback = onSuccess != null || _exitCallback != null ? new LSAction(() => {
-            _exitCallback?.Invoke(this);
-            onSuccess?.Invoke();
-        }) : null;
-        @event.SuccessCallback += successCallback;
+        var @event = new OnExitEvent(Context, stateInstance);
+        onExit(default, @event);
+        if (_exitCallback != null) @event.SuccessCallback += () => _exitCallback(this);
+        if (onSuccess != null) @event.SuccessCallback += onSuccess;
         @event.FailureCallback += onFailure;
         @event.Dispatch(onFailure, dispatcher);
     }
