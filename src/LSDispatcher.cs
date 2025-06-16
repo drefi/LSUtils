@@ -35,7 +35,7 @@ public partial class LSDispatcher {
                 }
             }
         } else {
-            LSEvent.SetDelayHandler(delayHandler);
+            LSEvent.setDelayHandler(delayHandler);
         }
     }
 
@@ -52,24 +52,24 @@ public partial class LSDispatcher {
     /// <summary>
     /// Initializes a new instance of the <see cref="LSDispatcher"/> class.
     /// </summary>
-    internal LSDispatcher() { }
-    internal LSDispatcher(LSAction<float, LSAction> delayHandler) {
-        LSEvent.SetDelayHandler(delayHandler);
+    protected LSDispatcher() { }
+    public LSDispatcher(LSAction<float, LSAction> delayHandler) {
+        LSEvent.setDelayHandler(delayHandler);
     }
 
     internal bool Dispatch(ListenerGroupEntry searchGroup, LSEvent @event, LSMessageHandler? onFailure = null) {
         try {
-            if (@event == null) throw new LSException("event_null");
-            if (@event.IsCancelled || @event.IsDone) throw new LSException($"event{(@event.IsCancelled ? "_cancelled" : "_done")}");
+            if (@event == null) throw new LSException("{{event_null}}");
+            if (@event.IsCancelled || @event.IsDone) throw new LSException($"{{event{(@event.IsCancelled ? "_cancelled" : "_done")}}}");
             LSEventType eventType = LSEventType.Get(@event.GetType());
             var matches = _listeners.Where(entry => entry.Value.Contains(searchGroup));
             foreach (var match in matches) {
                 if (match.Value.NotifyListeners(@event) == false) return false;
             }
-            if (@event.Signal(out _, onFailure) == false) throw new LSException("last_signal_failed");
+            if (@event.Signal(out _, onFailure) == false) throw new LSException($"{{event_count}}:{@event.Count}");
             return true;
         } catch (LSException e) {
-            onFailure?.Invoke($"dispatch_{e.Message}");
+            onFailure?.Invoke($"{{dispatch}}{e.Message}");
             return false;
         }
     }
@@ -87,41 +87,45 @@ public partial class LSDispatcher {
     /// <exception cref="LSArgumentNullException">Thrown if the listener is null.</exception>
     /// <exception cref="LSException">Thrown if the event type is invalid, or if any errors occur during registration.</exception>
     public System.Guid Register<TEvent>(LSListener<TEvent> listener, ILSEventable[]? instances = null, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null) where TEvent : LSEvent {
-        if (listener == null) {
-            onFailure?.Invoke($"dispatcher_register_listener_cannot_be_null");
+        try {
+            if (listener == null) throw new LSException($"{{listener_null}}");
+            ListenerGroupType groupType = ListenerGroupEntry.GetGroupType(instances);;
+            ListenerGroupEntry group = ListenerGroupEntry.Create(LSEventType.Get(typeof(TEvent)), groupType, instances);
+            if (_listeners.TryGetValue(group.GetHashCode(), out var existingGroup) == false) {
+                if (_listeners.TryAdd(group.GetHashCode(), group) == false) throw new LSException($"{{add_new_group_failed_{groupType}}}:{group.GetHashCode()}");
+            } else group = existingGroup;
+            if (listenerID == default || listenerID == System.Guid.Empty) listenerID = System.Guid.NewGuid();
+            if (group.AddListener(listenerID, listener, triggers) == false) throw new LSException($"{{group_{group.GroupType}_failed_register_listener}}:{listenerID}");
+            return listenerID;
+        } catch (LSException e) {
+            onFailure?.Invoke($"{{dispatcher_register}}{e.Message}");
             return System.Guid.Empty;
         }
-        ListenerGroupType groupType = instances == null || instances.Length == 0 ? ListenerGroupType.STATIC : instances.Length == 1 ? ListenerGroupType.SINGLE : ListenerGroupType.MULTI;
-        ListenerGroupEntry group = ListenerGroupEntry.Create(LSEventType.Get(typeof(TEvent)), groupType, instances);
-        if (_listeners.TryGetValue(group.GetHashCode(), out var existingGroup) == false) {
-            if (_listeners.TryAdd(group.GetHashCode(), group) == false) {
-                onFailure?.Invoke($"dispatcher_failed_to_add_new_group");
-                return System.Guid.Empty;
-            }
-        } else group = existingGroup;
-        if (listenerID == default || listenerID == System.Guid.Empty) listenerID = System.Guid.NewGuid();
-        if (group.AddListener(listenerID, listener, triggers) == false) {
-            onFailure?.Invoke($"dispatcher_failed_to_register_listener");
-            return System.Guid.Empty;
-        }
-        return listenerID;
+
     }
 
     public bool Unregister(System.Guid listenerID, LSMessageHandler? onFailure = null) {
-        var match = _listeners.Where(g => g.Value.GetListeners().Contains(listenerID));
-        return match.Any(entry => entry.Value.RemoveListener(listenerID, onFailure));
+        try {
+            var match = _listeners.Where(g => g.Value.GetListeners().Contains(listenerID));
+            return match.Any(entry => entry.Value.RemoveListener(listenerID, onFailure));
+        } catch (LSException e) {
+            onFailure?.Invoke($"{{dispatcher_unregister}}{e.Message}");
+            return false;
+        }
     }
 
     public bool Unregister<TEvent>(ILSEventable[]? instances = null, LSMessageHandler? onFailure = null) where TEvent : LSEvent {
-        LSEventType eventType = LSEventType.Get<TEvent>();
-        ListenerGroupType groupType = ListenerGroupEntry.GetGroupType(instances);
-        ListenerGroupEntry search = ListenerGroupEntry.Create(eventType, groupType, instances);
-        var match = _listeners.Where(entry => entry.Value.Contains(search));
-        if (match.Count() == 0) {
-            onFailure?.Invoke($"dispatcher_unregister_found_no_matching_listeners");
+        try {
+            LSEventType eventType = LSEventType.Get<TEvent>();
+            ListenerGroupType groupType = ListenerGroupEntry.GetGroupType(instances);
+            ListenerGroupEntry search = ListenerGroupEntry.Create(eventType, groupType, instances);
+            var match = _listeners.Where(entry => entry.Value.Contains(search));
+            if (match.Count() == 0) throw new LSException($"no_listeners_for_{typeof(TEvent)}");
+            return match.Any(entry => _listeners.TryRemove(entry.Key, out _));
+        } catch (LSException e) {
+            onFailure?.Invoke($"{{dispatcher_unregister}}{e.Message}");
             return false;
         }
-        return match.Any(entry => _listeners.TryRemove(entry.Key, out _));
     }
     public int GetListenersCount(LSEventType eventType, ListenerGroupType groupType, ILSEventable[]? instances = null) {
         var searchGroup = ListenerGroupEntry.Create(eventType, groupType, instances);

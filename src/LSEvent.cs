@@ -3,7 +3,7 @@ namespace LSUtils;
 public abstract class LSEvent {
     #region Fields
     protected static LSAction<float, LSAction>? _delayHandler;
-    internal static void SetDelayHandler(LSAction<float, LSAction> handler) => _delayHandler = handler;
+    internal static void setDelayHandler(LSAction<float, LSAction> handler) => _delayHandler = handler;
     private readonly Semaphore _semaphore;
     protected LSDispatcher? _dispatcher;
     public virtual string ClassName => nameof(LSEvent);
@@ -59,6 +59,7 @@ public abstract class LSEvent {
             _delayHandler(delay, callback);
         }
     }
+    public void Signal() => _semaphore.Signal();
     public bool Signal(out System.Guid signalID, LSMessageHandler? onFailure = null) => _semaphore.Signal(out signalID, onFailure);
     public System.Guid[] Cancel(LSMessageHandler? onFailure = null) => _semaphore.Cancel(onFailure);
     public bool Failure(out System.Guid signalID, string msg, LSMessageHandler? onFailure = null) => _semaphore.Failure(out signalID, msg, onFailure);
@@ -114,11 +115,16 @@ public abstract class OnInitializeEvent : LSEvent<ILSEventable> {
 public class OnInitializeEvent<TInstance> : OnInitializeEvent where TInstance : ILSEventable {
     public new TInstance Instance => (TInstance)base.Instance!;
     public static OnInitializeEvent<TInstance> Create(TInstance? instance, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) {
-        if (instance == null) throw new LSArgumentNullException(nameof(instance), "Instance cannot be null for OnInitializeEvent.");
-        OnInitializeEvent<TInstance> @event = new OnInitializeEvent<TInstance>(instance);
-        @event.SuccessCallback += onSuccess;
-        @event.FailureCallback += onFailure;
-        return @event;
+        try {
+            if (instance == null) throw new LSArgumentNullException(nameof(instance), "{instance_null}");
+            OnInitializeEvent<TInstance> @event = new OnInitializeEvent<TInstance>(instance);
+            @event.SuccessCallback += onSuccess;
+            @event.FailureCallback += onFailure;
+            return @event;
+        } catch (LSException e) {
+            onFailure?.Invoke($"{{on_initialize_event_create}}{e.Message}");
+            return null!;
+        }
     }
     protected OnInitializeEvent(TInstance instance) : base(instance) { }
 

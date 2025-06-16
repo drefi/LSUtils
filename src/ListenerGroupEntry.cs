@@ -50,9 +50,9 @@ public class ListenerGroupEntry {
             //Will only be true if this GroupType also is static (meaning I'm looking for the static group)
             ListenerGroupType.STATIC => GroupType == ListenerGroupType.STATIC,
             //Looking for groups with single instances, otherInstances may have more than one searching instance, in this case if any instance match in this instances it's true
-            ListenerGroupType.SINGLE => instances.Length == 1 && otherInstances.Any(instance => instances.Contains(instance)),
+            ListenerGroupType.SINGLE => GroupType == ListenerGroupType.STATIC || (instances.Length == 1 && otherInstances.Any(instance => instances.Contains(instance))),
             //Looking for groups with multiple keys, this requires that this GroupType is also MULTI, otherInstances must be multiple of instances, for each chunk in otherInstances, check if the chunk is equal to instances
-            ListenerGroupType.MULTI => GroupType == ListenerGroupType.MULTI && otherInstances.Length % instances.Length == 0 && otherInstances.Chunk(instances.Length).All(chunk => chunk.ToHashSet().SetEquals(instances.ToHashSet())),
+            ListenerGroupType.MULTI => GroupType == ListenerGroupType.STATIC || (GroupType == ListenerGroupType.MULTI && otherInstances.Length % instances.Length == 0 && otherInstances.Chunk(instances.Length).All(chunk => chunk.ToHashSet().SetEquals(instances.ToHashSet()))),
             //Search for a subset of otherInstances (e.g: otherInstances[A,B,C] == [A,B,C] || [A,B] || [A] / otherInstances[A,B] == [A,B] || [A]) 
             // NOTE: STATIC is always a subset, SUBSET cannot be used with multipe chunks
             ListenerGroupType.SUBSET => instances.ToHashSet().IsSubsetOf(otherInstances.ToHashSet()),
