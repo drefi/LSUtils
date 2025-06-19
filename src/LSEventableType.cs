@@ -39,6 +39,10 @@ public class LSEventableType : ILSEventable {
 }
 public class LSEventableType<TEventable> : LSEventableType where TEventable : ILSEventable {
     protected LSEventableType() : base(typeof(TEventable)) { }
+
+    public static LSEventableType Get() {
+        return LSEventableType.Get(typeof(TEventable));
+    }
 }
 public class LSEventType {
     public System.Type EventType { get; }
