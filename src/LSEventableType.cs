@@ -34,6 +34,11 @@ public class LSEventableType : ILSEventable {
         }
         return instance;
     }
+
+    public void Cleanup() {
+        throw new NotImplementedException();
+    }
+
     static readonly ConcurrentDictionary<System.Type, LSEventableType> _eventTypes = new ConcurrentDictionary<System.Type, LSEventableType>();
 
 }

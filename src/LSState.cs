@@ -41,6 +41,10 @@ public abstract class LSState<TState, TContext> : ILSState where TState : LSStat
         @event.FailureCallback += onFailure;
         @event.Dispatch(onFailure, dispatcher);
     }
+
+    public void Cleanup() {
+        throw new NotImplementedException();
+    }
     #region Events
     public class OnEnterEvent : LSEvent<TContext, TState> {
         public TContext Context { get; }

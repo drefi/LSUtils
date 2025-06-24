@@ -130,6 +130,10 @@ public class TickManagement : ILSEventable {
         @event.Dispatch(_onFailure, _dispatcher);
     }
 
+    public void Cleanup() {
+        throw new NotImplementedException();
+    }
+
     #region Events
     public class OnTickEvent : LSEvent {
         public event LSTickUpdateHandler? OnTickUpdateEvent;

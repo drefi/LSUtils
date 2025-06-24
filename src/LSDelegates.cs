@@ -11,7 +11,7 @@ public delegate void LSAction();
 /// </summary>
 /// <typeparam name="T">The type of the parameter.</typeparam>
 /// <param name="obj">The parameter.</param>
-public delegate void LSAction<in T>(T? obj);
+public delegate void LSAction<in T>(T obj);
 
 /// <summary>
 /// A delegate with two parameters.

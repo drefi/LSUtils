@@ -40,7 +40,7 @@ public interface ILSEventable {
     /// <param name="onFailure">Handler for failure scenarios.</param>
     /// <param name="dispatcher">The dispatcher to use for event handling. If null, the default dispatcher is used.</param>
     bool Initialize(LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null);
-    //void Cleanup();
+    void Cleanup();
 }
 
 public interface ILSContext : ILSEventable {
