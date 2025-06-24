@@ -77,9 +77,7 @@ public class Semaphore {
             _queue.Enqueue(signalID);
         }
     }
-    public void Signal() {
-        if (Signal(out System.Guid signalID) == false) throw new LSException($"{{semaphore_signal_failed}}:{signalID}");
-    }
+    public void Signal() => Signal(out _);
     public bool Signal(out System.Guid signalID, LSMessageHandler? onFailure = null) {
         lock (_semaphoreLock) {
             signalID = System.Guid.Empty;
