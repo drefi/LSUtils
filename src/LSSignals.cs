@@ -26,7 +26,10 @@ public static class LSSignals {
         /// Initializes a new instance of the <see cref="OnPrintEvent"/> class.
         /// </summary>
         /// <param name="message">The message to print.</param>
-        public OnPrintEvent(string message) : base(System.Guid.NewGuid()) => Message = message;
+        protected OnPrintEvent(string message, LSEventOptions? eventOptions = null) : base(eventOptions) => Message = message;
+        public static OnPrintEvent Create(string message, LSEventOptions? eventOptions = null) {
+            return new OnPrintEvent(message, eventOptions);
+        }
     }
 
     /// <summary>
@@ -42,7 +45,11 @@ public static class LSSignals {
         /// Initializes a new instance of the <see cref="OnErrorEvent"/> class.
         /// </summary>
         /// <param name="message">The error message.</param>
-        public OnErrorEvent(string message) : base(System.Guid.NewGuid()) => Message = message ?? string.Empty;
+        protected OnErrorEvent(string message, LSEventOptions? eventOptions) : base(eventOptions) => Message = message ?? string.Empty;
+
+        public static OnErrorEvent Create(string message, LSEventOptions? eventOptions = null) {
+            return new OnErrorEvent(message, eventOptions);
+        }
     }
 
     /// <summary>
@@ -58,7 +65,11 @@ public static class LSSignals {
         /// Initializes a new instance of the <see cref="OnWarningEvent"/> class.
         /// </summary>
         /// <param name="message">The warning message.</param>
-        public OnWarningEvent(string message) : base(System.Guid.NewGuid()) => Message = message ?? string.Empty;
+        protected OnWarningEvent(string message, LSEventOptions? eventOptions = null) : base(eventOptions) => Message = message ?? string.Empty;
+
+        public static OnWarningEvent Create(string message, LSEventOptions? eventOptions = null) {
+            return new OnWarningEvent(message, eventOptions);
+        }
     }
 
     /// <summary>
@@ -97,7 +108,7 @@ public static class LSSignals {
         /// <summary>
         /// Initializes a new instance of the <see cref="OnConfirmationEvent"/> class with only a confirm button.
         /// </summary>
-        public OnConfirmationEvent(string title, string description, string buttonConfirmLabel, LSAction buttonConfirmCallback) : base(System.Guid.NewGuid()) {
+        public OnConfirmationEvent(string title, string description, string buttonConfirmLabel, LSAction buttonConfirmCallback, LSEventOptions? eventOptions = null) : base(eventOptions) {
             Title = title;
             Description = description;
             ButtonConfirmLabel = buttonConfirmLabel;
@@ -110,7 +121,7 @@ public static class LSSignals {
         /// <summary>
         /// Initializes a new instance of the <see cref="OnConfirmationEvent"/> class with confirm and cancel buttons.
         /// </summary>
-        public OnConfirmationEvent(string title, string description, string buttonConfirmLabel, LSAction buttonConfirmCallback, string buttonCancelLabel, LSAction buttonCancelCallback) : base(System.Guid.NewGuid()) {
+        public OnConfirmationEvent(string title, string description, string buttonConfirmLabel, LSAction buttonConfirmCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSEventOptions? eventOptions = null) : base(eventOptions) {
             Title = title;
             Description = description;
             ButtonConfirmLabel = buttonConfirmLabel;
@@ -149,11 +160,14 @@ public static class LSSignals {
         /// <param name="description">The notification description.</param>
         /// <param name="allowDismiss">Whether the notification can be dismissed.</param>
         /// <param name="timeout">Timeout in seconds.</param>
-        public OnNotifyEvent(string message, string description = "", bool allowDismiss = true, double timeout = 3f) : base(System.Guid.NewGuid()) {
+        public OnNotifyEvent(string message, string description = "", bool allowDismiss = true, double timeout = 3f, LSEventOptions? eventOptions = null) : base(eventOptions) {
             Description = description;
             Message = message;
             AllowDismiss = allowDismiss;
             Timeout = timeout;
+        }
+        public static OnNotifyEvent Create(string message, string description = "", bool allowDismiss = true, double timeout = 3f, LSEventOptions? eventOptions = null) {
+            return new OnNotifyEvent(message, description, allowDismiss, timeout, eventOptions);
         }
     }
 
@@ -165,27 +179,13 @@ public static class LSSignals {
     /// Dispatches an error event with the provided message.
     /// </summary>
     /// <param name="message">The error message.</param>
-    /// <param name="onFailure">Callback if dispatch fails.</param>
+    /// <param name="errorHandler">Error Handler.</param>
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
     /// <exception cref="LSNotificationException">Thrown if no listeners are registered.</exception>
-    public static bool Error(string message, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        OnErrorEvent @event = new OnErrorEvent(message);
-        @event.FailureCallback += onFailure;
-        return @event.Dispatch(onFailure, dispatcher);
-    }
-
-    /// <summary>
-    /// Dispatches an error event with a custom error callback.
-    /// </summary>
-    /// <param name="errorCallback">The error callback to invoke.</param>
-    /// <param name="message">The error message.</param>
-    /// <param name="onFailure">Callback if dispatch fails.</param>
-    /// <param name="dispatcher">Optional dispatcher instance.</param>
-    /// <returns>True if dispatched successfully.</returns>
-    public static bool Error(LSMessageHandler? errorCallback, string message, LSDispatcher? dispatcher = null) {
-        if (errorCallback == null) return Error(message, (msg) => false, dispatcher);
-        return errorCallback(message);
+    public static bool Error(string message, LSEventOptions? eventOptions = null) {
+        OnErrorEvent @event = OnErrorEvent.Create(message, eventOptions);
+        return @event.Dispatch();
     }
 
     /// <summary>
@@ -196,50 +196,22 @@ public static class LSSignals {
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
     /// <exception cref="LSNotificationException">Thrown if no listeners are registered.</exception>
-    public static bool Warning(string message, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        OnWarningEvent @event = new OnWarningEvent(message);
-        return @event.Dispatch(onFailure, dispatcher);
-    }
-
-    /// <summary>
-    /// Dispatches a warning event with a custom warning callback.
-    /// </summary>
-    /// <param name="warningCallback">The warning callback to invoke.</param>
-    /// <param name="message">The warning message.</param>
-    /// <param name="onFailure">Callback if dispatch fails.</param>
-    /// <param name="dispatcher">Optional dispatcher instance.</param>
-    /// <returns>True if dispatched successfully.</returns>
-    public static bool Warning(LSMessageHandler? warningCallback, string message, LSDispatcher? dispatcher = null) {
-        if (warningCallback == null) return Warning(message, (msg) => false, dispatcher);
-        return warningCallback(message);
+    public static bool Warning(string message, LSEventOptions? eventOptions = null) {
+        OnWarningEvent @event = OnWarningEvent.Create(message, eventOptions);
+        return @event.Dispatch();
     }
 
     /// <summary>
     /// Dispatches a print event with the provided message.
     /// </summary>
     /// <param name="message">The print message.</param>
-    /// <param name="onFailure">Callback if dispatch fails.</param>
+    /// <param name="errorHandler">Error handler.</param>
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
     /// <exception cref="LSNotificationException">Thrown if no listeners are registered.</exception>
-    public static bool Print(string message, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        OnPrintEvent @event = new OnPrintEvent(message);
-        @event.FailureCallback += onFailure;
-        return @event.Dispatch(onFailure, dispatcher);
-    }
-
-    /// <summary>
-    /// Dispatches a print event with a custom print callback.
-    /// </summary>
-    /// <param name="printCallback">The print callback to invoke.</param>
-    /// <param name="message">The print message.</param>
-    /// <param name="onFailure">Callback if dispatch fails.</param>
-    /// <param name="dispatcher">Optional dispatcher instance.</param>
-    /// <returns>True if dispatched successfully.</returns>
-    public static bool Print(LSMessageHandler? printCallback, string message, LSDispatcher? dispatcher = null) {
-        if (printCallback == null) return Print(message, (msg) => false, dispatcher);
-        printCallback(message);
-        return true;
+    public static bool Print(string message, LSEventOptions? eventOptions = null) {
+        OnPrintEvent @event = OnPrintEvent.Create(message, eventOptions);
+        return @event.Dispatch();
     }
 
     /// <summary>
@@ -250,14 +222,12 @@ public static class LSSignals {
     /// <param name="allowDismiss">Indicates if the notification can be dismissed.</param>
     /// <param name="timeout">Timeout for the notification (in seconds).</param>
     /// <param name="onSuccess">Callback if dispatch succeeds.</param>
-    /// <param name="onFailure">Callback if dispatch fails.</param>
+    /// <param name="errorHandler">Callback if dispatch fails.</param>
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <exception cref="LSNotificationException">Thrown if no listeners are registered.</exception>
-    public static void Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        OnNotifyEvent @event = new OnNotifyEvent(message, description, allowDismiss, timeout);
-        @event.SuccessCallback += onSuccess;
-        @event.FailureCallback += onFailure;
-        @event.Dispatch(onFailure, dispatcher);
+    public static bool Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSEventOptions? eventOptions = null) {
+        OnNotifyEvent @event = OnNotifyEvent.Create(message, description, allowDismiss, timeout, eventOptions);
+        return @event.Dispatch();
     }
 
     /// <summary>
@@ -267,13 +237,12 @@ public static class LSSignals {
     /// <param name="description">The confirmation description.</param>
     /// <param name="buttonConfirmationLabel">The label for the confirmation button.</param>
     /// <param name="buttonConfirmationCallback">The callback for the confirmation button.</param>
-    /// <param name="onFailure">Callback if dispatch fails.</param>
+    /// <param name="errorHandler">Callback if dispatch fails.</param>
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
-    public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        OnConfirmationEvent @event = new OnConfirmationEvent(title, description, buttonConfirmationLabel, buttonConfirmationCallback);
-        @event.FailureCallback += onFailure;
-        return @event.Dispatch(onFailure, dispatcher);
+    public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSEventOptions? eventOptions = null) {
+        OnConfirmationEvent @event = new OnConfirmationEvent(title, description, buttonConfirmationLabel, buttonConfirmationCallback, eventOptions);
+        return @event.Dispatch();
     }
 
     /// <summary>
@@ -285,13 +254,12 @@ public static class LSSignals {
     /// <param name="buttonConfirmationCallback">The callback for the confirmation button.</param>
     /// <param name="buttonCancelLabel">The label for the cancel button.</param>
     /// <param name="buttonCancelCallback">The callback for the cancel button.</param>
-    /// <param name="onFailure">Callback if dispatch fails.</param>
+    /// <param name="errorHandler">Callback if dispatch fails.</param>
     /// <param name="dispatcher">Optional dispatcher instance.</param>
     /// <returns>True if dispatched successfully.</returns>
-    public static bool ConfirmationCancel(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        OnConfirmationEvent @event = new OnConfirmationEvent(title, description, buttonConfirmationLabel, buttonConfirmationCallback, buttonCancelLabel, buttonCancelCallback);
-        @event.FailureCallback += onFailure;
-        return @event.Dispatch(onFailure, dispatcher);
+    public static bool ConfirmationCancel(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSEventOptions? eventOptions = null) {
+        OnConfirmationEvent @event = new OnConfirmationEvent(title, description, buttonConfirmationLabel, buttonConfirmationCallback, buttonCancelLabel, buttonCancelCallback, eventOptions);
+        return @event.Dispatch();
     }
 
     #endregion

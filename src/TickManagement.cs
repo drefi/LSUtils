@@ -20,8 +20,7 @@ public class TickManagement : ILSEventable {
     protected bool _isPaused;
     protected double _tickTimer;
     protected OnTickEvent? _eventInstance;
-    LSDispatcher? _dispatcher;
-    LSMessageHandler? _onFailure;
+    LSEventOptions? _managerEventOptions = new LSEventOptions();
     public readonly float TICK_VALUE;
     public string ClassName => nameof(TickManagement);
     public System.Guid ID { get; protected set; }
@@ -32,26 +31,26 @@ public class TickManagement : ILSEventable {
         ID = System.Guid.NewGuid();
     }
 
-    public bool Initialize(LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        _onFailure = onFailure!;
-        _dispatcher = dispatcher == null ? LSDispatcher.Instance : dispatcher;
-        LSAction callback = () => {
+    public bool Initialize(LSEventOptions? options = null) {
+        _managerEventOptions = new LSEventOptions() {
+            Dispatcher = options?.Dispatcher ?? LSDispatcher.Instance,
+            ErrorHandler = options?.ErrorHandler,
+        };
+        var @event = OnInitializeEvent.Create(this, _managerEventOptions);
+        @event.SuccessCallback += () => {
             _hasInitialized = true;
             _isPaused = true;
             _tickCount = 0;
             _resetTickCount = 0;
             _tickTimer = 0f;
             tickEvent(_tickCount);
-            onSuccess?.Invoke();
         };
-        var @event = OnInitializeEvent.Create(this, callback, onFailure);
-        return @event.Dispatch(_onFailure, _dispatcher);
+        return @event.Dispatch();
     }
     protected bool tickEvent(int tickCount) {
         _eventInstance?.Cancel();
-        _eventInstance = new OnTickEvent(tickCount);
-        _eventInstance.FailureCallback += _onFailure;
-        return _eventInstance.Dispatch(_onFailure, _dispatcher);
+        _eventInstance = new OnTickEvent(tickCount, _managerEventOptions!);
+        return _eventInstance.Dispatch();
     }
     /// <summary>
     /// Updates the tick count and notifies listeners of tick updates.
@@ -60,24 +59,21 @@ public class TickManagement : ILSEventable {
     /// <exception cref="LSException">Thrown if any errors occur during the update.</exception>
     public void Update(double delta) {
         if (_hasInitialized == false || _isPaused) return;
-        try {
-            double deltaTick = (float)delta * DeltaFactor;
-            _tickTimer += deltaTick;
-            float percentage = (float)(_tickTimer / TICK_VALUE);
-            if (percentage > 1f) {
-                percentage = 0f;
-                _tickTimer = 0;
-                _tickCount++;
-                if (_tickCount == int.MaxValue) {
-                    _resetTickCount++;
-                    _tickCount = 0;
-                }
-                tickEvent(_tickCount);
+
+        double deltaTick = (float)delta * DeltaFactor;
+        _tickTimer += deltaTick;
+        float percentage = (float)(_tickTimer / TICK_VALUE);
+        if (percentage > 1f) {
+            percentage = 0f;
+            _tickTimer = 0;
+            _tickCount++;
+            if (_tickCount == int.MaxValue) {
+                _resetTickCount++;
+                _tickCount = 0;
             }
-            _eventInstance?.update(deltaTick, percentage, _onFailure, _dispatcher);
-        } catch (LSException e) {
-            LSSignals.Error($"{ClassName}::Update::{e.Message}");
+            tickEvent(_tickCount);
         }
+        _eventInstance?.update(deltaTick, percentage, _managerEventOptions);
     }
     /// <summary>
     /// Updates the physics tick and notifies listeners of physics updates.
@@ -88,7 +84,7 @@ public class TickManagement : ILSEventable {
         float percentage = (float)(_tickTimer / TICK_VALUE);
         if (_hasInitialized == false || _isPaused) return;
         double deltaTick = (float)delta * DeltaFactor;
-        _eventInstance?.physicsUpdate(deltaTick, percentage, _onFailure, _dispatcher);
+        _eventInstance?.physicsUpdate(deltaTick, percentage, _managerEventOptions);
     }
     /// <summary>
     /// Starts the tick manager.
@@ -113,8 +109,8 @@ public class TickManagement : ILSEventable {
     public void TogglePause() {
         if (_hasInitialized == false) return;
         _isPaused = !_isPaused;
-        OnPauseEvent @event = new OnPauseEvent(_isPaused);
-        @event.Dispatch(_onFailure, _dispatcher);
+        OnPauseEvent @event = new OnPauseEvent(_isPaused, _managerEventOptions!);
+        @event.Dispatch();
     }
 
     /// <summary>
@@ -125,9 +121,8 @@ public class TickManagement : ILSEventable {
     public void SetDeltaFactor(int value) {
         if (DeltaFactor == value) return;
         DeltaFactor = value;
-        OnChangeDeltaFactorEvent @event = new OnChangeDeltaFactorEvent(DeltaFactor, _isPaused);
-        @event.FailureCallback += _onFailure;
-        @event.Dispatch(_onFailure, _dispatcher);
+        OnChangeDeltaFactorEvent @event = new OnChangeDeltaFactorEvent(DeltaFactor, _isPaused, _managerEventOptions!);
+        @event.Dispatch();
     }
 
     public void Cleanup() {
@@ -139,18 +134,18 @@ public class TickManagement : ILSEventable {
         public event LSTickUpdateHandler? OnTickUpdateEvent;
         public event LSTickUpdateHandler? OnTickPhysicsUpdateEvent;
         public int TickCount { get; protected set; }
-        internal OnTickEvent(int tickCount) : base(System.Guid.NewGuid()) => TickCount = tickCount;
-        internal void update(double deltaTick, float percentage, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-            OnTickUpdateEvent?.Invoke(deltaTick, percentage, onFailure, dispatcher);
+        internal OnTickEvent(int tickCount, LSEventOptions options) : base(options) => TickCount = tickCount;
+        internal void update(double deltaTick, float percentage, LSEventOptions? options = null) {
+            OnTickUpdateEvent?.Invoke(deltaTick, percentage, options);
         }
-        internal void physicsUpdate(double deltaTick, float percentage, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-            OnTickPhysicsUpdateEvent?.Invoke(deltaTick, percentage, onFailure, dispatcher);
+        internal void physicsUpdate(double deltaTick, float percentage, LSEventOptions? options = null) {
+            OnTickPhysicsUpdateEvent?.Invoke(deltaTick, percentage, options);
         }
     }
     public class OnChangeDeltaFactorEvent : LSEvent {
         public int Speed { get; protected set; }
         public bool IsPaused { get; protected set; }
-        public OnChangeDeltaFactorEvent(int speed, bool isPaused) : base(System.Guid.NewGuid()) {
+        public OnChangeDeltaFactorEvent(int speed, bool isPaused, LSEventOptions options) : base(options) {
             Speed = speed;
             IsPaused = isPaused;
         }
@@ -158,7 +153,7 @@ public class TickManagement : ILSEventable {
 
     public class OnPauseEvent : LSEvent {
         public bool IsPaused { get; protected set; }
-        public OnPauseEvent(bool isPaused) : base(System.Guid.NewGuid()) => IsPaused = isPaused;
+        public OnPauseEvent(bool isPaused, LSEventOptions options) : base(options) => IsPaused = isPaused;
     }
     #endregion
 }

@@ -36,10 +36,10 @@ public delegate bool LSMessageHandler(string? msg);
 /// <param name="listenerID">The identifier of the listener.</param>
 /// <param name="event">The event.</param>
 public delegate void LSListener<TEvent>(System.Guid listenerID, TEvent @event) where TEvent : LSEvent;
-
+//public delegate void LSListener(System.Guid listenerID, LSEvent @event);
 /// <summary>
 /// A delegate that updates a tick.
 /// </summary>
 /// <param name="deltaTick">The time since the last tick.</param>
 /// <param name="percentage">The percentage of the tick that has passed.</param>
-public delegate void LSTickUpdateHandler(double deltaTick, float percentage, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null);
+public delegate void LSTickUpdateHandler(double deltaTick, float percentage, LSEventOptions? options = null);

@@ -6,50 +6,48 @@ public abstract class LSState<TState, TContext> : ILSState where TState : LSStat
     public TContext Context { get; protected set; }
     public virtual string ClassName => nameof(LSState<TState, TContext>);
 
-    protected virtual void onInitialize(System.Guid listenerID, OnInitializeEvent<TState> @event) { }
-    protected virtual void onEnter(System.Guid listenerID, OnEnterEvent @event) { }
-    protected virtual void onExit(System.Guid listenerID, OnExitEvent @event) { }
+    protected virtual void onInitialize(OnInitializeEvent<TState> @event) { }
+    protected virtual void onEnter(OnEnterEvent @event) { }
+    protected virtual void onExit(OnExitEvent @event) { }
     protected LSState(TContext context) {
         ID = System.Guid.NewGuid();
         Context = context;
     }
 
-    public bool Initialize(LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
+    public bool Initialize(LSEventOptions? options = null) {
         ILSEventable[] instances = new ILSEventable[] { Context, this };
-        var @event = OnInitializeEvent.Create<TState>((TState)this, onSuccess, onFailure);
-        onInitialize(default, @event);
-        return @event.Dispatch(onFailure, dispatcher);
+        var @event = OnInitializeEvent.Create<TState>((TState)this, options);
+        onInitialize(@event);
+        return @event.Dispatch();
     }
-    public void Enter<T>(LSAction<T>? enterCallback = null, LSAction<T>? exitCallback = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) where T : ILSState {
-        _exitCallback = exitCallback == null ? null : new LSAction<ILSState>((state) => { exitCallback((T)(object)state!); });
+    public void Enter<T>(LSAction<T> enterCallback, LSAction<T> exitCallback, LSEventOptions options) where T : ILSState {
+        //TODO: Enter need to have an OnEnterEvent<TState> in the same way as OnInitializeEvent<TState>
+        _exitCallback = exitCallback == null ? null : new LSAction<ILSState>((state) => { exitCallback((T)(object)state); });
         LSAction? successCallback = enterCallback == null ? null : new LSAction(() => enterCallback((T)(object)this));
         if (this is not TState stateInstance)
             throw new System.InvalidCastException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
-        var @event = new OnEnterEvent(Context, stateInstance);
-        onEnter(default, @event);
+        var @event = new OnEnterEvent(Context, stateInstance, options);
+        onEnter(@event);
         @event.SuccessCallback += successCallback;
-        @event.FailureCallback += onFailure;
-        @event.Dispatch(onFailure, dispatcher);
+        @event.Dispatch();
     }
-    public void Exit(LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
+    public void Exit(LSEventOptions? options = null) {
         if (this is not TState stateInstance)
             throw new System.InvalidCastException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
-        var @event = new OnExitEvent(Context, stateInstance);
-        onExit(default, @event);
+        var @event = new OnExitEvent(Context, stateInstance, options);
+        onExit(@event);
         if (_exitCallback != null) @event.SuccessCallback += () => _exitCallback(this);
-        if (onSuccess != null) @event.SuccessCallback += onSuccess;
-        @event.FailureCallback += onFailure;
-        @event.Dispatch(onFailure, dispatcher);
+        @event.Dispatch();
     }
 
-    public void Cleanup() {
+    public virtual void Cleanup() {
         throw new NotImplementedException();
     }
     #region Events
     public class OnEnterEvent : LSEvent<TContext, TState> {
         public TContext Context { get; }
         public TState State { get; }
-        public OnEnterEvent(TContext context, TState instance) : base(context, instance) {
+        public OnEnterEvent(TContext context, TState instance, LSEventOptions? eventOptions) : base(context, instance, eventOptions) {
             Context = context;
             State = instance;
         }
@@ -57,7 +55,7 @@ public abstract class LSState<TState, TContext> : ILSState where TState : LSStat
     public class OnExitEvent : LSEvent<TContext, TState> {
         public TContext Context { get; }
         public TState State { get; }
-        public OnExitEvent(TContext context, TState instance) : base(context, instance) {
+        public OnExitEvent(TContext context, TState instance, LSEventOptions? options) : base(context, instance, options) {
             Context = context;
             State = instance;
         }

@@ -2,10 +2,11 @@ namespace LSUtils;
 
 public abstract class LSEvent {
     #region Fields
-    protected static LSAction<float, LSAction>? _delayHandler;
-    internal static void setDelayHandler(LSAction<float, LSAction> handler) => _delayHandler = handler;
-    private readonly Semaphore _semaphore;
-    protected LSDispatcher? _dispatcher;
+    // protected static LSAction<float, LSAction>? _delayHandler;
+    // internal static void setDelayHandler(LSAction<float, LSAction> handler) => _delayHandler = handler;
+    protected readonly Semaphore _semaphore;
+    //private readonly LSEventOptions _options;
+    protected readonly LSDispatcher _dispatcher;
     public virtual string ClassName => nameof(LSEvent);
     public virtual System.Guid ID { get; }
     public bool HasDispatched { get; protected set; }
@@ -22,55 +23,43 @@ public abstract class LSEvent {
         add { _semaphore.CancelCallback += value; }
         remove { _semaphore.CancelCallback -= value; }
     }
-    public event LSMessageHandler FailureCallback {
+    public event LSAction<string> FailureCallback {
         add { _semaphore.FailureCallback += value; }
         remove { _semaphore.FailureCallback -= value; }
     }
     #endregion
-    public LSEvent(System.Guid eventID) {
+    public LSEvent(LSEventOptions? options) {
+        options ??= new LSEventOptions();
+        ID = options.ID;
+        SuccessCallback += options.OnSuccess;
+        FailureCallback += options.OnFailure;
+        CancelCallback += options.OnCancel;
+        _dispatcher = options.Dispatcher == null ? LSDispatcher.Instance : options.Dispatcher;
+        GroupType = options.GroupType;
         _semaphore = Semaphore.Create();
-        ID = eventID == default || eventID == System.Guid.Empty ? System.Guid.NewGuid() : eventID;
-        GroupType = ListenerGroupType.STATIC;
     }
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LSEvent"/> class with the given instances and group type.
-    /// </summary>
-    /// <param name="instances">The instances to associate with this event.</param>
-    /// <param name="groupType">The type of group to associate with this event.</param>
-    /// <param name="eventID">An optional ID to assign to this event. If not specified, a new GUID is generated.</param>
-    public virtual bool Dispatch(LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        _dispatcher = dispatcher ?? LSDispatcher.Instance;
+    public virtual bool Dispatch() {
         ListenerGroupEntry searchGroup = ListenerGroupEntry.Create(LSEventType.Get(GetType()), GroupType, GetInstances());
         HasDispatched = true;
-        return _dispatcher.Dispatch(searchGroup, this, onFailure);
+        return _dispatcher.Dispatch(searchGroup, this);
     }
-
-    public void Wait(float delay = 0f, System.Guid signalID = default, LSAction? delayCallback = null, LSMessageHandler? onFailure = null) {
-        _semaphore.Wait(signalID, onFailure);
-        if (delay > 0) {
-            if (_delayHandler == null) {
-                onFailure?.Invoke($"delay_callback_null");
-                return;
-            }
-            LSAction callback = new LSAction(() => {
-                _semaphore.Signal(out _, onFailure);
-                delayCallback?.Invoke();
-            });
-            _delayHandler(delay, callback);
-        }
+    public void Wait() => _semaphore.Wait();
+    public void Wait(float delayValue, LSAction? delayCallback = null, System.Guid signalID = default) {
+        if (delayValue <= 0f) return;
+        _semaphore.Wait(signalID);
+        if (delayCallback != null) SuccessCallback += delayCallback;
+        _dispatcher.Delay(delayValue, _semaphore.Signal);
     }
     public void Signal() => _semaphore.Signal();
-    public bool Signal(out System.Guid signalID, LSMessageHandler? onFailure = null) => _semaphore.Signal(out signalID, onFailure);
-    public System.Guid[] Cancel(LSMessageHandler? onFailure = null) => _semaphore.Cancel(onFailure);
-    public bool Failure(out System.Guid signalID, string msg, LSMessageHandler? onFailure = null) => _semaphore.Failure(out signalID, msg, onFailure);
+    public int Signal(out System.Guid signalID) => _semaphore.Signal(out signalID);
+    public void Failure(string msg) => _semaphore.Failure(msg);
+    public int Failure(out System.Guid signalID, string msg) => _semaphore.Failure(out signalID, msg);
+    public void Cancel() => _semaphore.Cancel();
+    public int Cancel(out System.Guid[] remainingSignalIDs) => _semaphore.Cancel(out remainingSignalIDs);
     public virtual ILSEventable[] GetInstances() => new ILSEventable[0];
-    public LSMessageHandler GetFailureCallback() => _semaphore.GetFailureCallback();
-    public LSDispatcher GetDispatcher() {
-        return _dispatcher == null ? LSDispatcher.Instance : _dispatcher;
-    }
 }
 public abstract class LSEvent<TInstance> : LSEvent where TInstance : ILSEventable {
-    private readonly ILSEventable[] _instances;
+    protected ILSEventable[] _instances;
     /// <summary>
     /// Creates a new <see cref="LSEvent"/> with a primary instance.
     /// The event type is determined by the type parameter <typeparamref name="TInstance"/>.
@@ -79,11 +68,11 @@ public abstract class LSEvent<TInstance> : LSEvent where TInstance : ILSEventabl
     /// <param name="instance">The primary instance.</param>
     public TInstance? Instance => _instances.Length > 0 ? (TInstance)_instances[0] : default(TInstance);
 
-    protected LSEvent(System.Guid eventID, ILSEventable[] instances, ListenerGroupType groupType = ListenerGroupType.SUBSET) : base(eventID) {
-        GroupType = groupType;
+    protected LSEvent(ILSEventable[] instances, LSEventOptions? options) : base(options) {
         _instances = instances;
     }
-    protected LSEvent(TInstance instance) : this(System.Guid.NewGuid(), new ILSEventable[] { instance }, ListenerGroupType.SINGLE) {
+    protected LSEvent(ILSEventable instance, LSEventOptions? options) : base(options) {
+        _instances = new ILSEventable[] { instance };
     }
     public override ILSEventable[] GetInstances() {
         return _instances;
@@ -97,35 +86,51 @@ public abstract class LSEvent<TPrimaryInstance, TSecondaryInstance> : LSEvent<TP
     /// </summary>
     /// <param name="primaryInstance">The primary instance.</param>
     /// <param name="secondaryInstance">The secondary instance.</param>
-    protected LSEvent(TPrimaryInstance primaryInstance, TSecondaryInstance secondaryInstance, ListenerGroupType groupType = ListenerGroupType.SUBSET) : base(System.Guid.NewGuid(), (new ILSEventable[] { primaryInstance, secondaryInstance }).Where(x => x != null).ToArray(), groupType) {
-
+    //protected LSEvent(TPrimaryInstance primaryInstance, TSecondaryInstance secondaryInstance) : base(System.Guid.NewGuid(), (new ILSEventable[] { primaryInstance, secondaryInstance }).Where(x => x != null).ToArray(), groupType) { }
+    public TSecondaryInstance? SecondaryInstance => (TSecondaryInstance)_instances[1] ?? throw new LSException($"{{secondary_instance_null}}");
+    protected LSEvent(TPrimaryInstance primaryInstance, TSecondaryInstance secondaryInstance, LSEventOptions? options) : base(new ILSEventable[] { primaryInstance, secondaryInstance }, options) {
+        if (primaryInstance == null) throw new LSArgumentNullException(nameof(primaryInstance), "{primary_instance_null}");
+        if (secondaryInstance == null) throw new LSArgumentNullException(nameof(secondaryInstance), "{secondary_instance_null}");
     }
 }
 public abstract class OnInitializeEvent : LSEvent<ILSEventable> {
-    protected OnInitializeEvent(ILSEventable instance) : base(instance) { }
-
-    public static OnInitializeEvent<TInstance> Create<TInstance>(TInstance? instance, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) where TInstance : ILSEventable {
-        return OnInitializeEvent<TInstance>.Create(instance, onSuccess, onFailure);
+    public static OnInitializeEvent<TInstance> Create<TInstance>(TInstance instance, LSEventOptions? options) where TInstance : ILSEventable {
+        return OnInitializeEvent<TInstance>.Create(instance, options);
     }
     public static System.Guid Register<TInstance>(LSListener<OnInitializeEvent<TInstance>> listener, ILSEventable[] instances = null!, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) where TInstance : ILSEventable {
         dispatcher ??= LSDispatcher.Instance;
         return dispatcher.Register<OnInitializeEvent<TInstance>>(listener, instances, triggers, listenerID, onFailure);
     }
+
+    protected OnInitializeEvent(ILSEventable instance, LSEventOptions? options) : base(instance, options) { }
 }
 public class OnInitializeEvent<TInstance> : OnInitializeEvent where TInstance : ILSEventable {
     public new TInstance Instance => (TInstance)base.Instance!;
-    public static OnInitializeEvent<TInstance> Create(TInstance? instance, LSAction? onSuccess = null, LSMessageHandler? onFailure = null) {
-        try {
-            if (instance == null) throw new LSArgumentNullException(nameof(instance), "{instance_null}");
-            OnInitializeEvent<TInstance> @event = new OnInitializeEvent<TInstance>(instance);
-            @event.SuccessCallback += onSuccess;
-            @event.FailureCallback += onFailure;
-            return @event;
-        } catch (LSException e) {
-            onFailure?.Invoke($"{{on_initialize_event_create}}{e.Message}");
-            return null!;
-        }
+    public static OnInitializeEvent<TInstance> Create(TInstance instance, LSEventOptions? options) {
+        OnInitializeEvent<TInstance> @event = new OnInitializeEvent<TInstance>(instance, options);
+        return @event;
     }
-    protected OnInitializeEvent(TInstance instance) : base(instance) { }
+    protected OnInitializeEvent(TInstance instance, LSEventOptions? options) : base(instance, options) { }
 
+}
+public class LSEventOptions {
+    public LSEventOptions() {
+        OnFailure = (error) => ErrorHandler($"no_error_handler:{error}");
+    }
+    public LSEventOptions(LSEventOptions options) : this() {
+        ID = options.ID;
+        Dispatcher = options.Dispatcher ?? LSDispatcher.Instance;
+        GroupType = options.GroupType;
+        ErrorHandler = options.ErrorHandler;
+        OnSuccess = options.OnSuccess;
+        OnFailure = options.OnFailure;
+        OnCancel = options.OnCancel;
+    }
+    public System.Guid ID { get; set; } = System.Guid.NewGuid();
+    public LSDispatcher Dispatcher { get; set; } = LSDispatcher.Instance;
+    public ListenerGroupType GroupType { get; set; } = ListenerGroupType.STATIC;
+    public LSMessageHandler ErrorHandler { get; set; } = (error) => throw new LSException($"no_error_handler:{error}");
+    public LSAction? OnSuccess { get; set; } = null;
+    public LSAction<string> OnFailure { get; set; }
+    public LSAction? OnCancel { get; set; } = null;
 }

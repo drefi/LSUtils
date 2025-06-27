@@ -21,7 +21,7 @@ public class ListenerGroupEntry {
     }
     #endregion
     #region Fields
-    private readonly ConcurrentDictionary<System.Guid, ListenerEntry> _listeners = new ConcurrentDictionary<System.Guid, ListenerEntry>();
+    private readonly ConcurrentDictionary<System.Guid, ListenerEntry<LSEvent>> _listeners = new ConcurrentDictionary<System.Guid, ListenerEntry<LSEvent>>();
     private readonly ILSEventable[] _instances;
     public string ClassName => nameof(ListenerGroupEntry);
     public LSEventType EventType { get; }
@@ -60,24 +60,32 @@ public class ListenerGroupEntry {
             ListenerGroupType.SUPERSET => instances.ToHashSet().IsSupersetOf(otherInstances.ToHashSet()),
             _ => false,
         };
+
     }
-    public bool AddListener<TEvent>(System.Guid listenerID, LSListener<TEvent> listener, int triggers = -1, LSMessageHandler? onFailure = null) where TEvent : LSEvent {
+    public bool AddListener(System.Guid listenerID, LSListener<LSEvent> listener, int triggers = -1) {
         if (listenerID == default || listenerID == System.Guid.Empty) listenerID = System.Guid.NewGuid();
         if (_listeners.ContainsKey(listenerID)) {
-            onFailure?.Invoke($"listener_id_already_added");
-            return false;
+            throw new LSException($"listener_id_already_added");
         }
-        if (_listeners.TryAdd(listenerID, new ListenerEntry<TEvent>(listenerID, listener, triggers)) == false) {
-            onFailure?.Invoke($"listener_id_could_not_be_added");
-            return false;
+        if (_listeners.TryAdd(listenerID, new ListenerEntry<LSEvent>(listenerID, listener, triggers)) == false) {
+            throw new LSException($"listener_id_could_not_be_added");
         }
         return true;
     }
-    public bool RemoveListener(System.Guid listenerID, LSMessageHandler? onFailure = null) {
+    // public bool AddListener<TEvent>(System.Guid listenerID, LSListener<TEvent> listener, int triggers = -1) where TEvent : LSEvent {
+    //     if (listenerID == default || listenerID == System.Guid.Empty) listenerID = System.Guid.NewGuid();
+    //     if (_listeners.ContainsKey(listenerID)) {
+    //         throw new LSException($"listener_id_already_added");
+    //     }
+    //     if (_listeners.TryAdd(listenerID, new ListenerEntry<TEvent>(listenerID, listener, triggers)) == false) {
+    //         throw new LSException($"listener_id_could_not_be_added");
+    //     }
+    //     return true;
+    // }
+    public bool RemoveListener(System.Guid listenerID) {
         string log = $"{ClassName}::UnregisterListener";
         if (_listeners.TryRemove(listenerID, out _) == false) {
-            onFailure?.Invoke($"{log}::{listenerID}_could_not_be_removed");
-            return false;
+            throw new LSException($"{listenerID}_could_not_be_removed");
         }
         return true;
     }
@@ -85,9 +93,9 @@ public class ListenerGroupEntry {
         return _listeners.Keys.ToArray();
     }
 
-    public bool NotifyListeners(LSEvent @event, LSMessageHandler? onFailure = null) {
+    public bool NotifyListeners(LSEvent @event) {
         foreach (var listener in _listeners) {
-            var count = listener.Value.Execute(@event, onFailure);
+            var count = listener.Value.Execute(@event);
             if (count == 0) _listeners.TryRemove(listener.Key, out _);
             if (@event.IsCancelled || @event.IsDone) return false;
         }

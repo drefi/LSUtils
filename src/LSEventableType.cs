@@ -15,8 +15,12 @@ public class LSEventableType : ILSEventable {
         ID = System.Guid.NewGuid();
     }
 
-    public bool Initialize(LSAction? onSuccess = null, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) {
-        return OnInitializeEvent.Create<LSEventableType>(this, onSuccess, onFailure).Dispatch(onFailure, dispatcher);
+    public bool Initialize(LSEventOptions? options = null) {
+        return OnInitializeEvent.Create<LSEventableType>(this, options).Dispatch();
+    }
+
+    public virtual void Cleanup() {
+        //TODO: implement cleanup logic if needed
     }
 
     /// <summary>
@@ -33,10 +37,6 @@ public class LSEventableType : ILSEventable {
 
         }
         return instance;
-    }
-
-    public void Cleanup() {
-        throw new NotImplementedException();
     }
 
     static readonly ConcurrentDictionary<System.Type, LSEventableType> _eventTypes = new ConcurrentDictionary<System.Type, LSEventableType>();

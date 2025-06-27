@@ -17,7 +17,7 @@ public class Semaphore {
     /// <remarks>
     /// The event handler should return true if the failure was handled, false otherwise.
     /// </remarks>
-    public event LSMessageHandler? FailureCallback;
+    public event LSAction<string>? FailureCallback;
     /// <summary>
     /// Event triggered when the semaphore is cancelled.
     /// </summary>
@@ -67,82 +67,79 @@ public class Semaphore {
     /// This is a non-blocking call.
     /// </summary>
     /// <param name="locks">The number of locks to increment the counter by.</param>
-    public void Wait(System.Guid signalID = default, LSMessageHandler? onFailure = null) {
+    public void Wait(System.Guid signalID = default) {
         lock (_semaphoreLock) {
             if (IsDone || IsCancelled) {
-                onFailure?.Invoke($"semaphore_already_{(IsDone ? "done" : "cancelled")}");
-                return;
+                throw new LSException($"semaphore_already_{(IsDone ? "done" : "cancelled")}");
             }
             if (signalID == default || signalID == System.Guid.Empty) signalID = System.Guid.NewGuid();
             _queue.Enqueue(signalID);
         }
     }
     public void Signal() => Signal(out _);
-    public bool Signal(out System.Guid signalID, LSMessageHandler? onFailure = null) {
+    public int Signal(out System.Guid signalID) {
         lock (_semaphoreLock) {
             signalID = System.Guid.Empty;
             if (IsDone || IsCancelled) {
-                onFailure?.Invoke($"semaphore_already_{(IsDone ? "done" : "cancelled")}");
-                return false;
+                throw new LSException($"semaphore_already_{(IsDone ? "done" : "cancelled")}");
             }
             if (_queue.Count == 0) {
-                onFailure?.Invoke($"semaphore_queue_empty");
-                return false;
+                throw new LSException($"semaphore_already_{(IsDone ? "done" : "cancelled")}");
             }
             signalID = _queue.Dequeue();
-            if (_queue.Count > 0) return false;
+            if (_queue.Count > 0) return _queue.Count;
             IsDone = true;
             if (HasFailed == false) {
                 SuccessCallback?.Invoke();
-                return true;
+                return 0;
             } else {
                 if (FailureCallback != null) {
                     string failureMessage = string.Join(FailMsgSeparator, _failMessages);
                     FailureCallback(failureMessage);
                 }
-                return false;
+                return -1; // Indicating failure
             }
         }
     }
-    public bool Failure(out System.Guid signalID, string? failMessage = null, LSMessageHandler? onFailure = null) {
+    public void Failure(string msg) => Failure(out _, msg);
+    public int Failure(out System.Guid signalID, string? failMessage = null) {
         lock (_semaphoreLock) {
             signalID = System.Guid.Empty;
             if (IsDone || IsCancelled) {
-                onFailure?.Invoke($"semaphore_already_{(IsDone ? "done" : "cancelled")}");
-                return false;
+                throw new LSException($"semaphore_already_{(IsDone ? "done" : "cancelled")}");
             }
             if (failMessage != null) _failMessages.Add(failMessage);
             HasFailed = true;
-            return Signal(out signalID, onFailure);
+            return Signal(out signalID);
         }
     }
-    public System.Guid[] Cancel(LSMessageHandler? onFailure = null) {
+    public void Cancel() => Cancel(out _);
+    public int Cancel(out System.Guid[] remainingSignalIDs) {
         lock (_semaphoreLock) {
-            System.Guid[] signalsRemaining = _queue.ToArray();
             if (IsDone || IsCancelled) {
-                onFailure?.Invoke($"semaphore_already_{(IsDone ? "done" : "cancelled")}");
-                return signalsRemaining;
+                throw new LSException($"semaphore_already_{(IsDone ? "done" : "cancelled")}");
             }
+            remainingSignalIDs = _queue.ToArray();
+            int remainingSignal = _queue.Count;
+            _queue.Clear();
             IsCancelled = true;
             if (HasFailed && FailureCallback != null) {
                 string failureMessage = string.Join(FailMsgSeparator, _failMessages);
                 FailureCallback(failureMessage);
             }
             CancelCallback?.Invoke();
-            return signalsRemaining;
+            return remainingSignal;
         }
-    }
-    public LSMessageHandler GetFailureCallback() {
-        return FailureCallback == null ? new LSMessageHandler((m) => { return false; }) : FailureCallback;
     }
 
     /// <summary>
     /// Creates and returns a new instance of the Semaphore class.
     /// </summary>
     /// <returns>A new Semaphore instance.</returns>
-    public static Semaphore Create(int locks = 1, LSMessageHandler? onFailure = null) {
+    public static Semaphore Create(int locks = 1) {
+        if (locks <= 0) locks = 1; // Ensure at least one lock
         Semaphore semaphore = new Semaphore();
-        for (int i = 0; i < locks; i++) semaphore.Wait(System.Guid.NewGuid(), onFailure);
+        for (int i = 0; i < locks; i++) semaphore.Wait(System.Guid.NewGuid());
         return semaphore;
     }
 }
