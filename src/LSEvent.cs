@@ -2,11 +2,10 @@ namespace LSUtils;
 
 public abstract class LSEvent {
     #region Fields
-    // protected static LSAction<float, LSAction>? _delayHandler;
-    // internal static void setDelayHandler(LSAction<float, LSAction> handler) => _delayHandler = handler;
     protected readonly Semaphore _semaphore;
     //private readonly LSEventOptions _options;
     protected readonly LSDispatcher _dispatcher;
+    protected LSMessageHandler _errorHandler = (error) => throw new LSException($"no_error_handler:{error}");
     public virtual string ClassName => nameof(LSEvent);
     public virtual System.Guid ID { get; }
     public bool HasDispatched { get; protected set; }
@@ -31,12 +30,13 @@ public abstract class LSEvent {
     public LSEvent(LSEventOptions? options) {
         options ??= new LSEventOptions();
         ID = options.ID;
-        SuccessCallback += options.OnSuccess;
-        FailureCallback += options.OnFailure;
-        CancelCallback += options.OnCancel;
         _dispatcher = options.Dispatcher == null ? LSDispatcher.Instance : options.Dispatcher;
+        _errorHandler = options.ErrorHandler == null ? _errorHandler : options.ErrorHandler;
         GroupType = options.GroupType;
         _semaphore = Semaphore.Create();
+        if (options.OnSuccess != null) SuccessCallback += options.OnSuccess;
+        if (options.OnFailure != null) FailureCallback += options.OnFailure;
+        if (options.OnCancel != null) CancelCallback += options.OnCancel;
     }
     public virtual bool Dispatch() {
         ListenerGroupEntry searchGroup = ListenerGroupEntry.Create(LSEventType.Get(GetType()), GroupType, GetInstances());
@@ -57,6 +57,12 @@ public abstract class LSEvent {
     public void Cancel() => _semaphore.Cancel();
     public int Cancel(out System.Guid[] remainingSignalIDs) => _semaphore.Cancel(out remainingSignalIDs);
     public virtual ILSEventable[] GetInstances() => new ILSEventable[0];
+    public LSEventOptions GetEventOptions() {
+        return new LSEventOptions {
+            Dispatcher = _dispatcher,
+            ErrorHandler = _errorHandler,
+        };
+    }
 }
 public abstract class LSEvent<TInstance> : LSEvent where TInstance : ILSEventable {
     protected ILSEventable[] _instances;
@@ -115,7 +121,6 @@ public class OnInitializeEvent<TInstance> : OnInitializeEvent where TInstance : 
 }
 public class LSEventOptions {
     public LSEventOptions() {
-        OnFailure = (error) => ErrorHandler($"no_error_handler:{error}");
     }
     public LSEventOptions(LSEventOptions options) : this() {
         ID = options.ID;
@@ -131,6 +136,6 @@ public class LSEventOptions {
     public ListenerGroupType GroupType { get; set; } = ListenerGroupType.STATIC;
     public LSMessageHandler ErrorHandler { get; set; } = (error) => throw new LSException($"no_error_handler:{error}");
     public LSAction? OnSuccess { get; set; } = null;
-    public LSAction<string> OnFailure { get; set; }
+    public LSAction<string>? OnFailure { get; set; }
     public LSAction? OnCancel { get; set; } = null;
 }

@@ -63,6 +63,7 @@ internal class ListenerEntry<TEvent> where TEvent : LSEvent {
         TotalTriggers = triggers;
         TriggersRemaining = triggers;
         _callback = callback;
+        IsValid = true;
     }
     public int Execute(LSEvent @event) {
         if (!IsValid) {

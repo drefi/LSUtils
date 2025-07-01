@@ -82,7 +82,7 @@ public partial class LSDispatcher {
             return System.Guid.Empty;
         }
         ListenerGroupType groupType = ListenerGroupEntry.GetGroupType(instances);
-        ListenerGroupEntry group = ListenerGroupEntry.Create(eventType);
+        ListenerGroupEntry group = ListenerGroupEntry.Create(eventType, groupType, instances);
         if (_listeners.TryGetValue(group.GetHashCode(), out var existingGroup) == false) {
             if (_listeners.TryAdd(group.GetHashCode(), group) == false) throw new LSException($"{{add_new_group_failed_{groupType}}}:{group.GetHashCode()}");
         } else group = existingGroup;
@@ -102,18 +102,41 @@ public partial class LSDispatcher {
         );
     }
 
-    public bool Unregister(System.Guid listenerID) {
+    public bool Unregister(System.Guid listenerID, LSMessageHandler? errorHandler = null) {
         var match = _listeners.Where(g => g.Value.GetListeners().Contains(listenerID));
-        return match.Any(entry => entry.Value.RemoveListener(listenerID));
+        if (!_listeners.Any(g => g.Value.GetListeners().Contains(listenerID))) {
+            errorHandler?.Invoke($"{{no_listeners_for_id}}:{listenerID}");
+            return false;
+        }
+        foreach (var entry in match) {
+            var group = entry.Value;
+            if (group.RemoveListener(listenerID) == false) {
+                errorHandler?.Invoke($"{{failed_remove_listener}}:{listenerID}");
+                return false;
+            }
+            if (group.GetListenersCount() == 0) {
+                _listeners.TryRemove(entry.Key, out _);
+            }
+        }
+        return true;
     }
 
-    public bool Unregister<TEvent>(ILSEventable[]? instances = null) where TEvent : LSEvent {
+    public bool Unregister<TEvent>(ILSEventable[]? instances = null, LSMessageHandler? errorHandler = null) where TEvent : LSEvent {
         LSEventType eventType = LSEventType.Get<TEvent>();
         ListenerGroupType groupType = ListenerGroupEntry.GetGroupType(instances);
         ListenerGroupEntry search = ListenerGroupEntry.Create(eventType, groupType, instances);
-        var match = _listeners.Where(entry => entry.Value.Contains(search));
-        if (match.Count() == 0) throw new LSException($"no_listeners_for_{typeof(TEvent)}");
-        return match.Any(entry => _listeners.TryRemove(entry.Key, out _));
+        var match = _listeners.Where(entry => entry.Value.Contains(search)).ToList();
+        if (match.Any() == false) {
+            errorHandler?.Invoke($"{{no_listeners_for_event}}:{eventType}:{groupType}");
+            return false;
+        }
+        bool removedAny = false;
+        foreach (var entry in match) {
+            if (_listeners.TryRemove(entry.Key, out _)) {
+                removedAny = true;
+            }
+        }
+        return removedAny;
     }
     public int GetListenersCount(LSEventType eventType, ListenerGroupType groupType, ILSEventable[]? instances = null) {
         var searchGroup = ListenerGroupEntry.Create(eventType, groupType, instances);
