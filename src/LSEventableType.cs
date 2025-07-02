@@ -15,7 +15,7 @@ public class LSEventableType : ILSEventable {
         ID = System.Guid.NewGuid();
     }
 
-    public bool Initialize(LSEventOptions? options = null) {
+    public bool Initialize(LSEventIOptions? options = null) {
         return OnInitializeEvent.Create<LSEventableType>(this, options).Dispatch();
     }
 
@@ -31,15 +31,15 @@ public class LSEventableType : ILSEventable {
     /// <returns>The matching instance, or a newly created one if none was found.</returns>
     public static LSEventableType Get(System.Type eventableType) {
         if (typeof(ILSEventable).IsAssignableFrom(eventableType) == false) throw new LSException($"{eventableType}_is_not_ILSEventable");
-        if (_eventTypes.TryGetValue(eventableType, out LSEventableType? instance) == false) {
+        if (_eventableTypes.TryGetValue(eventableType, out LSEventableType? instance) == false) {
             instance = new LSEventableType(eventableType);
-            _eventTypes.TryAdd(instance.EventableType, instance);
+            _eventableTypes.TryAdd(instance.EventableType, instance);
 
         }
         return instance;
     }
 
-    static readonly ConcurrentDictionary<System.Type, LSEventableType> _eventTypes = new ConcurrentDictionary<System.Type, LSEventableType>();
+    static readonly ConcurrentDictionary<System.Type, LSEventableType> _eventableTypes = new ConcurrentDictionary<System.Type, LSEventableType>();
 
 }
 public class LSEventableType<TEventable> : LSEventableType where TEventable : ILSEventable {

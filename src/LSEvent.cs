@@ -72,12 +72,12 @@ public abstract class LSEvent<TInstance> : LSEvent where TInstance : ILSEventabl
     /// The event group type is set to <see cref="ListenerGroupType.SUBSET"/>.
     /// </summary>
     /// <param name="instance">The primary instance.</param>
-    public TInstance? Instance => _instances.Length > 0 ? (TInstance)_instances[0] : default(TInstance);
+    public TInstance Instance => _instances.Length > 0 ? (TInstance)_instances[0] : default(TInstance)!;
 
-    protected LSEvent(ILSEventable[] instances, LSEventOptions? options) : base(options) {
+    protected LSEvent(ILSEventable[] instances, LSEventIOptions? eventOptions) : base(eventOptions) {
         _instances = instances;
     }
-    protected LSEvent(ILSEventable instance, LSEventOptions? options) : base(options) {
+    protected LSEvent(ILSEventable instance, LSEventIOptions? eventOptions) : base(eventOptions) {
         _instances = new ILSEventable[] { instance };
     }
     public override ILSEventable[] GetInstances() {
@@ -93,14 +93,14 @@ public abstract class LSEvent<TPrimaryInstance, TSecondaryInstance> : LSEvent<TP
     /// <param name="primaryInstance">The primary instance.</param>
     /// <param name="secondaryInstance">The secondary instance.</param>
     //protected LSEvent(TPrimaryInstance primaryInstance, TSecondaryInstance secondaryInstance) : base(System.Guid.NewGuid(), (new ILSEventable[] { primaryInstance, secondaryInstance }).Where(x => x != null).ToArray(), groupType) { }
-    public TSecondaryInstance? SecondaryInstance => (TSecondaryInstance)_instances[1] ?? throw new LSException($"{{secondary_instance_null}}");
-    protected LSEvent(TPrimaryInstance primaryInstance, TSecondaryInstance secondaryInstance, LSEventOptions? options) : base(new ILSEventable[] { primaryInstance, secondaryInstance }, options) {
+    public TSecondaryInstance SecondaryInstance => (TSecondaryInstance)_instances[1] ?? throw new LSException($"{{secondary_instance_null}}");
+    protected LSEvent(TPrimaryInstance primaryInstance, TSecondaryInstance secondaryInstance, LSEventIOptions? eventOptions) : base(new ILSEventable[] { primaryInstance, secondaryInstance }, eventOptions) {
         if (primaryInstance == null) throw new LSArgumentNullException(nameof(primaryInstance), "{primary_instance_null}");
         if (secondaryInstance == null) throw new LSArgumentNullException(nameof(secondaryInstance), "{secondary_instance_null}");
     }
 }
 public abstract class OnInitializeEvent : LSEvent<ILSEventable> {
-    public static OnInitializeEvent<TInstance> Create<TInstance>(TInstance instance, LSEventOptions? options) where TInstance : ILSEventable {
+    public static OnInitializeEvent<TInstance> Create<TInstance>(TInstance instance, LSEventIOptions? options) where TInstance : ILSEventable {
         return OnInitializeEvent<TInstance>.Create(instance, options);
     }
     public static System.Guid Register<TInstance>(LSListener<OnInitializeEvent<TInstance>> listener, ILSEventable[] instances = null!, int triggers = -1, System.Guid listenerID = default, LSMessageHandler? onFailure = null, LSDispatcher? dispatcher = null) where TInstance : ILSEventable {
@@ -108,34 +108,51 @@ public abstract class OnInitializeEvent : LSEvent<ILSEventable> {
         return dispatcher.Register<OnInitializeEvent<TInstance>>(listener, instances, triggers, listenerID, onFailure);
     }
 
-    protected OnInitializeEvent(ILSEventable instance, LSEventOptions? options) : base(instance, options) { }
+    protected OnInitializeEvent(ILSEventable instance, LSEventIOptions? options) : base(instance, options) { }
 }
 public class OnInitializeEvent<TInstance> : OnInitializeEvent where TInstance : ILSEventable {
     public new TInstance Instance => (TInstance)base.Instance!;
-    public static OnInitializeEvent<TInstance> Create(TInstance instance, LSEventOptions? options) {
-        OnInitializeEvent<TInstance> @event = new OnInitializeEvent<TInstance>(instance, options);
+    public static OnInitializeEvent<TInstance> Create(TInstance instance, LSEventIOptions? eventOptions) {
+        OnInitializeEvent<TInstance> @event = new OnInitializeEvent<TInstance>(instance, eventOptions);
         return @event;
     }
-    protected OnInitializeEvent(TInstance instance, LSEventOptions? options) : base(instance, options) { }
+    protected OnInitializeEvent(TInstance instance, LSEventIOptions? eventOptions) : base(instance, eventOptions) { }
 
+}
+public class LSEventIOptions : LSEventOptions {
+    public LSEventIOptions() : base() { }
+    public override ListenerGroupType GroupType { get; set; } = ListenerGroupType.SUBSET;
 }
 public class LSEventOptions {
     public LSEventOptions() {
     }
-    public LSEventOptions(LSEventOptions options) : this() {
-        ID = options.ID;
-        Dispatcher = options.Dispatcher ?? LSDispatcher.Instance;
-        GroupType = options.GroupType;
-        ErrorHandler = options.ErrorHandler;
-        OnSuccess = options.OnSuccess;
-        OnFailure = options.OnFailure;
-        OnCancel = options.OnCancel;
-    }
     public System.Guid ID { get; set; } = System.Guid.NewGuid();
     public LSDispatcher Dispatcher { get; set; } = LSDispatcher.Instance;
-    public ListenerGroupType GroupType { get; set; } = ListenerGroupType.STATIC;
+    public virtual ListenerGroupType GroupType { get; set; } = ListenerGroupType.STATIC;
     public LSMessageHandler ErrorHandler { get; set; } = (error) => throw new LSException($"no_error_handler:{error}");
     public LSAction? OnSuccess { get; set; } = null;
     public LSAction<string>? OnFailure { get; set; }
     public LSAction? OnCancel { get; set; } = null;
+
+    public void Success() {
+        if (OnSuccess == null) {
+            ErrorHandler("no_success_callback");
+            return;
+        }
+        OnSuccess?.Invoke();
+    }
+    public void Failure(string msg) {
+        if (OnFailure == null) {
+            ErrorHandler($"no_failure_callback:{msg}");
+            return;
+        }
+        OnFailure?.Invoke(msg);
+    }
+    public void Cancel() {
+        if (OnCancel == null) {
+            ErrorHandler("no_cancel_callback");
+            return;
+        }
+        OnCancel?.Invoke();
+    }
 }

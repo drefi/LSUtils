@@ -38,17 +38,17 @@ public interface ILSEventable {
     /// </summary>
     /// <param name="eventOptions">Optional event options for initialization.</param>
     /// <returns>True if initialization was successful; otherwise, false.</returns>
-    bool Initialize(LSEventOptions? eventOptions = null);
+    bool Initialize(LSEventIOptions? eventOptions = null);
     void Cleanup();
 }
 
 public interface ILSContext : ILSEventable {
-    void AddState<TState>(TState state, LSEventOptions? eventOptions = null) where TState : ILSState;
+    void AddState<TState>(TState state, LSEventIOptions? eventOptions = null) where TState : ILSState;
     TState GetState<TState>() where TState : ILSState;
     bool TryGetState<TState>(out TState state) where TState : ILSState;
-    void SetState<TState>(LSAction<TState>? enterCallback = null, LSAction<TState>? exitCallback = null, LSEventOptions? eventOptions = null) where TState : ILSState;
+    void SetState<TState>(LSAction<TState>? enterCallback = null, LSAction<TState>? exitCallback = null, LSEventIOptions? eventOptions = null) where TState : ILSState;
 }
 public interface ILSState : ILSEventable {
-    void Enter<TState>(LSAction<TState> enterCallback, LSAction<TState> exitCallback, LSEventOptions eventOptions) where TState : ILSState;
-    void Exit(LSEventOptions options);
+    void Enter<TState>(LSAction<TState> enterCallback, LSAction<TState> exitCallback, LSEventIOptions eventOptions) where TState : ILSState;
+    void Exit(LSEventIOptions options);
 }
