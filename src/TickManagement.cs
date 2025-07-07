@@ -35,8 +35,8 @@ public class TickManagement : ILSEventable {
         options ??= new LSEventIOptions();
         _managerEventOptions = new LSEventIOptions() {
             Dispatcher = options.Dispatcher,
-            ErrorHandler = options.ErrorHandler,
         };
+        _managerEventOptions.ErrorHandler += options.Error;
         var @event = OnInitializeEvent.Create(this, _managerEventOptions);
         @event.SuccessCallback += () => {
             _hasInitialized = true;

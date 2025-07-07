@@ -4,8 +4,8 @@ public abstract class LSEvent {
     #region Fields
     protected readonly Semaphore _semaphore;
     //private readonly LSEventOptions _options;
-    protected readonly LSDispatcher _dispatcher;
-    protected LSMessageHandler _errorHandler = (error) => throw new LSException($"no_error_handler:{error}");
+    public readonly LSDispatcher Dispatcher;
+    protected LSMessageHandler _errorHandler;
     public virtual string ClassName => nameof(LSEvent);
     public virtual System.Guid ID { get; }
     public bool HasDispatched { get; protected set; }
@@ -30,25 +30,33 @@ public abstract class LSEvent {
     public LSEvent(LSEventOptions? options) {
         options ??= new LSEventOptions();
         ID = options.ID;
-        _dispatcher = options.Dispatcher == null ? LSDispatcher.Instance : options.Dispatcher;
-        _errorHandler = options.ErrorHandler == null ? _errorHandler : options.ErrorHandler;
+        Dispatcher = options.Dispatcher == null ? LSDispatcher.Instance : options.Dispatcher;
+        _errorHandler = options.Error;
         GroupType = options.GroupType;
         _semaphore = Semaphore.Create();
-        if (options.OnSuccess != null) SuccessCallback += options.OnSuccess;
-        if (options.OnFailure != null) FailureCallback += options.OnFailure;
-        if (options.OnCancel != null) CancelCallback += options.OnCancel;
+        SuccessCallback += options.Success;
+        FailureCallback += options.Failure;
+        CancelCallback += options.Cancel;
     }
     public virtual bool Dispatch() {
         ListenerGroupEntry searchGroup = ListenerGroupEntry.Create(LSEventType.Get(GetType()), GroupType, GetInstances());
         HasDispatched = true;
-        return _dispatcher.Dispatch(searchGroup, this);
+        return Dispatcher.Dispatch(searchGroup, this);
     }
     public void Wait() => _semaphore.Wait();
     public void Wait(float delayValue, LSAction? delayCallback = null, System.Guid signalID = default) {
         if (delayValue <= 0f) return;
         _semaphore.Wait(signalID);
         if (delayCallback != null) SuccessCallback += delayCallback;
-        _dispatcher.Delay(delayValue, _semaphore.Signal);
+        Dispatcher.Delay(delayValue, _semaphore.Signal);
+    }
+    public void Timeout(float delayValue) {
+        if (delayValue <= 0f) return;
+        Dispatcher.Delay(delayValue, () => {
+            if (IsDone || IsCancelled) return;
+            if (_semaphore.Failure(out _, "{{timeout}}") > 0)
+                _semaphore.Cancel();
+        });
     }
     public void Signal() => _semaphore.Signal();
     public int Signal(out System.Guid signalID) => _semaphore.Signal(out signalID);
@@ -57,12 +65,6 @@ public abstract class LSEvent {
     public void Cancel() => _semaphore.Cancel();
     public int Cancel(out System.Guid[] remainingSignalIDs) => _semaphore.Cancel(out remainingSignalIDs);
     public virtual ILSEventable[] GetInstances() => new ILSEventable[0];
-    public LSEventOptions GetEventOptions() {
-        return new LSEventOptions {
-            Dispatcher = _dispatcher,
-            ErrorHandler = _errorHandler,
-        };
-    }
 }
 public abstract class LSEvent<TInstance> : LSEvent where TInstance : ILSEventable {
     protected ILSEventable[] _instances;
@@ -129,30 +131,36 @@ public class LSEventOptions {
     public System.Guid ID { get; set; } = System.Guid.NewGuid();
     public LSDispatcher Dispatcher { get; set; } = LSDispatcher.Instance;
     public virtual ListenerGroupType GroupType { get; set; } = ListenerGroupType.STATIC;
-    public LSMessageHandler ErrorHandler { get; set; } = (error) => throw new LSException($"no_error_handler:{error}");
-    public LSAction? OnSuccess { get; set; } = null;
-    public LSAction<string>? OnFailure { get; set; }
-    public LSAction? OnCancel { get; set; } = null;
+    public event LSMessageHandler? ErrorHandler;
+    public event LSAction? OnSuccess;
+    public event LSAction<string>? OnFailure;
+    public event LSAction? OnCancel;
 
     public void Success() {
         if (OnSuccess == null) {
-            ErrorHandler("no_success_callback");
+            Error("no_success_callback");
             return;
         }
         OnSuccess?.Invoke();
     }
     public void Failure(string msg) {
         if (OnFailure == null) {
-            ErrorHandler($"no_failure_callback:{msg}");
+            Error($"no_failure_callback:{msg}");
             return;
         }
         OnFailure?.Invoke(msg);
     }
     public void Cancel() {
         if (OnCancel == null) {
-            ErrorHandler("no_cancel_callback");
+            Error("no_cancel_callback");
             return;
         }
         OnCancel?.Invoke();
+    }
+    public bool Error(string? msg) {
+        if (ErrorHandler == null) {
+            throw new LSException($"no_error_handler:{msg}");
+        }
+        return ErrorHandler(msg);
     }
 }
