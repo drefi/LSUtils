@@ -37,6 +37,9 @@ public abstract class LSEvent {
         SuccessCallback += options.Success;
         FailureCallback += options.Failure;
         CancelCallback += options.Cancel;
+        if (options.Timeout > 0f) {
+            Timeout(options.Timeout);
+        }
     }
     public virtual bool Dispatch() {
         ListenerGroupEntry searchGroup = ListenerGroupEntry.Create(LSEventType.Get(GetType()), GroupType, GetInstances());
@@ -129,6 +132,7 @@ public class LSEventOptions {
     public LSEventOptions() {
     }
     public System.Guid ID { get; set; } = System.Guid.NewGuid();
+    public float Timeout { get; set; } = 0f;
     public LSDispatcher Dispatcher { get; set; } = LSDispatcher.Instance;
     public virtual ListenerGroupType GroupType { get; set; } = ListenerGroupType.STATIC;
     public event LSMessageHandler? ErrorHandler;
@@ -138,21 +142,18 @@ public class LSEventOptions {
 
     public void Success() {
         if (OnSuccess == null) {
-            Error("no_success_callback");
             return;
         }
         OnSuccess?.Invoke();
     }
     public void Failure(string msg) {
         if (OnFailure == null) {
-            Error($"no_failure_callback:{msg}");
             return;
         }
         OnFailure?.Invoke(msg);
     }
     public void Cancel() {
         if (OnCancel == null) {
-            Error("no_cancel_callback");
             return;
         }
         OnCancel?.Invoke();
