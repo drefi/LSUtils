@@ -50,5 +50,5 @@ public interface ILSContext : ILSEventable {
 }
 public interface ILSState : ILSEventable {
     void Enter<TState>(LSAction<TState> enterCallback, LSAction<TState> exitCallback, LSEventIOptions eventOptions) where TState : ILSState;
-    void Exit(LSEventIOptions options);
+    void Exit(LSEventIOptions eventOptions);
 }

@@ -31,13 +31,13 @@ public class TickManagement : ILSEventable {
         ID = System.Guid.NewGuid();
     }
 
-    public bool Initialize(LSEventIOptions? options = null) {
-        options ??= new LSEventIOptions();
+    public bool Initialize(LSEventIOptions? eventOptions = null) {
+        eventOptions ??= new LSEventIOptions();
         _managerEventOptions = new LSEventIOptions() {
-            Dispatcher = options.Dispatcher,
+            Dispatcher = eventOptions.Dispatcher,
         };
-        _managerEventOptions.ErrorHandler += options.Error;
-        var @event = OnInitializeEvent.Create(this, _managerEventOptions);
+        _managerEventOptions.ErrorHandler += eventOptions.error;
+        var @event = OnInitializeEvent.Create(this, eventOptions);
         @event.SuccessCallback += () => {
             _hasInitialized = true;
             _isPaused = true;
@@ -135,7 +135,7 @@ public class TickManagement : ILSEventable {
         public event LSTickUpdateHandler? OnTickUpdateEvent;
         public event LSTickUpdateHandler? OnTickPhysicsUpdateEvent;
         public int TickCount { get; protected set; }
-        internal OnTickEvent(int tickCount, LSEventOptions options) : base(options) => TickCount = tickCount;
+        internal OnTickEvent(int tickCount, LSEventOptions eventOptions) : base(eventOptions) => TickCount = tickCount;
         internal void update(double deltaTick, float percentage, LSEventOptions? options = null) {
             OnTickUpdateEvent?.Invoke(deltaTick, percentage, options);
         }
