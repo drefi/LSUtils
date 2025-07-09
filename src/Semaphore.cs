@@ -26,12 +26,12 @@ public class Semaphore {
     /// The queue containing signal IDs for pending operations.
     /// </summary>
     private readonly Queue<System.Guid> _queue = new Queue<System.Guid>();
-    
+
     /// <summary>
     /// Collection of failure messages accumulated during semaphore operations.
     /// </summary>
     protected List<string> _failMessages;
-    
+
     /// <summary>
     /// Thread synchronization lock for semaphore operations.
     /// </summary>
@@ -86,7 +86,7 @@ public class Semaphore {
     /// The event provides the aggregated failure message containing all reported failures.
     /// Multiple failure messages are joined using the <see cref="FailMsgSeparator"/>.
     /// </remarks>
-    public event LSAction<string>? FailureCallback;
+    public event LSAction<string, bool>? FailureCallback;
 
     /// <summary>
     /// Event triggered when the semaphore is cancelled.
@@ -223,7 +223,7 @@ public class Semaphore {
             } else {
                 if (FailureCallback != null) {
                     string failureMessage = string.Join(FailMsgSeparator, _failMessages);
-                    FailureCallback(failureMessage);
+                    FailureCallback(failureMessage, false);
                 }
                 return -1; // Indicating failure
             }
@@ -317,7 +317,7 @@ public class Semaphore {
             IsCancelled = true;
             if (HasFailed && FailureCallback != null) {
                 string failureMessage = string.Join(FailMsgSeparator, _failMessages);
-                FailureCallback(failureMessage);
+                FailureCallback(failureMessage, false);
             }
             CancelCallback?.Invoke();
             return remainingSignal;

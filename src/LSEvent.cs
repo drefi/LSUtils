@@ -16,7 +16,7 @@ public abstract class LSEvent {
     /// The semaphore used for synchronization and lifecycle management of the event.
     /// </summary>
     protected readonly Semaphore _semaphore;
-    
+
     /// <summary>
     /// The error handler for processing error messages.
     /// </summary>
@@ -137,7 +137,7 @@ public abstract class LSEvent {
     /// The failure message contains details about what went wrong.
     /// Delegates to the underlying semaphore's failure callback.
     /// </remarks>
-    public event LSAction<string> FailureCallback {
+    public event LSAction<string, bool> FailureCallback {
         add { _semaphore.FailureCallback += value; }
         remove { _semaphore.FailureCallback -= value; }
     }
@@ -161,7 +161,7 @@ public abstract class LSEvent {
         ID = eventOptions.ID;
         Dispatcher = eventOptions.Dispatcher == null ? LSDispatcher.Instance : eventOptions.Dispatcher;
         EventType = LSEventType.Get(GetType());
-        _errorHandler = eventOptions.error;
+        _errorHandler = eventOptions.Error;
         GroupType = eventOptions.GroupType;
         _semaphore = Semaphore.Create();
         _semaphore.SuccessCallback += eventOptions.success;
@@ -424,10 +424,10 @@ public abstract class LSEvent<TInstance> : LSEvent where TInstance : ILSEventabl
 /// both a primary and secondary instance. This is useful for events that involve interaction
 /// between two specific objects or entities.
 /// </remarks>
-public abstract class LSEvent<TPrimaryInstance, TSecondaryInstance> : LSEvent<TPrimaryInstance> 
-    where TPrimaryInstance : ILSEventable 
+public abstract class LSEvent<TPrimaryInstance, TSecondaryInstance> : LSEvent<TPrimaryInstance>
+    where TPrimaryInstance : ILSEventable
     where TSecondaryInstance : ILSEventable {
-    
+
     #region Public Properties
     /// <summary>
     /// Gets the secondary instance associated with this event.
@@ -457,7 +457,7 @@ public abstract class LSEvent<TPrimaryInstance, TSecondaryInstance> : LSEvent<TP
     /// Both instances are required and cannot be null. They are stored in the instances array
     /// with the primary instance at index 0 and the secondary instance at index 1.
     /// </remarks>
-    protected LSEvent(TPrimaryInstance primaryInstance, TSecondaryInstance secondaryInstance, LSEventIOptions eventOptions) 
+    protected LSEvent(TPrimaryInstance primaryInstance, TSecondaryInstance secondaryInstance, LSEventIOptions eventOptions)
         : base(new ILSEventable[] { primaryInstance, secondaryInstance }, eventOptions) {
         if (primaryInstance == null) throw new LSArgumentNullException(nameof(primaryInstance), "{primary_instance_null}");
         if (secondaryInstance == null) throw new LSArgumentNullException(nameof(secondaryInstance), "{secondary_instance_null}");
@@ -610,177 +610,5 @@ public class OnInitializeEvent<TInstance> : OnInitializeEvent where TInstance : 
     /// This constructor creates a strongly-typed initialization event for the specified instance.
     /// </remarks>
     protected OnInitializeEvent(TInstance instance, LSEventIOptions eventOptions) : base(instance, eventOptions) { }
-    #endregion
-}
-/// <summary>
-/// Configuration options for instance-based events that use subset listener grouping.
-/// </summary>
-/// <remarks>
-/// This class extends <see cref="LSEventOptions"/> to provide default configuration
-/// specifically for events that are associated with instances and use subset-based
-/// listener matching. The group type is set to <see cref="ListenerGroupType.SUBSET"/>
-/// by default, which is appropriate for events tied to specific object instances.
-/// </remarks>
-public class LSEventIOptions : LSEventOptions {
-    #region Constructor
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LSEventIOptions"/> class with default settings.
-    /// </summary>
-    /// <remarks>
-    /// Creates event options with subset-based listener grouping, which is appropriate
-    /// for events that are associated with specific instances.
-    /// </remarks>
-    public LSEventIOptions() : base() { }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the listener group type for instance-based events.
-    /// </summary>
-    /// <value>
-    /// The group type used for listener matching. Defaults to <see cref="ListenerGroupType.SUBSET"/>.
-    /// </value>
-    /// <remarks>
-    /// Overrides the base class default to use subset grouping, which is more appropriate
-    /// for events that are tied to specific object instances rather than global events.
-    /// </remarks>
-    public override ListenerGroupType GroupType { get; set; } = ListenerGroupType.SUBSET;
-    #endregion
-}
-
-/// <summary>
-/// Base configuration options for LSEvent instances, including callbacks, timing, and dispatcher settings.
-/// </summary>
-/// <remarks>
-/// This class provides comprehensive configuration for events, including success/failure/cancellation
-/// callbacks, timeout settings, custom dispatchers, and error handling. It serves as the foundation
-/// for all event configuration in the LSUtils system.
-/// </remarks>
-public class LSEventOptions {
-    #region Private Fields
-    /// <summary>
-    /// Internal event handlers for the various event lifecycle callbacks.
-    /// </summary>
-    public event LSMessageHandler? ErrorHandler;
-    public event LSAction? OnDispatch;
-    public event LSAction? OnSuccess;
-    public event LSAction<string>? OnFailure;
-    public event LSAction? OnCancel;
-    #endregion
-
-    #region Constructor
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LSEventOptions"/> class with default settings.
-    /// </summary>
-    /// <remarks>
-    /// Creates event options with a new unique ID, no timeout, the default dispatcher,
-    /// and static listener grouping.
-    /// </remarks>
-    public LSEventOptions() { }
-    #endregion
-
-    #region Public Properties
-    /// <summary>
-    /// Gets or sets the unique identifier for the event.
-    /// </summary>
-    /// <value>A GUID that uniquely identifies the event. Defaults to a new GUID.</value>
-    public System.Guid ID { get; set; } = System.Guid.NewGuid();
-
-    /// <summary>
-    /// Gets or sets the timeout duration for the event in seconds.
-    /// </summary>
-    /// <value>
-    /// The timeout in seconds. A value of 0 or less means no timeout is applied.
-    /// Default is 0 (no timeout).
-    /// </value>
-    /// <remarks>
-    /// When a timeout is set, the event will automatically fail with a timeout message
-    /// if it doesn't complete within the specified duration.
-    /// </remarks>
-    public float Timeout { get; set; } = 0f;
-
-    /// <summary>
-    /// Gets or sets the dispatcher to use for this event.
-    /// </summary>
-    /// <value>
-    /// The LSDispatcher instance to handle event dispatching. Defaults to the singleton instance.
-    /// </value>
-    /// <remarks>
-    /// The dispatcher is responsible for routing events to registered listeners and managing
-    /// the event lifecycle. Most events can use the default dispatcher instance.
-    /// </remarks>
-    public LSDispatcher Dispatcher { get; set; } = LSDispatcher.Instance;
-
-    /// <summary>
-    /// Gets or sets the listener group type that determines how listeners are matched.
-    /// </summary>
-    /// <value>
-    /// The grouping strategy for listener matching. Defaults to <see cref="ListenerGroupType.STATIC"/>.
-    /// </value>
-    /// <remarks>
-    /// The group type determines how the dispatcher matches this event with registered listeners.
-    /// Static grouping matches by event type only, while subset grouping also considers instances.
-    /// </remarks>
-    public virtual ListenerGroupType GroupType { get; set; } = ListenerGroupType.STATIC;
-    #endregion
-
-    #region Internal Callback Methods
-    /// <summary>
-    /// Triggers the dispatch callback if one is registered.
-    /// </summary>
-    /// <remarks>
-    /// This method is called internally when the event is dispatched to listeners.
-    /// It's part of the event lifecycle management system.
-    /// </remarks>
-    internal void dispatch() => OnDispatch?.Invoke();
-
-    /// <summary>
-    /// Triggers the success callback if one is registered.
-    /// </summary>
-    /// <remarks>
-    /// This method is called internally when the event completes successfully.
-    /// It's part of the event lifecycle management system.
-    /// </remarks>
-    internal void success() => OnSuccess?.Invoke();
-
-    /// <summary>
-    /// Triggers the failure callback with the specified message if one is registered.
-    /// </summary>
-    /// <param name="msg">The failure message to pass to the callback.</param>
-    /// <remarks>
-    /// This method is called internally when the event encounters a failure.
-    /// It's part of the event lifecycle management system.
-    /// </remarks>
-    internal void failure(string msg) => OnFailure?.Invoke(msg);
-
-    /// <summary>
-    /// Triggers the cancellation callback if one is registered.
-    /// </summary>
-    /// <remarks>
-    /// This method is called internally when the event is cancelled.
-    /// It's part of the event lifecycle management system.
-    /// </remarks>
-    internal void cancel() => OnCancel?.Invoke();
-
-    /// <summary>
-    /// Handles error conditions using the registered error handler.
-    /// </summary>
-    /// <param name="msg">The error message to handle.</param>
-    /// <returns>
-    /// <c>true</c> if the error was handled successfully; otherwise, <c>false</c>.
-    /// </returns>
-    /// <exception cref="LSException">
-    /// Thrown when no error handler is registered.
-    /// </exception>
-    /// <remarks>
-    /// This method provides a centralized way to handle errors that occur during event processing.
-    /// If no error handler is registered, an exception is thrown with the error details.
-    /// </remarks>
-    internal bool error(string? msg) {
-        if (ErrorHandler == null) {
-            throw new LSException($"no_error_handler:{msg}");
-        }
-        return ErrorHandler(msg);
-    }
     #endregion
 }

@@ -43,7 +43,7 @@ public interface ILSEventable {
 }
 
 public interface ILSContext : ILSEventable {
-    void AddState<TState>(TState state, LSEventIOptions? eventOptions = null) where TState : ILSState;
+    void AddState<TState>(TState state) where TState : ILSState;
     TState GetState<TState>() where TState : ILSState;
     bool TryGetState<TState>(out TState state) where TState : ILSState;
     void SetState<TState>(LSAction<TState>? enterCallback = null, LSAction<TState>? exitCallback = null, LSEventIOptions? eventOptions = null) where TState : ILSState;
