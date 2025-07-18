@@ -28,7 +28,7 @@ public static class LSSignals {
         /// <param name="message">The message to print.</param>
         protected OnPrintEvent(string message, LSEventOptions eventOptions) : base(eventOptions) => Message = message;
         public static OnPrintEvent Create(string message, LSEventOptions? eventOptions = null) {
-            eventOptions ??= new LSEventOptions();
+            eventOptions ??= LSEventOptions.Create();
             return new OnPrintEvent(message, eventOptions);
         }
     }
@@ -49,7 +49,7 @@ public static class LSSignals {
         protected OnErrorEvent(string message, LSEventOptions eventOptions) : base(eventOptions) => Message = message ?? string.Empty;
 
         public static OnErrorEvent Create(string message, LSEventOptions? eventOptions = null) {
-            eventOptions ??= new LSEventOptions();
+            eventOptions ??= LSEventOptions.Create();
             return new OnErrorEvent(message, eventOptions);
         }
     }
@@ -70,7 +70,7 @@ public static class LSSignals {
         protected OnWarningEvent(string message, LSEventOptions eventOptions) : base(eventOptions) => Message = message ?? string.Empty;
 
         public static OnWarningEvent Create(string message, LSEventOptions? eventOptions = null) {
-            eventOptions ??= new LSEventOptions();
+            eventOptions ??= LSEventOptions.Create();
             return new OnWarningEvent(message, eventOptions);
         }
     }
@@ -121,11 +121,11 @@ public static class LSSignals {
             ButtonCancelCallback = buttonCancelCallback;
         }
         public static OnConfirmationEvent Create(string title, string description, string buttonConfirmLabel, LSAction buttonConfirmCallback, LSEventOptions? eventOptions = null) {
-            eventOptions ??= new LSEventOptions();
+            eventOptions ??= LSEventOptions.Create();
             return new OnConfirmationEvent(title, description, buttonConfirmLabel, buttonConfirmCallback, false, string.Empty, null, eventOptions);
         }
         public static OnConfirmationEvent Create(string title, string description, string buttonConfirmLabel, LSAction buttonConfirmCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSEventOptions? eventOptions = null) {
-            eventOptions ??= new LSEventOptions();
+            eventOptions ??= LSEventOptions.Create();
             return new OnConfirmationEvent(title, description, buttonConfirmLabel, buttonConfirmCallback, true, buttonCancelLabel, buttonCancelCallback, eventOptions);
         }
     }
@@ -165,7 +165,7 @@ public static class LSSignals {
             NotificationTimeout = notificationTimeout;
         }
         public static OnNotifyEvent Create(string message, string description = "", bool allowDismiss = true, double timeout = 3f, LSEventOptions? eventOptions = null) {
-            eventOptions ??= new LSEventOptions();
+            eventOptions ??= LSEventOptions.Create();
             return new OnNotifyEvent(message, description, allowDismiss, timeout, eventOptions);
         }
     }

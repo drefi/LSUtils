@@ -127,10 +127,7 @@ public class LSEventableType : ILSEventable {
     /// // Type is now ready for use in the event system
     /// </code>
     /// </example>
-    public bool Initialize(LSEventIOptions? eventOptions = null) {
-        eventOptions ??= new LSEventIOptions();
-        return OnInitializeEvent.Create<LSEventableType>(this, eventOptions).Dispatch();
-    }
+    public void Initialize(LSEventIOptions eventOptions) => OnInitializeEvent.Create<LSEventableType>(this, eventOptions).Dispatch();
 
     /// <summary>
     /// Performs cleanup operations for the eventable type descriptor.
@@ -178,6 +175,10 @@ public class LSEventableType : ILSEventable {
             _eventableTypes.TryAdd(instance.EventableType, instance);
         }
         return instance;
+    }
+    public static LSEventableType Get(object obj) {
+        if (obj == null) throw new LSArgumentNullException(nameof(obj), "cannot_be_null");
+        return Get(obj.GetType());
     }
     #endregion
 }

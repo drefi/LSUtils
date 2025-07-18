@@ -20,7 +20,7 @@ public class TickManagement : ILSEventable {
     protected bool _isPaused;
     protected double _tickTimer;
     protected OnTickEvent? _eventInstance;
-    LSEventIOptions? _managerEventOptions = new LSEventIOptions();
+    LSEventIOptions? _managerEventOptions = LSEventIOptions.Create();
     public readonly float TICK_VALUE;
     public string ClassName => nameof(TickManagement);
     public System.Guid ID { get; protected set; }
@@ -31,12 +31,8 @@ public class TickManagement : ILSEventable {
         ID = System.Guid.NewGuid();
     }
 
-    public bool Initialize(LSEventIOptions? eventOptions = null) {
-        eventOptions ??= new LSEventIOptions();
-        _managerEventOptions = new LSEventIOptions() {
-            Dispatcher = eventOptions.Dispatcher,
-        };
-        _managerEventOptions.ErrorHandler += eventOptions.Error;
+    public void Initialize(LSEventIOptions eventOptions) {
+        _managerEventOptions = LSEventIOptions.Create(eventOptions);
         var @event = OnInitializeEvent.Create(this, eventOptions);
         @event.SuccessCallback += () => {
             _hasInitialized = true;
@@ -46,7 +42,7 @@ public class TickManagement : ILSEventable {
             _tickTimer = 0f;
             tickEvent(_tickCount);
         };
-        return @event.Dispatch();
+        @event.Dispatch();
     }
     protected bool tickEvent(int tickCount) {
         _eventInstance?.Cancel();

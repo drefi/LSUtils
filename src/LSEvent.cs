@@ -137,7 +137,7 @@ public abstract class LSEvent {
     /// The failure message contains details about what went wrong.
     /// Delegates to the underlying semaphore's failure callback.
     /// </remarks>
-    public event LSAction<string, bool> FailureCallback {
+    public event LSAction<string> FailureCallback {
         add { _semaphore.FailureCallback += value; }
         remove { _semaphore.FailureCallback -= value; }
     }
@@ -229,8 +229,10 @@ public abstract class LSEvent {
     public void Wait(float delayValue, LSAction? delayCallback = null, System.Guid signalID = default) {
         if (delayValue <= 0f) return;
         _semaphore.Wait(signalID);
-        if (delayCallback != null) SuccessCallback += delayCallback;
-        Dispatcher.Delay(delayValue, _semaphore.Signal);
+        Dispatcher.Delay(delayValue, () => {
+            delayCallback?.Invoke();
+            _semaphore.Signal();
+        });
     }
 
     /// <summary>
@@ -244,11 +246,12 @@ public abstract class LSEvent {
     /// </remarks>
     public void Timeout(float delayValue) {
         if (delayValue <= 0f) return;
-        Dispatcher.Delay(delayValue, () => {
-            if (IsDone || IsCancelled) return;
-            if (_semaphore.Failure(out _, "{{timeout}}") > 0)
-                _semaphore.Cancel();
-        });
+        DispatchCallback += () => {
+            Dispatcher.Delay(delayValue, () => {
+                if (IsDone || IsCancelled) return;
+                Failure(out _, "{{timeout}}", true);
+            });
+        };
     }
 
     /// <summary>
@@ -290,15 +293,12 @@ public abstract class LSEvent {
     /// Reports a failure for the current operation with an optional cancellation.
     /// </summary>
     /// <param name="msg">The failure message to record.</param>
-    /// <param name="cancel">
-    /// If <c>true</c>, cancels the event after recording the failure;
-    /// if <c>false</c>, continues normal operation after recording the failure.
     /// </param>
     /// <remarks>
     /// The failure message is added to the event's failure collection and may be
     /// included in the final failure callback when the event completes or is cancelled.
     /// </remarks>
-    public void Failure(string msg, bool cancel = false) => _semaphore.Failure(msg, cancel);
+    public void Failure(string msg) => _semaphore.Failure(msg);
 
     /// <summary>
     /// Reports a failure for the current operation and returns the processed signal ID.
@@ -310,7 +310,7 @@ public abstract class LSEvent {
     /// This overload provides access to the signal ID that was processed while recording the failure.
     /// The failure message will be included in any failure callbacks that are triggered.
     /// </remarks>
-    public int Failure(out System.Guid signalID, string msg) => _semaphore.Failure(out signalID, msg);
+    public int Failure(out System.Guid signalID, string msg, bool cancel) => _semaphore.Failure(out signalID, msg, cancel);
 
     /// <summary>
     /// Cancels the event, clearing all pending operations and triggering cancellation callbacks.
@@ -488,7 +488,7 @@ public abstract class OnInitializeEvent : LSEvent<ILSEventable> {
     /// If no event options are provided, a default <see cref="LSEventIOptions"/> instance is created.
     /// </remarks>
     public static OnInitializeEvent<TInstance> Create<TInstance>(TInstance instance, LSEventIOptions? eventOptions) where TInstance : ILSEventable {
-        eventOptions ??= new LSEventIOptions();
+        eventOptions ??= LSEventIOptions.Create();
         return OnInitializeEvent<TInstance>.Create(instance, eventOptions);
     }
 

@@ -86,7 +86,7 @@ public class Semaphore {
     /// The event provides the aggregated failure message containing all reported failures.
     /// Multiple failure messages are joined using the <see cref="FailMsgSeparator"/>.
     /// </remarks>
-    public event LSAction<string, bool>? FailureCallback;
+    public event LSAction<string>? FailureCallback;
 
     /// <summary>
     /// Event triggered when the semaphore is cancelled.
@@ -149,9 +149,14 @@ public class Semaphore {
     /// semaphore.Signal(); // 0 remaining - triggers SuccessCallback
     /// </code>
     /// </example>
-    public static Semaphore Create(int locks = 1) {
+    public static Semaphore Create(int locks = 1, LSAction? successCallback = null, LSAction<string>? failureCallback = null, LSAction? cancelCallback = null) {
         if (locks <= 0) locks = 1; // Ensure at least one lock
-        Semaphore semaphore = new Semaphore();
+        Semaphore semaphore = new Semaphore() {
+            SuccessCallback = successCallback,
+            FailureCallback = failureCallback,
+            CancelCallback = cancelCallback
+        };
+
         for (int i = 0; i < locks; i++) semaphore.Wait(System.Guid.NewGuid());
         return semaphore;
     }
@@ -223,7 +228,7 @@ public class Semaphore {
             } else {
                 if (FailureCallback != null) {
                     string failureMessage = string.Join(FailMsgSeparator, _failMessages);
-                    FailureCallback(failureMessage, false);
+                    FailureCallback(failureMessage);
                 }
                 return -1; // Indicating failure
             }
@@ -243,7 +248,7 @@ public class Semaphore {
     /// The failure message will be added to the collection of failure messages.
     /// If this is not a cancelling failure, the operation continues and signals normally.
     /// </remarks>
-    public void Failure(string msg, bool cancel = false) => Failure(out _, msg, cancel);
+    public void Failure(string msg) => Failure(out _, msg, false);
 
     /// <summary>
     /// Reports a failure for the current operation and returns the processed signal ID.
@@ -264,7 +269,7 @@ public class Semaphore {
     /// Multiple failure messages are accumulated and will be joined with <see cref="FailMsgSeparator"/> 
     /// when the <see cref="FailureCallback"/> is triggered.
     /// </remarks>
-    public int Failure(out System.Guid signalID, string? failMessage = null, bool cancel = false) {
+    public int Failure(out System.Guid signalID, string failMessage, bool cancel) {
         lock (_semaphoreLock) {
             signalID = System.Guid.Empty;
             if (IsDone || IsCancelled) {
@@ -317,7 +322,7 @@ public class Semaphore {
             IsCancelled = true;
             if (HasFailed && FailureCallback != null) {
                 string failureMessage = string.Join(FailMsgSeparator, _failMessages);
-                FailureCallback(failureMessage, false);
+                FailureCallback(failureMessage);
             }
             CancelCallback?.Invoke();
             return remainingSignal;

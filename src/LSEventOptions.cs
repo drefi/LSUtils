@@ -10,29 +10,33 @@ namespace LSUtils;
 /// 
 /// <para>
 /// The class supports multiple initialization patterns:
-/// - Default constructor for basic setup
-/// - Constructor overloads for common scenarios
+/// - Static Create methods for basic setup
+/// - Create method overloads for common scenarios
 /// - Fluent API for readable method chaining
 /// - Static factory methods for specific use cases
-/// - Copy constructor for inheriting configurations
+/// - Copy constructor for inheriting dispatcher and error handler
 /// </para>
 /// </remarks>
 /// <example>
 /// <code>
 /// // Basic usage
-/// var options = new LSEventOptions();
+/// var options = LSEventOptions.Create();
 /// 
-/// // Constructor with callbacks
-/// var options = new LSEventOptions(onSuccess: () => Console.WriteLine("Success"));
+/// // Create with callbacks
+/// var options = LSEventOptions.Create(onSuccess: () => Console.WriteLine("Success"));
 /// 
 /// // Fluent API
-/// var options = new LSEventOptions()
+/// var options = LSEventOptions.Create()
 ///     .WithDispatcher(customDispatcher)
 ///     .WithSuccess(() => Console.WriteLine("Done"))
 ///     .WithTimeout(5.0f);
 /// 
 /// // Factory method for event chaining
 /// var childOptions = LSEventOptions.ForEvent(parentEvent);
+/// 
+/// // Copy dispatcher and error handler from existing options
+/// var newOptions = LSEventOptions.Create(existingOptions)
+///     .WithSuccess(() => Console.WriteLine("New success callback"));
 /// </code>
 /// </example>
 public class LSEventOptions {
@@ -43,7 +47,7 @@ public class LSEventOptions {
     public event LSMessageHandler? ErrorHandler;
     public event LSAction? OnDispatch;
     public event LSAction? OnSuccess;
-    public event LSAction<string, bool>? OnFailure;
+    public event LSAction<string>? OnFailure;
     public event LSAction? OnCancel;
     #endregion
 
@@ -55,7 +59,7 @@ public class LSEventOptions {
     /// Creates event options with a new unique ID, no timeout, the default dispatcher,
     /// and static listener grouping.
     /// </remarks>
-    public LSEventOptions() { }
+    protected LSEventOptions() { }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LSEventOptions"/> class with specific dispatcher and callbacks.
@@ -68,17 +72,7 @@ public class LSEventOptions {
     /// This constructor provides a convenient way to set up event options with the most commonly used parameters.
     /// All parameters except the dispatcher can be null if not needed.
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// var options = new LSEventOptions(
-    ///     dispatcher: customDispatcher,
-    ///     onSuccess: () => Console.WriteLine("Operation completed"),
-    ///     onFailure: (msg, cancel) => Console.WriteLine($"Failed: {msg}"),
-    ///     errorHandler: (msg) => { Console.Error.WriteLine(msg); return true; }
-    /// );
-    /// </code>
-    /// </example>
-    public LSEventOptions(LSDispatcher? dispatcher, LSAction? onSuccess, LSAction<string, bool>? onFailure, LSMessageHandler? errorHandler) {
+    protected LSEventOptions(LSDispatcher? dispatcher, LSAction? onSuccess, LSAction<string>? onFailure, LSMessageHandler? errorHandler) {
         Dispatcher = dispatcher ?? LSDispatcher.Instance;
         OnSuccess = onSuccess;
         OnFailure = onFailure;
@@ -94,15 +88,7 @@ public class LSEventOptions {
     /// This constructor is useful when you only need to set up basic success and failure handling
     /// without customizing the dispatcher or error handling.
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// var options = new LSEventOptions(
-    ///     onSuccess: () => Console.WriteLine("Done!"),
-    ///     onFailure: (msg, cancel) => Console.WriteLine($"Error: {msg}")
-    /// );
-    /// </code>
-    /// </example>
-    public LSEventOptions(LSAction? onSuccess, LSAction<string, bool>? onFailure = null) {
+    protected LSEventOptions(LSAction? onSuccess, LSAction<string>? onFailure = null) {
         OnSuccess = onSuccess;
         OnFailure = onFailure;
     }
@@ -116,50 +102,139 @@ public class LSEventOptions {
     /// This constructor is useful when you need to specify a custom dispatcher but don't need
     /// complex callback setup during construction.
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// var options = new LSEventOptions(customDispatcher, () => Console.WriteLine("Success"));
-    /// </code>
-    /// </example>
-    public LSEventOptions(LSDispatcher? dispatcher, LSAction? onSuccess = null) {
-        Dispatcher = dispatcher ?? LSDispatcher.Instance;
+    protected LSEventOptions(LSDispatcher dispatcher, LSAction? onSuccess = null) {
+        Dispatcher = dispatcher;
         OnSuccess = onSuccess;
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="LSEventOptions"/> class by copying from another instance.
+    /// Initializes a new instance of the <see cref="LSEventOptions"/> class by copying dispatcher and error handler from another instance.
     /// </summary>
-    /// <param name="copyFrom">The source options to copy settings from.</param>
+    /// <param name="copyFrom">The source options to copy dispatcher and error handler from.</param>
     /// <remarks>
-    /// Creates a deep copy of the source options, including all event handlers and settings.
-    /// The new instance gets a new unique ID but inherits all other configuration.
-    /// This is useful for creating variations of existing configurations.
+    /// Creates a new options instance copying only the dispatcher and error handler from the source.
+    /// The new instance gets a new unique ID and default values for all other settings.
+    /// This is useful for creating new options that use the same infrastructure settings.
+    /// </remarks>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="copyFrom"/> is null.</exception>
+    protected LSEventOptions(LSEventOptions copyFrom) {
+        if (copyFrom == null) throw new System.ArgumentNullException(nameof(copyFrom));
+
+        ID = System.Guid.NewGuid(); // New ID for the copy
+        Dispatcher = copyFrom.Dispatcher;
+        if (copyFrom.ErrorHandler != null) ErrorHandler += copyFrom.ErrorHandler;
+    }
+
+    #endregion
+
+    #region Static Create Methods
+    /// <summary>
+    /// Creates a new instance of the <see cref="LSEventOptions"/> class with default settings.
+    /// </summary>
+    /// <returns>A new LSEventOptions instance with default settings.</returns>
+    /// <remarks>
+    /// Creates event options with a new unique ID, no timeout, the default dispatcher,
+    /// and static listener grouping.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create();
+    /// </code>
+    /// </example>
+    public static LSEventOptions Create() {
+        return new LSEventOptions();
+    }
+
+    /// <summary>
+    /// Creates a new instance of the <see cref="LSEventOptions"/> class with specific dispatcher and callbacks.
+    /// </summary>
+    /// <param name="dispatcher">The dispatcher to use for event handling. If null, uses the default instance.</param>
+    /// <param name="onSuccess">Optional callback to invoke when the event succeeds.</param>
+    /// <param name="onFailure">Optional callback to invoke when the event fails.</param>
+    /// <param name="errorHandler">Optional error handler for processing error messages.</param>
+    /// <returns>A new LSEventOptions instance with the specified settings.</returns>
+    /// <remarks>
+    /// This method provides a convenient way to create event options with the most commonly used parameters.
+    /// All parameters except the dispatcher can be null if not needed.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create(
+    ///     dispatcher: customDispatcher,
+    ///     onSuccess: () => Console.WriteLine("Operation completed"),
+    ///     onFailure: (msg) => Console.WriteLine($"Failed: {msg}"),
+    ///     errorHandler: (msg) => { Console.Error.WriteLine(msg); return true; }
+    /// );
+    /// </code>
+    /// </example>
+    public static LSEventOptions Create(LSDispatcher? dispatcher, LSAction? onSuccess = null, LSAction<string>? onFailure = null, LSMessageHandler? errorHandler = null) {
+        return new LSEventOptions(dispatcher, onSuccess, onFailure, errorHandler);
+    }
+
+    /// <summary>
+    /// Creates a new instance of the <see cref="LSEventOptions"/> class with success and failure callbacks.
+    /// </summary>
+    /// <param name="onSuccess">Optional callback to invoke when the event succeeds.</param>
+    /// <param name="onFailure">Optional callback to invoke when the event fails.</param>
+    /// <returns>A new LSEventOptions instance with the specified callbacks.</returns>
+    /// <remarks>
+    /// This method is useful when you only need to set up basic success and failure handling
+    /// without customizing the dispatcher or error handling.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create(
+    ///     onSuccess: () => Console.WriteLine("Done!"),
+    ///     onFailure: (msg) => Console.WriteLine($"Error: {msg}")
+    /// );
+    /// </code>
+    /// </example>
+    public static LSEventOptions Create(LSAction? onSuccess, LSAction<string>? onFailure = null) {
+        return new LSEventOptions(onSuccess, onFailure);
+    }
+
+    /// <summary>
+    /// Creates a new instance of the <see cref="LSEventOptions"/> class with a specific dispatcher.
+    /// </summary>
+    /// <param name="dispatcher">The dispatcher to use for event handling. If null, uses the default instance.</param>
+    /// <param name="onSuccess">Optional callback to invoke when the event succeeds.</param>
+    /// <returns>A new LSEventOptions instance with the specified dispatcher.</returns>
+    /// <remarks>
+    /// This method is useful when you need to specify a custom dispatcher but don't need
+    /// complex callback setup during construction.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create(customDispatcher, () => Console.WriteLine("Success"));
+    /// </code>
+    /// </example>
+    public static LSEventOptions Create(LSDispatcher dispatcher, LSAction? onSuccess = null) {
+        return new LSEventOptions(dispatcher, onSuccess);
+    }
+
+    /// <summary>
+    /// Creates a new instance of the <see cref="LSEventOptions"/> class by copying dispatcher and error handler from another instance.
+    /// </summary>
+    /// <param name="copyFrom">The source options to copy dispatcher and error handler from.</param>
+    /// <returns>A new LSEventOptions instance with copied dispatcher and error handler.</returns>
+    /// <remarks>
+    /// Creates a new options instance copying only the dispatcher and error handler from the source.
+    /// The new instance gets a new unique ID and default values for all other settings.
+    /// This is useful for creating new options that use the same infrastructure settings.
     /// </remarks>
     /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="copyFrom"/> is null.</exception>
     /// <example>
     /// <code>
-    /// var baseOptions = new LSEventOptions()
+    /// var baseOptions = LSEventOptions.Create()
     ///     .WithTimeout(10.0f)
     ///     .WithDispatcher(customDispatcher);
     /// 
-    /// var derivedOptions = new LSEventOptions(baseOptions)
+    /// var derivedOptions = LSEventOptions.Create(baseOptions)
     ///     .WithSuccess(() => Console.WriteLine("Derived success"));
     /// </code>
     /// </example>
-    public LSEventOptions(LSEventOptions copyFrom) {
-        if (copyFrom == null) throw new System.ArgumentNullException(nameof(copyFrom));
-        
-        ID = System.Guid.NewGuid(); // New ID for the copy
-        Timeout = copyFrom.Timeout;
-        Dispatcher = copyFrom.Dispatcher;
-        GroupType = copyFrom.GroupType;
-        
-        // Copy event handlers
-        if (copyFrom.OnDispatch != null) OnDispatch += copyFrom.OnDispatch;
-        if (copyFrom.OnSuccess != null) OnSuccess += copyFrom.OnSuccess;
-        if (copyFrom.OnFailure != null) OnFailure += copyFrom.OnFailure;
-        if (copyFrom.OnCancel != null) OnCancel += copyFrom.OnCancel;
-        if (copyFrom.ErrorHandler != null) ErrorHandler += copyFrom.ErrorHandler;
+    public static LSEventOptions Create(LSEventOptions copyFrom) {
+        return new LSEventOptions(copyFrom);
     }
     #endregion
 
@@ -220,13 +295,54 @@ public class LSEventOptions {
     /// </remarks>
     /// <example>
     /// <code>
-    /// var options = new LSEventOptions()
+    /// var options = LSEventOptions.Create()
     ///     .WithDispatcher(customDispatcher)
     ///     .WithTimeout(5.0f);
     /// </code>
     /// </example>
-    public LSEventOptions WithDispatcher(LSDispatcher? dispatcher) {
-        Dispatcher = dispatcher ?? LSDispatcher.Instance;
+    public LSEventOptions WithDispatcher(LSDispatcher dispatcher) {
+        Dispatcher = dispatcher;
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a dispatch callback to this event options instance using fluent syntax.
+    /// </summary>
+    /// <param name="onDispatch">The callback to invoke when the event is dispatched.</param>
+    /// <returns>This instance for method chaining.</returns>
+    /// <remarks>
+    /// This method adds the callback to the existing dispatch handlers rather than replacing them.
+    /// Dispatch callbacks are invoked when the event is initially dispatched to listeners.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create()
+    ///     .WithDispatch(() => Console.WriteLine("Event dispatched"));
+    /// </code>
+    /// </example>
+    public LSEventOptions WithDispatch(LSAction onDispatch) {
+        OnDispatch += onDispatch;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the dispatch callback for this event options instance using fluent syntax, replacing any existing handlers.
+    /// </summary>
+    /// <param name="onDispatch">The callback to invoke when the event is dispatched.</param>
+    /// <returns>This instance for method chaining.</returns>
+    /// <remarks>
+    /// This method replaces all existing dispatch handlers with the new callback.
+    /// Dispatch callbacks are invoked when the event is initially dispatched to listeners.
+    /// Use this when you want to ensure only one dispatch handler is registered.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create()
+    ///     .SetDispatch(() => Console.WriteLine("Event dispatched"));
+    /// </code>
+    /// </example>
+    public LSEventOptions SetDispatch(LSAction onDispatch) {
+        OnDispatch = onDispatch;
         return this;
     }
 
@@ -242,7 +358,7 @@ public class LSEventOptions {
     /// </remarks>
     /// <example>
     /// <code>
-    /// var options = new LSEventOptions()
+    /// var options = LSEventOptions.Create()
     ///     .WithTimeout(10.0f)
     ///     .WithSuccess(() => Console.WriteLine("Completed within timeout"));
     /// </code>
@@ -263,13 +379,33 @@ public class LSEventOptions {
     /// </remarks>
     /// <example>
     /// <code>
-    /// var options = new LSEventOptions()
+    /// var options = LSEventOptions.Create()
     ///     .WithSuccess(() => Console.WriteLine("First callback"))
     ///     .WithSuccess(() => Console.WriteLine("Second callback"));
     /// </code>
     /// </example>
     public LSEventOptions WithSuccess(LSAction onSuccess) {
         OnSuccess += onSuccess;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the success callback for this event options instance using fluent syntax, replacing any existing handlers.
+    /// </summary>
+    /// <param name="onSuccess">The callback to invoke when the event succeeds.</param>
+    /// <returns>This instance for method chaining.</returns>
+    /// <remarks>
+    /// This method replaces all existing success handlers with the new callback.
+    /// Use this when you want to ensure only one success handler is registered.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create()
+    ///     .SetSuccess(() => Console.WriteLine("Only success callback"));
+    /// </code>
+    /// </example>
+    public LSEventOptions SetSuccess(LSAction onSuccess) {
+        OnSuccess = onSuccess;
         return this;
     }
 
@@ -284,12 +420,33 @@ public class LSEventOptions {
     /// </remarks>
     /// <example>
     /// <code>
-    /// var options = new LSEventOptions()
-    ///     .WithFailure((msg, cancelled) => Console.WriteLine($"Failed: {msg}, Cancelled: {cancelled}"));
+    /// var options = LSEventOptions.Create()
+    ///     .WithFailure((msg) => Console.WriteLine($"Failed: {msg}"));
     /// </code>
     /// </example>
-    public LSEventOptions WithFailure(LSAction<string, bool> onFailure) {
+    public LSEventOptions WithFailure(LSAction<string> onFailure) {
         OnFailure += onFailure;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the failure callback for this event options instance using fluent syntax, replacing any existing handlers.
+    /// </summary>
+    /// <param name="onFailure">The callback to invoke when the event fails.</param>
+    /// <returns>This instance for method chaining.</returns>
+    /// <remarks>
+    /// This method replaces all existing failure handlers with the new callback.
+    /// The callback receives the failure message and a boolean indicating if the event was cancelled.
+    /// Use this when you want to ensure only one failure handler is registered.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create()
+    ///     .SetFailure((msg) => Console.WriteLine($"Failed: {msg}"));
+    /// </code>
+    /// </example>
+    public LSEventOptions SetFailure(LSAction<string> onFailure) {
+        OnFailure = onFailure;
         return this;
     }
 
@@ -304,12 +461,33 @@ public class LSEventOptions {
     /// </remarks>
     /// <example>
     /// <code>
-    /// var options = new LSEventOptions()
+    /// var options = LSEventOptions.Create()
     ///     .WithCancel(() => Console.WriteLine("Event was cancelled"));
     /// </code>
     /// </example>
     public LSEventOptions WithCancel(LSAction onCancel) {
         OnCancel += onCancel;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the cancellation callback for this event options instance using fluent syntax, replacing any existing handlers.
+    /// </summary>
+    /// <param name="onCancel">The callback to invoke when the event is cancelled.</param>
+    /// <returns>This instance for method chaining.</returns>
+    /// <remarks>
+    /// This method replaces all existing cancellation handlers with the new callback.
+    /// Cancellation callbacks are invoked when the event is explicitly cancelled or times out.
+    /// Use this when you want to ensure only one cancellation handler is registered.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create()
+    ///     .SetCancel(() => Console.WriteLine("Event was cancelled"));
+    /// </code>
+    /// </example>
+    public LSEventOptions SetCancel(LSAction onCancel) {
+        OnCancel = onCancel;
         return this;
     }
 
@@ -325,7 +503,7 @@ public class LSEventOptions {
     /// </remarks>
     /// <example>
     /// <code>
-    /// var options = new LSEventOptions()
+    /// var options = LSEventOptions.Create()
     ///     .WithErrorHandler(msg => { 
     ///         Console.Error.WriteLine($"Error: {msg}"); 
     ///         return true; 
@@ -334,6 +512,31 @@ public class LSEventOptions {
     /// </example>
     public LSEventOptions WithErrorHandler(LSMessageHandler errorHandler) {
         ErrorHandler += errorHandler;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the error handler for this event options instance using fluent syntax, replacing any existing handlers.
+    /// </summary>
+    /// <param name="errorHandler">The error handler to set.</param>
+    /// <returns>This instance for method chaining.</returns>
+    /// <remarks>
+    /// This method replaces all existing error handlers with the new handler.
+    /// Error handlers are responsible for processing error messages and returning whether
+    /// the error was handled successfully.
+    /// Use this when you want to ensure only one error handler is registered.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var options = LSEventOptions.Create()
+    ///     .SetErrorHandler(msg => { 
+    ///         Console.Error.WriteLine($"Error: {msg}"); 
+    ///         return true; 
+    ///     });
+    /// </code>
+    /// </example>
+    public LSEventOptions SetErrorHandler(LSMessageHandler errorHandler) {
+        ErrorHandler = errorHandler;
         return this;
     }
 
@@ -348,7 +551,7 @@ public class LSEventOptions {
     /// </remarks>
     /// <example>
     /// <code>
-    /// var options = new LSEventOptions()
+    /// var options = LSEventOptions.Create()
     ///     .WithGroupType(ListenerGroupType.SUBSET);
     /// </code>
     /// </example>
@@ -369,14 +572,14 @@ public class LSEventOptions {
     /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="sourceEvent"/> is null.</exception>
     /// <example>
     /// <code>
-    /// var childOptions = new LSEventOptions()
+    /// var childOptions = LSEventOptions.Create()
     ///     .CopyCallbacksFrom(parentEvent)
     ///     .WithDispatcher(customDispatcher);
     /// </code>
     /// </example>
     public LSEventOptions CopyCallbacksFrom(LSEvent sourceEvent) {
         if (sourceEvent == null) throw new System.ArgumentNullException(nameof(sourceEvent));
-        
+
         OnSuccess += sourceEvent.Signal;
         OnFailure += sourceEvent.Failure;
         return this;
@@ -394,14 +597,14 @@ public class LSEventOptions {
     /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="source"/> is null.</exception>
     /// <example>
     /// <code>
-    /// var derivedOptions = new LSEventOptions()
+    /// var derivedOptions = LSEventOptions.Create()
     ///     .CopyCallbacksFrom(baseOptions)
     ///     .WithTimeout(customTimeout);
     /// </code>
     /// </example>
     public LSEventOptions CopyCallbacksFrom(LSEventOptions source) {
         if (source == null) throw new System.ArgumentNullException(nameof(source));
-        
+
         if (source.OnSuccess != null) OnSuccess += source.OnSuccess;
         if (source.OnFailure != null) OnFailure += source.OnFailure;
         if (source.OnCancel != null) OnCancel += source.OnCancel;
@@ -433,7 +636,7 @@ public class LSEventOptions {
     /// </example>
     public static LSEventOptions ForEvent(LSEvent parentEvent, LSDispatcher? dispatcher = null) {
         if (parentEvent == null) throw new System.ArgumentNullException(nameof(parentEvent));
-        
+
         return new LSEventOptions {
             Dispatcher = dispatcher ?? parentEvent.Dispatcher,
             OnSuccess = parentEvent.Signal,
@@ -461,8 +664,8 @@ public class LSEventOptions {
     /// </example>
     public static LSEventOptions WithEventCallbacks(LSEvent parentEvent, LSEventOptions? baseOptions = null) {
         if (parentEvent == null) throw new System.ArgumentNullException(nameof(parentEvent));
-        
-        var options = baseOptions != null ? new LSEventOptions(baseOptions) : new LSEventOptions();
+
+        var options = baseOptions != null ? LSEventOptions.Create(baseOptions) : LSEventOptions.Create();
         options.OnSuccess += parentEvent.Signal;
         options.OnFailure += parentEvent.Failure;
         return options;
@@ -485,7 +688,7 @@ public class LSEventOptions {
     /// </example>
     public static LSEventOptions FromDispatcher(LSDispatcher dispatcher) {
         if (dispatcher == null) throw new System.ArgumentNullException(nameof(dispatcher));
-        
+
         return new LSEventOptions { Dispatcher = dispatcher };
     }
 
@@ -507,7 +710,7 @@ public class LSEventOptions {
     /// );
     /// </code>
     /// </example>
-    public static LSEventOptions Quick(LSAction? onSuccess = null, LSAction<string, bool>? onFailure = null) {
+    public static LSEventOptions Quick(LSAction? onSuccess = null, LSAction<string>? onFailure = null) {
         return new LSEventOptions(onSuccess, onFailure);
     }
     #endregion
@@ -540,7 +743,7 @@ public class LSEventOptions {
     /// This method is called internally when the event encounters a failure.
     /// It's part of the event lifecycle management system.
     /// </remarks>
-    internal void failure(string msg, bool cancel) => OnFailure?.Invoke(msg, cancel);
+    internal void failure(string msg) => OnFailure?.Invoke(msg);
 
     /// <summary>
     /// Triggers the cancellation callback if one is registered.
@@ -575,119 +778,6 @@ public class LSEventOptions {
 }
 
 /// <summary>
-/// Configuration options for instance-based events that use subset listener grouping.
-/// </summary>
-/// <remarks>
-/// This class extends <see cref="LSEventOptions"/> to provide default configuration
-/// specifically for events that are associated with instances and use subset-based
-/// listener matching. The group type is set to <see cref="ListenerGroupType.SUBSET"/>
-/// by default, which is appropriate for events tied to specific object instances.
-/// 
-/// <para>
-/// Instance events are commonly used when you need to listen for events from specific
-/// object instances rather than all events of a particular type. This class automatically
-/// configures the appropriate listener grouping strategy.
-/// </para>
-/// </remarks>
-/// <example>
-/// <code>
-/// // Basic instance event options
-/// var options = new LSEventIOptions();
-/// 
-/// // Copy from base options but ensure subset grouping
-/// var options = new LSEventIOptions(baseOptions);
-/// 
-/// // Factory method for chaining to parent events
-/// var childOptions = LSEventIOptions.ForEvent(parentEvent);
-/// </code>
-/// </example>
-public class LSEventIOptions : LSEventOptions {
-    #region Constructors
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LSEventIOptions"/> class with default settings.
-    /// </summary>
-    /// <remarks>
-    /// Creates event options with subset-based listener grouping, which is appropriate
-    /// for events that are associated with specific instances.
-    /// </remarks>
-    public LSEventIOptions() : base() { 
-        GroupType = ListenerGroupType.SUBSET;
-    }
-    
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LSEventIOptions"/> class by copying from another options instance.
-    /// </summary>
-    /// <param name="copyFrom">The source options to copy settings from.</param>
-    /// <remarks>
-    /// Creates a copy of the source options but ensures the group type is set to SUBSET,
-    /// which is appropriate for instance-based events.
-    /// </remarks>
-    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="copyFrom"/> is null.</exception>
-    public LSEventIOptions(LSEventOptions copyFrom) : base(copyFrom) {
-        GroupType = ListenerGroupType.SUBSET; // Override for instance events
-    }
-    
-    /// <summary>
-    /// Initializes a new instance of the <see cref="LSEventIOptions"/> class with a specific dispatcher.
-    /// </summary>
-    /// <param name="dispatcher">The dispatcher to use for event handling. If null, uses the default instance.</param>
-    /// <param name="onSuccess">Optional callback to invoke when the event succeeds.</param>
-    /// <remarks>
-    /// Creates instance event options with a custom dispatcher and optional success callback.
-    /// The group type is automatically set to SUBSET for instance-based listener matching.
-    /// </remarks>
-    public LSEventIOptions(LSDispatcher? dispatcher, LSAction? onSuccess = null) : base(dispatcher, onSuccess) {
-        GroupType = ListenerGroupType.SUBSET;
-    }
-    #endregion
-
-    #region Properties
-    /// <summary>
-    /// Gets or sets the listener group type for instance-based events.
-    /// </summary>
-    /// <value>
-    /// The group type used for listener matching. Defaults to <see cref="ListenerGroupType.SUBSET"/>.
-    /// </value>
-    /// <remarks>
-    /// Overrides the base class default to use subset grouping, which is more appropriate
-    /// for events that are tied to specific object instances rather than global events.
-    /// While this can be changed, it's recommended to keep it as SUBSET for instance events.
-    /// </remarks>
-    public override ListenerGroupType GroupType { get; set; } = ListenerGroupType.SUBSET;
-    #endregion
-
-    #region Static Factory Methods
-    /// <summary>
-    /// Creates instance event options configured to chain callbacks to a parent event.
-    /// </summary>
-    /// <param name="parentEvent">The parent event to chain to.</param>
-    /// <param name="baseOptions">Optional base options to inherit settings from.</param>
-    /// <returns>A new <see cref="LSEventIOptions"/> instance configured for the parent event.</returns>
-    /// <remarks>
-    /// This factory method creates instance event options that will automatically forward
-    /// success and failure callbacks to the parent event. The group type is automatically
-    /// set to SUBSET for proper instance-based listener matching.
-    /// </remarks>
-    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="parentEvent"/> is null.</exception>
-    /// <example>
-    /// <code>
-    /// var childOptions = LSEventIOptions.ForEvent(parentEvent, baseOptions);
-    /// var childEvent = SomeInstanceOperation.Create(specificInstance, childOptions);
-    /// // When childEvent succeeds/fails, it will automatically signal parentEvent
-    /// </code>
-    /// </example>
-    public static LSEventIOptions ForEvent(LSEvent parentEvent, LSEventOptions? baseOptions = null) {
-        if (parentEvent == null) throw new System.ArgumentNullException(nameof(parentEvent));
-        
-        var options = baseOptions != null ? new LSEventIOptions(baseOptions) : new LSEventIOptions();
-        options.OnSuccess += parentEvent.Signal;
-        options.OnFailure += parentEvent.Failure;
-        return options;
-    }
-    #endregion
-}
-
-/// <summary>
 /// Extension methods for <see cref="LSEventOptions"/> to provide additional fluent API capabilities.
 /// </summary>
 /// <remarks>
@@ -711,7 +801,7 @@ public static class LSEventOptionsExtensions {
     /// </exception>
     /// <example>
     /// <code>
-    /// var options = new LSEventOptions()
+    /// var options = LSEventOptions.Create()
     ///     .WithTimeout(5.0f)
     ///     .ChainTo(parentEvent);
     /// </code>
@@ -719,7 +809,7 @@ public static class LSEventOptionsExtensions {
     public static LSEventOptions ChainTo(this LSEventOptions source, LSEvent targetEvent) {
         if (source == null) throw new System.ArgumentNullException(nameof(source));
         if (targetEvent == null) throw new System.ArgumentNullException(nameof(targetEvent));
-        
+
         source.OnSuccess += targetEvent.Signal;
         source.OnFailure += targetEvent.Failure;
         return source;
@@ -741,7 +831,7 @@ public static class LSEventOptionsExtensions {
     /// </exception>
     /// <example>
     /// <code>
-    /// var childOptions = new LSEventOptions()
+    /// var childOptions = LSEventOptions.Create()
     ///     .InheritFrom(parentOptions)
     ///     .WithSuccess(() => Console.WriteLine("Child completed"));
     /// </code>
@@ -749,7 +839,7 @@ public static class LSEventOptionsExtensions {
     public static LSEventOptions InheritFrom(this LSEventOptions target, LSEventOptions source) {
         if (target == null) throw new System.ArgumentNullException(nameof(target));
         if (source == null) throw new System.ArgumentNullException(nameof(source));
-        
+
         target.Dispatcher = source.Dispatcher;
         target.CopyCallbacksFrom(source);
         return target;
@@ -775,12 +865,7 @@ public static class LSEventOptionsExtensions {
     /// </example>
     public static LSEventIOptions ToInstanceOptions(this LSEventOptions source) {
         if (source == null) throw new System.ArgumentNullException(nameof(source));
-        
-        var options = new LSEventIOptions();
-        options.CopyCallbacksFrom(source);
-        options.Dispatcher = source.Dispatcher;
-        options.Timeout = source.Timeout;
-        options.ID = source.ID;
-        return options;
+
+        return LSEventIOptions.Create(source);
     }
 }

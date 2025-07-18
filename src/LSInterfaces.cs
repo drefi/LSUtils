@@ -1,5 +1,12 @@
 namespace LSUtils;
 
+public interface ILSClass {
+    /// <summary>
+    /// Gets the class name of the eventable.
+    /// </summary>
+    string ClassName { get; }
+}
+
 public interface ILSSerializer {
     /// <summary>
     /// Serializes the given object to a string.
@@ -17,15 +24,18 @@ public interface ILSSerializer {
     /// <returns>An object of type T.</returns>
     T Deserialize<T>(string data);
 }
+public interface ILSSerializable : ILSClass {
+    /// <summary>
+    /// Saves the object to a string using the provided serializer.
+    /// </summary>
+    /// <param name="serializer">The serializer to use for saving.</param>
+    /// <returns>A string representation of the saved object.</returns>
+    string Save(ILSSerializer serializer);
+}
 /// <summary>
 /// Interface for eventable entities.
 /// </summary>
-public interface ILSEventable {
-
-    /// <summary>
-    /// Gets the class name of the eventable.
-    /// </summary>
-    string ClassName { get; }
+public interface ILSEventable : ILSClass {
 
     /// <summary>
     /// Gets the ID of the eventable.
@@ -36,9 +46,8 @@ public interface ILSEventable {
     /// Initializes the eventable, allowing callbacks for dispatching events with optional success and failure callbacks.
     /// Standard implementation for use with OnInitializeEvent.
     /// </summary>
-    /// <param name="eventOptions">Optional event options for initialization.</param>
-    /// <returns>True if initialization was successful; otherwise, false.</returns>
-    bool Initialize(LSEventIOptions? eventOptions = null);
+    /// <param name="eventOptions">event options for initialization.</param>
+    void Initialize(LSEventIOptions eventOptions);
     void Cleanup();
 }
 

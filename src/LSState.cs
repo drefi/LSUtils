@@ -153,14 +153,11 @@ public abstract class LSState<TState, TContext> : ILSState
 
     #region State Lifecycle Management
     /// <summary>
-    /// Initializes the state by dispatching an initialization event and calling the virtual handler.
+    /// Initializes the state by creating and dispatching an initialization event.
     /// </summary>
     /// <param name="eventOptions">
-    /// Optional configuration for the initialization event. If null, default options are used.
+    /// Configuration options for the initialization event, including dispatcher, callbacks, and timeout.
     /// </param>
-    /// <returns>
-    /// <c>true</c> if initialization completed successfully; <c>false</c> if initialization failed or was cancelled.
-    /// </returns>
     /// <remarks>
     /// This method creates an initialization event, calls the virtual <see cref="onInitialize"/> method,
     /// and dispatches the event to any registered listeners. The state should only be used after
@@ -169,18 +166,15 @@ public abstract class LSState<TState, TContext> : ILSState
     /// <example>
     /// <code>
     /// var state = new MyGameState(context);
-    /// if (!state.Initialize()) {
-    ///     Console.WriteLine("State initialization failed");
-    ///     return;
-    /// }
+    /// var options = LSEventIOptions.Create();
+    /// state.Initialize(options);
     /// // State is now ready for use
     /// </code>
     /// </example>
-    public bool Initialize(LSEventIOptions? eventOptions = null) {
-        eventOptions ??= new LSEventIOptions();
+    public void Initialize(LSEventIOptions eventOptions) {
         var @event = OnInitializeEvent.Create<TState>((TState)this, eventOptions);
         onInitialize(@event);
-        return @event.Dispatch();
+        @event.Dispatch();
     }
 
     /// <summary>
@@ -314,7 +308,7 @@ public abstract class LSState<TState, TContext> : ILSState
         /// The returned event can be used to register listeners or dispatch notifications.
         /// </remarks>
         public static OnEnterEvent<TInstance> Create<TInstance>(TInstance instance, LSEventIOptions? eventOptions) where TInstance : TState {
-            eventOptions ??= new LSEventIOptions();
+            eventOptions ??= LSEventIOptions.Create();
             return OnEnterEvent<TInstance>.Create(instance, eventOptions);
         }
 
@@ -400,7 +394,7 @@ public abstract class LSState<TState, TContext> : ILSState
         /// to the specified state type, providing type safety and better IntelliSense support.
         /// </remarks>
         public static OnEnterEvent<TInstance> Create(TState instance, LSEventIOptions? eventOptions) {
-            eventOptions ??= new LSEventIOptions();
+            eventOptions ??= LSEventIOptions.Create();
             return new OnEnterEvent<TInstance>(instance, eventOptions);
         }
 
@@ -567,7 +561,7 @@ public abstract class LSState<TState, TContext> : ILSState
         /// to the specified state type, providing type safety and better IntelliSense support.
         /// </remarks>
         public static OnExitEvent<TInstance> Create(TState instance, LSEventIOptions? eventOptions) {
-            eventOptions ??= new LSEventIOptions();
+            eventOptions ??= LSEventIOptions.Create();
             return new OnExitEvent<TInstance>(instance, eventOptions);
         }
 
