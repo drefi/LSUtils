@@ -93,6 +93,18 @@ public abstract class LSEvent {
     /// The type of listener grouping strategy. Default is <see cref="ListenerGroupType.STATIC"/>.
     /// </value>
     public virtual ListenerGroupType GroupType { get; protected set; } = ListenerGroupType.STATIC;
+
+    /// <summary>
+    /// Gets the current phase of event processing.
+    /// </summary>
+    /// <value>The current execution phase of the event.</value>
+    public EventPhase CurrentPhase { get; internal set; } = EventPhase.DISPATCH;
+
+    /// <summary>
+    /// Gets which phases have been executed for this event.
+    /// </summary>
+    /// <value>A flags enum indicating which phases have completed execution.</value>
+    public EventPhase ExecutedPhases { get; internal set; } = EventPhase.DISPATCH;
     #endregion
 
     #region Events
@@ -287,6 +299,17 @@ public abstract class LSEvent {
     /// which can be useful for tracking specific operations.
     /// </remarks>
     public int Signal(out System.Guid signalID) => _semaphore.Signal(out signalID);
+
+    /// <summary>
+    /// Internal method for the dispatcher to trigger the dispatch callback during the DISPATCH phase.
+    /// </summary>
+    internal void TriggerDispatchCallback() => DispatchCallback?.Invoke();
+
+    /// <summary>
+    /// Internal method for the dispatcher to access the error handler.
+    /// </summary>
+    /// <param name="message">The error message to handle.</param>
+    internal void TriggerErrorHandler(string message) => _errorHandler?.Invoke(message);
     #endregion
     #region Error Handling and Cancellation
     /// <summary>

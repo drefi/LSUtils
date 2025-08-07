@@ -76,6 +76,18 @@ internal class ListenerEntry<TEvent> where TEvent : LSEvent {
     /// for future use cases where listeners might become invalid due to external factors.
     /// </remarks>
     public bool IsValid { get; }
+
+    /// <summary>
+    /// Gets the execution phase this listener is registered for.
+    /// </summary>
+    /// <value>The phase during which this listener should be executed.</value>
+    public EventPhase Phase { get; }
+
+    /// <summary>
+    /// Gets the priority of this listener within its execution phase.
+    /// </summary>
+    /// <value>The priority level that determines execution order within the phase.</value>
+    public PhasePriority Priority { get; }
     #endregion
 
     #region Constructor
@@ -94,17 +106,27 @@ internal class ListenerEntry<TEvent> where TEvent : LSEvent {
     /// The maximum number of times this listener can be executed.
     /// Use -1 for unlimited triggers. Defaults to -1.
     /// </param>
+    /// <param name="phase">
+    /// The execution phase during which this listener should be called.
+    /// Defaults to <see cref="EventPhase.EXECUTION"/>.
+    /// </param>
+    /// <param name="priority">
+    /// The priority level within the phase that determines execution order.
+    /// Defaults to <see cref="PhasePriority.NORMAL"/>.
+    /// </param>
     /// <remarks>
     /// The listener is automatically marked as valid upon construction.
     /// If triggers is set to a positive number, the listener will be automatically
     /// removed after that many executions.
     /// </remarks>
-    internal ListenerEntry(System.Guid listenerID, LSListener<TEvent> callback, int triggers = -1) {
+    internal ListenerEntry(System.Guid listenerID, LSListener<TEvent> callback, int triggers = -1, EventPhase phase = EventPhase.EXECUTION, PhasePriority priority = PhasePriority.NORMAL) {
         ListenerID = listenerID == default || listenerID == System.Guid.Empty ? System.Guid.NewGuid() : listenerID;
         TotalTriggers = triggers;
         TriggersRemaining = triggers;
         _callback = callback;
         IsValid = true;
+        Phase = phase;
+        Priority = priority;
     }
     #endregion
 

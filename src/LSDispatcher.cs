@@ -131,19 +131,93 @@ public partial class LSDispatcher {
     /// Thrown when the event is null, already cancelled, or already completed.
     /// </exception>
     /// <remarks>
-    /// The dispatching process involves finding all listener groups that match the search criteria,
-    /// notifying all listeners in those groups, and then marking the event as completed.
-    /// If any listener indicates failure during notification, the entire dispatch operation fails.
+    /// The dispatching process now uses a phase-based approach, executing listeners through
+    /// structured phases: DISPATCH → PRE_EXECUTION → EXECUTION → POST_EXECUTION, followed by
+    /// conditional phases (SUCCESS/FAILURE/CANCEL) and finally COMPLETE phase.
+    /// This provides predictable execution order and better error handling.
     /// </remarks>
     internal bool Dispatch(ListenerGroupEntry searchGroup, LSEvent @event) {
         if (@event == null) throw new LSException("{{event_null}}");
         if (@event.IsCancelled || @event.IsDone) throw new LSException($"{{event{(@event.IsCancelled ? "_cancelled" : "_done")}}}");
-        LSEventType eventType = LSEventType.Get(@event.GetType());
-        var matches = _listeners.Where(entry => entry.Value.Contains(searchGroup));
-        foreach (var match in matches) {
-            if (match.Value.NotifyListeners(@event) == false) return false;
+        
+        try {
+            // Execute phases in order
+            if (!ExecutePhase(searchGroup, @event, EventPhase.DISPATCH)) return false;
+            if (!ExecutePhase(searchGroup, @event, EventPhase.PRE_EXECUTION)) return false;
+            if (!ExecutePhase(searchGroup, @event, EventPhase.EXECUTION)) return false;
+            if (!ExecutePhase(searchGroup, @event, EventPhase.POST_EXECUTION)) return false;
+            
+            // Conditional phases based on event state
+            if (@event.IsCancelled) {
+                ExecutePhase(searchGroup, @event, EventPhase.CANCEL);
+            } else if (@event.HasFailed) {
+                ExecutePhase(searchGroup, @event, EventPhase.FAILURE);
+            } else {
+                ExecutePhase(searchGroup, @event, EventPhase.SUCCESS);
+            }
+            
+            // Always execute complete phase
+            ExecutePhase(searchGroup, @event, EventPhase.COMPLETE);
+            
+            return @event.done() == 0;
+            
+        } catch (System.Exception ex) {
+            @event.TriggerErrorHandler($"dispatch_error: {ex.Message}");
+            return false;
         }
-        return @event.done() == 0;
+    }
+
+    /// <summary>
+    /// Executes a specific phase of event processing.
+    /// </summary>
+    /// <param name="searchGroup">The listener group criteria.</param>
+    /// <param name="event">The event being processed.</param>
+    /// <param name="phase">The phase to execute.</param>
+    /// <returns>True if the phase completed successfully.</returns>
+    protected virtual bool ExecutePhase(ListenerGroupEntry searchGroup, LSEvent @event, EventPhase phase) {
+        @event.CurrentPhase = phase;
+        
+        var matches = _listeners.Where(entry => entry.Value.Contains(searchGroup));
+        
+        foreach (var match in matches) {
+            if (match.Value.NotifyListenersInPhase(@event, phase) == false) {
+                return false;
+            }
+            
+            // Check if event state changed during phase execution
+            if (@event.IsCancelled || @event.HasFailed) {
+                break;
+            }
+        }
+        
+        @event.ExecutedPhases |= phase;
+        
+        // Execute built-in callbacks for specific phases
+        ExecuteBuiltInCallbacks(@event, phase);
+        
+        return true;
+    }
+
+    /// <summary>
+    /// Executes the built-in event callbacks for specific phases.
+    /// </summary>
+    /// <param name="event">The event being processed.</param>
+    /// <param name="phase">The current phase.</param>
+    protected virtual void ExecuteBuiltInCallbacks(LSEvent @event, EventPhase phase) {
+        switch (phase) {
+            case EventPhase.DISPATCH:
+                @event.TriggerDispatchCallback();
+                break;
+            case EventPhase.SUCCESS:
+                // Success callbacks are handled by the semaphore when done() is called
+                break;
+            case EventPhase.FAILURE:
+                // Failure callbacks are handled by the semaphore
+                break;
+            case EventPhase.CANCEL:
+                // Cancel callbacks are handled by the semaphore
+                break;
+        }
     }
     #endregion
 
@@ -173,6 +247,7 @@ public partial class LSDispatcher {
     /// This method creates or finds the appropriate listener group based on the event type,
     /// instance array, and grouping strategy. The listener is added to the group and will
     /// receive notifications for matching events until it reaches its trigger limit or is unregistered.
+    /// Uses default priority (NORMAL = 0).
     /// </remarks>
     public System.Guid Register(LSListener<LSEvent> listener, LSEventType eventType, ILSEventable[]? instances = null, int triggers = -1, System.Guid listenerID = default) {
         if (listener == null) throw new LSException("listener_null");
@@ -183,6 +258,29 @@ public partial class LSDispatcher {
         } else group = existingGroup;
         if (listenerID == default || listenerID == System.Guid.Empty) listenerID = System.Guid.NewGuid();
         if (group.AddListener(listenerID, listener, triggers) == false) throw new LSException($"{{group_{group.GroupType}_failed_register_listener}}:{listenerID}");
+        return listenerID;
+    }
+
+    /// <summary>
+    /// Registers a listener for events with phase and priority control.
+    /// </summary>
+    /// <param name="listener">The listener callback to register.</param>
+    /// <param name="eventType">The type of events this listener should receive.</param>
+    /// <param name="phase">The execution phase for this listener.</param>
+    /// <param name="priority">Priority within the phase (lower values execute first).</param>
+    /// <param name="instances">Optional array of specific instances to listen for.</param>
+    /// <param name="triggers">Maximum number of triggers (-1 for unlimited).</param>
+    /// <param name="listenerID">Optional unique identifier.</param>
+    /// <returns>The unique identifier of the registered listener.</returns>
+    public System.Guid Register(LSListener<LSEvent> listener, LSEventType eventType, EventPhase phase, PhasePriority priority = PhasePriority.NORMAL, ILSEventable[]? instances = null, int triggers = -1, System.Guid listenerID = default) {
+        if (listener == null) throw new LSException("listener_null");
+        ListenerGroupType groupType = ListenerGroupEntry.GetGroupType(instances);
+        ListenerGroupEntry group = ListenerGroupEntry.Create(eventType, groupType, instances);
+        if (_listeners.TryGetValue(group.GetHashCode(), out var existingGroup) == false) {
+            if (_listeners.TryAdd(group.GetHashCode(), group) == false) throw new LSException($"{{add_new_group_failed_{groupType}}}:{group.GetHashCode()}");
+        } else group = existingGroup;
+        if (listenerID == default || listenerID == System.Guid.Empty) listenerID = System.Guid.NewGuid();
+        if (group.AddListener(listenerID, listener, triggers, phase, priority) == false) throw new LSException($"{{group_{group.GroupType}_failed_register_listener}}:{listenerID}");
         return listenerID;
     }
 
@@ -212,6 +310,7 @@ public partial class LSDispatcher {
     /// This generic overload provides type safety by automatically determining the event type
     /// from the generic parameter and wrapping the strongly-typed listener in a compatible format.
     /// This is the preferred method for registering listeners when you know the specific event type at compile time.
+    /// Uses default priority (NORMAL = 0).
     /// </remarks>
     /// <example>
     /// <code>
@@ -227,6 +326,106 @@ public partial class LSDispatcher {
             new LSListener<LSEvent>((id, e) => listener(id, (TEvent)(object)e)),
             LSEventType.Get<TEvent>(), instances, triggers, listenerID
         );
+    }
+
+    /// <summary>
+    /// Registers a strongly-typed listener with phase and priority control.
+    /// </summary>
+    /// <typeparam name="TEvent">The specific event type to listen for.</typeparam>
+    /// <param name="listener">The strongly-typed listener callback.</param>
+    /// <param name="phase">The execution phase for this listener.</param>
+    /// <param name="priority">Priority within the phase (lower values execute first).</param>
+    /// <param name="instances">Optional array of specific instances to listen for.</param>
+    /// <param name="triggers">Maximum number of triggers (-1 for unlimited).</param>
+    /// <param name="listenerID">Optional unique identifier.</param>
+    /// <returns>The unique identifier of the registered listener.</returns>
+    public System.Guid Register<TEvent>(LSListener<TEvent> listener, EventPhase phase, PhasePriority priority = PhasePriority.NORMAL, ILSEventable[]? instances = null, int triggers = -1, System.Guid listenerID = default) where TEvent : LSEvent {
+        if (listener == null) throw new LSException("listener_null");
+        return Register(
+            new LSListener<LSEvent>((id, e) => listener(id, (TEvent)(object)e)),
+            LSEventType.Get<TEvent>(), phase, priority, instances, triggers, listenerID
+        );
+    }
+
+    /// <summary>
+    /// Registers a status-based listener that returns processing status.
+    /// </summary>
+    /// <typeparam name="TEvent">The specific event type to listen for.</typeparam>
+    /// <param name="listener">The status-returning listener callback.</param>
+    /// <param name="phase">The execution phase for this listener.</param>
+    /// <param name="priority">Priority within the phase (lower values execute first).</param>
+    /// <param name="instances">Optional array of specific instances to listen for.</param>
+    /// <param name="triggers">Maximum number of triggers (-1 for unlimited).</param>
+    /// <param name="listenerID">Optional unique identifier.</param>
+    /// <returns>The unique identifier of the registered listener.</returns>
+    public System.Guid RegisterStatus<TEvent>(LSStatusListener<TEvent> listener, EventPhase phase = EventPhase.EXECUTION, PhasePriority priority = PhasePriority.NORMAL, ILSEventable[]? instances = null, int triggers = -1, System.Guid listenerID = default) where TEvent : LSEvent {
+        if (listener == null) throw new LSException("listener_null");
+        
+        // Wrap the status listener in a traditional listener
+        LSListener<TEvent> wrappedListener = (id, evt) => {
+            var status = listener(id, evt);
+            HandleListenerStatus(evt, status, null);
+        };
+        
+        return Register(wrappedListener, phase, priority, instances, triggers, listenerID);
+    }
+
+    /// <summary>
+    /// Registers a status-based listener with message support.
+    /// </summary>
+    /// <typeparam name="TEvent">The specific event type to listen for.</typeparam>
+    /// <param name="listener">The status-returning listener callback with message output.</param>
+    /// <param name="phase">The execution phase for this listener.</param>
+    /// <param name="priority">Priority within the phase (lower values execute first).</param>
+    /// <param name="instances">Optional array of specific instances to listen for.</param>
+    /// <param name="triggers">Maximum number of triggers (-1 for unlimited).</param>
+    /// <param name="listenerID">Optional unique identifier.</param>
+    /// <returns>The unique identifier of the registered listener.</returns>
+    public System.Guid RegisterStatus<TEvent>(LSStatusListenerWithMessage<TEvent> listener, EventPhase phase = EventPhase.EXECUTION, PhasePriority priority = PhasePriority.NORMAL, ILSEventable[]? instances = null, int triggers = -1, System.Guid listenerID = default) where TEvent : LSEvent {
+        if (listener == null) throw new LSException("listener_null");
+        
+        // Wrap the status listener in a traditional listener
+        LSListener<TEvent> wrappedListener = (id, evt) => {
+            var status = listener(id, evt, out string? message);
+            HandleListenerStatus(evt, status, message);
+        };
+        
+        return Register(wrappedListener, phase, priority, instances, triggers, listenerID);
+    }
+
+    /// <summary>
+    /// Handles the status returned by a listener and performs appropriate actions.
+    /// </summary>
+    /// <param name="event">The event being processed.</param>
+    /// <param name="status">The status returned by the listener.</param>
+    /// <param name="message">Optional message from the listener.</param>
+    private void HandleListenerStatus(LSEvent @event, EventProcessingStatus status, string? message) {
+        switch (status) {
+            case EventProcessingStatus.SUCCESS:
+                @event.Signal();
+                break;
+                
+            case EventProcessingStatus.FAILURE:
+                @event.Failure(message ?? "Listener reported failure");
+                break;
+                
+            case EventProcessingStatus.CANCEL:
+                @event.Cancel();
+                break;
+                
+            case EventProcessingStatus.RUNNING:
+                // Don't signal - listener will handle completion asynchronously
+                @event.Wait(); // Add a wait signal for async completion
+                break;
+                
+            case EventProcessingStatus.SKIP:
+                // Do nothing - listener chose not to process
+                break;
+                
+            default:
+                @event.Failure($"Unknown processing status: {status}");
+                break;
+        }
     }
     #endregion
 

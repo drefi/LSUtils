@@ -110,10 +110,15 @@ public class ListenerGroupEntry {
 
     #region Fields and Properties
     /// <summary>
-    /// Thread-safe collection of listeners keyed by their unique identifiers.
+    /// Thread-safe collection of listeners registered to this group.
     /// </summary>
+    /// <remarks>
+    /// The dictionary key is the listener's unique identifier, which allows for efficient
+    /// lookup and removal operations. The concurrent dictionary ensures thread safety
+    /// for concurrent registrations and unregistrations.
+    /// </remarks>
     private readonly ConcurrentDictionary<System.Guid, ListenerEntry<LSEvent>> _listeners = new ConcurrentDictionary<System.Guid, ListenerEntry<LSEvent>>();
-    
+
     /// <summary>
     /// The instances associated with this listener group.
     /// </summary>
@@ -262,6 +267,10 @@ public class ListenerGroupEntry {
     /// The maximum number of times this listener can be executed.
     /// Use -1 for unlimited triggers. Defaults to -1.
     /// </param>
+    /// <param name="priority">
+    /// The execution priority of this listener. Lower values execute first.
+    /// Defaults to 0. Listeners with the same priority maintain registration order.
+    /// </param>
     /// <returns><c>true</c> if the listener was successfully added; otherwise, <c>false</c>.</returns>
     /// <exception cref="LSException">
     /// Thrown when the listener ID already exists in the group or when the listener
@@ -275,19 +284,22 @@ public class ListenerGroupEntry {
     /// <code>
     /// var group = ListenerGroupEntry.Create&lt;MyEvent&gt;();
     /// 
-    /// // Add an unlimited listener
+    /// // Add an unlimited listener with default priority
     /// group.AddListener(Guid.NewGuid(), (id, evt) => HandleEvent(evt));
     /// 
-    /// // Add a one-time listener
-    /// group.AddListener(Guid.NewGuid(), (id, evt) => HandleEventOnce(evt), 1);
+    /// // Add a high priority one-time listener
+    /// group.AddListener(Guid.NewGuid(), (id, evt) => HandleEventOnce(evt), 1, -100);
     /// </code>
     /// </example>
-    public bool AddListener(System.Guid listenerID, LSListener<LSEvent> listener, int triggers = -1) {
+    public bool AddListener(System.Guid listenerID, LSListener<LSEvent> listener, int triggers = -1, EventPhase phase = EventPhase.EXECUTION, PhasePriority priority = PhasePriority.NORMAL) {
         if (listenerID == default || listenerID == System.Guid.Empty) listenerID = System.Guid.NewGuid();
         if (_listeners.ContainsKey(listenerID)) {
             throw new LSException($"listener_id_already_added");
         }
-        if (_listeners.TryAdd(listenerID, new ListenerEntry<LSEvent>(listenerID, listener, triggers)) == false) {
+        
+        var entry = new ListenerEntry<LSEvent>(listenerID, listener, triggers, phase, priority);
+        
+        if (_listeners.TryAdd(listenerID, entry) == false) {
             throw new LSException($"listener_id_could_not_be_added");
         }
         return true;
@@ -349,7 +361,7 @@ public class ListenerGroupEntry {
 
     #region Event Notification
     /// <summary>
-    /// Notifies all listeners in this group about the specified event.
+    /// Notifies all listeners in this group about the specified event in priority order.
     /// </summary>
     /// <param name="event">The event to broadcast to all listeners.</param>
     /// <returns>
@@ -358,7 +370,8 @@ public class ListenerGroupEntry {
     /// </returns>
     /// <remarks>
     /// <para>
-    /// This method iterates through all registered listeners and executes their callbacks.
+    /// This method iterates through all registered listeners in priority order (lower values first).
+    /// Listeners with the same priority maintain their registration order.
     /// Listeners that have exhausted their trigger count (return 0 from Execute) are
     /// automatically removed from the group.
     /// </para>
@@ -374,16 +387,45 @@ public class ListenerGroupEntry {
     /// <example>
     /// <code>
     /// var group = ListenerGroupEntry.Create&lt;MyEvent&gt;();
-    /// group.AddListener(Guid.NewGuid(), (id, evt) => Console.WriteLine("Event received"));
+    /// group.AddListener(Guid.NewGuid(), (id, evt) => Console.WriteLine("Listener executed"));
     /// 
     /// var myEvent = new MyEvent();
     /// bool completed = group.NotifyListeners(myEvent);
     /// </code>
     /// </example>
     public bool NotifyListeners(LSEvent @event) {
-        foreach (var listener in _listeners) {
-            var count = listener.Value.Execute(@event);
-            if (count == 0) _listeners.TryRemove(listener.Key, out _);
+        foreach (var entry in _listeners.Values) {
+            var count = entry.Execute(@event);
+            if (count == 0) _listeners.TryRemove(entry.ListenerID, out _);
+            if (@event.IsCancelled || @event.IsDone) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Notifies all listeners registered for a specific phase in priority order.
+    /// </summary>
+    /// <param name="event">The event to dispatch to listeners.</param>
+    /// <param name="phase">The specific phase to execute.</param>
+    /// <returns>
+    /// <c>true</c> if all listeners in the phase completed successfully; 
+    /// <c>false</c> if any listener failed or the event was cancelled.
+    /// </returns>
+    /// <remarks>
+    /// Listeners are executed in priority order within the phase (lower priority values first).
+    /// Listeners with the same priority maintain their registration order.
+    /// </remarks>
+    public bool NotifyListenersInPhase(LSEvent @event, EventPhase phase) {
+        // Get listeners for this phase and sort by priority
+        var phaseListeners = _listeners.Values
+            .Where(entry => entry.Phase == phase)
+            .OrderBy(entry => (int)entry.Priority)
+            .ThenBy(entry => entry.ListenerID) // Stable sort for same priority
+            .ToList();
+
+        foreach (var entry in phaseListeners) {
+            var count = entry.Execute(@event);
+            if (count == 0) _listeners.TryRemove(entry.ListenerID, out _);
             if (@event.IsCancelled || @event.IsDone) return false;
         }
         return true;

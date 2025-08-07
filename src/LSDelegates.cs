@@ -37,6 +37,25 @@ public delegate bool LSMessageHandler(string? msg);
 /// <param name="event">The event.</param>
 public delegate void LSListener<TEvent>(System.Guid listenerID, TEvent @event) where TEvent : LSEvent;
 //public delegate void LSListener(System.Guid listenerID, LSEvent @event);
+
+/// <summary>
+/// A delegate that listens for an event and returns a processing status.
+/// </summary>
+/// <typeparam name="TEvent">The type of event to listen for.</typeparam>
+/// <param name="listenerID">The identifier of the listener.</param>
+/// <param name="event">The event.</param>
+/// <returns>The processing status indicating the outcome of the listener's operation.</returns>
+public delegate EventProcessingStatus LSStatusListener<TEvent>(System.Guid listenerID, TEvent @event) where TEvent : LSEvent;
+
+/// <summary>
+/// A delegate that listens for an event and returns a processing status with an optional message.
+/// </summary>
+/// <typeparam name="TEvent">The type of event to listen for.</typeparam>
+/// <param name="listenerID">The identifier of the listener.</param>
+/// <param name="event">The event.</param>
+/// <param name="message">Optional message for failure or logging purposes.</param>
+/// <returns>The processing status indicating the outcome of the listener's operation.</returns>
+public delegate EventProcessingStatus LSStatusListenerWithMessage<TEvent>(System.Guid listenerID, TEvent @event, out string? message) where TEvent : LSEvent;
 /// <summary>
 /// A delegate that updates a tick.
 /// </summary>
