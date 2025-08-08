@@ -1,3 +1,5 @@
+using System;
+
 namespace LSUtils;
 
 public interface ILSVector2I : IEquatable<ILSVector2I>

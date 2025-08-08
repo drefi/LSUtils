@@ -12,7 +12,7 @@ namespace LSUtils;
 /// It supports success, failure, and cancellation callbacks, making it suitable for
 /// complex asynchronous operations that require coordination and error handling.
 /// </remarks>
-public class Semaphore {
+public class LSSemaphore {
     #region Static Configuration
     /// <summary>
     /// Gets or sets the separator used to join multiple failure messages.
@@ -43,7 +43,7 @@ public class Semaphore {
     /// Gets the class name of this semaphore instance.
     /// </summary>
     /// <value>Returns "Semaphore".</value>
-    public string ClassName => nameof(Semaphore);
+    public string ClassName => nameof(LSSemaphore);
 
     /// <summary>
     /// Gets a value indicating whether the semaphore operation is complete.
@@ -108,14 +108,14 @@ public class Semaphore {
     #endregion
     #region Constructor
     /// <summary>
-    /// Initializes a new instance of the <see cref="Semaphore"/> class.
+    /// Initializes a new instance of the <see cref="LSSemaphore"/> class.
     /// </summary>
     /// <remarks>
     /// Sets up the internal state including the failure message collection and
     /// initializes all flags to their default values. The semaphore starts in
     /// an active state, ready to accept wait operations.
     /// </remarks>
-    protected Semaphore() {
+    protected LSSemaphore() {
         HasFailed = false;
         IsCancelled = false;
         CancelCallback = null;
@@ -126,10 +126,10 @@ public class Semaphore {
 
     #region Factory Methods
     /// <summary>
-    /// Creates and returns a new instance of the <see cref="Semaphore"/> class with the specified number of locks.
+    /// Creates and returns a new instance of the <see cref="LSSemaphore"/> class with the specified number of locks.
     /// </summary>
     /// <param name="locks">The initial number of locks to create. Must be greater than 0.</param>
-    /// <returns>A new <see cref="Semaphore"/> instance with the specified number of pending operations.</returns>
+    /// <returns>A new <see cref="LSSemaphore"/> instance with the specified number of pending operations.</returns>
     /// <remarks>
     /// Each lock corresponds to a pending operation that must be signaled before the semaphore completes.
     /// If the specified number of locks is less than or equal to 0, it will be set to 1.
@@ -149,9 +149,9 @@ public class Semaphore {
     /// semaphore.Signal(); // 0 remaining - triggers SuccessCallback
     /// </code>
     /// </example>
-    public static Semaphore Create(int locks = 1, LSAction? successCallback = null, LSAction<string>? failureCallback = null, LSAction? cancelCallback = null) {
+    public static LSSemaphore Create(int locks = 1, LSAction? successCallback = null, LSAction<string>? failureCallback = null, LSAction? cancelCallback = null) {
         if (locks <= 0) locks = 1; // Ensure at least one lock
-        Semaphore semaphore = new Semaphore() {
+        LSSemaphore semaphore = new LSSemaphore() {
             SuccessCallback = successCallback,
             FailureCallback = failureCallback,
             CancelCallback = cancelCallback

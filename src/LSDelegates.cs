@@ -1,6 +1,5 @@
-using System.Numerics;
-
 namespace LSUtils;
+
 /// <summary>
 /// A delegate with no parameters.
 /// </summary>
@@ -30,35 +29,22 @@ public delegate void LSAction<in T1, in T2>(T1 arg1, T2 arg2);
 public delegate bool LSMessageHandler(string? msg);
 
 /// <summary>
-/// A delegate that listens for an event.
+/// A delegate that handles event listener operations.
 /// </summary>
-/// <typeparam name="TEvent">The type of event to listen for.</typeparam>
-/// <param name="listenerID">The identifier of the listener.</param>
-/// <param name="event">The event.</param>
-public delegate void LSListener<TEvent>(System.Guid listenerID, TEvent @event) where TEvent : LSEvent;
-//public delegate void LSListener(System.Guid listenerID, LSEvent @event);
+/// <typeparam name="TEvent">The type of event.</typeparam>
+/// <param name="event">The event instance.</param>
+/// <returns>True if the listener should continue processing, false otherwise.</returns>
+public delegate bool LSListener<in TEvent>(TEvent @event) where TEvent : class;
 
 /// <summary>
-/// A delegate that listens for an event and returns a processing status.
+/// A delegate that handles tick updates.
 /// </summary>
-/// <typeparam name="TEvent">The type of event to listen for.</typeparam>
-/// <param name="listenerID">The identifier of the listener.</param>
-/// <param name="event">The event.</param>
-/// <returns>The processing status indicating the outcome of the listener's operation.</returns>
-public delegate EventProcessingStatus LSStatusListener<TEvent>(System.Guid listenerID, TEvent @event) where TEvent : LSEvent;
+/// <param name="deltaTime">The time since the last tick.</param>
+public delegate void LSTickUpdateHandler(double deltaTime);
 
 /// <summary>
-/// A delegate that listens for an event and returns a processing status with an optional message.
+/// A delegate that handles object initialization events.
 /// </summary>
-/// <typeparam name="TEvent">The type of event to listen for.</typeparam>
-/// <param name="listenerID">The identifier of the listener.</param>
-/// <param name="event">The event.</param>
-/// <param name="message">Optional message for failure or logging purposes.</param>
-/// <returns>The processing status indicating the outcome of the listener's operation.</returns>
-public delegate EventProcessingStatus LSStatusListenerWithMessage<TEvent>(System.Guid listenerID, TEvent @event, out string? message) where TEvent : LSEvent;
-/// <summary>
-/// A delegate that updates a tick.
-/// </summary>
-/// <param name="deltaTick">The time since the last tick.</param>
-/// <param name="percentage">The percentage of the tick that has passed.</param>
-public delegate void LSTickUpdateHandler(double deltaTick, float percentage, LSEventOptions? options = null);
+/// <typeparam name="T">The type of object being initialized.</typeparam>
+/// <param name="instance">The instance being initialized.</param>
+public delegate void OnInitializeEvent<in T>(T instance);

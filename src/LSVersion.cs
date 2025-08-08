@@ -1,21 +1,21 @@
 namespace LSUtils;
-public class Version {
-    public Version() {
+public class LSVersion {
+    public LSVersion() {
         majorVersion = 0;
         minorVersion = 0;
         dateVersion = 0;
         buildVersion = 0;
         buildVersionType = BuildVersionType.UNKNOWN;
     }
-    protected Version(Version other) {
+    protected LSVersion(LSVersion other) {
         majorVersion = other.majorVersion;
         minorVersion = other.minorVersion;
         dateVersion = other.dateVersion;
         buildVersion = other.buildVersion;
         buildVersionType = other.buildVersionType;
     }
-    public Version Clone() {
-        return new Version(this);
+    public LSVersion Clone() {
+        return new LSVersion(this);
     }
 
     public int majorVersion;
@@ -51,26 +51,26 @@ public class Version {
         buildVersion++;
         if (OnChange != null) OnChange();
     }
-    public bool Compare(Version other) {
+    public bool Compare(LSVersion other) {
         if (majorVersion != other.majorVersion || minorVersion != other.minorVersion || buildVersion != other.buildVersion || dateVersion != other.dateVersion)
             return false;
         return true;
     }
-    public bool Compatible(Version other) {
+    public bool Compatible(LSVersion other) {
         if (other.majorVersion != majorVersion)
             return false;
         if (other.minorVersion != minorVersion)
             return false;
         return true;
     }
-    public bool Older(Version other) {
+    public bool Older(LSVersion other) {
         if (majorVersion > other.majorVersion)
             return false;
         if (minorVersion >= other.minorVersion)
             return false;
         return true;
     }
-    public bool Newer(Version other) {
+    public bool Newer(LSVersion other) {
         if (majorVersion < other.majorVersion)
             return false;
         if (minorVersion <= other.minorVersion)
@@ -80,8 +80,8 @@ public class Version {
     public override string ToString() {
         return majorVersion + "." + minorVersion + "-" + dateVersion + buildVersionType.ToString()[0] + buildVersion;
     }
-    public static bool TryParse(string versionString, out Version version) {
-        version = new Version();
+    public static bool TryParse(string versionString, out LSVersion version) {
+        version = new LSVersion();
         if (string.IsNullOrEmpty(versionString) == true)
             return false;
         string[] majorSplit = versionString.Split('.');
@@ -121,9 +121,9 @@ public class Version {
         }
         return true;
     }
-    public static Version Zero {
+    public static LSVersion Zero {
         get {
-            return new Version();
+            return new LSVersion();
         }
     }
 }

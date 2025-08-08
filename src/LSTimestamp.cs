@@ -1,24 +1,29 @@
 namespace LSUtils;
 
-public class Timestamp {
+using LSUtils.EventSystem;
 
-    public delegate void TimestampDelegate(Timestamp timestamp);
-    public event TimestampDelegate? OnTimeUpdate;
+public class LSTimestamp {
+    public class OnUpdateEvent : LSEvent<LSTimestamp> {
+        public LSTimestamp Timestamp => Instance;
+        public OnUpdateEvent(LSTimestamp timestamp) : base(timestamp) { }
+    }
+    protected LSDispatcher _dispatcher;
     public int TotalMinutes;
     public int Minute { get { return TotalMinutes % 60; } }
     public int Hour { get { return (TotalMinutes / 60) % 24; } }
     public int Day { get { return TotalMinutes / 60 / 24; } }
 
-    public Timestamp() {
+    public LSTimestamp(LSDispatcher? dispatcher = null) {
         TotalMinutes = 0;
+        _dispatcher = dispatcher == null ? LSDispatcher.Singleton : dispatcher;
     }
-    public Timestamp(int day, int hour, int minute) {
+    public LSTimestamp(int day, int hour, int minute, LSDispatcher? dispatcher = null) : this(dispatcher) {
         SetTimestamp(day, hour, minute, true);
     }
-    public Timestamp(Timestamp copy) {
+    public LSTimestamp(LSTimestamp copy, LSDispatcher? dispatcher = null) : this(dispatcher) {
         TotalMinutes = copy.TotalMinutes;
     }
-    public Timestamp(int totalMinutes) {
+    public LSTimestamp(int totalMinutes, LSDispatcher? dispatcher = null) : this(dispatcher) {
         TotalMinutes = totalMinutes;
     }
     public void SetTimestamp(int day, int hour, int minute, bool dontUpdate = false) {
@@ -29,7 +34,7 @@ public class Timestamp {
         if (dontUpdate == false) Update();
     }
     public void Update() {
-        if (OnTimeUpdate != null) OnTimeUpdate(this);
+        _dispatcher.ProcessEvent(new OnUpdateEvent(this));
     }
     public bool AddMinutes(int minutes, bool dontUpdate = false) {
         if (minutes <= 0)
@@ -52,10 +57,10 @@ public class Timestamp {
         if (dontUpdate == false) Update();
         return true;
     }
-    public int Diff(Timestamp timestamp) {
+    public int Diff(LSTimestamp timestamp) {
         return timestamp.TotalMinutes - TotalMinutes;
     }
-    public bool InRange(Timestamp begin, Timestamp end) {
+    public bool InRange(LSTimestamp begin, LSTimestamp end) {
         if (begin.Diff(end) < 0 || Diff(begin) > 0 || Diff(end) < 0)
             return false;
         return true;
