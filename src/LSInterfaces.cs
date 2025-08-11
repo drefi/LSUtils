@@ -1,3 +1,5 @@
+using LSUtils.EventSystem;
+
 namespace LSUtils;
 
 public interface ILSClass {
@@ -7,7 +9,7 @@ public interface ILSClass {
     string ClassName { get; }
 }
 
-public interface ILSSerializer {
+public interface ILSSerializer : ILSClass {
     /// <summary>
     /// Serializes the given object to a string.
     /// </summary>
@@ -44,21 +46,20 @@ public interface ILSEventable : ILSClass {
     System.Guid ID { get; }
 
     /// <summary>
-    /// Initializes the eventable using the V2 Clean Event System.
-    /// Standard implementation for use with OnInitializeEvent.
+    /// Initializes the eventable
     /// </summary>
-    void Initialize();
+    void Initialize(LSDispatcher dispatcher);
     void Cleanup();
 }
 
-public interface ILSContext : ILSEventable {
+public interface ILSContext : ILSClass {
     void AddState<TState>(TState state) where TState : ILSState;
     TState GetState<TState>() where TState : ILSState;
     bool TryGetState<TState>(out TState state) where TState : ILSState;
     void SetState<TState>(LSAction<TState>? enterCallback = null, LSAction<TState>? exitCallback = null) where TState : ILSState;
 }
 
-public interface ILSState : ILSEventable {
-    void Enter<TState>(LSAction<TState> enterCallback, LSAction<TState> exitCallback) where TState : ILSState;
-    void Exit();
+public interface ILSState : ILSClass {
+    void Enter<T>(LSAction<T> enterCallback, LSAction<T> exitCallback) where T : ILSState;
+    void Exit(LSAction callback);
 }

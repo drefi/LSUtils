@@ -13,49 +13,49 @@ public interface ILSEvent {
     /// Unique identifier for this event instance.
     /// </summary>
     Guid Id { get; }
-    
+
     /// <summary>
     /// The concrete type of this event for type-safe handling.
     /// </summary>
     Type EventType { get; }
-    
+
     /// <summary>
     /// UTC timestamp when this event was created.
     /// </summary>
     DateTime CreatedAt { get; }
-    
+
     /// <summary>
     /// Indicates if the event processing was cancelled.
     /// </summary>
     bool IsCancelled { get; }
-    
+
     /// <summary>
     /// Indicates if the event has completed processing through all phases successfully.
     /// </summary>
     bool IsCompleted { get; }
-    
+
     /// <summary>
     /// The current phase being executed.
     /// </summary>
     LSEventPhase CurrentPhase { get; }
-    
+
     /// <summary>
     /// Flags indicating which phases have been completed successfully.
     /// </summary>
     LSEventPhase CompletedPhases { get; }
-    
+
     /// <summary>
     /// Read-only access to event data stored as key-value pairs.
     /// </summary>
     IReadOnlyDictionary<string, object> Data { get; }
-    
+
     /// <summary>
     /// Sets data associated with this event.
     /// </summary>
     /// <param name="key">The key to store the data under.</param>
     /// <param name="value">The value to store.</param>
     void SetData(string key, object value);
-    
+
     /// <summary>
     /// Gets strongly-typed data associated with this event.
     /// </summary>
@@ -65,7 +65,7 @@ public interface ILSEvent {
     /// <exception cref="KeyNotFoundException">Thrown when the key is not found.</exception>
     /// <exception cref="InvalidCastException">Thrown when the data cannot be cast to the specified type.</exception>
     T GetData<T>(string key);
-    
+
     /// <summary>
     /// Attempts to get strongly-typed data associated with this event.
     /// </summary>
@@ -85,17 +85,17 @@ internal interface ILSMutableEvent : ILSEvent {
     /// Sets whether the event is cancelled.
     /// </summary>
     new bool IsCancelled { get; set; }
-    
+
     /// <summary>
     /// Sets whether the event is completed.
     /// </summary>
     new bool IsCompleted { get; set; }
-    
+
     /// <summary>
     /// Sets the current phase being executed.
     /// </summary>
     new LSEventPhase CurrentPhase { get; set; }
-    
+
     /// <summary>
     /// Sets which phases have been completed.
     /// </summary>
@@ -118,66 +118,66 @@ public delegate LSPhaseResult LSPhaseHandler<in TEvent>(TEvent @event, LSPhaseCo
 /// </summary>
 public abstract class LSBaseEvent : ILSMutableEvent {
     private readonly ConcurrentDictionary<string, object> _data = new();
-    
+
     /// <summary>
     /// Unique identifier for this event instance.
     /// </summary>
     public Guid Id { get; } = Guid.NewGuid();
-    
+
     /// <summary>
     /// The concrete type of this event.
     /// </summary>
     public Type EventType { get; }
-    
+
     /// <summary>
     /// UTC timestamp when this event was created.
     /// </summary>
     public DateTime CreatedAt { get; } = DateTime.UtcNow;
-    
+
     /// <summary>
     /// Indicates if the event processing was cancelled.
     /// </summary>
     public bool IsCancelled { get; set; }
-    
+
     /// <summary>
     /// Indicates if the event has completed processing successfully.
     /// </summary>
     public bool IsCompleted { get; set; }
-    
+
     /// <summary>
     /// The current phase being executed.
     /// </summary>
     public LSEventPhase CurrentPhase { get; set; } = LSEventPhase.VALIDATE;
-    
+
     /// <summary>
     /// Flags indicating which phases have been completed.
     /// </summary>
     public LSEventPhase CompletedPhases { get; set; }
-    
+
     /// <summary>
     /// Optional error message if the event encountered an error.
     /// </summary>
     public string? ErrorMessage { get; set; }
-    
+
     /// <summary>
     /// Read-only access to event data.
     /// </summary>
     public IReadOnlyDictionary<string, object> Data => _data;
-    
+
     /// <summary>
     /// Initializes a new event with its concrete type.
     /// </summary>
     protected LSBaseEvent() {
         EventType = GetType();
     }
-    
+
     /// <summary>
     /// Sets data associated with this event.
     /// </summary>
     /// <param name="key">The key to store the data under.</param>
     /// <param name="value">The value to store.</param>
     public void SetData(string key, object value) => _data[key] = value;
-    
+
     /// <summary>
     /// Sets an error message for this event.
     /// </summary>
@@ -185,7 +185,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     public void SetErrorMessage(string message) {
         ErrorMessage = message;
     }
-    
+
     /// <summary>
     /// Gets strongly-typed data associated with this event.
     /// </summary>
@@ -195,7 +195,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// <exception cref="KeyNotFoundException">Thrown when the key is not found.</exception>
     /// <exception cref="InvalidCastException">Thrown when the data cannot be cast to the specified type.</exception>
     public T GetData<T>(string key) => (T)_data[key];
-    
+
     /// <summary>
     /// Attempts to get strongly-typed data associated with this event.
     /// </summary>
@@ -211,6 +211,11 @@ public abstract class LSBaseEvent : ILSMutableEvent {
         value = default(T)!;
         return false;
     }
+    public bool Process(LSDispatcher? dispatcher = null) {
+        dispatcher ??= LSDispatcher.Singleton;
+        return dispatcher.ProcessEvent(this);
+    }
+
 }
 
 /// <summary>
@@ -225,7 +230,7 @@ public abstract class LSEvent<TInstance> : LSBaseEvent where TInstance : class {
     /// This provides direct access to the source object for event handlers.
     /// </summary>
     public TInstance Instance { get; }
-    
+
     /// <summary>
     /// Initializes a new event with the specified instance.
     /// </summary>

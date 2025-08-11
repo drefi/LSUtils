@@ -17,12 +17,9 @@ public abstract class LSState<TState, TContext> : ILSState
     where TState : LSState<TState, TContext>
     where TContext : ILSContext {
 
-    #region Private Fields
-    private readonly LSDispatcher _dispatcher = new LSDispatcher();
-    private LSAction? _exitCallback;
-    #endregion
-
     #region Public Properties
+    public LSDispatcher Dispatcher { get; }
+    public bool IsInitialized { get; protected set; }
     /// <summary>
     /// Gets the unique identifier for this state instance.
     /// </summary>
@@ -36,7 +33,7 @@ public abstract class LSState<TState, TContext> : ILSState
     /// <summary>
     /// Gets the class name of this state instance.
     /// </summary>
-    public virtual string ClassName => nameof(LSState<TState, TContext>);
+    public virtual string ClassName => $"{nameof(LSState<TState, TContext>)}<{typeof(TState).Name}, {typeof(TContext).Name}>";
     #endregion
 
     #region Constructor
@@ -44,83 +41,46 @@ public abstract class LSState<TState, TContext> : ILSState
     /// Initializes a new instance of the state with the specified context.
     /// </summary>
     /// <param name="context">The context instance that provides shared data and services to this state.</param>
-    protected LSState(TContext context) {
-        ID = System.Guid.NewGuid();
+    protected LSState(TContext context, LSDispatcher? dispatcher = null) {
         Context = context ?? throw new System.ArgumentNullException(nameof(context));
+        Dispatcher = dispatcher ?? LSDispatcher.Singleton;
+        ID = System.Guid.NewGuid();
     }
     #endregion
 
-    #region Virtual Event Handlers
-    /// <summary>
-    /// Called when the state is being initialized. Override this method to perform state setup.
-    /// </summary>
-    /// <param name="event">The initialization event.</param>
-    protected virtual void OnInitialize(StateInitializeEvent @event) { }
-
-    /// <summary>
-    /// Called when the state is being entered. Override this method to perform entry operations.
-    /// </summary>
-    /// <param name="event">The enter event.</param>
-    protected virtual void OnEnter(StateEnterEvent @event) { }
-
-    /// <summary>
-    /// Called when the state is being exited. Override this method to perform cleanup operations.
-    /// </summary>
-    /// <param name="event">The exit event.</param>
-    protected virtual void OnExit(StateExitEvent @event) { }
-    #endregion
-
-    #region ILSEventable Implementation
-    /// <summary>
-    /// Initializes the state with the new V2 event system.
-    /// </summary>
     public void Initialize() {
-        var @event = StateInitializeEvent.Create((TState)this);
-        OnInitialize(@event);
-        _dispatcher.ProcessEvent(@event);
-    }
-    #endregion
-
-    #region ILSState Implementation
-    /// <summary>
-    /// Enters the state with specified callbacks.
-    /// </summary>
-    /// <typeparam name="T">The expected state type for the callbacks.</typeparam>
-    /// <param name="enterCallback">Optional callback to execute when state entry completes successfully.</param>
-    /// <param name="exitCallback">Optional callback to execute when the state exits in the future.</param>
-    public void Enter<T>(LSAction<T> enterCallback, LSAction<T> exitCallback) where T : ILSState {
-        // Store exit callback for future use
-        _exitCallback = exitCallback == null ? null : new LSAction(() => exitCallback((T)(object)this));
-
-        // Create success callback for immediate execution
-        LSAction? successCallback = enterCallback == null ? null : new LSAction(() => enterCallback((T)(object)this));
-
         if (this is not TState stateInstance)
             throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
+        new OnInitializeEvent(stateInstance).Process(Dispatcher);
+        if (IsInitialized) return;
+        Dispatcher.For<OnInitializeEvent>()
+            .ForInstance(stateInstance)
+            .InPhase(LSEventPhase.VALIDATE)
+            .WithPriority(LSPhasePriority.CRITICAL)
+            .Register((evt, ctx) => LSPhaseResult.CANCEL);
+        IsInitialized = true;
+    }
 
-        var @event = StateEnterEvent.Create(stateInstance);
-        OnEnter(@event);
-
-        // Execute success callback if provided
-        successCallback?.Invoke();
-
-        _dispatcher.ProcessEvent(@event);
+    #region ILSState Implementation
+    protected LSAction? _exitCallback;
+    public void Enter<T>(LSAction<T> enterCallback, LSAction<T> exitCallback) where T : ILSState {
+        if (this is not T tState || this is not TState stateInstance)
+            throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
+        _exitCallback = exitCallback == null ? null : () => exitCallback(tState);
+        new OnEnterEvent(stateInstance).Process(Dispatcher);
+        enterCallback?.Invoke(tState);
     }
 
     /// <summary>
     /// Exits the state by dispatching an exit event and executing any stored exit callback.
     /// </summary>
-    public void Exit() {
+    public void Exit(LSAction callback) {
         if (this is not TState stateInstance)
             throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
-
-        var @event = StateExitEvent.Create(stateInstance);
-        OnExit(@event);
-
-        // Execute stored exit callback if any
+        new OnExitEvent(stateInstance).Process(Dispatcher);
         _exitCallback?.Invoke();
-
-        _dispatcher.ProcessEvent(@event);
+        _exitCallback = null;
+        callback?.Invoke();
     }
     #endregion
 
@@ -131,38 +91,29 @@ public abstract class LSState<TState, TContext> : ILSState
     public abstract void Cleanup();
     #endregion
 
-    #region V2 Event Classes
+    #region Event Classes
     /// <summary>
     /// Event triggered when a state is being initialized.
     /// </summary>
-    public class StateInitializeEvent : LSEvent<TState> {
+    public class OnInitializeEvent : LSEvent<TState> {
         public TState State => Instance;
-
-        protected StateInitializeEvent(TState state) : base(state) { }
-
-        public static StateInitializeEvent Create(TState state) => new StateInitializeEvent(state);
+        public OnInitializeEvent(TState state) : base(state) { }
     }
 
     /// <summary>
     /// Event triggered when a state is being entered.
     /// </summary>
-    public class StateEnterEvent : LSEvent<TState> {
+    public class OnEnterEvent : LSEvent<TState> {
         public TState State => Instance;
-
-        protected StateEnterEvent(TState state) : base(state) { }
-
-        public static StateEnterEvent Create(TState state) => new StateEnterEvent(state);
+        public OnEnterEvent(TState state) : base(state) { }
     }
 
     /// <summary>
     /// Event triggered when a state is being exited.
     /// </summary>
-    public class StateExitEvent : LSEvent<TState> {
+    public class OnExitEvent : LSEvent<TState> {
         public TState State => Instance;
-
-        protected StateExitEvent(TState state) : base(state) { }
-
-        public static StateExitEvent Create(TState state) => new StateExitEvent(state);
+        public OnExitEvent(TState state) : base(state) { }
     }
     #endregion
 }

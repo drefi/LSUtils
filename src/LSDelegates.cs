@@ -41,10 +41,3 @@ public delegate bool LSListener<in TEvent>(TEvent @event) where TEvent : class;
 /// </summary>
 /// <param name="deltaTime">The time since the last tick.</param>
 public delegate void LSTickUpdateHandler(double deltaTime);
-
-/// <summary>
-/// A delegate that handles object initialization events.
-/// </summary>
-/// <typeparam name="T">The type of object being initialized.</typeparam>
-/// <param name="instance">The instance being initialized.</param>
-public delegate void OnInitializeEvent<in T>(T instance);

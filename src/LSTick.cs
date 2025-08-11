@@ -14,7 +14,7 @@ public class LSTick {
     protected bool _hasInitialized;
     protected bool _isPaused;
     protected double _tickTimer;
-    protected readonly LSDispatcher _dispatcher;
+    protected LSDispatcher _dispatcher = null!;
     public readonly float TICK_VALUE;
     public string ClassName => nameof(LSTick);
     public System.Guid ID { get; protected set; }
@@ -23,14 +23,11 @@ public class LSTick {
     protected LSTick(float tickValue) {
         TICK_VALUE = tickValue;
         ID = System.Guid.NewGuid();
-        _dispatcher = LSDispatcher.Singleton;
-    }
-    public LSTick(LSDispatcher dispatcher, float tickValue) : this(tickValue) {
-        _dispatcher = dispatcher;
     }
 
-    public void Initialize() {
+    public void Initialize(LSDispatcher dispatcher) {
         var @event = new OnInitializeEvent(this);
+        _dispatcher = dispatcher;
         _dispatcher.ProcessEvent(@event);
         if (!@event.IsCancelled) {
             _hasInitialized = true;
