@@ -211,8 +211,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
         value = default(T)!;
         return false;
     }
-    public bool Process(LSDispatcher? dispatcher = null) {
-        dispatcher ??= LSDispatcher.Singleton;
+    public bool Process(LSDispatcher dispatcher) {
         return dispatcher.ProcessEvent(this);
     }
 

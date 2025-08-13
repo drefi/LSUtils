@@ -45,6 +45,8 @@ public interface ILSEventable : ILSClass {
     /// </summary>
     System.Guid ID { get; }
 
+    bool IsInitialized { get; }
+
     /// <summary>
     /// Initializes the eventable
     /// </summary>

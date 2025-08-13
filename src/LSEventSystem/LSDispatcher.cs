@@ -166,7 +166,9 @@ public class LSDispatcher {
         var mutableEvent = (ILSMutableEvent)@event;
         mutableEvent.CurrentPhase = phase;
 
-        if (!_handlers.TryGetValue(typeof(TEvent), out var allHandlers)) {
+        var type = @event.GetType();
+
+        if (!_handlers.TryGetValue(type, out var allHandlers)) {
             return true; // No handlers registered for this event type
         }
 
