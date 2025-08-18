@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using LSUtils.EventSystem;
 
 namespace LSUtils;
@@ -52,6 +53,7 @@ public interface ILSEventable : ILSClass {
     /// </summary>
     void Initialize(LSDispatcher dispatcher);
     void Cleanup();
+
 }
 
 public interface ILSContext : ILSClass {

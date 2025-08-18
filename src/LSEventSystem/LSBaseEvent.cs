@@ -14,13 +14,21 @@ namespace LSUtils.EventSystem;
 /// - Automatic event metadata generation (ID, type, timestamps)
 /// - Clean separation between public and internal APIs
 /// - Integration with the LSDispatcher for event processing
+/// - Event-scoped callback builder for inline handler registration
+/// - Fluent API for event processing with automatic cleanup
 /// </summary>
 /// <remarks>
 /// Inherit from this class when creating events that don't need a specific source instance.
 /// For events tied to a specific object, consider using LSEvent&lt;TInstance&gt; instead.
 /// 
+/// The event system now supports three main approaches for handler registration:
+/// 1. Global handlers via dispatcher.For&lt;TEvent&gt;().Register(handler)
+/// 2. Event-scoped handlers via event.RegisterCallback&lt;TEvent&gt;(dispatcher)
+/// 3. Inline processing via event.ProcessWith&lt;TEvent&gt;(dispatcher, builder => ...)
+/// 
 /// Example usage:
 /// <code>
+/// // Traditional approach with global handlers
 /// public class SystemStartupEvent : LSBaseEvent {
 ///     public string Version { get; }
 ///     public DateTime StartupTime { get; }
@@ -30,6 +38,15 @@ namespace LSUtils.EventSystem;
 ///         StartupTime = DateTime.UtcNow;
 ///     }
 /// }
+/// 
+/// // Usage with inline callbacks (recommended for event-specific logic)
+/// var startupEvent = new SystemStartupEvent("1.0.0");
+/// var success = startupEvent.ProcessWith&lt;SystemStartupEvent&gt;(dispatcher, builder => builder
+///     .OnValidation((evt, ctx) => ValidateSystem(evt.Version))
+///     .OnExecution((evt, ctx) => StartServices(evt))
+///     .OnSuccess((evt, ctx) => LogStartupSuccess(evt))
+///     .OnError((evt, ctx) => LogStartupError(evt))
+/// );
 /// </code>
 /// </remarks>
 public abstract class LSBaseEvent : ILSMutableEvent {
@@ -128,6 +145,53 @@ public abstract class LSBaseEvent : ILSMutableEvent {
         value = default(T)!;
         return false;
     }
+    /// <summary>
+    /// Creates a callback builder for registering event-specific handlers that execute only for this event instance.
+    /// This provides a fluent API for setting up one-time handlers with automatic cleanup.
+    /// </summary>
+    /// <typeparam name="TEventType">The concrete event type for type-safe handler registration.</typeparam>
+    /// <param name="dispatcher">The dispatcher to register handlers with.</param>
+    /// <returns>A callback builder that allows fluent configuration of event-specific handlers.</returns>
+    /// <example>
+    /// <code>
+    /// var success = myEvent.RegisterCallback&lt;MyEvent&gt;(dispatcher)
+    ///     .OnValidation((evt, ctx) => ValidateEvent(evt))
+    ///     .OnExecution((evt, ctx) => ProcessEvent(evt))
+    ///     .OnError((evt, ctx) => LogError(evt.ErrorMessage))
+    ///     .ProcessAndCleanup();
+    /// </code>
+    /// </example>
+    public LSEventCallbackBuilder<TEventType> RegisterCallback<TEventType>(LSDispatcher dispatcher) 
+        where TEventType : ILSEvent {
+        return new LSEventCallbackBuilder<TEventType>((TEventType)(object)this, dispatcher);
+    }
+    
+    /// <summary>
+    /// Convenience method that creates a callback builder, applies configuration, and processes the event.
+    /// This is the recommended approach for simple event processing with inline handlers.
+    /// </summary>
+    /// <typeparam name="TEventType">The concrete event type for type-safe handler registration.</typeparam>
+    /// <param name="dispatcher">The dispatcher to use for processing.</param>
+    /// <param name="configure">Optional configuration action for the callback builder.</param>
+    /// <returns>True if the event completed successfully, false if it was cancelled or had errors.</returns>
+    /// <example>
+    /// <code>
+    /// var success = myEvent.ProcessWith&lt;MyEvent&gt;(dispatcher, builder => builder
+    ///     .OnValidation((evt, ctx) => ValidateEvent(evt))
+    ///     .OnSuccess((evt, ctx) => LogSuccess(evt))
+    ///     .OnError((evt, ctx) => LogError(evt.ErrorMessage))
+    /// );
+    /// </code>
+    /// </example>
+    public bool ProcessWith<TEventType>(LSDispatcher dispatcher, 
+        Action<LSEventCallbackBuilder<TEventType>>? configure = null) 
+        where TEventType : ILSEvent {
+        
+        var builder = RegisterCallback<TEventType>(dispatcher);
+        configure?.Invoke(builder);
+        return builder.ProcessAndCleanup();
+    }
+
     /// <summary>
     /// Processes this event through the provided dispatcher's event processing pipeline.
     /// This is a convenience method that submits the event to the dispatcher for phase-based processing.

@@ -15,6 +15,15 @@ namespace LSUtils.EventSystem;
 /// 
 /// Each phase serves a specific purpose and handlers are executed in priority order
 /// within each phase. This provides clear separation of concerns and predictable execution flow.
+/// 
+/// Key Features:
+/// - Thread-safe handler registration and execution
+/// - Conditional handler execution with instance filtering
+/// - Automatic handler cleanup and lifecycle management
+/// - Priority-based execution within phases
+/// - Comprehensive error handling and retry mechanisms
+/// - Integration with event-scoped callback builders
+/// - Runtime handler inspection and monitoring capabilities
 /// </summary>
 public class LSDispatcher {
     public static LSDispatcher Singleton { get; } = new LSDispatcher();
@@ -259,6 +268,94 @@ public class LSDispatcher {
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Registers a batch of event-scoped handlers as a single unit for better performance.
+    /// This method is used internally by the callback builder system.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type to register handlers for.</typeparam>
+    /// <param name="batch">The batch containing the handlers to register.</param>
+    /// <returns>A unique identifier for the registered batch that can be used for unregistration.</returns>
+    internal Guid RegisterBatchedHandlers<TEvent>(LSEventCallbackBatch<TEvent> batch) where TEvent : ILSEvent {
+        var batchId = Guid.NewGuid();
+        
+        // Create a composite handler that executes the appropriate batched handlers per phase
+        var batchedHandler = new LSHandlerRegistration {
+            Id = batchId,
+            EventType = typeof(TEvent),
+            Handler = (evt, ctx) => ExecuteBatchedHandlers((TEvent)evt, ctx, batch),
+            Phase = LSEventPhase.VALIDATE, // We'll handle phase filtering internally
+            Priority = LSPhasePriority.NORMAL,
+            Instance = batch.TargetEvent, // Bind to specific event instance
+            InstanceType = typeof(TEvent),
+            MaxExecutions = 1, // One-time execution
+            Condition = evt => ReferenceEquals(evt, batch.TargetEvent),
+            ExecutionCount = 0
+        };
+
+        lock (_lock) {
+            if (!_handlers.TryGetValue(typeof(TEvent), out var list)) {
+                list = new List<LSHandlerRegistration>();
+                _handlers[typeof(TEvent)] = list;
+            }
+            list.Add(batchedHandler);
+            // Sort by priority to ensure correct execution order
+            list.Sort((a, b) => a.Priority.CompareTo(b.Priority));
+        }
+
+        return batchId;
+    }
+
+    /// <summary>
+    /// Executes batched handlers for the current phase.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type being processed.</typeparam>
+    /// <param name="evt">The event instance being processed.</param>
+    /// <param name="ctx">The current phase context.</param>
+    /// <param name="batch">The batch containing the handlers to execute.</param>
+    /// <returns>The result of the batch execution.</returns>
+    private LSPhaseResult ExecuteBatchedHandlers<TEvent>(TEvent evt, LSPhaseContext ctx, LSEventCallbackBatch<TEvent> batch) 
+        where TEvent : ILSEvent {
+        
+        var result = LSPhaseResult.CONTINUE;
+        
+        // Execute only handlers for the current phase
+        var phaseHandlers = batch.GetHandlersForPhase(ctx.CurrentPhase);
+        
+        foreach (var handler in phaseHandlers) {
+            try {
+                // Check handler condition if present
+                if (handler.Condition?.Invoke(evt) ?? true) {
+                    var handlerResult = handler.Handler(evt, ctx);
+                    
+                    // Update result based on handler outcome
+                    switch (handlerResult) {
+                        case LSPhaseResult.CONTINUE:
+                            continue;
+                        case LSPhaseResult.SKIP_REMAINING:
+                            return handlerResult; // Skip remaining handlers in this batch
+                        case LSPhaseResult.CANCEL:
+                            return handlerResult; // Cancel entire event processing
+                        case LSPhaseResult.RETRY:
+                            // For batch handlers, we don't support retry at individual handler level
+                            // Convert to continue to avoid infinite loops
+                            continue;
+                    }
+                }
+            } catch (Exception ex) {
+                // Log error but continue with remaining handlers unless it's critical validation
+                if (ctx.CurrentPhase == LSEventPhase.VALIDATE && handler.Priority == LSPhasePriority.CRITICAL) {
+                    evt.SetData("batch.error", ex.Message);
+                    return LSPhaseResult.CANCEL;
+                }
+                
+                // For non-critical errors, log and continue
+                evt.SetData($"batch.error.{ctx.CurrentPhase}.{handler.Priority}", ex.Message);
+            }
+        }
+        
+        return result;
     }
 
     /// <summary>

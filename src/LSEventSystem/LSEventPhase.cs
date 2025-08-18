@@ -6,6 +6,21 @@ namespace LSUtils.EventSystem;
 /// Clean phase-based event system phases that provide predictable execution flow 
 /// with separation of concerns. Each phase has a specific purpose in the event 
 /// processing lifecycle.
+/// 
+/// Phases execute in strict order: VALIDATE → PREPARE → EXECUTE → FINALIZE → COMPLETE
+/// 
+/// **Phase Flow Rules:**
+/// - If any phase (except COMPLETE) returns CANCEL, only COMPLETE phase will run
+/// - COMPLETE phase always executes regardless of previous phase results
+/// - Handlers within each phase execute in priority order
+/// - Phase completion is tracked via CompletedPhases bitwise flags
+/// 
+/// **Typical Usage Patterns:**
+/// - **VALIDATE**: Check permissions, validate input data, early exit conditions
+/// - **PREPARE**: Load resources, acquire locks, setup temporary state
+/// - **EXECUTE**: Core business logic, primary event processing
+/// - **FINALIZE**: Save results, release resources, trigger side effects
+/// - **COMPLETE**: Logging, metrics, notifications, guaranteed cleanup
 /// </summary>
 public enum LSEventPhase {
     /// <summary>
