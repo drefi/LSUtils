@@ -1,10 +1,567 @@
 namespace LSUtils.EventSystem;
 
 /// <summary>
-/// LSUtils /// ### 2. Event-Scoped Callback Builders
+/// LSUtils Event System - Comprehensive Documentation
+/// 
+/// The LSUtils Event System provides a clean, phase-based approach to event processing
+/// with support for both traditional global handlers and modern event-scoped callback builders.
+/// 
+/// ## Core Event Types
+/// 
+/// ### ILSEvent Interface
 /// ```csharp
-/// // Inline processing with automatic cleanup
-/// var success = myEvent.ProcessWith<MyEvent>(dispa/// ### Performance Monitoring
+/// public interface ILSEvent {
+///     Guid Id { get; }
+///     Type EventType { get; }
+///     DateTime CreatedAt { get; }
+///     bool IsCancelled { get; }
+///     bool IsCompleted { get; }
+///     LSEventPhase CurrentPhase { get; }
+///     LSEventPhase CompletedPhases { get; }
+///     string? ErrorMessage { get; }
+///     IReadOnlyDictionary<string, object> Data { get; }
+///     T GetData<T>(string key);
+///     bool TryGetData<T>(string key, out T value);
+/// }
+/// ```
+/// 
+/// ### ILSMutableEvent Interface (Internal)
+/// ```csharp
+/// internal interface ILSMutableEvent : ILSEvent {
+///     new bool IsCancelled { get; set; }
+///     new bool IsCompleted { get; set; }
+///     new LSEventPhase CurrentPhase { get; set; }
+///     new LSEventPhase CompletedPhases { get; set; }
+///     new string? ErrorMessage { get; set; }
+///     void SetData(string key, object value);
+///     void SetErrorMessage(string message);
+/// }
+/// ```
+/// 
+/// ### LSBaseEvent Abstract Class
+/// ```csharp
+/// public abstract class LSBaseEvent : ILSMutableEvent {
+///     // Core properties (auto-generated)
+///     public Guid Id { get; }
+///     public Type EventType { get; }
+///     public DateTime CreatedAt { get; }
+///     
+///     // State properties
+///     public bool IsCancelled { get; set; }
+///     public bool IsCompleted { get; set; }
+///     public LSEventPhase CurrentPhase { get; set; }
+///     public LSEventPhase CompletedPhases { get; set; }
+///     public string? ErrorMessage { get; set; }
+///     
+///     // Data storage
+///     public IReadOnlyDictionary<string, object> Data { get; }
+///     public void SetData(string key, object value);
+///     public T GetData<T>(string key);
+///     public bool TryGetData<T>(string key, out T value);
+///     
+///     // Event processing methods
+///     public LSEventCallbackBuilder<TEventType> RegisterCallback<TEventType>(LSDispatcher dispatcher);
+///     public bool ProcessWith<TEventType>(LSDispatcher dispatcher, Action<LSEventCallbackBuilder<TEventType>>? configure = null);
+///     public bool Process(LSDispatcher dispatcher);
+/// }
+/// ```
+/// 
+/// ### LSEvent<TInstance> Generic Class
+/// ```csharp
+/// public abstract class LSEvent<TInstance> : LSBaseEvent where TInstance : class {
+///     public TInstance Instance { get; }
+///     protected LSEvent(TInstance instance);
+/// }
+/// ```
+/// 
+/// ## Event Phase and Priority Types
+/// 
+/// ### LSEventPhase Enum
+/// ```csharp
+/// [Flags]
+/// public enum LSEventPhase {
+///     VALIDATE = 1,   // Input validation, permission checks
+///     PREPARE = 2,    // Setup, resource allocation
+///     EXECUTE = 4,    // Core business logic
+///     FINALIZE = 8,   // Cleanup, side effects
+///     COMPLETE = 16   // Always runs (logging, metrics)
+/// }
+/// ```
+/// 
+/// ### LSPhasePriority Enum
+/// ```csharp
+/// public enum LSPhasePriority {
+///     CRITICAL = 0,    // System-critical operations
+///     HIGH = 1,        // Important business logic
+///     NORMAL = 2,      // Standard operations (default)
+///     LOW = 3,         // Nice-to-have features
+///     BACKGROUND = 4   // Background operations
+/// }
+/// ```
+/// 
+/// ### LSPhaseResult Enum
+/// ```csharp
+/// public enum LSPhaseResult {
+///     CONTINUE,        // Continue to next handler/phase
+///     SKIP_REMAINING,  // Skip remaining handlers in current phase
+///     CANCEL,          // Cancel event processing
+///     RETRY            // Retry current handler (up to 3 times)
+/// }
+/// ```
+/// 
+/// ## Handler and Context Types
+/// 
+/// ### LSPhaseHandler Delegate
+/// ```csharp
+/// public delegate LSPhaseResult LSPhaseHandler<in TEvent>(TEvent evt, LSPhaseContext context) 
+///     where TEvent : ILSEvent;
+/// ```
+/// 
+/// ### LSPhaseContext Class
+/// ```csharp
+/// public class LSPhaseContext {
+///     public LSEventPhase CurrentPhase { get; }
+///     public DateTime StartTime { get; }
+///     public TimeSpan ElapsedTime { get; }
+///     public int HandlerCount { get; }
+///     public bool HasErrors { get; }
+///     public IReadOnlyList<string> Errors { get; }
+/// }
+/// ```
+/// 
+/// ### LSHandlerRegistration Class (Internal)
+/// ```csharp
+/// internal class LSHandlerRegistration {
+///     public Guid Id { get; set; }
+///     public Type EventType { get; set; }
+///     public Func<ILSEvent, LSPhaseContext, LSPhaseResult> Handler { get; set; }
+///     public LSEventPhase Phase { get; set; }
+///     public LSPhasePriority Priority { get; set; }
+///     public Type? InstanceType { get; set; }
+///     public object? Instance { get; set; }
+///     public int MaxExecutions { get; set; }
+///     public Func<ILSEvent, bool>? Condition { get; set; }
+///     public int ExecutionCount { get; set; }
+/// }
+/// ```
+/// 
+/// ## Registration and Builder Types
+/// 
+/// ### LSEventRegistration<TEvent> Class
+/// ```csharp
+/// public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
+///     public LSEventRegistration<TEvent> InPhase(LSEventPhase phase);
+///     public LSEventRegistration<TEvent> WithPriority(LSPhasePriority priority);
+///     public LSEventRegistration<TEvent> ForInstance<TInstance>(TInstance instance) where TInstance : class;
+///     public LSEventRegistration<TEvent> MaxExecutions(int maxExecutions);
+///     public LSEventRegistration<TEvent> When(Func<TEvent, bool> condition);
+///     public Guid Register(LSPhaseHandler<TEvent> handler);
+/// }
+/// ```
+/// 
+/// ### LSEventCallbackBuilder<TEvent> Class
+/// ```csharp
+/// public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
+///     // Core phase methods
+///     public LSEventCallbackBuilder<TEvent> OnValidation(LSPhaseHandler<TEvent> handler);
+///     public LSEventCallbackBuilder<TEvent> OnPrepare(LSPhaseHandler<TEvent> handler);
+///     public LSEventCallbackBuilder<TEvent> OnExecution(LSPhaseHandler<TEvent> handler);
+///     public LSEventCallbackBuilder<TEvent> OnFinalize(LSPhaseHandler<TEvent> handler);
+///     public LSEventCallbackBuilder<TEvent> OnComplete(LSPhaseHandler<TEvent> handler);
+///     
+///     // Priority variants
+///     public LSEventCallbackBuilder<TEvent> OnCriticalValidation(LSPhaseHandler<TEvent> handler);
+///     public LSEventCallbackBuilder<TEvent> OnHighPriorityExecution(LSPhaseHandler<TEvent> handler);
+///     
+///     // Conditional methods
+///     public LSEventCallbackBuilder<TEvent> OnSuccess(LSPhaseHandler<TEvent> handler);
+///     public LSEventCallbackBuilder<TEvent> OnError(LSPhaseHandler<TEvent> handler);
+///     public LSEventCallbackBuilder<TEvent> OnCancel(LSPhaseHandler<TEvent> handler);
+///     
+///     // Data-based methods
+///     public LSEventCallbackBuilder<TEvent> OnDataPresent(string key, LSPhaseHandler<TEvent> handler);
+///     public LSEventCallbackBuilder<TEvent> OnDataEquals<T>(string key, T value, LSPhaseHandler<TEvent> handler);
+///     
+///     // Timing methods
+///     public LSEventCallbackBuilder<TEvent> OnTimeout(TimeSpan timeout, LSPhaseHandler<TEvent> handler);
+///     public LSEventCallbackBuilder<TEvent> OnSlowProcessing(TimeSpan threshold, LSPhaseHandler<TEvent> handler);
+///     
+///     // Action shortcuts
+///     public LSEventCallbackBuilder<TEvent> DoOnValidation(Action<TEvent> action);
+///     public LSEventCallbackBuilder<TEvent> DoOnExecution(Action<TEvent> action);
+///     public LSEventCallbackBuilder<TEvent> DoOnComplete(Action<TEvent> action);
+///     public LSEventCallbackBuilder<TEvent> DoWhen(Func<TEvent, bool> condition, Action<TEvent> action);
+///     
+///     // Data manipulation
+///     public LSEventCallbackBuilder<TEvent> SetData(string key, object value);
+///     public LSEventCallbackBuilder<TEvent> SetDataWhen(Func<TEvent, bool> condition, string key, object value);
+///     public LSEventCallbackBuilder<TEvent> TransformData<T>(string key, Func<T, T> transform);
+///     public LSEventCallbackBuilder<TEvent> ValidateData<T>(string key, Func<T, bool> validator, string errorMessage);
+///     
+///     // Logging and monitoring
+///     public LSEventCallbackBuilder<TEvent> LogPhase(LSEventPhase phase, Action<TEvent, LSPhaseContext> logger);
+///     public LSEventCallbackBuilder<TEvent> LogOnError(Action<TEvent, string> logger);
+///     public LSEventCallbackBuilder<TEvent> MeasureExecutionTime(Action<TEvent, TimeSpan> onComplete);
+///     
+///     // Error handling
+///     public LSEventCallbackBuilder<TEvent> CancelIf(Func<TEvent, bool> condition);
+///     public LSEventCallbackBuilder<TEvent> RetryOnError(int maxRetries);
+///     
+///     // Composition
+///     public LSEventCallbackBuilder<TEvent> Then(Action<LSEventCallbackBuilder<TEvent>> configure);
+///     public LSEventCallbackBuilder<TEvent> If(Func<TEvent, bool> condition, Action<LSEventCallbackBuilder<TEvent>> configure);
+///     public LSEventCallbackBuilder<TEvent> InParallel(Action<LSEventCallbackBuilder<TEvent>> configure);
+///     
+///     // Processing
+///     public bool ProcessAndCleanup();
+/// }
+/// ```
+/// 
+/// ### LSEventCallbackBatch<TEvent> Class (Internal)
+/// ```csharp
+/// internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
+///     public TEvent TargetEvent { get; }
+///     public Dictionary<LSEventPhase, List<BatchedHandler>> HandlersByPhase { get; }
+///     public IEnumerable<BatchedHandler> GetHandlersForPhase(LSEventPhase phase);
+///     public void AddHandler(LSEventPhase phase, LSPhasePriority priority, LSPhaseHandler<TEvent> handler, Func<TEvent, bool>? condition = null);
+/// }
+/// 
+/// internal class BatchedHandler {
+///     public LSPhasePriority Priority { get; set; }
+///     public LSPhaseHandler<TEvent> Handler { get; set; }
+///     public Func<TEvent, bool>? Condition { get; set; }
+/// }
+/// ```
+/// 
+/// ## Event Examples
+/// 
+/// ### Simple Event (LSBaseEvent)
+/// ```csharp
+/// public class SystemStartupEvent : LSBaseEvent {
+///     public string Version { get; }
+///     public DateTime StartupTime { get; }
+///     public Dictionary<string, object> Configuration { get; }
+///     
+///     public SystemStartupEvent(string version, Dictionary<string, object> config) {
+///         Version = version;
+///         StartupTime = DateTime.UtcNow;
+///         Configuration = config;
+///         
+///         // Store data for handlers
+///         SetData("version", version);
+///         SetData("config", config);
+///     }
+/// }
+/// ```
+/// 
+/// ### Typed Event (LSEvent<T>)
+/// ```csharp
+/// public class UserRegistrationEvent : LSEvent<User> {
+///     public string RegistrationSource { get; }
+///     public DateTime RegistrationTime { get; }
+///     public bool RequiresEmailVerification { get; }
+///     
+///     public UserRegistrationEvent(User user, string source, bool requiresVerification = true) 
+///         : base(user) {
+///         RegistrationSource = source;
+///         RegistrationTime = DateTime.UtcNow;
+///         RequiresEmailVerification = requiresVerification;
+///         
+///         // Store registration metadata
+///         SetData("registration.source", source);
+///         SetData("registration.time", RegistrationTime);
+///         SetData("verification.required", requiresVerification);
+///     }
+/// }
+/// 
+/// public class OrderProcessedEvent : LSEvent<Order> {
+///     public decimal ProcessingFee { get; }
+///     public PaymentMethod PaymentMethod { get; }
+///     public ShippingAddress ShippingAddress { get; }
+///     
+///     public OrderProcessedEvent(Order order, decimal fee, PaymentMethod payment, ShippingAddress shipping) 
+///         : base(order) {
+///         ProcessingFee = fee;
+///         PaymentMethod = payment;
+///         ShippingAddress = shipping;
+///         
+///         // Store order processing data
+///         SetData("processing.fee", fee);
+///         SetData("payment.method", payment);
+///         SetData("shipping.address", shipping);
+///         SetData("order.total", order.Total + fee);
+///     }
+/// }
+/// ```
+/// 
+/// ## Handler Examples
+/// 
+/// ### Simple Handler
+/// ```csharp
+/// public LSPhaseResult ValidateUserRegistration(UserRegistrationEvent evt, LSPhaseContext ctx) {
+///     var user = evt.Instance;
+///     
+///     // Basic validation
+///     if (string.IsNullOrEmpty(user.Email)) {
+///         evt.SetErrorMessage("Email is required");
+///         return LSPhaseResult.CANCEL;
+///     }
+///     
+///     if (user.Age < 18) {
+///         evt.SetErrorMessage("User must be 18 or older");
+///         return LSPhaseResult.CANCEL;
+///     }
+///     
+///     // Store validation results
+///     evt.SetData("validation.passed", true);
+///     evt.SetData("validation.timestamp", DateTime.UtcNow);
+///     
+///     return LSPhaseResult.CONTINUE;
+/// }
+/// ```
+/// 
+/// ### Complex Handler with Error Handling
+/// ```csharp
+/// public LSPhaseResult ProcessOrderPayment(OrderProcessedEvent evt, LSPhaseContext ctx) {
+///     var order = evt.Instance;
+///     
+///     try {
+///         // Get payment method from event data
+///         if (!evt.TryGetData<PaymentMethod>("payment.method", out var paymentMethod)) {
+///             evt.SetErrorMessage("Payment method not specified");
+///             return LSPhaseResult.CANCEL;
+///         }
+///         
+///         // Process payment
+///         var paymentResult = paymentService.ProcessPayment(order.Total, paymentMethod);
+///         
+///         if (!paymentResult.Success) {
+///             evt.SetErrorMessage($"Payment failed: {paymentResult.ErrorMessage}");
+///             evt.SetData("payment.failure.reason", paymentResult.ErrorMessage);
+///             evt.SetData("payment.failure.code", paymentResult.ErrorCode);
+///             return LSPhaseResult.RETRY; // Retry payment processing
+///         }
+///         
+///         // Store successful payment data
+///         evt.SetData("payment.transaction.id", paymentResult.TransactionId);
+///         evt.SetData("payment.processed.at", DateTime.UtcNow);
+///         evt.SetData("payment.amount", order.Total);
+///         
+///         return LSPhaseResult.CONTINUE;
+///         
+///     } catch (PaymentServiceException ex) {
+///         evt.SetErrorMessage($"Payment service error: {ex.Message}");
+///         evt.SetData("payment.service.error", ex.Message);
+///         return LSPhaseResult.RETRY;
+///         
+///     } catch (Exception ex) {
+///         evt.SetErrorMessage($"Unexpected error during payment: {ex.Message}");
+///         evt.SetData("payment.unexpected.error", ex.Message);
+///         return LSPhaseResult.CANCEL;
+///     }
+/// }
+/// ```
+/// 
+/// ## Usage Examples
+/// 
+/// ### Global Handler Registration
+/// ```csharp
+/// // Register a global validation handler for all user registrations
+/// dispatcher.For<UserRegistrationEvent>()
+///     .InPhase(LSEventPhase.VALIDATE)
+///     .WithPriority(LSPhasePriority.HIGH)
+///     .Register((evt, ctx) => {
+///         var user = evt.Instance;
+///         if (userService.EmailExists(user.Email)) {
+///             evt.SetErrorMessage("Email already registered");
+///             return LSPhaseResult.CANCEL;
+///         }
+///         return LSPhaseResult.CONTINUE;
+///     });
+/// 
+/// // Register a handler for specific user instance
+/// dispatcher.For<UserRegistrationEvent>()
+///     .InPhase(LSEventPhase.EXECUTE)
+///     .ForInstance(premiumUser)
+///     .Register((evt, ctx) => {
+///         // Special processing for premium users
+///         userService.AssignPremiumFeatures(evt.Instance);
+///         evt.SetData("premium.features.assigned", true);
+///         return LSPhaseResult.CONTINUE;
+///     });
+/// 
+/// // Conditional handler registration
+/// dispatcher.For<OrderProcessedEvent>()
+///     .InPhase(LSEventPhase.FINALIZE)
+///     .When(evt => evt.Instance.Total > 1000)
+///     .Register((evt, ctx) => {
+///         // Special handling for large orders
+///         notificationService.NotifyManager(evt.Instance);
+///         return LSPhaseResult.CONTINUE;
+///     });
+/// ```
+/// 
+/// ### Event-Scoped Processing (Recommended)
+/// ```csharp
+/// // Simple inline processing
+/// var userEvent = new UserRegistrationEvent(newUser, "web");
+/// var success = userEvent.ProcessWith<UserRegistrationEvent>(dispatcher, builder => builder
+///     .OnValidation((evt, ctx) => {
+///         if (string.IsNullOrEmpty(evt.Instance.Email)) {
+///             evt.SetErrorMessage("Email is required");
+///             return LSPhaseResult.CANCEL;
+///         }
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnExecution((evt, ctx) => {
+///         userService.CreateUser(evt.Instance);
+///         evt.SetData("user.created", true);
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnSuccess((evt, ctx) => {
+///         emailService.SendWelcomeEmail(evt.Instance.Email);
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnError((evt, ctx) => {
+///         logger.LogError($"User registration failed: {evt.ErrorMessage}");
+///         return LSPhaseResult.CONTINUE;
+///     })
+/// );
+/// 
+/// // Complex validation pipeline
+/// var orderEvent = new OrderProcessedEvent(order, 5.99m, PaymentMethod.CreditCard, shippingAddress);
+/// orderEvent.ProcessWith<OrderProcessedEvent>(dispatcher, builder => builder
+///     .ValidateData<decimal>("processing.fee", fee => fee >= 0, "Fee cannot be negative")
+///     .ValidateData<PaymentMethod>("payment.method", pm => pm != PaymentMethod.None, "Payment method required")
+///     .OnValidation((evt, ctx) => {
+///         if (evt.Instance.Total <= 0) {
+///             evt.SetErrorMessage("Order total must be positive");
+///             return LSPhaseResult.CANCEL;
+///         }
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnPrepare((evt, ctx) => {
+///         // Reserve inventory
+///         foreach (var item in evt.Instance.Items) {
+///             inventoryService.Reserve(item.ProductId, item.Quantity);
+///         }
+///         evt.SetData("inventory.reserved", true);
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnExecution((evt, ctx) => {
+///         // Process payment
+///         var paymentResult = paymentService.ProcessPayment(evt.Instance.Total, evt.PaymentMethod);
+///         if (!paymentResult.Success) {
+///             evt.SetErrorMessage($"Payment failed: {paymentResult.ErrorMessage}");
+///             return LSPhaseResult.CANCEL;
+///         }
+///         evt.SetData("payment.transaction.id", paymentResult.TransactionId);
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnFinalize((evt, ctx) => {
+///         // Commit inventory changes
+///         inventoryService.CommitReservations();
+///         evt.SetData("inventory.committed", true);
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnComplete((evt, ctx) => {
+///         // Always log processing attempt
+///         auditService.LogOrderProcessing(evt.Instance.Id, evt.IsCompleted, evt.ErrorMessage);
+///         return LSPhaseResult.CONTINUE;
+///     })
+/// );
+/// 
+/// // Manual lifecycle management
+/// var builder = myEvent.RegisterCallback<MyEvent>(dispatcher);
+/// builder.OnValidation(ValidateHandler)
+///        .OnExecution(ExecuteHandler);
+/// var success = builder.ProcessAndCleanup();
+/// ```
+/// 
+/// ### Conditional and Data-Driven Processing
+/// ```csharp
+/// paymentEvent.ProcessWith<PaymentEvent>(dispatcher, builder => builder
+///     // Conditional processing based on amount
+///     .If(evt => evt.Amount > 1000, premiumBuilder => premiumBuilder
+///         .OnValidation((evt, ctx) => {
+///             // Additional validation for large payments
+///             if (!fraudDetectionService.ValidateHighValuePayment(evt)) {
+///                 evt.SetErrorMessage("Payment flagged by fraud detection");
+///                 return LSPhaseResult.CANCEL;
+///             }
+///             return LSPhaseResult.CONTINUE;
+///         })
+///         .OnExecution((evt, ctx) => {
+///             // Special processing for high-value payments
+///             premiumPaymentService.ProcessPayment(evt);
+///             return LSPhaseResult.CONTINUE;
+///         })
+///     )
+///     // Data-based conditional execution
+///     .OnDataEquals("payment.type", "credit", (evt, ctx) => {
+///         creditCardService.ProcessCreditPayment(evt);
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnDataEquals("payment.type", "debit", (evt, ctx) => {
+///         debitCardService.ProcessDebitPayment(evt);
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     // Timeout handling
+///     .OnTimeout(TimeSpan.FromSeconds(30), (evt, ctx) => {
+///         evt.SetErrorMessage("Payment processing timed out");
+///         return LSPhaseResult.CANCEL;
+///     })
+///     // Performance monitoring
+///     .OnSlowProcessing(TimeSpan.FromSeconds(5), (evt, ctx) => {
+///         performanceLogger.LogSlowPayment(evt.Amount, ctx.ElapsedTime);
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .MeasureExecutionTime((evt, totalTime) => {
+///         metricsService.RecordPaymentProcessingTime(evt.Amount, totalTime);
+///     })
+/// );
+/// ```
+/// 
+/// ### Advanced Error Handling and Retry Logic
+/// ```csharp
+/// dataProcessingEvent.ProcessWith<DataProcessingEvent>(dispatcher, builder => builder
+///     .OnValidation((evt, ctx) => {
+///         if (!dataValidator.IsValid(evt.Instance.Data)) {
+///             evt.SetErrorMessage("Invalid data format");
+///             return LSPhaseResult.CANCEL;
+///         }
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnExecution((evt, ctx) => {
+///         try {
+///             dataProcessor.Process(evt.Instance.Data);
+///             evt.SetData("processing.completed", true);
+///             return LSPhaseResult.CONTINUE;
+///         } catch (TemporaryServiceException ex) {
+///             evt.SetErrorMessage($"Temporary service error: {ex.Message}");
+///             evt.SetData("retry.reason", ex.Message);
+///             return LSPhaseResult.RETRY; // Will retry up to 3 times
+///         } catch (PermanentException ex) {
+///             evt.SetErrorMessage($"Permanent error: {ex.Message}");
+///             return LSPhaseResult.CANCEL;
+///         }
+///     })
+///     .RetryOnError(3) // Configure retry behavior
+///     .OnError((evt, ctx) => {
+///         // Handle final failure after retries
+///         errorService.RecordProcessingFailure(evt.Instance.Data, evt.ErrorMessage);
+///         notificationService.NotifyAdministrators(evt.ErrorMessage);
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     .OnSuccess((evt, ctx) => {
+///         // Handle successful completion
+///         auditService.RecordSuccessfulProcessing(evt.Instance.Data);
+///         return LSPhaseResult.CONTINUE;
+///     })
+/// );
+/// ```
+/// 
+/// ### Performance Monitoring
 /// ```csharp
 /// orderEvent.ProcessWith<OrderEvent>(dispatcher, builder => builder
 ///     .OnExecution((evt, ctx) => ProcessOrder(evt))
@@ -13,7 +570,82 @@ namespace LSUtils.EventSystem;
 /// );
 /// ```
 /// 
-/// ### High-Performance Event Processing (Batching Optimization)
+/// ### Parallel Processing and Composition
+/// ```csharp
+/// complexEvent.ProcessWith<ComplexBusinessEvent>(dispatcher, builder => builder
+///     .OnValidation((evt, ctx) => {
+///         // Primary validation
+///         if (!businessRuleValidator.Validate(evt.Instance)) {
+///             return LSPhaseResult.CANCEL;
+///         }
+///         return LSPhaseResult.CONTINUE;
+///     })
+///     // Parallel validation checks
+///     .InParallel(parallelBuilder => parallelBuilder
+///         .OnValidation((evt, ctx) => {
+///             // Security validation
+///             securityService.ValidatePermissions(evt.Instance);
+///             return LSPhaseResult.CONTINUE;
+///         })
+///         .OnValidation((evt, ctx) => {
+///             // Data integrity validation
+///             dataIntegrityService.ValidateData(evt.Instance);
+///             return LSPhaseResult.CONTINUE;
+///         })
+///     )
+///     .Then(nextBuilder => nextBuilder
+///         .OnExecution((evt, ctx) => {
+///             // Execute after all validations pass
+///             businessLogicService.Execute(evt.Instance);
+///             return LSPhaseResult.CONTINUE;
+///         })
+///     )
+/// );
+/// ```
+/// 
+/// ### LSDispatcher Type and Methods
+/// ```csharp
+/// public class LSDispatcher {
+///     // Singleton access
+///     public static LSDispatcher Singleton { get; }
+///     
+///     // Fluent registration
+///     public LSEventRegistration<TEvent> For<TEvent>() where TEvent : ILSEvent;
+///     
+///     // Simple registration
+///     public Guid RegisterHandler<TEvent>(
+///         LSPhaseHandler<TEvent> handler,
+///         LSEventPhase phase = LSEventPhase.EXECUTE,
+///         LSPhasePriority priority = LSPhasePriority.NORMAL
+///     ) where TEvent : ILSEvent;
+///     
+///     // Full registration (internal)
+///     internal Guid RegisterHandler<TEvent>(
+///         LSPhaseHandler<TEvent> handler,
+///         LSEventPhase phase,
+///         LSPhasePriority priority,
+///         Type? instanceType,
+///         object? instance,
+///         int maxExecutions,
+///         Func<TEvent, bool>? condition
+///     ) where TEvent : ILSEvent;
+///     
+///     // Event processing
+///     public bool ProcessEvent<TEvent>(TEvent @event) where TEvent : ILSEvent;
+///     
+///     // Handler management
+///     public bool UnregisterHandler(Guid handlerId);
+///     
+///     // Batch registration (internal optimization)
+///     internal Guid RegisterBatchedHandlers<TEvent>(LSEventCallbackBatch<TEvent> batch) where TEvent : ILSEvent;
+///     
+///     // Monitoring and diagnostics
+///     public int GetHandlerCount<TEvent>() where TEvent : ILSEvent;
+///     public int GetTotalHandlerCount();
+/// }
+/// ```
+/// 
+/// ## High-Performance Event Processing (Batching Optimization)
 /// ```csharp
 /// // This example shows how batching optimization improves performance
 /// // All 8 handler registrations below are internally collected and registered as 1 batch
@@ -29,18 +661,6 @@ namespace LSUtils.EventSystem;
 /// );
 /// // Internal optimization: 8 handlers → 1 registration → automatic cleanup
 /// // Performance benefit: ~8x reduction in registration overhead
-/// ```uilder => builder
-///     .OnValidation((evt, ctx) => ValidateEvent(evt))
-///     .OnExecution((evt, ctx) => ProcessEvent(evt))
-///     .OnSuccess((evt, ctx) => LogSuccess(evt))
-///     .OnError((evt, ctx) => HandleError(evt))
-/// );
-/// 
-/// // Manual lifecycle management
-/// var builder = myEvent.RegisterCallback<MyEvent>(dispatcher);
-/// builder.OnValidation(ValidateHandler)
-///        .OnExecution(ExecuteHandler);
-/// var success = builder.ProcessAndCleanup();
 /// ```
 /// 
 /// **Performance Optimization**: The callback builder system now uses internal batching
@@ -53,10 +673,49 @@ namespace LSUtils.EventSystem;
 /// - Phase-aware execution that only runs relevant handlers per phase
 /// 
 /// The optimization is completely transparent - the API remains identical but performance
-/// is dramatically improved, especially for events with many handlers.- Comprehensive Documentation
+/// is dramatically improved, especially for events with many handlers.
 /// 
-/// The LSUtils Event System provides a clean, phase-based approach to event processing
-/// with support for both traditional global handlers and modern event-scoped callback builders.
+/// ## Comprehensive Type Information
+/// 
+/// ### Complete Event Processing Pipeline
+/// ```csharp
+/// // 1. Create event
+/// var userEvent = new UserRegistrationEvent(user, "mobile_app");
+/// 
+/// // 2. Set up processing with full type safety
+/// var success = userEvent.ProcessWith<UserRegistrationEvent>(dispatcher, builder => builder
+///     .OnValidation((UserRegistrationEvent evt, LSPhaseContext ctx) => {
+///         // Full type information available
+///         User user = evt.Instance;                    // TInstance type
+///         string source = evt.RegistrationSource;     // Event property
+///         DateTime time = evt.RegistrationTime;       // Event property
+///         Guid eventId = evt.Id;                       // Base event property
+///         LSEventPhase phase = ctx.CurrentPhase;      // Context information
+///         TimeSpan elapsed = ctx.ElapsedTime;         // Performance data
+///         
+///         // Store typed data
+///         evt.SetData("validation.timestamp", DateTime.UtcNow);
+///         evt.SetData("validation.source", source);
+///         
+///         return LSPhaseResult.CONTINUE;
+///     })
+/// );
+/// 
+/// // 3. Check results with full state information
+/// if (success) {
+///     Console.WriteLine($"Event {userEvent.Id} completed successfully");
+///     Console.WriteLine($"Completed phases: {userEvent.CompletedPhases}");
+///     
+///     // Access typed data
+///     if (userEvent.TryGetData<DateTime>("validation.timestamp", out var timestamp)) {
+///         Console.WriteLine($"Validated at: {timestamp}");
+///     }
+/// } else {
+///     Console.WriteLine($"Event failed: {userEvent.ErrorMessage}");
+///     Console.WriteLine($"Current phase: {userEvent.CurrentPhase}");
+///     Console.WriteLine($"Cancelled: {userEvent.IsCancelled}");
+/// }
+/// ```
 /// 
 /// ## Core Components
 /// 
