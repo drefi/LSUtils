@@ -280,18 +280,13 @@ public class LSDispatcher {
     internal Guid RegisterBatchedHandlers<TEvent>(LSEventCallbackBatch<TEvent> batch) where TEvent : ILSEvent {
         var batchId = Guid.NewGuid();
         
-        // Create a composite handler that executes the appropriate batched handlers per phase
-        var batchedHandler = new LSHandlerRegistration {
-            Id = batchId,
-            EventType = typeof(TEvent),
-            Handler = (evt, ctx) => ExecuteBatchedHandlers((TEvent)evt, ctx, batch),
-            Phase = LSEventPhase.VALIDATE, // We'll handle phase filtering internally
-            Priority = LSPhasePriority.NORMAL,
-            Instance = batch.TargetEvent, // Bind to specific event instance
-            InstanceType = typeof(TEvent),
-            MaxExecutions = 1, // One-time execution
-            Condition = evt => ReferenceEquals(evt, batch.TargetEvent),
-            ExecutionCount = 0
+        // Register batch handlers for all phases that have handlers
+        var phases = new[] {
+            LSEventPhase.VALIDATE,
+            LSEventPhase.PREPARE,
+            LSEventPhase.EXECUTE,
+            LSEventPhase.FINALIZE,
+            LSEventPhase.COMPLETE
         };
 
         lock (_lock) {
@@ -299,7 +294,27 @@ public class LSDispatcher {
                 list = new List<LSHandlerRegistration>();
                 _handlers[typeof(TEvent)] = list;
             }
-            list.Add(batchedHandler);
+
+            foreach (var phase in phases) {
+                // Only register for phases that have handlers in the batch
+                if (batch.GetHandlersForPhase(phase).Any()) {
+                    var batchedHandler = new LSHandlerRegistration {
+                        Id = Guid.NewGuid(), // Each phase handler gets its own ID
+                        EventType = typeof(TEvent),
+                        Handler = (evt, ctx) => ExecuteBatchedHandlers((TEvent)evt, ctx, batch),
+                        Phase = phase,
+                        Priority = LSPhasePriority.NORMAL,
+                        Instance = null, // Don't use Instance field for event-scoped handlers
+                        InstanceType = typeof(TEvent),
+                        MaxExecutions = 1, // One-time execution
+                        Condition = evt => ReferenceEquals(evt, batch.TargetEvent), // Use condition instead
+                        ExecutionCount = 0
+                    };
+                    
+                    list.Add(batchedHandler);
+                }
+            }
+            
             // Sort by priority to ensure correct execution order
             list.Sort((a, b) => a.Priority.CompareTo(b.Priority));
         }

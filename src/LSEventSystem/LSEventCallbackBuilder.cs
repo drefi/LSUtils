@@ -597,6 +597,11 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="evt">The event to get error message from.</param>
     /// <returns>The error message or null if none exists.</returns>
     private static string? GetErrorMessage(TEvent evt) {
+        if (evt is LSBaseEvent baseEvent) {
+            return baseEvent.ErrorMessage;
+        }
+        
+        // Fallback to data dictionary for non-LSBaseEvent implementations
         if (evt.TryGetData<string>("error.message", out var errorMsg)) {
             return errorMsg;
         }
@@ -609,7 +614,12 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="evt">The event to set error message on.</param>
     /// <param name="message">The error message to set.</param>
     private static void SetErrorMessage(TEvent evt, string message) {
-        evt.SetData("error.message", message);
+        if (evt is LSBaseEvent baseEvent) {
+            baseEvent.ErrorMessage = message;
+        } else {
+            // Fallback to data dictionary for non-LSBaseEvent implementations
+            evt.SetData("error.message", message);
+        }
     }
     
     #endregion
