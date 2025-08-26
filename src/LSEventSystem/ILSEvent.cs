@@ -26,7 +26,7 @@ public interface ILSEvent {
     /// the event's entire lifecycle. This ID can be used for tracking, logging, and debugging
     /// event processing across multiple systems and phases.
     /// </summary>
-    Guid Id { get; }
+    Guid ID { get; }
 
     /// <summary>
     /// The concrete type of this event, used for type-safe event handling and registration.

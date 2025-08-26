@@ -117,49 +117,104 @@ public class LSDispatcher {
 
     /// <summary>
     /// Processes an event through all phases in the correct order.
-    /// The event will go through VALIDATE, PREPARE, EXECUTE, FINALIZE, and COMPLETE phases.
-    /// If the event is aborted in any phase (except COMPLETE), only the COMPLETE phase will run for cleanup.
+    /// The event will go through VALIDATE, PREPARE, EXECUTE, FINALIZE, CANCEL (if cancelled), and COMPLETE phases.
+    /// If the event is aborted in any phase (except COMPLETE), the CANCEL phase will run followed by the COMPLETE phase for cleanup.
     /// </summary>
     /// <typeparam name="TEvent">The type of event to process.</typeparam>
     /// <param name="event">The event instance to process.</param>
     /// <returns>True if the event completed successfully, false if it was aborted.</returns>
     public bool ProcessEvent<TEvent>(TEvent @event) where TEvent : ILSEvent {
-        if (@event.IsCompleted || @event.IsCancelled) {
+        return ProcessEventInternal(@event, resuming: false);
+    }
+
+    /// <summary>
+    /// Resumes processing of an event that was paused in a WAITING state.
+    /// This method should be called after the async operation completes and
+    /// ContinueProcessing() has been called on the event.
+    /// </summary>
+    /// <typeparam name="TEvent">The type of event to resume processing for.</typeparam>
+    /// <param name="event">The event instance to resume processing.</param>
+    /// <returns>True if the event completed successfully, false if it was aborted.</returns>
+    internal bool ContinueProcessing<TEvent>(TEvent @event) where TEvent : ILSEvent {
+        return ProcessEventInternal(@event, resuming: true);
+    }
+
+    /// <summary>
+    /// Internal method that handles both initial processing and resumption from WAITING state.
+    /// </summary>
+    /// <typeparam name="TEvent">The type of event to process.</typeparam>
+    /// <param name="event">The event instance to process.</param>
+    /// <param name="resuming">True if resuming from WAITING state, false for initial processing.</param>
+    /// <returns>True if the event completed successfully, false if it was aborted.</returns>
+    private bool ProcessEventInternal<TEvent>(TEvent @event, bool resuming) where TEvent : ILSEvent {
+        if (@event.IsCompleted || (@event.IsCancelled && !resuming)) {
+            return @event.IsCompleted;
+        }
+
+        var mutableEvent = (ILSMutableEvent)@event;
+        
+        if (resuming && mutableEvent.IsWaiting) {
+            // Event is still waiting, cannot resume yet
             return false;
         }
+
+        var startTime = DateTime.UtcNow;
+        var errors = new List<string>();
 
         var phases = new[] {
             LSEventPhase.VALIDATE,
             LSEventPhase.PREPARE,
             LSEventPhase.EXECUTE,
-            LSEventPhase.FINALIZE,
-            LSEventPhase.COMPLETE
+            LSEventPhase.SUCCESS,    // Only runs when not cancelled
+            LSEventPhase.CANCEL,    // Only runs when cancelled
+            LSEventPhase.COMPLETE   // Always runs
         };
 
-        var startTime = DateTime.UtcNow;
-        var errors = new List<string>();
-        var mutableEvent = (ILSMutableEvent)@event;
+        // Determine starting phase
+        int startPhaseIndex = 0;
+        if (resuming) {
+            startPhaseIndex = Array.IndexOf(phases, mutableEvent.CurrentPhase);
+            if (startPhaseIndex == -1) startPhaseIndex = 0;
+        }
 
-        foreach (var phase in phases) {
-            // Skip phases if cancelled, except COMPLETE which always runs for cleanup
-            if (@event.IsCancelled && phase != LSEventPhase.COMPLETE) {
+        for (int i = startPhaseIndex; i < phases.Length; i++) {
+            var phase = phases[i];
+            
+            // Skip SUCCESS phase if event is cancelled
+            if (phase == LSEventPhase.SUCCESS && @event.IsCancelled) {
+                continue;
+            }
+            
+            // Skip CANCEL phase unless event is cancelled
+            if (phase == LSEventPhase.CANCEL && !@event.IsCancelled) {
+                continue;
+            }
+            
+            // Skip other phases if cancelled (except SUCCESS, CANCEL and COMPLETE)
+            if (@event.IsCancelled && phase != LSEventPhase.SUCCESS && phase != LSEventPhase.CANCEL && phase != LSEventPhase.COMPLETE) {
                 continue;
             }
 
-            if (!ExecutePhase(@event, phase, startTime, errors)) {
-                mutableEvent.IsCancelled = true;
-                // Ensure COMPLETE phase runs for cleanup if we're not already in it
-                if (phase != LSEventPhase.COMPLETE) {
-                    ExecutePhase(@event, LSEventPhase.COMPLETE, startTime, errors);
-                }
+            var phaseResult = ExecutePhase(@event, phase, startTime, errors);
+            
+            // Check if event is waiting for async operation
+            if (mutableEvent.IsWaiting) {
+                // Event is paused waiting for async operation
+                // The event should call ContinueProcessing() to resume
                 return false;
+            }
+
+            if (!phaseResult) {
+                mutableEvent.IsCancelled = true;
+                // Continue to CANCEL phase (if not already there) then COMPLETE
+                // The loop will handle this automatically
             }
 
             mutableEvent.CompletedPhases |= phase;
         }
 
         mutableEvent.IsCompleted = true;
-        return true;
+        return !@event.IsCancelled;
     }
 
     /// <summary>
@@ -206,7 +261,28 @@ public class LSDispatcher {
                     case LSPhaseResult.SKIP_REMAINING:
                         return true;
                     case LSPhaseResult.CANCEL:
+                        // Track which phase the cancellation occurred in
+                        if (@event is LSBaseEvent cancelEvent) {
+                            cancelEvent.SetData("cancel.phase", phase);
+                            cancelEvent.SetData("cancel.time", DateTime.UtcNow);
+                            cancelEvent.SetData("cancel.handler.id", handler.Id.ToString());
+                        }
                         return false;
+                    case LSPhaseResult.WAITING:
+                        // Handler requested to wait for async operation
+                        mutableEvent.IsWaiting = true;
+                        
+                        // Store resumption state in event data for debugging/monitoring
+                        if (@event is LSBaseEvent baseEvent) {
+                            baseEvent.SetData("waiting.phase", phase.ToString());
+                            baseEvent.SetData("waiting.handler.id", handler.Id.ToString());
+                            baseEvent.SetData("waiting.started.at", DateTime.UtcNow);
+                            baseEvent.SetData("waiting.handler.count", handlerCount);
+                        }
+                        
+                        // Return true to indicate phase should be considered "successful" but paused
+                        // The caller will check IsWaiting and handle the pause appropriately
+                        return true;
                     case LSPhaseResult.RETRY:
                         // Simple retry logic - could be enhanced with more sophisticated retry policies
                         if (handler.ExecutionCount < 3) {
@@ -271,6 +347,103 @@ public class LSDispatcher {
     }
 
     /// <summary>
+    /// Unregisters handlers based on specified criteria.
+    /// This is used internally by the fluent unregistration API.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type to unregister handlers for.</typeparam>
+    /// <param name="phase">The phase filter.</param>
+    /// <param name="priority">The priority filter.</param>
+    /// <param name="instanceType">Optional instance type filter.</param>
+    /// <param name="instance">Optional specific instance filter.</param>
+    /// <param name="maxExecutions">The max executions filter.</param>
+    /// <param name="condition">Optional condition filter.</param>
+    /// <returns>The number of handlers that were removed.</returns>
+    internal int UnregisterHandlers<TEvent>(
+        LSEventPhase phase,
+        LSPhasePriority priority,
+        Type? instanceType,
+        object? instance,
+        int maxExecutions,
+        Func<TEvent, bool>? condition
+    ) where TEvent : ILSEvent {
+        
+        lock (_lock) {
+            if (!_handlers.TryGetValue(typeof(TEvent), out var list)) {
+                return 0;
+            }
+
+            var toRemove = list.Where(handler => {
+                // Match all the configured criteria
+                if (handler.Phase != phase) return false;
+                if (handler.Priority != priority) return false;
+                if (instanceType != null && handler.InstanceType != instanceType) return false;
+                if (instance != null && !ReferenceEquals(handler.Instance, instance)) return false;
+                if (maxExecutions != -1 && handler.MaxExecutions != maxExecutions) return false;
+                if (condition != null && !ReferenceEquals(handler.Condition, condition)) return false;
+                
+                return true;
+            }).ToList();
+
+            foreach (var handler in toRemove) {
+                list.Remove(handler);
+            }
+
+            return toRemove.Count;
+        }
+    }
+
+    /// <summary>
+    /// Unregisters a specific handler based on criteria and handler reference.
+    /// This is used internally by the fluent unregistration API.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type to unregister handlers for.</typeparam>
+    /// <param name="handlerToRemove">The specific handler function to unregister.</param>
+    /// <param name="phase">The phase filter.</param>
+    /// <param name="priority">The priority filter.</param>
+    /// <param name="instanceType">Optional instance type filter.</param>
+    /// <param name="instance">Optional specific instance filter.</param>
+    /// <param name="maxExecutions">The max executions filter.</param>
+    /// <param name="condition">Optional condition filter.</param>
+    /// <returns>The number of handlers that were removed (0 or 1).</returns>
+    internal int UnregisterHandler<TEvent>(
+        LSPhaseHandler<TEvent> handlerToRemove,
+        LSEventPhase phase,
+        LSPhasePriority priority,
+        Type? instanceType,
+        object? instance,
+        int maxExecutions,
+        Func<TEvent, bool>? condition
+    ) where TEvent : ILSEvent {
+        
+        lock (_lock) {
+            if (!_handlers.TryGetValue(typeof(TEvent), out var list)) {
+                return 0;
+            }
+
+            var toRemove = list.Where(handler => {
+                // First check if this is the exact handler we're looking for
+                if (!ReferenceEquals(handler.Handler, handlerToRemove)) return false;
+                
+                // Then match all the configured criteria
+                if (handler.Phase != phase) return false;
+                if (handler.Priority != priority) return false;
+                if (instanceType != null && handler.InstanceType != instanceType) return false;
+                if (instance != null && !ReferenceEquals(handler.Instance, instance)) return false;
+                if (maxExecutions != -1 && handler.MaxExecutions != maxExecutions) return false;
+                if (condition != null && !ReferenceEquals(handler.Condition, condition)) return false;
+                
+                return true;
+            }).ToList();
+
+            foreach (var handler in toRemove) {
+                list.Remove(handler);
+            }
+
+            return toRemove.Count;
+        }
+    }
+
+    /// <summary>
     /// Registers a batch of event-scoped handlers as a single unit for better performance.
     /// This method is used internally by the callback builder system.
     /// </summary>
@@ -285,7 +458,8 @@ public class LSDispatcher {
             LSEventPhase.VALIDATE,
             LSEventPhase.PREPARE,
             LSEventPhase.EXECUTE,
-            LSEventPhase.FINALIZE,
+            LSEventPhase.SUCCESS,
+            LSEventPhase.CANCEL,
             LSEventPhase.COMPLETE
         };
 
@@ -352,6 +526,20 @@ public class LSDispatcher {
                             return handlerResult; // Skip remaining handlers in this batch
                         case LSPhaseResult.CANCEL:
                             return handlerResult; // Cancel entire event processing
+                        case LSPhaseResult.WAITING:
+                            // Handler requested to wait for async operation
+                            var mutableEvent = (ILSMutableEvent)evt;
+                            mutableEvent.IsWaiting = true;
+                            
+                            // Store resumption state in event data for debugging/monitoring
+                            if (evt is LSBaseEvent baseEvent) {
+                                baseEvent.SetData("waiting.phase", ctx.CurrentPhase.ToString());
+                                baseEvent.SetData("waiting.handler.id", Guid.NewGuid().ToString()); // Batch handler doesn't have individual ID
+                                baseEvent.SetData("waiting.started.at", DateTime.UtcNow);
+                                baseEvent.SetData("waiting.handler.count", 0); // Within batch
+                            }
+                            
+                            return handlerResult; // Return WAITING to signal pause
                         case LSPhaseResult.RETRY:
                             // For batch handlers, we don't support retry at individual handler level
                             // Convert to continue to avoid infinite loops

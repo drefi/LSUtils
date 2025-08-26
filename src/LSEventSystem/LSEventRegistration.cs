@@ -89,4 +89,33 @@ public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
     public Guid Register(LSPhaseHandler<TEvent> handler) {
         return _dispatcher.RegisterHandler(handler, _phase, _priority, _instanceType, _instance, _maxExecutions, _condition);
     }
+    
+    /// <summary>
+    /// Unregisters all handlers that match the configured criteria.
+    /// This allows removing multiple handlers based on phase, priority, instance, etc.
+    /// </summary>
+    /// <returns>The number of handlers that were removed.</returns>
+    public int Unregister() {
+        return _dispatcher.UnregisterHandlers<TEvent>(_phase, _priority, _instanceType, _instance, _maxExecutions, _condition);
+    }
+    
+    /// <summary>
+    /// Unregisters handlers that match the configured criteria and the specified handler reference.
+    /// This allows precise removal when you have the exact handler function.
+    /// </summary>
+    /// <param name="handler">The specific handler function to unregister.</param>
+    /// <returns>The number of handlers that were removed (0 or 1).</returns>
+    public int Unregister(LSPhaseHandler<TEvent> handler) {
+        return _dispatcher.UnregisterHandler<TEvent>(handler, _phase, _priority, _instanceType, _instance, _maxExecutions, _condition);
+    }
+    
+    /// <summary>
+    /// Unregisters a handler by its unique identifier.
+    /// This is the most direct way to remove a specific handler when you have its ID.
+    /// </summary>
+    /// <param name="handlerId">The unique identifier of the handler to remove.</param>
+    /// <returns>True if the handler was found and removed, false otherwise.</returns>
+    public bool UnregisterById(Guid handlerId) {
+        return _dispatcher.UnregisterHandler(handlerId);
+    }
 }

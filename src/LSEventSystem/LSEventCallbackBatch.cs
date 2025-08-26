@@ -122,19 +122,19 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     }
     
     /// <summary>
-    /// Adds a handler to the batch for the FINALIZE phase.
+    /// Adds a handler to the batch for the SUCCESS phase.
     /// </summary>
     /// <param name="handler">The handler to add.</param>
     /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <param name="condition">Optional condition for execution.</param>
     /// <returns>This batch for fluent chaining.</returns>
-    public LSEventCallbackBatch<TEvent> OnFinalize(
+    public LSEventCallbackBatch<TEvent> OnSuccess(
         LSPhaseHandler<TEvent> handler,
         LSPhasePriority priority = LSPhasePriority.NORMAL,
         Func<TEvent, bool>? condition = null) {
         
         _handlers.Add(new LSBatchedHandler<TEvent> {
-            Phase = LSEventPhase.FINALIZE,
+            Phase = LSEventPhase.SUCCESS,
             Priority = priority,
             Handler = handler,
             Condition = condition
@@ -187,6 +187,27 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
         Func<TEvent, bool>? condition = null) {
         
         return OnExecution(handler, LSPhasePriority.HIGH, condition);
+    }
+    
+    /// <summary>
+    /// Adds a handler to the batch for the CANCEL phase.
+    /// </summary>
+    /// <param name="handler">The handler to add.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
+    /// <param name="condition">Optional condition for execution.</param>
+    /// <returns>This batch for fluent chaining.</returns>
+    public LSEventCallbackBatch<TEvent> OnCancel(
+        LSPhaseHandler<TEvent> handler,
+        LSPhasePriority priority = LSPhasePriority.NORMAL,
+        Func<TEvent, bool>? condition = null) {
+        
+        _handlers.Add(new LSBatchedHandler<TEvent> {
+            Phase = LSEventPhase.CANCEL,
+            Priority = priority,
+            Handler = handler,
+            Condition = condition
+        });
+        return this;
     }
     
     /// <summary>

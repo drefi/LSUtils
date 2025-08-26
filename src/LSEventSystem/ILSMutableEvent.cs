@@ -44,4 +44,22 @@ internal interface ILSMutableEvent : ILSEvent {
     /// Updated by the dispatcher when each phase completes without errors or cancellation.
     /// </summary>
     new LSEventPhase CompletedPhases { get; set; }
+
+    /// <summary>
+    /// Gets whether the event is currently waiting for an async operation to complete.
+    /// When true, the dispatcher should pause processing until ContinueProcessing() is called.
+    /// This property is automatically set when a handler returns LSPhaseResult.WAITING.
+    /// </summary>
+    bool IsWaiting { get; set; }
+
+    /// <summary>
+    /// Signals that an async operation has completed and event processing should resume.
+    /// This method should be called by the event or handler that initiated the WAITING state
+    /// to continue with the next phase or handler in the current phase.
+    /// </summary>
+    /// <remarks>
+    /// This method is thread-safe and can be called from any thread.
+    /// The dispatcher will resume processing on the next available cycle.
+    /// </remarks>
+    void ContinueProcessing();
 }

@@ -55,7 +55,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// <summary>
     /// Unique identifier for this event instance.
     /// </summary>
-    public Guid Id { get; } = Guid.NewGuid();
+    public Guid ID { get; } = Guid.NewGuid();
 
     /// <summary>
     /// The concrete type of this event.
@@ -86,6 +86,16 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// Flags indicating which phases have been completed.
     /// </summary>
     public LSEventPhase CompletedPhases { get; set; }
+
+    /// <summary>
+    /// Indicates if the event is currently waiting for an async operation to complete.
+    /// </summary>
+    public bool IsWaiting { get; set; }
+
+    /// <summary>
+    /// Reference to the dispatcher processing this event (used for resumption).
+    /// </summary>
+    private LSDispatcher? _dispatcher;
 
     /// <summary>
     /// Optional error message if the event encountered an error.
@@ -145,6 +155,41 @@ public abstract class LSBaseEvent : ILSMutableEvent {
         value = default(T)!;
         return false;
     }
+
+    /// <summary>
+    /// Legacy method kept for compatibility.
+    /// </summary>
+    /// <returns>Always returns false.</returns>
+    public bool Signal() {
+        // This method is kept for compatibility but doesn't do anything currently
+        // In the future, this could be used for additional signaling mechanisms
+        return false;
+    }
+
+    /// <summary>
+    /// Signals that an async operation has completed and event processing should resume.
+    /// This method is thread-safe and will notify the dispatcher to continue processing.
+    /// </summary>
+    /// <remarks>
+    /// This method should be called by the event or handler that initiated the WAITING state.
+    /// The dispatcher will resume processing immediately.
+    /// </remarks>
+    public void ContinueProcessing() {
+        if (_dispatcher == null) {
+            throw new InvalidOperationException("Cannot continue processing without a dispatcher reference. " +
+                "Ensure the event was processed using Process() or ProcessWith() methods.");
+        }
+        
+        if (!IsWaiting) {
+            throw new InvalidOperationException("Event is not in a waiting state. ContinueProcessing() should only be called when IsWaiting is true.");
+        }
+        
+        IsWaiting = false;
+        
+        // Resume processing through the dispatcher using the unified method
+        _dispatcher.ContinueProcessing(this);
+    }
+
     /// <summary>
     /// Creates a callback builder for registering event-specific handlers that execute only for this event instance.
     /// This provides a fluent API for setting up one-time handlers with automatic cleanup.
@@ -161,7 +206,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     ///     .ProcessAndCleanup();
     /// </code>
     /// </example>
-    public LSEventCallbackBuilder<TEventType> RegisterCallback<TEventType>(LSDispatcher dispatcher) 
+    public LSEventCallbackBuilder<TEventType> RegisterCallback<TEventType>(LSDispatcher dispatcher)
         where TEventType : ILSEvent {
         return new LSEventCallbackBuilder<TEventType>((TEventType)(object)this, dispatcher);
     }
@@ -186,6 +231,10 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     public bool ProcessWith<TEventType>(LSDispatcher dispatcher, 
         Action<LSEventCallbackBuilder<TEventType>>? configure = null) 
         where TEventType : ILSEvent {
+        //dont allow process if the event already has been dispatched
+
+        // Set dispatcher reference for async resumption
+        _dispatcher = dispatcher;
         
         var builder = RegisterCallback<TEventType>(dispatcher);
         configure?.Invoke(builder);
@@ -219,6 +268,9 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// </code>
     /// </remarks>
     public bool Process(LSDispatcher dispatcher) {
+        // Set dispatcher reference for async resumption
+        _dispatcher = dispatcher;
+        
         return dispatcher.ProcessEvent(this);
     }
 

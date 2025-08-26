@@ -11,11 +11,14 @@ namespace LSUtils.EventSystem;
 /// The callback builder provides several categories of methods:
 /// 
 /// **Core Phase Methods:**
-/// - OnValidation, OnPrepare, OnExecution, OnFinalize, OnComplete
+/// - OnValidation, OnPrepare, OnExecution, OnSuccess, OnComplete
 /// - OnCriticalValidation, OnHighPriorityExecution (priority variants)
 /// 
 /// **Conditional Methods:**
-/// - OnSuccess, OnError, OnCancel (state-based handlers)
+/// - OnSuccess, OnError (state-based handlers)
+/// - OnCancel(action, priority) - any-phase cancellation handlers
+/// - OnCancel(phase, action, priority) - phase-specific cancellation handlers  
+/// - OnCancelWhen(action, condition, priority) - conditional cancellation handlers
 /// - OnDataPresent, OnDataEquals (data-based conditions)
 /// 
 /// **Timing Methods:**
@@ -123,15 +126,6 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     }
     
     /// <summary>
-    /// Registers a handler for the FINALIZE phase.
-    /// </summary>
-    /// <param name="handler">The handler to execute during finalization.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnFinalize(LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.FINALIZE);
-    }
-    
-    /// <summary>
     /// Registers a handler for the COMPLETE phase.
     /// </summary>
     /// <param name="handler">The handler to execute during completion.</param>
@@ -163,17 +157,13 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     #region Conditional and State-Based Methods
     
     /// <summary>
-    /// Registers a handler that only executes if the event completes successfully.
+    /// Registers a handler for the SUCCESS phase.
+    /// This phase only runs when the event completes successfully (not cancelled).
     /// </summary>
     /// <param name="handler">The handler to execute on success.</param>
     /// <returns>This builder for fluent chaining.</returns>
     public LSEventCallbackBuilder<TEvent> OnSuccess(LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(
-            handler, 
-            LSEventPhase.COMPLETE, 
-            LSPhasePriority.NORMAL,
-            evt => !evt.IsCancelled && string.IsNullOrEmpty(GetErrorMessage(evt))
-        );
+        return RegisterEventSpecificHandler(handler, LSEventPhase.SUCCESS);
     }
     
     /// <summary>
@@ -191,16 +181,68 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     }
     
     /// <summary>
-    /// Registers a handler that only executes if the event was cancelled.
+    /// Registers a simple action that executes during the CANCEL phase when the event is cancelled.
+    /// This handler will run regardless of which phase the cancellation occurred in.
     /// </summary>
-    /// <param name="handler">The handler to execute on cancellation.</param>
+    /// <param name="action">The action to execute on cancellation.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnCancel(LSPhaseHandler<TEvent> handler) {
+    public LSEventCallbackBuilder<TEvent> OnCancel(LSAction<TEvent> action, LSPhasePriority priority = LSPhasePriority.NORMAL) {
         return RegisterEventSpecificHandler(
-            handler, 
-            LSEventPhase.COMPLETE, 
-            LSPhasePriority.NORMAL,
-            evt => evt.IsCancelled
+            (evt, _) => {
+                action(evt);
+                return LSPhaseResult.CONTINUE;
+            }, 
+            LSEventPhase.CANCEL, 
+            priority
+        );
+    }
+    
+    /// <summary>
+    /// Registers a phase-specific cancellation handler that only executes if the event was cancelled 
+    /// during the specified phase(s). Supports multiple phases using flag combinations.
+    /// </summary>
+    /// <param name="phase">The phase(s) during which cancellation must have occurred for this handler to run.</param>
+    /// <param name="action">The action to execute on cancellation.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
+    /// <returns>This builder for fluent chaining.</returns>
+    public LSEventCallbackBuilder<TEvent> OnCancel(LSEventPhase phase, LSAction<TEvent> action, LSPhasePriority priority = LSPhasePriority.NORMAL) {
+        return RegisterEventSpecificHandler(
+            (evt, _) => {
+                // Check if cancellation occurred during the specified phase(s)
+                if (evt.Data.TryGetValue("cancel.phase", out var cancelPhaseData) && 
+                    cancelPhaseData is LSEventPhase cancelPhase) {
+                    
+                    // Support multiple phases using flag operations
+                    if ((phase & cancelPhase) != 0) {
+                        action(evt);
+                    }
+                }
+                return LSPhaseResult.CONTINUE;
+            }, 
+            LSEventPhase.CANCEL, 
+            priority
+        );
+    }
+    
+    /// <summary>
+    /// Registers a conditional cancellation handler that executes during the CANCEL phase
+    /// only if the specified condition is met at the time of cancellation.
+    /// </summary>
+    /// <param name="action">The action to execute on cancellation.</param>
+    /// <param name="condition">The condition that must be true for the handler to execute.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
+    /// <returns>This builder for fluent chaining.</returns>
+    public LSEventCallbackBuilder<TEvent> OnCancelWhen(LSAction<TEvent> action, Func<TEvent, bool> condition, LSPhasePriority priority = LSPhasePriority.NORMAL) {
+        return RegisterEventSpecificHandler(
+            (evt, _) => {
+                if (condition(evt)) {
+                    action(evt);
+                }
+                return LSPhaseResult.CONTINUE;
+            }, 
+            LSEventPhase.CANCEL, 
+            priority
         );
     }
     
@@ -267,7 +309,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
                 return handler(evt, ctx);
             }
             return LSPhaseResult.CONTINUE;
-        }, LSEventPhase.FINALIZE);
+        }, LSEventPhase.SUCCESS);
     }
     
     /// <summary>
@@ -413,7 +455,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
         // Register for all phases
         foreach (LSEventPhase phase in Enum.GetValues<LSEventPhase>()) {
             RegisterEventSpecificHandler((evt, ctx) => {
-                logger($"Event {evt.Id} executing in phase {ctx.CurrentPhase}");
+                logger($"Event {evt.ID} executing in phase {ctx.CurrentPhase}");
                 return LSPhaseResult.CONTINUE;
             }, phase, LSPhasePriority.BACKGROUND);
         }
@@ -580,8 +622,11 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
             case LSEventPhase.EXECUTE:
                 _batch.OnExecution(handler, priority, condition);
                 break;
-            case LSEventPhase.FINALIZE:
-                _batch.OnFinalize(handler, priority, condition);
+            case LSEventPhase.SUCCESS:
+                _batch.OnSuccess(handler, priority, condition);
+                break;
+            case LSEventPhase.CANCEL:
+                _batch.OnCancel(handler, priority, condition);
                 break;
             case LSEventPhase.COMPLETE:
                 _batch.OnComplete(handler, priority, condition);
