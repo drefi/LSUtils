@@ -51,13 +51,10 @@ public abstract class LSState<TState, TContext> : ILSState
     public void Initialize() {
         if (this is not TState stateInstance)
             throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
-        new OnInitializeEvent(stateInstance).Process(Dispatcher);
-        if (IsInitialized) return;
-        Dispatcher.For<OnInitializeEvent>()
-            .ForInstance(stateInstance)
-            .InPhase(LSEventPhase.VALIDATE)
-            .WithPriority(LSPhasePriority.CRITICAL)
-            .Register((evt, ctx) => LSPhaseResult.CANCEL);
+        var @event = new OnInitializeEvent(stateInstance);
+        @event.Build<OnInitializeEvent>(Dispatcher)
+            .CancelIf(evt => IsInitialized)
+            .Dispatch();
         IsInitialized = true;
     }
 
@@ -67,7 +64,9 @@ public abstract class LSState<TState, TContext> : ILSState
         if (this is not T tState || this is not TState stateInstance)
             throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
         _exitCallback = exitCallback == null ? null : () => exitCallback(tState);
-        new OnEnterEvent(stateInstance).Process(Dispatcher);
+        var @event = new OnEnterEvent(stateInstance);
+        @event.Build<OnEnterEvent>(Dispatcher)
+            .Dispatch();
         enterCallback?.Invoke(tState);
     }
 
@@ -77,7 +76,9 @@ public abstract class LSState<TState, TContext> : ILSState
     public void Exit(LSAction callback) {
         if (this is not TState stateInstance)
             throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
-        new OnExitEvent(stateInstance).Process(Dispatcher);
+        var @event = new OnExitEvent(stateInstance);
+        @event.Build<OnExitEvent>(Dispatcher)
+            .Dispatch();
         _exitCallback?.Invoke();
         _exitCallback = null;
         callback?.Invoke();

@@ -105,7 +105,7 @@ public class LSDispatcher {
     /// <typeparam name="TEvent">The type of event to process.</typeparam>
     /// <param name="event">The event instance to process.</param>
     /// <returns>True if the event completed successfully, false if it was aborted.</returns>
-    public bool ProcessEvent<TEvent>(TEvent @event) where TEvent : ILSEvent {
+    internal bool ProcessEvent<TEvent>(TEvent @event) where TEvent : ILSEvent {
         return ProcessEventInternal(@event, resuming: false);
     }
 

@@ -1,32 +1,6 @@
 # LSUtils Event System
 
-A high-performance, phase-based event processing system with support for asynchronous operations, event-scoped # Processing method
-public bool Dispatch();
-```
-
-### State-Based Handlers
-
-```csharp
-// State-based ha### Global Handler Registration
-
-```csharp
-// Define your event
-public class UserRegistrationEvent : LSEvent<User> {
-    public UserRegistrationEvent(User user) : base(user) { }
-}
-
-// Register global handlers
-var dispatcher = new LSDispatcher();
-dispatcher.Build<UserRegistrationEvent>()
-    .InPhase(LSEventPhase.VALIDATE)
-    .Register((evt, ctx) => ValidateUser(evt.Instance));
-
-// Process with global handlers
-var userEvent = new UserRegistrationEvent(user);
-var success = dispatcher.ProcessEvent(userEvent);e actions (single parameter)
-public LSEventCallbackBuilder<TEvent> OnError(LSAction<TEvent> action);
-public LSEventCallbackBuilder<TEvent> OnSuccess(LSAction<TEvent> action);
-public LSEventCallbackBuilder<TEvent> OnCancel(LSAction<TEvent> action);nd sophisticated cancellation handling.
+A high-performance, phase-based event processing system with support for asynchronous operations, event-scoped handlers, and sophisticated cancellation handling.
 
 ## Table of Contents
 
@@ -35,8 +9,8 @@ public LSEventCallbackBuilder<TEvent> OnCancel(LSAction<TEvent> action);nd sophi
 - [Phase-Based Processing](#phase-based-processing)
 - [Event-Scoped Handlers](#event-scoped-handlers)
 - [Cancellation Handling](#cancellation-handling)
-- [Asynchronous Processing](#asynchronous-processing)
-- [Usage Examples](#usage-examples)
+- [API Usage Examples](#api-usage-examples)
+- [API Changes and Migration Guide](#api-changes-and-migration-guide)
 
 ## Core Concepts
 
@@ -94,8 +68,8 @@ public class LSDispatcher {
     // Global handler registration
     public LSEventRegistration<TEvent> Build<TEvent>() where TEvent : ILSEvent;
     
-    // Simple event processing
-    public bool ProcessEvent<TEvent>(TEvent eventInstance) where TEvent : ILSEvent;
+    // Event processing (internal - use Build().Dispatch() pattern)
+    internal bool ProcessEvent<TEvent>(TEvent eventInstance) where TEvent : ILSEvent;
 }
 ```
 
@@ -221,21 +195,7 @@ Cancelled Flow: [VALIDATE|PREPARE|EXECUTE] → CANCEL → COMPLETE
               (cancellation)              (cleanup handlers)
 ```
 
-## Usage Examples
-
-When entering WAITING state, the system automatically stores metadata:
-
-```csharp
-// Auto-generated metadata:
-// "waiting.phase" (string)          - Phase where waiting started
-// "waiting.handler.id" (string)     - ID of handler that initiated waiting  
-// "waiting.started.at" (DateTime)   - Timestamp when waiting began
-// "waiting.handler.count" (int)     - Number of handlers executed in phase
-```
-
 ## API Usage Examples
-
-### Basic Event Processing
 
 ```csharp
 // Define your event
@@ -250,7 +210,7 @@ dispatcher.Build<UserRegistrationEvent>()
     .Register((evt, ctx) => ValidateUser(evt.Instance));
 
 var userEvent = new UserRegistrationEvent(user);
-var success = userEvent.Process(dispatcher);
+var success = userEvent.Build<UserRegistrationEvent>(dispatcher).Dispatch();
 ```
 
 ### Event-Scoped Processing
@@ -305,14 +265,26 @@ var success = orderEvent.Build<OrderProcessingEvent>(dispatcher)
 var paymentEvent = new PaymentProcessingEvent(payment);
 var success = paymentEvent.Build<PaymentProcessingEvent>(dispatcher)
     .OnExecution((evt, ctx) => {
-        // Process payment synchronously or trigger async operations
-        var result = ProcessPayment(evt.Instance);
-        evt.SetData("payment.result", result);
-        return LSPhaseResult.CONTINUE;
+        // Start async payment processing
+        Task.Run(async () => {
+            try {
+                var result = await ProcessPaymentAsync(evt.Instance);
+                evt.SetData("payment.result", result);
+                evt.Resume(); // Resume processing after async operation
+            } catch (Exception ex) {
+                evt.SetErrorMessage(ex.Message);
+                evt.Resume(); // Always resume, even on error
+            }
+        });
+        
+        return LSPhaseResult.WAITING; // Pause processing until Resume() is called
     })
     .OnSuccess(evt => {
         var result = evt.GetData<PaymentResult>("payment.result");
         SendConfirmationEmail(result);
+    })
+    .OnError(evt => {
+        LogPaymentError(evt.ErrorMessage);
     })
     .Dispatch();
 ```
@@ -375,13 +347,13 @@ var success = dataProcessingEvent.Build<DataProcessingEvent>(dispatcher)
 
 ### ✅ Async Operations
 
-- **Always Resume**: Ensure `ContinueProcessing()` is called in all code paths
-- **Error Handling**: Call `ContinueProcessing()` even when async operations fail
+- **Always Resume**: Ensure `Resume()` is called in all code paths
+- **Error Handling**: Call `Resume()` even when async operations fail
 - **Timeout Handling**: Consider implementing timeouts for async operations
 
 ### ❌ Common Pitfalls
 
-- **Don't** call `ContinueProcessing()` multiple times for one WAITING result
+- **Don't** call `Resume()` multiple times for one WAITING result
 - **Don't** modify event data from multiple threads without synchronization
 - **Don't** use WAITING for CPU-bound operations (use proper async/await patterns)
 - **Don't** create circular dependencies between events
@@ -434,7 +406,3 @@ var builder = myEvent.Build<MyEvent>(dispatcher);
 builder.OnExecution(handler);
 var success = builder.Dispatch();
 ```
-
-### Backward Compatibility
-
-All obsolete methods remain functional and redirect to the new implementations. This ensures existing code continues to work while encouraging migration to the cleaner API.
