@@ -1,6 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace LSUtils.EventSystem;
 
@@ -21,14 +20,13 @@ namespace LSUtils.EventSystem;
 /// Inherit from this class when creating events that don't need a specific source instance.
 /// For events tied to a specific object, consider using LSEvent&lt;TInstance&gt; instead.
 /// 
-/// The event system now supports three main approaches for handler registration:
-/// 1. Global handlers via dispatcher.For&lt;TEvent&gt;().Register(handler)
-/// 2. Event-scoped handlers via event.RegisterCallback&lt;TEvent&gt;(dispatcher)
-/// 3. Inline processing via event.ProcessWith&lt;TEvent&gt;(dispatcher, builder => ...)
+/// The event system supports two main approaches for handler registration:
+/// 1. Global handlers via dispatcher.Build&lt;TEvent&gt;().Register(handler)
+/// 2. Event-scoped handlers via event.Build&lt;TEvent&gt;(dispatcher)
 /// 
 /// Example usage:
 /// <code>
-/// // Traditional approach with global handlers
+/// // Event definition
 /// public class SystemStartupEvent : LSBaseEvent {
 ///     public string Version { get; }
 ///     public DateTime StartupTime { get; }
@@ -39,14 +37,14 @@ namespace LSUtils.EventSystem;
 ///     }
 /// }
 /// 
-/// // Usage with inline callbacks (recommended for event-specific logic)
+/// // Usage with event-scoped handlers (recommended)
 /// var startupEvent = new SystemStartupEvent("1.0.0");
-/// var success = startupEvent.ProcessWith&lt;SystemStartupEvent&gt;(dispatcher, builder => builder
+/// var success = startupEvent.Build&lt;SystemStartupEvent&gt;(dispatcher)
 ///     .OnValidation((evt, ctx) => ValidateSystem(evt.Version))
 ///     .OnExecution((evt, ctx) => StartServices(evt))
-///     .OnSuccess((evt, ctx) => LogStartupSuccess(evt))
-///     .OnError((evt, ctx) => LogStartupError(evt))
-/// );
+///     .OnSuccess(evt => LogStartupSuccess(evt))
+///     .OnError(evt => LogStartupError(evt))
+///     .Dispatch();
 /// </code>
 /// </remarks>
 public abstract class LSBaseEvent : ILSMutableEvent {
@@ -55,17 +53,19 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// <summary>
     /// Unique identifier for this event instance.
     /// </summary>
-    public Guid ID { get; } = Guid.NewGuid();
+    public System.Guid ID { get; } = System.Guid.NewGuid();
 
-    /// <summary>
-    /// The concrete type of this event.
-    /// </summary>
-    public Type EventType { get; }
+
 
     /// <summary>
     /// UTC timestamp when this event was created.
     /// </summary>
-    public DateTime CreatedAt { get; } = DateTime.UtcNow;
+    public System.DateTime CreatedAt { get; } = System.DateTime.UtcNow;
+
+    /// <summary>
+    /// The concrete type of this event.
+    /// </summary>
+    public System.Type EventType { get; internal set; }
 
     /// <summary>
     /// Indicates if the event processing was cancelled.
@@ -96,6 +96,11 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// Reference to the dispatcher processing this event (used for resumption).
     /// </summary>
     private LSDispatcher? _dispatcher;
+
+    /// <summary>
+    /// Indicates whether this event has been built with a callback builder.
+    /// </summary>
+    public bool IsBuilt { get; private set; }
 
     /// <summary>
     /// Optional error message if the event encountered an error.
@@ -157,16 +162,6 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     }
 
     /// <summary>
-    /// Legacy method kept for compatibility.
-    /// </summary>
-    /// <returns>Always returns false.</returns>
-    public bool Signal() {
-        // This method is kept for compatibility but doesn't do anything currently
-        // In the future, this could be used for additional signaling mechanisms
-        return false;
-    }
-
-    /// <summary>
     /// Signals that an async operation has completed and event processing should resume.
     /// This method is thread-safe and will notify the dispatcher to continue processing.
     /// </summary>
@@ -174,18 +169,18 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// This method should be called by the event or handler that initiated the WAITING state.
     /// The dispatcher will resume processing immediately.
     /// </remarks>
-    public void ContinueProcessing() {
+    public void Resume() {
         if (_dispatcher == null) {
-            throw new InvalidOperationException("Cannot continue processing without a dispatcher reference. " +
-                "Ensure the event was processed using Process() or ProcessWith() methods.");
+            throw new System.InvalidOperationException("Cannot continue processing without a dispatcher reference. " +
+                "Ensure the event was processed using Build(dispatcher).Dispatch() methods.");
         }
-        
+
         if (!IsWaiting) {
-            throw new InvalidOperationException("Event is not in a waiting state. ContinueProcessing() should only be called when IsWaiting is true.");
+            throw new System.InvalidOperationException("Event is not in a waiting state. ContinueProcessing() should only be called when IsWaiting is true.");
         }
-        
+
         IsWaiting = false;
-        
+
         // Resume processing through the dispatcher using the unified method
         _dispatcher.ContinueProcessing(this);
     }
@@ -199,79 +194,20 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// <returns>A callback builder that allows fluent configuration of event-specific handlers.</returns>
     /// <example>
     /// <code>
-    /// var success = myEvent.RegisterCallback&lt;MyEvent&gt;(dispatcher)
+    /// var success = myEvent.Build&lt;MyEvent&gt;(dispatcher)
     ///     .OnValidation((evt, ctx) => ValidateEvent(evt))
     ///     .OnExecution((evt, ctx) => ProcessEvent(evt))
-    ///     .OnError((evt, ctx) => LogError(evt.ErrorMessage))
-    ///     .ProcessAndCleanup();
+    ///     .OnError(evt => LogError(evt.ErrorMessage))
+    ///     .Dispatch();
     /// </code>
     /// </example>
-    public LSEventCallbackBuilder<TEventType> RegisterCallback<TEventType>(LSDispatcher dispatcher)
+    public LSEventCallbackBuilder<TEventType> Build<TEventType>(LSDispatcher dispatcher)
         where TEventType : ILSEvent {
+        //event should have a way to tell when it has been built (e.g. IsBuilt property)
+        if (IsBuilt) throw new LSException("Event has already been built.");
+
+        _dispatcher = dispatcher;
+        IsBuilt = true;
         return new LSEventCallbackBuilder<TEventType>((TEventType)(object)this, dispatcher);
     }
-    
-    /// <summary>
-    /// Convenience method that creates a callback builder, applies configuration, and processes the event.
-    /// This is the recommended approach for simple event processing with inline handlers.
-    /// </summary>
-    /// <typeparam name="TEventType">The concrete event type for type-safe handler registration.</typeparam>
-    /// <param name="dispatcher">The dispatcher to use for processing.</param>
-    /// <param name="configure">Optional configuration action for the callback builder.</param>
-    /// <returns>True if the event completed successfully, false if it was cancelled or had errors.</returns>
-    /// <example>
-    /// <code>
-    /// var success = myEvent.ProcessWith&lt;MyEvent&gt;(dispatcher, builder => builder
-    ///     .OnValidation((evt, ctx) => ValidateEvent(evt))
-    ///     .OnSuccess((evt, ctx) => LogSuccess(evt))
-    ///     .OnError((evt, ctx) => LogError(evt.ErrorMessage))
-    /// );
-    /// </code>
-    /// </example>
-    public bool ProcessWith<TEventType>(LSDispatcher dispatcher, 
-        Action<LSEventCallbackBuilder<TEventType>>? configure = null) 
-        where TEventType : ILSEvent {
-        //dont allow process if the event already has been dispatched
-
-        // Set dispatcher reference for async resumption
-        _dispatcher = dispatcher;
-        
-        var builder = RegisterCallback<TEventType>(dispatcher);
-        configure?.Invoke(builder);
-        return builder.ProcessAndCleanup();
-    }
-
-    /// <summary>
-    /// Processes this event through the provided dispatcher's event processing pipeline.
-    /// This is a convenience method that submits the event to the dispatcher for phase-based processing.
-    /// </summary>
-    /// <param name="dispatcher">The event dispatcher that will process this event through its registered handlers.</param>
-    /// <returns>
-    /// true if the event was processed successfully and completed all phases;
-    /// false if the event was cancelled during processing or encountered an error.
-    /// </returns>
-    /// <remarks>
-    /// This method provides a fluent interface for event processing. The event will be processed
-    /// through all registered phases according to the dispatcher's configuration.
-    /// 
-    /// Example usage:
-    /// <code>
-    /// var myEvent = new UserRegistrationEvent(user);
-    /// bool success = myEvent.Process(dispatcher);
-    /// 
-    /// if (success) {
-    ///     // Event completed successfully
-    /// } else {
-    ///     // Event was cancelled or failed
-    ///     Console.WriteLine($"Error: {myEvent.ErrorMessage}");
-    /// }
-    /// </code>
-    /// </remarks>
-    public bool Process(LSDispatcher dispatcher) {
-        // Set dispatcher reference for async resumption
-        _dispatcher = dispatcher;
-        
-        return dispatcher.ProcessEvent(this);
-    }
-
 }

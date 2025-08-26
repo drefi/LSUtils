@@ -61,5 +61,5 @@ internal interface ILSMutableEvent : ILSEvent {
     /// This method is thread-safe and can be called from any thread.
     /// The dispatcher will resume processing on the next available cycle.
     /// </remarks>
-    void ContinueProcessing();
+    void Resume();
 }

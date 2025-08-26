@@ -15,7 +15,7 @@ public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
     private Type? _instanceType = null;
     private object? _instance = null;
     private int _maxExecutions = -1;
-    private Func<TEvent, bool>? _condition = null;
+    private LSEventCondition<TEvent>? _condition = null;
     
     /// <summary>
     /// Initializes a new registration builder for the specified dispatcher.
@@ -76,7 +76,7 @@ public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
     /// </summary>
     /// <param name="condition">A function that determines if the handler should execute.</param>
     /// <returns>This registration builder for fluent chaining.</returns>
-    public LSEventRegistration<TEvent> When(Func<TEvent, bool> condition) {
+    public LSEventRegistration<TEvent> When(LSEventCondition<TEvent> condition) {
         _condition = condition;
         return this;
     }

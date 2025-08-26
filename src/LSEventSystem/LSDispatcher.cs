@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -28,7 +27,7 @@ namespace LSUtils.EventSystem;
 public class LSDispatcher {
     public static LSDispatcher Singleton { get; } = new LSDispatcher();
     public LSDispatcher() { }
-    private readonly ConcurrentDictionary<Type, List<LSHandlerRegistration>> _handlers = new();
+    private readonly ConcurrentDictionary<System.Type, List<LSHandlerRegistration>> _handlers = new();
     private readonly object _lock = new object();
 
     /// <summary>
@@ -39,35 +38,18 @@ public class LSDispatcher {
     /// <returns>A registration builder that allows fluent configuration of the handler.</returns>
     /// <example>
     /// <code>
-    /// dispatcher.For&lt;MyEvent&gt;()
+    /// dispatcher.Build&lt;MyEvent&gt;()
     ///     .InPhase(LSEventPhase.VALIDATE)
     ///     .WithPriority(LSPhasePriority.HIGH)
     ///     .ForInstance(myInstance)
     ///     .Register(myHandler);
     /// </code>
     /// </example>
-    public LSEventRegistration<TEvent> For<TEvent>() where TEvent : ILSEvent {
+    public LSEventRegistration<TEvent> Build<TEvent>() where TEvent : ILSEvent {
         return new LSEventRegistration<TEvent>(this);
     }
 
-    /// <summary>
-    /// Simple registration method for common cases where only basic configuration is needed.
-    /// For more complex scenarios, use the fluent For&lt;TEvent&gt;() API.
-    /// </summary>
-    /// <typeparam name="TEvent">The event type to register the handler for.</typeparam>
-    /// <param name="handler">The handler function to execute.</param>
-    /// <param name="phase">The phase in which to execute the handler (default: EXECUTE).</param>
-    /// <param name="priority">The execution priority within the phase (default: NORMAL).</param>
-    /// <returns>A unique identifier for the registered handler.</returns>
-    public Guid RegisterHandler<TEvent>(
-        LSPhaseHandler<TEvent> handler,
-        LSEventPhase phase = LSEventPhase.EXECUTE,
-        LSPhasePriority priority = LSPhasePriority.NORMAL
-    ) where TEvent : ILSEvent {
-        return RegisterHandler(handler, phase, priority, null, null, -1, null);
-    }
-
-    /// <summary>
+     /// <summary>
     /// Full registration method with all available options. This is used internally
     /// by the fluent registration API but can also be called directly for maximum control.
     /// </summary>
@@ -80,17 +62,17 @@ public class LSDispatcher {
     /// <param name="maxExecutions">Maximum number of executions allowed (-1 for unlimited).</param>
     /// <param name="condition">Optional condition that must be met for execution.</param>
     /// <returns>A unique identifier for the registered handler.</returns>
-    internal Guid RegisterHandler<TEvent>(
+    internal System.Guid RegisterHandler<TEvent>(
         LSPhaseHandler<TEvent> handler,
         LSEventPhase phase,
         LSPhasePriority priority,
-        Type? instanceType,
+        System.Type? instanceType,
         object? instance,
         int maxExecutions,
-        Func<TEvent, bool>? condition
+        LSEventCondition<TEvent>? condition
     ) where TEvent : ILSEvent {
         var registration = new LSHandlerRegistration {
-            Id = Guid.NewGuid(),
+            Id = System.Guid.NewGuid(),
             EventType = typeof(TEvent),
             Handler = (evt, ctx) => handler((TEvent)evt, ctx),
             Phase = phase,
@@ -130,7 +112,7 @@ public class LSDispatcher {
     /// <summary>
     /// Resumes processing of an event that was paused in a WAITING state.
     /// This method should be called after the async operation completes and
-    /// ContinueProcessing() has been called on the event.
+    /// Resume() has been called on the event.
     /// </summary>
     /// <typeparam name="TEvent">The type of event to resume processing for.</typeparam>
     /// <param name="event">The event instance to resume processing.</param>
@@ -158,7 +140,7 @@ public class LSDispatcher {
             return false;
         }
 
-        var startTime = DateTime.UtcNow;
+        var startTime = System.DateTime.UtcNow;
         var errors = new List<string>();
 
         var phases = new[] {
@@ -173,7 +155,7 @@ public class LSDispatcher {
         // Determine starting phase
         int startPhaseIndex = 0;
         if (resuming) {
-            startPhaseIndex = Array.IndexOf(phases, mutableEvent.CurrentPhase);
+            startPhaseIndex = System.Array.IndexOf(phases, mutableEvent.CurrentPhase);
             if (startPhaseIndex == -1) startPhaseIndex = 0;
         }
 
@@ -226,7 +208,7 @@ public class LSDispatcher {
     /// <param name="startTime">The time when event processing started.</param>
     /// <param name="errors">List to collect error messages.</param>
     /// <returns>True if the phase executed successfully, false if it should abort.</returns>
-    private bool ExecutePhase<TEvent>(TEvent @event, LSEventPhase phase, DateTime startTime, List<string> errors) where TEvent : ILSEvent {
+    private bool ExecutePhase<TEvent>(TEvent @event, LSEventPhase phase, System.DateTime startTime, System.Collections.Generic.List<string> errors) where TEvent : ILSEvent {
         var mutableEvent = (ILSMutableEvent)@event;
         mutableEvent.CurrentPhase = phase;
 
@@ -248,7 +230,7 @@ public class LSDispatcher {
 
         foreach (var handler in phaseHandlers) {
             try {
-                var elapsed = DateTime.UtcNow - startTime;
+                var elapsed = System.DateTime.UtcNow - startTime;
                 var context = new LSPhaseContext(phase, handler.Priority, elapsed, handlerCount, errors);
 
                 var result = handler.Handler(@event, context);
@@ -264,7 +246,7 @@ public class LSDispatcher {
                         // Track which phase the cancellation occurred in
                         if (@event is LSBaseEvent cancelEvent) {
                             cancelEvent.SetData("cancel.phase", phase);
-                            cancelEvent.SetData("cancel.time", DateTime.UtcNow);
+                            cancelEvent.SetData("cancel.time", System.DateTime.UtcNow);
                             cancelEvent.SetData("cancel.handler.id", handler.Id.ToString());
                         }
                         return false;
@@ -276,7 +258,7 @@ public class LSDispatcher {
                         if (@event is LSBaseEvent baseEvent) {
                             baseEvent.SetData("waiting.phase", phase.ToString());
                             baseEvent.SetData("waiting.handler.id", handler.Id.ToString());
-                            baseEvent.SetData("waiting.started.at", DateTime.UtcNow);
+                            baseEvent.SetData("waiting.started.at", System.DateTime.UtcNow);
                             baseEvent.SetData("waiting.handler.count", handlerCount);
                         }
                         
@@ -291,7 +273,7 @@ public class LSDispatcher {
                         }
                         break;
                 }
-            } catch (Exception ex) {
+            } catch (LSException ex) {
                 errors.Add($"Handler {handler.Id} in phase {phase} failed: {ex.Message}");
                 // Continue with other handlers unless it's a critical validation failure
                 if (phase == LSEventPhase.VALIDATE && handler.Priority == LSPhasePriority.CRITICAL) {
@@ -333,7 +315,7 @@ public class LSDispatcher {
     /// </summary>
     /// <param name="handlerId">The unique identifier of the handler to unregister.</param>
     /// <returns>True if the handler was found and removed, false otherwise.</returns>
-    public bool UnregisterHandler(Guid handlerId) {
+    public bool UnregisterHandler(System.Guid handlerId) {
         lock (_lock) {
             foreach (var list in _handlers.Values) {
                 var handler = list.FirstOrDefault(h => h.Id == handlerId);
@@ -361,10 +343,10 @@ public class LSDispatcher {
     internal int UnregisterHandlers<TEvent>(
         LSEventPhase phase,
         LSPhasePriority priority,
-        Type? instanceType,
+        System.Type? instanceType,
         object? instance,
         int maxExecutions,
-        Func<TEvent, bool>? condition
+        LSEventCondition<TEvent>? condition
     ) where TEvent : ILSEvent {
         
         lock (_lock) {
@@ -409,10 +391,10 @@ public class LSDispatcher {
         LSPhaseHandler<TEvent> handlerToRemove,
         LSEventPhase phase,
         LSPhasePriority priority,
-        Type? instanceType,
+        System.Type? instanceType,
         object? instance,
         int maxExecutions,
-        Func<TEvent, bool>? condition
+        LSEventCondition<TEvent>? condition
     ) where TEvent : ILSEvent {
         
         lock (_lock) {
@@ -450,8 +432,8 @@ public class LSDispatcher {
     /// <typeparam name="TEvent">The event type to register handlers for.</typeparam>
     /// <param name="batch">The batch containing the handlers to register.</param>
     /// <returns>A unique identifier for the registered batch that can be used for unregistration.</returns>
-    internal Guid RegisterBatchedHandlers<TEvent>(LSEventCallbackBatch<TEvent> batch) where TEvent : ILSEvent {
-        var batchId = Guid.NewGuid();
+    internal System.Guid RegisterBatchedHandlers<TEvent>(LSEventCallbackBatch<TEvent> batch) where TEvent : ILSEvent {
+        var batchId = System.Guid.NewGuid();
         
         // Register batch handlers for all phases that have handlers
         var phases = new[] {
@@ -473,7 +455,7 @@ public class LSDispatcher {
                 // Only register for phases that have handlers in the batch
                 if (batch.GetHandlersForPhase(phase).Any()) {
                     var batchedHandler = new LSHandlerRegistration {
-                        Id = Guid.NewGuid(), // Each phase handler gets its own ID
+                        Id = System.Guid.NewGuid(), // Each phase handler gets its own ID
                         EventType = typeof(TEvent),
                         Handler = (evt, ctx) => ExecuteBatchedHandlers((TEvent)evt, ctx, batch),
                         Phase = phase,
@@ -534,8 +516,8 @@ public class LSDispatcher {
                             // Store resumption state in event data for debugging/monitoring
                             if (evt is LSBaseEvent baseEvent) {
                                 baseEvent.SetData("waiting.phase", ctx.CurrentPhase.ToString());
-                                baseEvent.SetData("waiting.handler.id", Guid.NewGuid().ToString()); // Batch handler doesn't have individual ID
-                                baseEvent.SetData("waiting.started.at", DateTime.UtcNow);
+                                baseEvent.SetData("waiting.handler.id", System.Guid.NewGuid().ToString()); // Batch handler doesn't have individual ID
+                                baseEvent.SetData("waiting.started.at", System.DateTime.UtcNow);
                                 baseEvent.SetData("waiting.handler.count", 0); // Within batch
                             }
                             
@@ -546,7 +528,7 @@ public class LSDispatcher {
                             continue;
                     }
                 }
-            } catch (Exception ex) {
+            } catch (LSException ex) {
                 // Log error but continue with remaining handlers unless it's critical validation
                 if (ctx.CurrentPhase == LSEventPhase.VALIDATE && handler.Priority == LSPhasePriority.CRITICAL) {
                     evt.SetData("batch.error", ex.Message);

@@ -27,7 +27,7 @@ internal struct LSBatchedHandler<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Optional condition that must be met for this handler to execute.
     /// </summary>
-    public Func<TEvent, bool>? Condition { get; init; }
+    public LSEventCondition<TEvent>? Condition { get; init; }
 }
 
 /// <summary>
@@ -68,7 +68,7 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     public LSEventCallbackBatch<TEvent> OnValidation(
         LSPhaseHandler<TEvent> handler,
         LSPhasePriority priority = LSPhasePriority.NORMAL,
-        Func<TEvent, bool>? condition = null) {
+        LSEventCondition<TEvent>? condition = null) {
         
         _handlers.Add(new LSBatchedHandler<TEvent> {
             Phase = LSEventPhase.VALIDATE,
@@ -89,7 +89,7 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     public LSEventCallbackBatch<TEvent> OnPrepare(
         LSPhaseHandler<TEvent> handler,
         LSPhasePriority priority = LSPhasePriority.NORMAL,
-        Func<TEvent, bool>? condition = null) {
+        LSEventCondition<TEvent>? condition = null) {
         
         _handlers.Add(new LSBatchedHandler<TEvent> {
             Phase = LSEventPhase.PREPARE,
@@ -110,7 +110,7 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     public LSEventCallbackBatch<TEvent> OnExecution(
         LSPhaseHandler<TEvent> handler,
         LSPhasePriority priority = LSPhasePriority.NORMAL,
-        Func<TEvent, bool>? condition = null) {
+        LSEventCondition<TEvent>? condition = null) {
         
         _handlers.Add(new LSBatchedHandler<TEvent> {
             Phase = LSEventPhase.EXECUTE,
@@ -131,7 +131,7 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     public LSEventCallbackBatch<TEvent> OnSuccess(
         LSPhaseHandler<TEvent> handler,
         LSPhasePriority priority = LSPhasePriority.NORMAL,
-        Func<TEvent, bool>? condition = null) {
+        LSEventCondition<TEvent>? condition = null) {
         
         _handlers.Add(new LSBatchedHandler<TEvent> {
             Phase = LSEventPhase.SUCCESS,
@@ -152,7 +152,7 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     public LSEventCallbackBatch<TEvent> OnComplete(
         LSPhaseHandler<TEvent> handler,
         LSPhasePriority priority = LSPhasePriority.NORMAL,
-        Func<TEvent, bool>? condition = null) {
+        LSEventCondition<TEvent>? condition = null) {
         
         _handlers.Add(new LSBatchedHandler<TEvent> {
             Phase = LSEventPhase.COMPLETE,
@@ -171,7 +171,7 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     /// <returns>This batch for fluent chaining.</returns>
     public LSEventCallbackBatch<TEvent> OnCriticalValidation(
         LSPhaseHandler<TEvent> handler,
-        Func<TEvent, bool>? condition = null) {
+        LSEventCondition<TEvent>? condition = null) {
         
         return OnValidation(handler, LSPhasePriority.CRITICAL, condition);
     }
@@ -184,7 +184,7 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     /// <returns>This batch for fluent chaining.</returns>
     public LSEventCallbackBatch<TEvent> OnHighPriorityExecution(
         LSPhaseHandler<TEvent> handler,
-        Func<TEvent, bool>? condition = null) {
+        LSEventCondition<TEvent>? condition = null) {
         
         return OnExecution(handler, LSPhasePriority.HIGH, condition);
     }
@@ -199,7 +199,7 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     public LSEventCallbackBatch<TEvent> OnCancel(
         LSPhaseHandler<TEvent> handler,
         LSPhasePriority priority = LSPhasePriority.NORMAL,
-        Func<TEvent, bool>? condition = null) {
+        LSEventCondition<TEvent>? condition = null) {
         
         _handlers.Add(new LSBatchedHandler<TEvent> {
             Phase = LSEventPhase.CANCEL,

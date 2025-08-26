@@ -1,6 +1,32 @@
 # LSUtils Event System
 
-A high-performance, phase-based event processing system with support for asynchronous operations, event-scoped handlers, and sophisticated cancellation handling.
+A high-performance, phase-based event processing system with support for asynchronous operations, event-scoped # Processing method
+public bool Dispatch();
+```
+
+### State-Based Handlers
+
+```csharp
+// State-based ha### Global Handler Registration
+
+```csharp
+// Define your event
+public class UserRegistrationEvent : LSEvent<User> {
+    public UserRegistrationEvent(User user) : base(user) { }
+}
+
+// Register global handlers
+var dispatcher = new LSDispatcher();
+dispatcher.Build<UserRegistrationEvent>()
+    .InPhase(LSEventPhase.VALIDATE)
+    .Register((evt, ctx) => ValidateUser(evt.Instance));
+
+// Process with global handlers
+var userEvent = new UserRegistrationEvent(user);
+var success = dispatcher.ProcessEvent(userEvent);e actions (single parameter)
+public LSEventCallbackBuilder<TEvent> OnError(LSAction<TEvent> action);
+public LSEventCallbackBuilder<TEvent> OnSuccess(LSAction<TEvent> action);
+public LSEventCallbackBuilder<TEvent> OnCancel(LSAction<TEvent> action);nd sophisticated cancellation handling.
 
 ## Table of Contents
 
@@ -48,7 +74,6 @@ public interface ILSEvent {
     IReadOnlyDictionary<string, object> Data { get; }   // Event data
     T GetData<T>(string key);                           // Get typed data
     bool TryGetData<T>(string key, out T value);        // Safe data access
-    void ContinueProcessing();                          // Resume from WAITING
 }
 ```
 
@@ -56,13 +81,21 @@ public interface ILSEvent {
 
 ```csharp
 public abstract class LSBaseEvent : ILSMutableEvent {
-    // Simple processing
-    public bool Process(LSDispatcher dispatcher);
+    // Event-scoped builder (recommended)
+    public LSEventCallbackBuilder<TEventType> Build<TEventType>(LSDispatcher dispatcher) 
+        where TEventType : ILSEvent;
+}
+```
+
+### LSDispatcher
+
+```csharp
+public class LSDispatcher {
+    // Global handler registration
+    public LSEventRegistration<TEvent> Build<TEvent>() where TEvent : ILSEvent;
     
-    // Event-scoped processing with builder
-    public bool ProcessWith<TEvent>(LSDispatcher dispatcher, 
-        Func<LSEventCallbackBuilder<TEvent>, LSEventCallbackBuilder<TEvent>> configure) 
-        where TEvent : class, ILSEvent;
+    // Simple event processing
+    public bool ProcessEvent<TEvent>(TEvent eventInstance) where TEvent : ILSEvent;
 }
 ```
 
@@ -127,22 +160,27 @@ public LSEventCallbackBuilder<TEvent> OnPrepare(LSPhaseHandler<TEvent> handler, 
 public LSEventCallbackBuilder<TEvent> OnExecution(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL);
 public LSEventCallbackBuilder<TEvent> OnSuccess(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL);
 public LSEventCallbackBuilder<TEvent> OnComplete(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL);
+
+// Processing method
+public bool Dispatch();  // Renamed from ProcessAndCleanup
 ```
 
-### Conditional Handlers
+### State-Based Handlers
 
 ```csharp
-// State-based handler (runs during COMPLETE phase when error exists)
-public LSEventCallbackBuilder<TEvent> OnError(LSPhaseHandler<TEvent> handler);
+// State-based handlers for simple actions
+public LSEventCallbackBuilder<TEvent> OnError(LSAction<TEvent> action);
+public LSEventCallbackBuilder<TEvent> OnSuccess(LSAction<TEvent> action);
+public LSEventCallbackBuilder<TEvent> OnCancel(LSAction<TEvent> action);
 ```
 
 ## Cancellation Handling
 
-### OnCancel Method Overloads
+### OnCancel Method
 
-The event system provides comprehensive cancellation support through multiple OnCancel overloads:
+The event system provides simple cancellation support through the OnCancel method:
 
-#### 1. Basic Cancel Handler
+#### Basic Cancel Handler
 
 ```csharp
 .OnCancel(evt => {
@@ -151,29 +189,27 @@ The event system provides comprehensive cancellation support through multiple On
 })
 ```
 
-#### 2. Priority-Based Execution
+For complex cancellation logic with conditions or phase-specific handling, use OnComplete with your own conditional logic:
 
 ```csharp
-.OnCancel(criticalCleanupAction, LSPhasePriority.CRITICAL)  // Runs first
-.OnCancel(normalCleanupAction, LSPhasePriority.NORMAL)      // Runs second  
-.OnCancel(backgroundLogAction, LSPhasePriority.LOW)         // Runs last
-```
-
-#### 3. Phase-Specific Cancellation
-
-```csharp
-// Only runs if cancelled during VALIDATE phase
-.OnCancel(LSEventPhase.VALIDATE, evt => RollbackValidation(evt))
-
-// Runs if cancelled during VALIDATE OR EXECUTE phases  
-.OnCancel(LSEventPhase.VALIDATE | LSEventPhase.EXECUTE, evt => CommonCleanup(evt))
-```
-
-#### 4. Conditional Cancellation
-
-```csharp
-.OnCancelWhen(evt => CleanupDatabase(evt), 
-              evt => evt.GetData<bool>("database.transaction.started"))
+.OnComplete((evt, ctx) => {
+    if (evt.IsCancelled) {
+        // Check which phase was cancelled
+        if (evt.TryGetData<string>("cancel.phase", out var phase)) {
+            if (phase == "VALIDATE") {
+                // Handle validation cancellation
+            } else if (phase == "EXECUTE") {
+                // Handle execution cancellation  
+            }
+        }
+        
+        // Conditional cleanup
+        if (evt.GetData<bool>("database.transaction.started")) {
+            RollbackTransaction(evt);
+        }
+    }
+    return LSPhaseResult.CONTINUE;
+})
 ```
 
 ### Processing Flow with CANCEL Phase
@@ -185,33 +221,7 @@ Cancelled Flow: [VALIDATE|PREPARE|EXECUTE] → CANCEL → COMPLETE
               (cancellation)              (cleanup handlers)
 ```
 
-## Asynchronous Processing
-
-The event system supports sophisticated asynchronous operations through the `WAITING` state:
-
-### WAITING State Features
-
-- **Pause/Resume Control**: Handlers can return `LSPhaseResult.WAITING` to pause processing
-- **Event-Controlled Resumption**: Only the event itself can resume via `ContinueProcessing()`
-- **State Preservation**: Event maintains exact phase and handler position during wait
-- **Thread-Safe Resumption**: `ContinueProcessing()` can be called from any thread
-
-### Async Processing Pattern
-
-```csharp
-public LSPhaseResult HandleAsyncOperation(MyEvent evt, LSPhaseContext ctx) {
-    // Start asynchronous operation
-    Task.Run(async () => {
-        await SomeAsyncWork();
-        evt.SetData("async.result", "completed");
-        evt.ContinueProcessing(); // Resume processing
-    });
-    
-    return LSPhaseResult.WAITING; // Pause processing
-}
-```
-
-### WAITING State Metadata
+## Usage Examples
 
 When entering WAITING state, the system automatically stores metadata:
 
@@ -223,7 +233,7 @@ When entering WAITING state, the system automatically stores metadata:
 // "waiting.handler.count" (int)     - Number of handlers executed in phase
 ```
 
-## Usage Examples
+## API Usage Examples
 
 ### Basic Event Processing
 
@@ -235,7 +245,7 @@ public class UserRegistrationEvent : LSEvent<User> {
 
 // Process with global handlers
 var dispatcher = new LSDispatcher();
-dispatcher.For<UserRegistrationEvent>()
+dispatcher.Build<UserRegistrationEvent>()
     .InPhase(LSEventPhase.VALIDATE)
     .Register((evt, ctx) => ValidateUser(evt.Instance));
 
@@ -246,8 +256,9 @@ var success = userEvent.Process(dispatcher);
 ### Event-Scoped Processing
 
 ```csharp
+// Recommended API for event-specific handlers
 var userEvent = new UserRegistrationEvent(user);
-var success = userEvent.ProcessWith<UserRegistrationEvent>(dispatcher, builder => builder
+var success = userEvent.Build<UserRegistrationEvent>(dispatcher)
     .OnValidation((evt, ctx) => {
         if (string.IsNullOrEmpty(evt.Instance.Email)) {
             evt.SetErrorMessage("Email is required");
@@ -259,61 +270,58 @@ var success = userEvent.ProcessWith<UserRegistrationEvent>(dispatcher, builder =
         CreateUserAccount(evt.Instance);
         return LSPhaseResult.CONTINUE;
     })
-    .OnSuccess((evt, ctx) => {
+    .OnSuccess(evt => {
         SendWelcomeEmail(evt.Instance);
-        return LSPhaseResult.CONTINUE;
     })
     .OnCancel(evt => {
         LogFailedRegistration(evt.Instance);
+    })
+    .OnError(evt => {
+        SendErrorNotification(evt.Instance);
     })
     .OnComplete((evt, ctx) => {
         LogRegistrationAttempt(evt.Instance, evt.IsCancelled);
         return LSPhaseResult.CONTINUE;
     })
-);
+    .Dispatch();
 ```
 
 ### Priority-Based Handlers
 
 ```csharp
 var orderEvent = new OrderProcessingEvent(order);
-var success = orderEvent.ProcessWith<OrderProcessingEvent>(dispatcher, builder => builder
+var success = orderEvent.Build<OrderProcessingEvent>(dispatcher)
     .OnValidation(SecurityValidation, LSPhasePriority.CRITICAL)      // Runs first
     .OnValidation(BusinessValidation, LSPhasePriority.NORMAL)        // Runs second
     .OnExecution(PaymentProcessing, LSPhasePriority.HIGH)            // High priority
     .OnExecution(InventoryUpdate, LSPhasePriority.NORMAL)            // Normal priority
     .OnComplete(MetricsLogging, LSPhasePriority.BACKGROUND)          // Runs last
-);
+    .Dispatch();
 ```
 
-### Async Processing with WAITING
+### Async Processing Support
 
 ```csharp
 var paymentEvent = new PaymentProcessingEvent(payment);
-var success = paymentEvent.ProcessWith<PaymentProcessingEvent>(dispatcher, builder => builder
+var success = paymentEvent.Build<PaymentProcessingEvent>(dispatcher)
     .OnExecution((evt, ctx) => {
-        // Start async payment processing
-        Task.Run(async () => {
-            var result = await ProcessPaymentAsync(evt.Instance);
-            evt.SetData("payment.result", result);
-            evt.ContinueProcessing(); // Resume when complete
-        });
-        
-        return LSPhaseResult.WAITING; // Pause until payment completes
-    })
-    .OnSuccess((evt, ctx) => {
-        var result = evt.GetData<PaymentResult>("payment.result");
-        SendConfirmationEmail(result);
+        // Process payment synchronously or trigger async operations
+        var result = ProcessPayment(evt.Instance);
+        evt.SetData("payment.result", result);
         return LSPhaseResult.CONTINUE;
     })
-);
+    .OnSuccess(evt => {
+        var result = evt.GetData<PaymentResult>("payment.result");
+        SendConfirmationEmail(result);
+    })
+    .Dispatch();
 ```
 
-### Sophisticated Cancellation Handling
+### Simplified Event Processing
 
 ```csharp
 var dataProcessingEvent = new DataProcessingEvent(data);
-var success = dataProcessingEvent.ProcessWith<DataProcessingEvent>(dispatcher, builder => builder
+var success = dataProcessingEvent.Build<DataProcessingEvent>(dispatcher)
     .OnValidation((evt, ctx) => {
         if (!ValidateDataFormat(evt.Instance)) {
             evt.SetErrorMessage("Invalid data format");
@@ -328,23 +336,21 @@ var success = dataProcessingEvent.ProcessWith<DataProcessingEvent>(dispatcher, b
         }
         return LSPhaseResult.CONTINUE;
     })
-    // Cleanup specific to validation failures
-    .OnCancel(LSEventPhase.VALIDATE, evt => {
-        LogValidationFailure(evt.Instance, evt.ErrorMessage);
-    })
-    // Cleanup specific to execution failures  
-    .OnCancel(LSEventPhase.EXECUTE, evt => {
-        RollbackDatabaseTransaction(evt.Instance);
-    })
-    // Conditional cleanup (only if transaction was started)
-    .OnCancelWhen(evt => {
-        CleanupDatabaseResources(evt.Instance);
-    }, evt => evt.GetData<bool>("database.transaction.started"))
-    // Always run on any cancellation
     .OnCancel(evt => {
+        // Simple cancellation cleanup
+        LogFailedProcessing(evt.Instance, evt.ErrorMessage);
+        if (evt.GetData<bool>("database.transaction.started")) {
+            RollbackDatabaseTransaction(evt.Instance);
+        }
         NotifyOperations(evt.Instance, "Data processing failed");
-    }, LSPhasePriority.LOW)
-);
+    })
+    .OnError(evt => {
+        SendErrorAlert(evt.Instance);
+    })
+    .OnSuccess(evt => {
+        SendSuccessNotification(evt.Instance);
+    })
+    .Dispatch();
 ```
 
 ## Best Practices
@@ -363,9 +369,9 @@ var success = dataProcessingEvent.ProcessWith<DataProcessingEvent>(dispatcher, b
 
 ### ✅ Cancellation
 
-- **Critical First**: Use CRITICAL priority for security and resource cleanup
-- **Conditional Cleanup**: Use `OnCancelWhen` for cleanup that depends on state
-- **Phase-Specific**: Use phase-specific cancellation for targeted cleanup
+- **Simple Cleanup**: Use `OnCancel` for basic cleanup actions
+- **Conditional Logic**: Use `OnComplete` with conditional logic for complex cancellation scenarios
+- **Event Data**: Use event data to track state and make cleanup decisions
 
 ### ✅ Async Operations
 
@@ -379,3 +385,56 @@ var success = dataProcessingEvent.ProcessWith<DataProcessingEvent>(dispatcher, b
 - **Don't** modify event data from multiple threads without synchronization
 - **Don't** use WAITING for CPU-bound operations (use proper async/await patterns)
 - **Don't** create circular dependencies between events
+
+## API Changes and Migration Guide
+
+## API Simplification
+
+The LSEventSystem has been simplified with cleaner method names and better consistency:
+
+### Method Name Changes
+
+| Old Method | New Method | Notes |
+|------------|------------|-------|
+| `RegisterCallback<T>()` | `Build<T>()` | Consistent naming across dispatcher and events |
+| `ProcessAndCleanup()` | `Dispatch()` | Clearer intent for execution |
+| `For<T>()` | `Build<T>()` | Unified builder pattern |
+| `ProcessWith<T>()` | `Build<T>().Dispatch()` | Split into build + dispatch pattern |
+
+#### Custom Delegate
+
+- **LSEventCondition\<TEvent\>**: Replaces `Func<TEvent, bool>` in APIs to provide clearer intent
+
+### Migration Examples
+
+#### Dispatcher Handler Registration
+
+```csharp
+// New (recommended)
+dispatcher.Build<MyEvent>()
+    .InPhase(LSEventPhase.VALIDATE)
+    .Register(handler);
+```
+
+### Event-Scoped Processing Pattern
+
+```csharp
+// New (recommended)
+var success = myEvent.Build<MyEvent>(dispatcher)
+    .OnValidation(handler)
+    .OnExecution(handler2)
+    .Dispatch();
+```
+
+#### Manual Builder Usage
+
+```csharp
+// New (recommended)
+var builder = myEvent.Build<MyEvent>(dispatcher);
+builder.OnExecution(handler);
+var success = builder.Dispatch();
+```
+
+### Backward Compatibility
+
+All obsolete methods remain functional and redirect to the new implementations. This ensures existing code continues to work while encouraging migration to the cleaner API.

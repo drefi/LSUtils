@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace LSUtils.EventSystem;
 
 /// <summary>
@@ -26,21 +23,14 @@ public interface ILSEvent {
     /// the event's entire lifecycle. This ID can be used for tracking, logging, and debugging
     /// event processing across multiple systems and phases.
     /// </summary>
-    Guid ID { get; }
-
-    /// <summary>
-    /// The concrete type of this event, used for type-safe event handling and registration.
-    /// This allows the event system to route events to appropriate handlers based on their type
-    /// and enables compile-time type checking for event handling code.
-    /// </summary>
-    Type EventType { get; }
+    System.Guid ID { get; }
 
     /// <summary>
     /// UTC timestamp when this event was created.
     /// Provides timing information for event processing analytics, debugging, and audit trails.
     /// Can be used to calculate processing time, detect delays, and implement timeout mechanisms.
     /// </summary>
-    DateTime CreatedAt { get; }
+    System.DateTime CreatedAt { get; }
 
     /// <summary>
     /// Indicates whether the event processing was cancelled by a handler.
@@ -79,7 +69,7 @@ public interface ILSEvent {
     /// allowing handlers to share information across phases and providing
     /// a flexible mechanism for storing event-specific information.
     /// </summary>
-    IReadOnlyDictionary<string, object> Data { get; }
+    System.Collections.Generic.IReadOnlyDictionary<string, object> Data { get; }
 
     /// <summary>
     /// Associates data with this event using a string key.
