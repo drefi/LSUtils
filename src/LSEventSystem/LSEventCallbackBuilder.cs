@@ -8,39 +8,16 @@ namespace LSUtils.EventSystem;
 /// specific to a particular event instance. This builder automatically manages handler lifecycle
 /// and cleanup, making it ideal for event-specific processing logic.
 /// 
-/// The callback builder provides several categories of methods:
+/// The callback builder provides the following methods:
 /// 
 /// **Core Phase Methods:**
-/// - OnValidation, OnPrepare, OnExecution, OnSuccess, OnComplete
-/// - OnCriticalValidation, OnHighPriorityExecution (priority variants)
+/// - OnValidation, OnPrepare, OnExecution, OnSuccess, OnComplete (with optional priority)
 /// 
 /// **Conditional Methods:**
-/// - OnSuccess, OnError (state-based handlers)
+/// - OnError (state-based handlers)
 /// - OnCancel(action, priority) - any-phase cancellation handlers
 /// - OnCancel(phase, action, priority) - phase-specific cancellation handlers  
 /// - OnCancelWhen(action, condition, priority) - conditional cancellation handlers
-/// - OnDataPresent, OnDataEquals (data-based conditions)
-/// 
-/// **Timing Methods:**
-/// - OnTimeout, OnSlowProcessing, OnPhaseChange
-/// - MeasureExecutionTime (performance monitoring)
-/// 
-/// **Action Shortcuts:**
-/// - DoOnValidation, DoOnExecution, DoOnComplete (simple actions)
-/// - DoWhen (conditional actions)
-/// 
-/// **Data Manipulation:**
-/// - SetData, SetDataWhen, TransformData
-/// - ValidateData (with automatic error handling)
-/// 
-/// **Logging and Monitoring:**
-/// - LogPhase, LogOnError (debugging and monitoring)
-/// 
-/// **Error Handling:**
-/// - CancelIf, RetryOnError (error management)
-/// 
-/// **Composition:**
-/// - Then, If, InParallel (advanced flow control)
 /// </summary>
 /// <remarks>
 /// Key Features:
@@ -56,6 +33,17 @@ namespace LSUtils.EventSystem;
 /// // Simple inline processing
 /// var success = myEvent.ProcessWith&lt;MyEvent&gt;(dispatcher, builder => builder
 ///     .OnValidation((evt, ctx) => ValidateEvent(evt))
+///     .OnExecution((evt, ctx) => ProcessEvent(evt))
+///     .OnCancel(evt => CleanupOnCancel(evt))
+/// );
+/// 
+/// // With priorities
+/// var success = myEvent.ProcessWith&lt;MyEvent&gt;(dispatcher, builder => builder
+///     .OnValidation(CriticalValidation, LSPhasePriority.CRITICAL)
+///     .OnExecution(MainProcessing, LSPhasePriority.NORMAL)
+/// );
+/// </code>
+/// </remarks>
 ///     .OnExecution((evt, ctx) => ProcessEvent(evt))
 ///     .OnSuccess((evt, ctx) => LogSuccess(evt))
 /// );
@@ -102,69 +90,56 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// Registers a handler for the VALIDATE phase.
     /// </summary>
     /// <param name="handler">The handler to execute during validation.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnValidation(LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.VALIDATE);
+    public LSEventCallbackBuilder<TEvent> OnValidation(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
+        return RegisterEventSpecificHandler(handler, LSEventPhase.VALIDATE, priority);
     }
     
     /// <summary>
     /// Registers a handler for the PREPARE phase.
     /// </summary>
     /// <param name="handler">The handler to execute during preparation.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnPrepare(LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.PREPARE);
+    public LSEventCallbackBuilder<TEvent> OnPrepare(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
+        return RegisterEventSpecificHandler(handler, LSEventPhase.PREPARE, priority);
     }
     
     /// <summary>
     /// Registers a handler for the EXECUTE phase.
     /// </summary>
     /// <param name="handler">The handler to execute during execution.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnExecution(LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.EXECUTE);
+    public LSEventCallbackBuilder<TEvent> OnExecution(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
+        return RegisterEventSpecificHandler(handler, LSEventPhase.EXECUTE, priority);
     }
-    
-    /// <summary>
-    /// Registers a handler for the COMPLETE phase.
-    /// </summary>
-    /// <param name="handler">The handler to execute during completion.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnComplete(LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.COMPLETE);
-    }
-    
-    /// <summary>
-    /// Registers a high-priority handler for the VALIDATE phase.
-    /// </summary>
-    /// <param name="handler">The handler to execute during validation.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnCriticalValidation(LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.VALIDATE, LSPhasePriority.CRITICAL);
-    }
-    
-    /// <summary>
-    /// Registers a high-priority handler for the EXECUTE phase.
-    /// </summary>
-    /// <param name="handler">The handler to execute during execution.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnHighPriorityExecution(LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.EXECUTE, LSPhasePriority.HIGH);
-    }
-    
-    #endregion
-    
-    #region Conditional and State-Based Methods
     
     /// <summary>
     /// Registers a handler for the SUCCESS phase.
     /// This phase only runs when the event completes successfully (not cancelled).
     /// </summary>
     /// <param name="handler">The handler to execute on success.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnSuccess(LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.SUCCESS);
+    public LSEventCallbackBuilder<TEvent> OnSuccess(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
+        return RegisterEventSpecificHandler(handler, LSEventPhase.SUCCESS, priority);
     }
+    
+    /// <summary>
+    /// Registers a handler for the COMPLETE phase.
+    /// </summary>
+    /// <param name="handler">The handler to execute during completion.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
+    /// <returns>This builder for fluent chaining.</returns>
+    public LSEventCallbackBuilder<TEvent> OnComplete(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
+        return RegisterEventSpecificHandler(handler, LSEventPhase.COMPLETE, priority);
+    }
+    
+    #endregion
+    
+    #region Conditional and State-Based Methods
     
     /// <summary>
     /// Registers a handler that only executes if the event has an error.
@@ -244,202 +219,6 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
             LSEventPhase.CANCEL, 
             priority
         );
-    }
-    
-    /// <summary>
-    /// Registers a handler that only executes if specific data is present.
-    /// </summary>
-    /// <param name="key">The data key to check for.</param>
-    /// <param name="handler">The handler to execute if data is present.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnDataPresent(string key, LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(
-            handler, 
-            LSEventPhase.EXECUTE, 
-            LSPhasePriority.NORMAL,
-            evt => evt.Data.ContainsKey(key)
-        );
-    }
-    
-    /// <summary>
-    /// Registers a handler that only executes if specific data equals a value.
-    /// </summary>
-    /// <typeparam name="T">The type of the data value.</typeparam>
-    /// <param name="key">The data key to check.</param>
-    /// <param name="value">The value to compare against.</param>
-    /// <param name="handler">The handler to execute if data equals the value.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnDataEquals<T>(string key, T value, LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(
-            handler, 
-            LSEventPhase.EXECUTE, 
-            LSPhasePriority.NORMAL,
-            evt => evt.TryGetData<T>(key, out var data) && Equals(data, value)
-        );
-    }
-    
-    #endregion
-    
-    #region Timing and Performance Methods
-    
-    /// <summary>
-    /// Registers a handler that executes if processing takes longer than specified timeout.
-    /// </summary>
-    /// <param name="timeout">The timeout threshold.</param>
-    /// <param name="handler">The handler to execute on timeout.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnTimeout(TimeSpan timeout, LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler(
-            handler, 
-            LSEventPhase.COMPLETE, 
-            LSPhasePriority.NORMAL,
-            evt => DateTime.UtcNow - evt.CreatedAt > timeout
-        );
-    }
-    
-    /// <summary>
-    /// Registers a handler that executes if processing is slower than expected.
-    /// </summary>
-    /// <param name="threshold">The performance threshold.</param>
-    /// <param name="handler">The handler to execute for slow processing.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnSlowProcessing(TimeSpan threshold, LSPhaseHandler<TEvent> handler) {
-        return RegisterEventSpecificHandler((evt, ctx) => {
-            if (ctx.ElapsedTime > threshold) {
-                return handler(evt, ctx);
-            }
-            return LSPhaseResult.CONTINUE;
-        }, LSEventPhase.SUCCESS);
-    }
-    
-    /// <summary>
-    /// Registers a callback that executes whenever the event changes phases.
-    /// </summary>
-    /// <param name="callback">The callback to execute on phase changes.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> OnPhaseChange(Action<TEvent, LSEventPhase, LSEventPhase> callback) {
-        var lastPhase = LSEventPhase.VALIDATE;
-        
-        // Register handlers for all phases to track changes
-        foreach (LSEventPhase phase in Enum.GetValues<LSEventPhase>()) {
-            RegisterEventSpecificHandler((evt, ctx) => {
-                if (ctx.CurrentPhase != lastPhase) {
-                    callback(evt, lastPhase, ctx.CurrentPhase);
-                    lastPhase = ctx.CurrentPhase;
-                }
-                return LSPhaseResult.CONTINUE;
-            }, phase, LSPhasePriority.BACKGROUND);
-        }
-        
-        return this;
-    }
-    
-    #endregion
-    
-    #region Action-Based Shortcuts
-    
-    /// <summary>
-    /// Executes an action during validation without affecting flow control.
-    /// </summary>
-    /// <param name="action">The action to execute.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> DoOnValidation(Action<TEvent> action) {
-        return OnValidation((evt, ctx) => { action(evt); return LSPhaseResult.CONTINUE; });
-    }
-    
-    /// <summary>
-    /// Executes an action during execution without affecting flow control.
-    /// </summary>
-    /// <param name="action">The action to execute.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> DoOnExecution(Action<TEvent> action) {
-        return OnExecution((evt, ctx) => { action(evt); return LSPhaseResult.CONTINUE; });
-    }
-    
-    /// <summary>
-    /// Executes an action during completion without affecting flow control.
-    /// </summary>
-    /// <param name="action">The action to execute.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> DoOnComplete(Action<TEvent> action) {
-        return OnComplete((evt, ctx) => { action(evt); return LSPhaseResult.CONTINUE; });
-    }
-    
-    /// <summary>
-    /// Executes an action conditionally without affecting flow control.
-    /// </summary>
-    /// <param name="condition">The condition to check.</param>
-    /// <param name="action">The action to execute if condition is true.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> DoWhen(Func<TEvent, bool> condition, Action<TEvent> action) {
-        return RegisterEventSpecificHandler(
-            (evt, ctx) => { action(evt); return LSPhaseResult.CONTINUE; },
-            LSEventPhase.EXECUTE,
-            LSPhasePriority.NORMAL,
-            condition
-        );
-    }
-    
-    #endregion
-    
-    #region Data Manipulation Methods
-    
-    /// <summary>
-    /// Sets data on the event during validation.
-    /// </summary>
-    /// <param name="key">The data key.</param>
-    /// <param name="value">The data value.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> SetData(string key, object value) {
-        return DoOnValidation(evt => evt.SetData(key, value));
-    }
-    
-    /// <summary>
-    /// Sets data on the event conditionally.
-    /// </summary>
-    /// <param name="condition">The condition to check.</param>
-    /// <param name="key">The data key.</param>
-    /// <param name="value">The data value.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> SetDataWhen(Func<TEvent, bool> condition, string key, object value) {
-        return DoWhen(condition, evt => evt.SetData(key, value));
-    }
-    
-    /// <summary>
-    /// Transforms existing data using a transformation function.
-    /// </summary>
-    /// <typeparam name="T">The type of the data.</typeparam>
-    /// <param name="key">The data key.</param>
-    /// <param name="transform">The transformation function.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> TransformData<T>(string key, Func<T, T> transform) {
-        return RegisterEventSpecificHandler((evt, ctx) => {
-            if (evt.TryGetData<T>(key, out var value)) {
-                var transformedValue = transform(value);
-                if (transformedValue != null) {
-                    evt.SetData(key, transformedValue);
-                }
-            }
-            return LSPhaseResult.CONTINUE;
-        }, LSEventPhase.EXECUTE);
-    }
-    
-    /// <summary>
-    /// Validates data and cancels the event if validation fails.
-    /// </summary>
-    /// <typeparam name="T">The type of the data.</typeparam>
-    /// <param name="key">The data key.</param>
-    /// <param name="validator">The validation function.</param>
-    /// <param name="errorMessage">The error message if validation fails.</param>
-    /// <returns>This builder for fluent chaining.</returns>
-    public LSEventCallbackBuilder<TEvent> ValidateData<T>(string key, Func<T, bool> validator, string errorMessage) {
-        return OnValidation((evt, ctx) => {
-            if (evt.TryGetData<T>(key, out var value) && !validator(value)) {
-                SetErrorMessage(evt, errorMessage);
-                return LSPhaseResult.CANCEL;
-            }
-            return LSPhaseResult.CONTINUE;
-        });
     }
     
     #endregion
