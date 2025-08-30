@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using LSUtils.EventSystem;
 
 namespace LSUtils;
 
@@ -34,26 +33,6 @@ public interface ILSSerializable : ILSClass {
     /// <param name="serializer">The serializer to use for saving.</param>
     /// <returns>A string representation of the saved object.</returns>
     string Save(ILSSerializer serializer);
-}
-
-/// <summary>
-/// Interface for eventable entities.
-/// </summary>
-public interface ILSEventable : ILSClass {
-
-    /// <summary>
-    /// Gets the ID of the eventable.
-    /// </summary>
-    System.Guid ID { get; }
-
-    bool IsInitialized { get; }
-
-    /// <summary>
-    /// Initializes the eventable
-    /// </summary>
-    void Initialize(LSDispatcher dispatcher);
-    void Cleanup();
-
 }
 
 public interface ILSContext : ILSClass {

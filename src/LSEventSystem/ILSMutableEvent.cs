@@ -9,32 +9,28 @@ namespace LSUtils.EventSystem;
 /// of the event processing pipeline that maintains clean separation between immutable
 /// event data (accessible to handlers) and mutable processing state (managed by the system).
 /// </summary>
-/// <remarks>
-/// This separation ensures that:
-/// - Event handlers cannot accidentally corrupt event processing state
-/// - Event state mutations are centralized in the dispatcher
-/// - The event interface remains clean and focused on data access
-/// - Internal processing logic is isolated from public APIs
-/// </remarks>
 internal interface ILSMutableEvent : ILSEvent {
     /// <summary>
     /// Gets or sets whether the event processing was cancelled.
     /// When set to true, the event dispatcher will halt further phase processing.
-    /// This property is managed by the dispatcher based on handler results.
     /// </summary>
     new bool IsCancelled { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the event has failures but processing can continue.
+    /// When set to true, the event will proceed to the FAILURE phase instead of SUCCESS phase.
+    /// </summary>
+    new bool HasFailures { get; set; }
+
+    /// <summary>
     /// Gets or sets whether the event has completed processing successfully.
     /// Set to true when all registered phases have been executed without cancellation.
-    /// This property is managed by the dispatcher at the end of event processing.
     /// </summary>
     new bool IsCompleted { get; set; }
 
     /// <summary>
     /// Gets or sets the current phase being executed.
     /// Updated by the dispatcher as it progresses through the event processing pipeline.
-    /// This provides visibility into the event's current position in the processing flow.
     /// </summary>
     new LSEventPhase CurrentPhase { get; set; }
 
@@ -46,20 +42,30 @@ internal interface ILSMutableEvent : ILSEvent {
     new LSEventPhase CompletedPhases { get; set; }
 
     /// <summary>
-    /// Gets whether the event is currently waiting for an async operation to complete.
-    /// When true, the dispatcher should pause processing until ContinueProcessing() is called.
-    /// This property is automatically set when a handler returns LSPhaseResult.WAITING.
+    /// Gets or sets whether the event is currently waiting for an async operation to complete.
+    /// When true, the dispatcher pauses processing until Resume(), Abort(), or Fail() is called.
+    /// Automatically set when a handler returns LSPhaseResult.WAITING.
     /// </summary>
     bool IsWaiting { get; set; }
 
     /// <summary>
     /// Signals that an async operation has completed and event processing should resume.
-    /// This method should be called by the event or handler that initiated the WAITING state
-    /// to continue with the next phase or handler in the current phase.
-    /// </summary>
-    /// <remarks>
-    /// This method is thread-safe and can be called from any thread.
+    /// Thread-safe method that can be called from any thread.
     /// The dispatcher will resume processing on the next available cycle.
-    /// </remarks>
-    void Resume();
+    /// </summary>
+    new void Resume();
+
+    /// <summary>
+    /// Signals that an async operation has failed and event processing should be cancelled.
+    /// Thread-safe method that can be called from any thread.
+    /// The dispatcher will cancel the event and proceed to the CANCEL phase.
+    /// </summary>
+    new void Abort();
+
+    /// <summary>
+    /// Signals that an async operation has failed but event processing should continue.
+    /// Thread-safe method that can be called from any thread.
+    /// The dispatcher will mark the event as having failures and proceed to the FAILURE phase.
+    /// </summary>
+    new void Fail();
 }

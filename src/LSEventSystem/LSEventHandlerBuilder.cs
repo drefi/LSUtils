@@ -8,7 +8,7 @@ namespace LSUtils.EventSystem;
 /// This provides a clean, readable way to set up complex handler configurations.
 /// </summary>
 /// <typeparam name="TEvent">The event type this registration is for.</typeparam>
-public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
+public class LSEventHandlerBuilder<TEvent> where TEvent : ILSEvent {
     private readonly LSDispatcher _dispatcher;
     private LSEventPhase _phase = LSEventPhase.EXECUTE;
     private LSPhasePriority _priority = LSPhasePriority.NORMAL;
@@ -21,7 +21,7 @@ public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
     /// Initializes a new registration builder for the specified dispatcher.
     /// </summary>
     /// <param name="dispatcher">The dispatcher to register the handler with.</param>
-    internal LSEventRegistration(LSDispatcher dispatcher) {
+    internal LSEventHandlerBuilder(LSDispatcher dispatcher) {
         _dispatcher = dispatcher;
     }
     
@@ -30,7 +30,7 @@ public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
     /// </summary>
     /// <param name="phase">The execution phase.</param>
     /// <returns>This registration builder for fluent chaining.</returns>
-    public LSEventRegistration<TEvent> InPhase(LSEventPhase phase) {
+    public LSEventHandlerBuilder<TEvent> InPhase(LSEventPhase phase) {
         _phase = phase;
         return this;
     }
@@ -41,7 +41,7 @@ public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
     /// </summary>
     /// <param name="priority">The execution priority.</param>
     /// <returns>This registration builder for fluent chaining.</returns>
-    public LSEventRegistration<TEvent> WithPriority(LSPhasePriority priority) {
+    public LSEventHandlerBuilder<TEvent> WithPriority(LSPhasePriority priority) {
         _priority = priority;
         return this;
     }
@@ -53,7 +53,7 @@ public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
     /// <typeparam name="T">The type of the instance.</typeparam>
     /// <param name="instance">The specific instance this handler should respond to.</param>
     /// <returns>This registration builder for fluent chaining.</returns>
-    public LSEventRegistration<TEvent> ForInstance<T>(T instance) where T : class {
+    public LSEventHandlerBuilder<TEvent> ForInstance<T>(T instance) where T : class {
         _instanceType = typeof(T);
         _instance = instance;
         return this;
@@ -65,7 +65,7 @@ public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
     /// </summary>
     /// <param name="count">The maximum number of executions allowed. Use -1 for unlimited.</param>
     /// <returns>This registration builder for fluent chaining.</returns>
-    public LSEventRegistration<TEvent> MaxExecutions(int count) {
+    public LSEventHandlerBuilder<TEvent> MaxExecutions(int count) {
         _maxExecutions = count;
         return this;
     }
@@ -76,7 +76,7 @@ public class LSEventRegistration<TEvent> where TEvent : ILSEvent {
     /// </summary>
     /// <param name="condition">A function that determines if the handler should execute.</param>
     /// <returns>This registration builder for fluent chaining.</returns>
-    public LSEventRegistration<TEvent> When(LSEventCondition<TEvent> condition) {
+    public LSEventHandlerBuilder<TEvent> When(LSEventCondition<TEvent> condition) {
         _condition = condition;
         return this;
     }

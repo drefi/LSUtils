@@ -18,41 +18,6 @@ namespace LSUtils.EventSystem;
 /// - CANCEL: Stop all processing and mark the event as cancelled
 /// - SKIP_REMAINING: Skip remaining handlers in the current phase and move to the next phase
 /// - RETRY: Request retry of the current handler execution
+/// - WAITING: Pause processing until Resume(), Abort(), or Fail() is called
 /// </returns>
-/// <remarks>
-/// Best practices for phase handlers:
-/// - Keep handlers pure and stateless when possible
-/// - Avoid modifying external state directly within handlers
-/// - Use the event's data storage capabilities to share information between handlers
-/// - Handle exceptions gracefully and return appropriate results
-/// - Consider performance implications, especially for high-frequency events
-/// - Use the context information for debugging and monitoring
-/// 
-/// Handler execution order within a phase is determined by the priority specified
-/// during handler registration, with higher priority handlers executing first.
-/// </remarks>
-/// <example>
-/// <code>
-/// // Example handler for user registration events
-/// public static LSPhaseResult HandleUserRegistration(UserRegistrationEvent evt, LSPhaseContext context) {
-///     try {
-///         // Validate user data
-///         if (string.IsNullOrEmpty(evt.Instance.Email)) {
-///             evt.SetData("validation.error", "Email is required");
-///             return LSPhaseResult.CANCEL;
-///         }
-///         
-///         // Process the registration
-///         var userId = CreateUser(evt.Instance);
-///         evt.SetData("user.id", userId);
-///         
-///         return LSPhaseResult.CONTINUE;
-///     }
-///     catch (Exception ex) {
-///         evt.SetData("error.message", ex.Message);
-///         return LSPhaseResult.CANCEL;
-///     }
-/// }
-/// </code>
-/// </example>
 public delegate LSPhaseResult LSPhaseHandler<in TEvent>(TEvent @event, LSPhaseContext context) where TEvent : ILSEvent;

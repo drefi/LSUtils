@@ -5,28 +5,30 @@ using System.Linq;
 namespace LSUtils.EventSystem;
 
 /// <summary>
-/// Clean, phase-based event dispatcher that coordinates the execution of event handlers
-/// across different phases. This is the main component of the LSUtils V2 event system
-/// and provides a predictable, organized approach to event processing.
+/// Central event dispatcher that coordinates the execution of event handlers across different phases.
+/// This is the main component of the event system and provides predictable, organized event processing.
 /// 
-/// The dispatcher processes events through five distinct phases:
-/// VALIDATE -> PREPARE -> EXECUTE -> FINALIZE -> COMPLETE
-/// 
-/// Each phase serves a specific purpose and handlers are executed in priority order
-/// within each phase. This provides clear separation of concerns and predictable execution flow.
+/// The dispatcher processes events through phases: VALIDATE → PREPARE → EXECUTE → SUCCESS/FAILURE/CANCEL → COMPLETE
+/// Each phase serves a specific purpose and handlers are executed in priority order within each phase.
 /// 
 /// Key Features:
 /// - Thread-safe handler registration and execution
-/// - Conditional handler execution with instance filtering
-/// - Automatic handler cleanup and lifecycle management
 /// - Priority-based execution within phases
-/// - Comprehensive error handling and retry mechanisms
+/// - Instance-specific and conditional handler execution
 /// - Integration with event-scoped callback builders
-/// - Runtime handler inspection and monitoring capabilities
+/// - Automatic handler cleanup and lifecycle management
 /// </summary>
 public class LSDispatcher {
+    /// <summary>
+    /// Gets the singleton instance of the dispatcher.
+    /// </summary>
     public static LSDispatcher Singleton { get; } = new LSDispatcher();
+
+    /// <summary>
+    /// Initializes a new instance of the LSDispatcher.
+    /// </summary>
     public LSDispatcher() { }
+    
     private readonly ConcurrentDictionary<System.Type, List<LSHandlerRegistration>> _handlers = new();
     private readonly object _lock = new object();
 
@@ -36,22 +38,13 @@ public class LSDispatcher {
     /// </summary>
     /// <typeparam name="TEvent">The event type to register handlers for.</typeparam>
     /// <returns>A registration builder that allows fluent configuration of the handler.</returns>
-    /// <example>
-    /// <code>
-    /// dispatcher.Build&lt;MyEvent&gt;()
-    ///     .InPhase(LSEventPhase.VALIDATE)
-    ///     .WithPriority(LSPhasePriority.HIGH)
-    ///     .ForInstance(myInstance)
-    ///     .Register(myHandler);
-    /// </code>
-    /// </example>
-    public LSEventRegistration<TEvent> Build<TEvent>() where TEvent : ILSEvent {
-        return new LSEventRegistration<TEvent>(this);
+    public LSEventHandlerBuilder<TEvent> ForEvent<TEvent>() where TEvent : ILSEvent {
+        return new LSEventHandlerBuilder<TEvent>(this);
     }
 
-     /// <summary>
-    /// Full registration method with all available options. This is used internally
-    /// by the fluent registration API but can also be called directly for maximum control.
+    /// <summary>
+    /// Internal registration method with all available options. Used by the fluent registration API
+    /// and can be called directly for maximum control.
     /// </summary>
     /// <typeparam name="TEvent">The event type to register the handler for.</typeparam>
     /// <param name="handler">The handler function to execute.</param>
@@ -112,7 +105,7 @@ public class LSDispatcher {
     /// <summary>
     /// Resumes processing of an event that was paused in a WAITING state.
     /// This method should be called after the async operation completes and
-    /// Resume() has been called on the event.
+    /// Resume() or Abort() has been called on the event.
     /// </summary>
     /// <typeparam name="TEvent">The type of event to resume processing for.</typeparam>
     /// <param name="event">The event instance to resume processing.</param>
@@ -147,9 +140,10 @@ public class LSDispatcher {
             LSEventPhase.VALIDATE,
             LSEventPhase.PREPARE,
             LSEventPhase.EXECUTE,
-            LSEventPhase.SUCCESS,    // Only runs when not cancelled
-            LSEventPhase.CANCEL,    // Only runs when cancelled
-            LSEventPhase.COMPLETE   // Always runs
+            LSEventPhase.SUCCESS,    // Only runs when not cancelled and no failures
+            LSEventPhase.FAILURE,    // Only runs when has failures but not cancelled
+            LSEventPhase.CANCEL,     // Only runs when cancelled
+            LSEventPhase.COMPLETE    // Always runs
         };
 
         // Determine starting phase
@@ -157,13 +151,27 @@ public class LSDispatcher {
         if (resuming) {
             startPhaseIndex = System.Array.IndexOf(phases, mutableEvent.CurrentPhase);
             if (startPhaseIndex == -1) startPhaseIndex = 0;
+            
+            // If resuming and event was cancelled (via Abort()), skip to CANCEL phase
+            if (@event.IsCancelled && mutableEvent.CurrentPhase != LSEventPhase.CANCEL && mutableEvent.CurrentPhase != LSEventPhase.COMPLETE) {
+                startPhaseIndex = System.Array.IndexOf(phases, LSEventPhase.CANCEL);
+            }
+            // If resuming and event has failures (via Fail()), skip to FAILURE phase
+            else if (@event.HasFailures && mutableEvent.CurrentPhase != LSEventPhase.FAILURE && mutableEvent.CurrentPhase != LSEventPhase.CANCEL && mutableEvent.CurrentPhase != LSEventPhase.COMPLETE) {
+                startPhaseIndex = System.Array.IndexOf(phases, LSEventPhase.FAILURE);
+            }
         }
 
         for (int i = startPhaseIndex; i < phases.Length; i++) {
             var phase = phases[i];
             
-            // Skip SUCCESS phase if event is cancelled
-            if (phase == LSEventPhase.SUCCESS && @event.IsCancelled) {
+            // Skip SUCCESS phase if event is cancelled or has failures
+            if (phase == LSEventPhase.SUCCESS && (@event.IsCancelled || @event.HasFailures)) {
+                continue;
+            }
+            
+            // Skip FAILURE phase unless event has failures (and is not cancelled)
+            if (phase == LSEventPhase.FAILURE && (!@event.HasFailures || @event.IsCancelled)) {
                 continue;
             }
             
@@ -172,8 +180,8 @@ public class LSDispatcher {
                 continue;
             }
             
-            // Skip other phases if cancelled (except SUCCESS, CANCEL and COMPLETE)
-            if (@event.IsCancelled && phase != LSEventPhase.SUCCESS && phase != LSEventPhase.CANCEL && phase != LSEventPhase.COMPLETE) {
+            // Skip other phases if cancelled (except FAILURE, CANCEL and COMPLETE)
+            if (@event.IsCancelled && phase != LSEventPhase.FAILURE && phase != LSEventPhase.CANCEL && phase != LSEventPhase.COMPLETE) {
                 continue;
             }
 
@@ -182,7 +190,7 @@ public class LSDispatcher {
             // Check if event is waiting for async operation
             if (mutableEvent.IsWaiting) {
                 // Event is paused waiting for async operation
-                // The event should call ContinueProcessing() to resume
+                // The event should call Resume() or Abort() to continue
                 return false;
             }
 
@@ -441,6 +449,7 @@ public class LSDispatcher {
             LSEventPhase.PREPARE,
             LSEventPhase.EXECUTE,
             LSEventPhase.SUCCESS,
+            LSEventPhase.FAILURE,
             LSEventPhase.CANCEL,
             LSEventPhase.COMPLETE
         };
