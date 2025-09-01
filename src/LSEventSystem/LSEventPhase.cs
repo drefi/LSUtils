@@ -87,9 +87,9 @@ public enum LSPhasePriority {
 }
 
 /// <summary>
-/// Result of phase handler execution that controls the flow of event processing.
+/// Result of handler execution that controls the flow of event processing.
 /// </summary>
-public enum LSPhaseResult {
+public enum LSHandlerResult {
     /// <summary>
     /// Continue to the next handler in the current phase, then proceed to the next phase.
     /// </summary>

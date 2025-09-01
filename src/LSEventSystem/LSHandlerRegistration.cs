@@ -21,7 +21,7 @@ internal class LSHandlerRegistration {
     /// <summary>
     /// The handler function to execute, wrapped to work with the base event interface.
     /// </summary>
-    public required Func<ILSEvent, LSPhaseContext, LSPhaseResult> Handler { get; set; }
+    public required Func<ILSEvent, LSPhaseContext, LSHandlerResult> Handler { get; set; }
     
     /// <summary>
     /// The phase in which this handler should execute.

@@ -20,4 +20,4 @@ namespace LSUtils.EventSystem;
 /// - RETRY: Request retry of the current handler execution
 /// - WAITING: Pause processing until Resume(), Abort(), or Fail() is called
 /// </returns>
-public delegate LSPhaseResult LSPhaseHandler<in TEvent>(TEvent @event, LSPhaseContext context) where TEvent : ILSEvent;
+public delegate LSHandlerResult LSPhaseHandler<in TEvent>(TEvent @event, LSPhaseContext context) where TEvent : ILSEvent;

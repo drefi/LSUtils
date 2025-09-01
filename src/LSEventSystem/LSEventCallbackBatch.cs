@@ -211,6 +211,27 @@ internal class LSEventCallbackBatch<TEvent> where TEvent : ILSEvent {
     }
     
     /// <summary>
+    /// Adds a handler to the batch for the FAILURE phase.
+    /// </summary>
+    /// <param name="handler">The handler to add.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
+    /// <param name="condition">Optional condition for execution.</param>
+    /// <returns>This batch for fluent chaining.</returns>
+    public LSEventCallbackBatch<TEvent> OnFailure(
+        LSPhaseHandler<TEvent> handler,
+        LSPhasePriority priority = LSPhasePriority.NORMAL,
+        LSEventCondition<TEvent>? condition = null) {
+        
+        _handlers.Add(new LSBatchedHandler<TEvent> {
+            Phase = LSEventPhase.FAILURE,
+            Priority = priority,
+            Handler = handler,
+            Condition = condition
+        });
+        return this;
+    }
+    
+    /// <summary>
     /// Gets the number of handlers currently in this batch.
     /// </summary>
     public int HandlerCount => _handlers.Count;

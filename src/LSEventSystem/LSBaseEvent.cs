@@ -57,6 +57,11 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     public bool IsWaiting { get; set; }
 
     /// <summary>
+    /// Tracks deferred completion state when Resume/Abort/Fail is called before IsWaiting is set.
+    /// </summary>
+    private ResumptionType? _deferredResumption = null;
+
+    /// <summary>
     /// Reference to the dispatcher processing this event (used for resumption).
     /// </summary>
     public LSDispatcher Dispatcher { get; protected set; } = LSDispatcher.Singleton;
@@ -150,39 +155,73 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// <summary>
     /// Internal enumeration for different types of resumption from WAITING state.
     /// </summary>
-    private enum ResumptionType {
+    internal enum ResumptionType {
         Resume,  // Continue normally
         Abort,   // Cancel the event
         Fail     // Mark as failed but continue
     }
 
     /// <summary>
+    /// Checks if there's a deferred resumption pending and returns it.
+    /// This is used by the dispatcher to handle scenario 2 (immediate completion).
+    /// </summary>
+    internal ResumptionType? GetDeferredResumption() {
+        return _deferredResumption;
+    }
+
+    /// <summary>
+    /// Clears the deferred resumption state after it has been processed.
+    /// </summary>
+    internal void ClearDeferredResumption() {
+        _deferredResumption = null;
+    }
+
+    /// <summary>
     /// Common implementation for Resume, Abort, and Fail methods.
-    /// Validates state and continues processing with the appropriate outcome.
+    /// Handles both immediate processing (when IsWaiting = true) and deferred processing (when IsWaiting = false).
     /// </summary>
     /// <param name="resumptionType">The type of resumption to perform.</param>
     private void ContinueProcessingWith(ResumptionType resumptionType) {
-        // Validate waiting state
-        if (!IsWaiting) throw new LSException("event_is_not_in_waiting_state");
+        lock (_data) { // Use existing lock for thread safety
+            if (IsWaiting) {
+                // Scenario 1: Normal async completion - event is already waiting
+                IsWaiting = false;
+                
+                // Set appropriate outcome state
+                switch (resumptionType) {
+                    case ResumptionType.Resume:
+                        // No additional state changes needed
+                        break;
+                    case ResumptionType.Abort:
+                        IsCancelled = true;
+                        break;
+                    case ResumptionType.Fail:
+                        HasFailures = true;
+                        break;
+                }
 
-        // Clear waiting state
-        IsWaiting = false;
-
-        // Set appropriate outcome state
-        switch (resumptionType) {
-            case ResumptionType.Resume:
-                // No additional state changes needed
-                break;
-            case ResumptionType.Abort:
-                IsCancelled = true;
-                break;
-            case ResumptionType.Fail:
-                HasFailures = true;
-                break;
+                // Resume processing through the dispatcher
+                Dispatcher.ContinueProcessing(this);
+            } else {
+                // Scenario 2: Immediate completion - event not yet waiting, defer the action
+                _deferredResumption = resumptionType;
+                
+                // Apply state changes immediately for immediate effect
+                switch (resumptionType) {
+                    case ResumptionType.Resume:
+                        // No additional state changes needed
+                        break;
+                    case ResumptionType.Abort:
+                        IsCancelled = true;
+                        break;
+                    case ResumptionType.Fail:
+                        HasFailures = true;
+                        break;
+                }
+                
+                // Note: No dispatcher call here - the dispatcher will check for deferred resumption
+            }
         }
-
-        // Resume processing through the dispatcher
-        Dispatcher.ContinueProcessing(this);
     }
 
     /// <summary>

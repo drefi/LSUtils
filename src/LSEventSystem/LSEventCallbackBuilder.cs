@@ -119,7 +119,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
         return RegisterEventSpecificHandler(
             (evt, ctx) => {
                 action(evt);
-                return LSPhaseResult.CONTINUE;
+                return LSHandlerResult.CONTINUE;
             },
             LSEventPhase.COMPLETE,
             LSPhasePriority.NORMAL,
@@ -139,7 +139,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
         return RegisterEventSpecificHandler(
             (evt, _) => {
                 action(evt);
-                return LSPhaseResult.CONTINUE;
+                return LSHandlerResult.CONTINUE;
             },
             LSEventPhase.CANCEL,
             priority
@@ -156,7 +156,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
         return RegisterEventSpecificHandler(
             (evt, ctx) => {
                 action(evt);
-                return LSPhaseResult.CONTINUE;
+                return LSHandlerResult.CONTINUE;
             },
             LSEventPhase.SUCCESS,
             priority,
@@ -168,7 +168,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
         return RegisterEventSpecificHandler(
             (evt, ctx) => {
                 action(evt);
-                return LSPhaseResult.CONTINUE;
+                return LSHandlerResult.CONTINUE;
             },
             LSEventPhase.COMPLETE,
             priority,
@@ -187,7 +187,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
            return RegisterEventSpecificHandler(
                (evt, ctx) => {
                    action(evt);
-                   return LSPhaseResult.CONTINUE;
+                   return LSHandlerResult.CONTINUE;
                },
                LSEventPhase.FAILURE,
                priority,
@@ -208,7 +208,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
         return OnCompletePhase((evt, ctx) => {
             var elapsed = System.DateTime.UtcNow - startTime;
             callback(evt, elapsed);
-            return LSPhaseResult.CONTINUE;
+            return LSHandlerResult.CONTINUE;
         });
     }
 
@@ -229,9 +229,9 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
                 if (!string.IsNullOrEmpty(errorMessage)) {
                     SetErrorMessage(evt, errorMessage);
                 }
-                return LSPhaseResult.CANCEL;
+                return LSHandlerResult.CANCEL;
             }
-            return LSPhaseResult.CONTINUE;
+            return LSHandlerResult.CONTINUE;
         }, phase);
     }
 
@@ -252,11 +252,11 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
                 if (currentRetries < maxRetries) {
                     evt.SetData(retryKey, currentRetries + 1);
                     evt.SetData($"retry.error.{currentRetries}", ex.Message);
-                    return LSPhaseResult.RETRY;
+                    return LSHandlerResult.RETRY;
                 }
 
                 SetErrorMessage(evt, $"Handler failed after {maxRetries} retries: {ex.Message}");
-                return LSPhaseResult.CANCEL;
+                return LSHandlerResult.CANCEL;
             }
         }, LSEventPhase.EXECUTE);
     }
@@ -307,6 +307,9 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
                 break;
             case LSEventPhase.SUCCESS:
                 _batch.OnSuccess(handler, priority, condition);
+                break;
+            case LSEventPhase.FAILURE:
+                _batch.OnFailure(handler, priority, condition);
                 break;
             case LSEventPhase.CANCEL:
                 _batch.OnCancel(handler, priority, condition);
