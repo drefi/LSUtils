@@ -60,21 +60,7 @@ public class LSDispatcher {
         }
     }
 
-    /// <summary>
-    /// Represents the result of processing a phase.
-    /// </summary>
-    private struct PhaseExecutionResult {
-        public bool Success { get; init; }
-        public bool ShouldWait { get; init; }
-        public bool ShouldCancel { get; init; }
-        public bool HasFailures { get; init; }
-        public string? ErrorMessage { get; init; }
-        
-        public static PhaseExecutionResult Successful() => new() { Success = true };
-        public static PhaseExecutionResult Waiting() => new() { Success = true, ShouldWait = true };
-        public static PhaseExecutionResult Cancelled(string? reason = null) => new() { ShouldCancel = true, ErrorMessage = reason };
-        public static PhaseExecutionResult Failed(string? reason = null) => new() { HasFailures = true, ErrorMessage = reason };
-    }
+    #region Event Registration
 
     /// <summary>
     /// Creates a fluent registration builder for the specified event type.
@@ -133,6 +119,10 @@ public class LSDispatcher {
 
         return registration.Id;
     }
+
+    #endregion
+
+    #region Event Processing
 
     /// <summary>
     /// Processes an event through all phases in the correct order.
@@ -317,7 +307,7 @@ public class LSDispatcher {
         return shouldSkip;
     }
 
-    private bool processPhaseResult<TEvent>(TEvent @event, LSEventPhase phase, PhaseExecutionResult result) where TEvent : ILSEvent {
+    private bool processPhaseResult<TEvent>(TEvent @event, LSEventPhase phase, LSPhaseExecutionResult result) where TEvent : ILSEvent {
         var mutableEvent = (ILSMutableEvent)@event;
         
         if (result.ShouldWait) {
@@ -348,7 +338,7 @@ public class LSDispatcher {
         return result.Success;
     }
 
-    private PhaseExecutionResult? processDeferredResumption<TEvent>(TEvent @event) where TEvent : ILSEvent {
+    private LSPhaseExecutionResult? processDeferredResumption<TEvent>(TEvent @event) where TEvent : ILSEvent {
         if (@event is LSBaseEvent baseEvent) {
             var deferredResumption = baseEvent.GetDeferredResumption();
             if (deferredResumption.HasValue) {
@@ -359,17 +349,17 @@ public class LSDispatcher {
                 mutableEvent.IsWaiting = false;
 
                 return deferredResumption.Value switch {
-                    LSBaseEvent.ResumptionType.Resume => PhaseExecutionResult.Successful(),
-                    LSBaseEvent.ResumptionType.Abort => PhaseExecutionResult.Cancelled("Deferred abort processed"),
-                    LSBaseEvent.ResumptionType.Fail => PhaseExecutionResult.Failed("Deferred failure processed"),
-                    _ => PhaseExecutionResult.Successful()
+                    LSBaseEvent.ResumptionType.Resume => LSPhaseExecutionResult.Successful(),
+                    LSBaseEvent.ResumptionType.Abort => LSPhaseExecutionResult.Cancelled("Deferred abort processed"),
+                    LSBaseEvent.ResumptionType.Fail => LSPhaseExecutionResult.Failed("Deferred failure processed"),
+                    _ => LSPhaseExecutionResult.Successful()
                 };
             }
         }
         return null;
     }
 
-    private PhaseExecutionResult executeHandler<TEvent>(TEvent @event, LSHandlerRegistration handler, LSEventPhase phase, 
+    private LSPhaseExecutionResult executeHandler<TEvent>(TEvent @event, LSHandlerRegistration handler, LSEventPhase phase, 
         System.DateTime startTime, List<string> errors) where TEvent : ILSEvent {
         try {
             var elapsed = System.DateTime.UtcNow - startTime;
@@ -383,19 +373,19 @@ public class LSDispatcher {
             logEventAction(@event, "ExecuteHandler", $"Handler {handler.Id} in phase {phase} returned {result}");
 
             return result switch {
-                LSHandlerResult.CONTINUE => PhaseExecutionResult.Successful(),
-                LSHandlerResult.SKIP_REMAINING => PhaseExecutionResult.Successful(),
-                LSHandlerResult.CANCEL => PhaseExecutionResult.Cancelled(
+                LSHandlerResult.CONTINUE => LSPhaseExecutionResult.Successful(),
+                LSHandlerResult.SKIP_REMAINING => LSPhaseExecutionResult.Successful(),
+                LSHandlerResult.CANCEL => LSPhaseExecutionResult.Cancelled(
                     @event is LSBaseEvent baseEvent && !string.IsNullOrEmpty(baseEvent.ErrorMessage) 
                         ? baseEvent.ErrorMessage 
                         : $"Handler {handler.Id} cancelled event"),
-                LSHandlerResult.FAILURE => PhaseExecutionResult.Failed(
+                LSHandlerResult.FAILURE => LSPhaseExecutionResult.Failed(
                     @event is LSBaseEvent baseEvent && !string.IsNullOrEmpty(baseEvent.ErrorMessage) 
                         ? baseEvent.ErrorMessage 
                         : $"Handler {handler.Id} reported failure"),
-                LSHandlerResult.WAITING => PhaseExecutionResult.Waiting(),
+                LSHandlerResult.WAITING => LSPhaseExecutionResult.Waiting(),
                 LSHandlerResult.RETRY => handleRetryLogic(@event, handler, context, errors),
-                _ => PhaseExecutionResult.Successful()
+                _ => LSPhaseExecutionResult.Successful()
             };
         }
         catch (LSException ex) {
@@ -405,10 +395,10 @@ public class LSDispatcher {
             
             // Critical validation failures should stop processing
             if (phase == LSEventPhase.VALIDATE && handler.Priority == LSPhasePriority.CRITICAL) {
-                return PhaseExecutionResult.Cancelled("Critical validation failure");
+                return LSPhaseExecutionResult.Cancelled("Critical validation failure");
             }
             
-            return PhaseExecutionResult.Successful(); // Continue with other handlers
+            return LSPhaseExecutionResult.Successful(); // Continue with other handlers
         }
         catch (System.Exception ex) {
             var errorMsg = $"Handler {handler.Id} in phase {phase} failed with unexpected exception: {ex.Message}";
@@ -417,7 +407,7 @@ public class LSDispatcher {
             
             // Critical validation failures should stop processing
             if (phase == LSEventPhase.VALIDATE && handler.Priority == LSPhasePriority.CRITICAL) {
-                return PhaseExecutionResult.Cancelled("Critical validation failure");
+                return LSPhaseExecutionResult.Cancelled("Critical validation failure");
             }
             
             // Re-throw exceptions that aren't handled by the event system
@@ -426,7 +416,7 @@ public class LSDispatcher {
         }
     }
 
-    private PhaseExecutionResult handleRetryLogic<TEvent>(TEvent @event, LSHandlerRegistration handler, 
+    private LSPhaseExecutionResult handleRetryLogic<TEvent>(TEvent @event, LSHandlerRegistration handler, 
         LSPhaseContext context, List<string> errors) where TEvent : ILSEvent {
         if (handler.ExecutionCount < 3) {
             try {
@@ -434,22 +424,22 @@ public class LSDispatcher {
                 var retryResult = handler.Handler(@event, context);
                 
                 if (retryResult == LSHandlerResult.CANCEL) {
-                    return PhaseExecutionResult.Cancelled($"Handler {handler.Id} cancelled on retry");
+                    return LSPhaseExecutionResult.Cancelled($"Handler {handler.Id} cancelled on retry");
                 }
                 
-                return PhaseExecutionResult.Successful();
+                return LSPhaseExecutionResult.Successful();
             }
             catch (LSException ex) {
                 errors.Add($"Handler {handler.Id} retry failed: {ex.Message}");
-                return PhaseExecutionResult.Failed($"Handler {handler.Id} retry failed");
+                return LSPhaseExecutionResult.Failed($"Handler {handler.Id} retry failed");
             }
         }
         
         logEventAction(@event, "HandleRetryLogic", $"Handler {handler.Id} exceeded retry limit");
-        return PhaseExecutionResult.Failed($"Handler {handler.Id} exceeded retry limit");
+        return LSPhaseExecutionResult.Failed($"Handler {handler.Id} exceeded retry limit");
     }
 
-    private PhaseExecutionResult executePhase<TEvent>(TEvent @event, LSEventPhase phase) where TEvent : ILSEvent {
+    private LSPhaseExecutionResult executePhase<TEvent>(TEvent @event, LSEventPhase phase) where TEvent : ILSEvent {
         var mutableEvent = (ILSMutableEvent)@event;
         mutableEvent.CurrentPhase = phase;
         
@@ -458,7 +448,7 @@ public class LSDispatcher {
         var type = @event.GetType();
         if (!_handlers.TryGetValue(type, out var allHandlers)) {
             logEventAction(@event, "ExecutePhase", $"No handlers registered for {type.Name} in phase {phase}");
-            return PhaseExecutionResult.Successful();
+            return LSPhaseExecutionResult.Successful();
         }
 
         // Filter handlers for this phase
@@ -471,7 +461,7 @@ public class LSDispatcher {
 
         if (!phaseHandlers.Any()) {
             logEventAction(@event, "ExecutePhase", $"No matching handlers for phase {phase}");
-            return PhaseExecutionResult.Successful();
+            return LSPhaseExecutionResult.Successful();
         }
 
         logEventAction(@event, "ExecutePhase", $"Executing {phaseHandlers.Count} handlers for phase {phase}");
@@ -486,13 +476,13 @@ public class LSDispatcher {
             
             // Handle different handler results
             switch (handlerResult) {
-                case PhaseExecutionResult { ShouldWait: true }:
+                case LSPhaseExecutionResult { ShouldWait: true }:
                     logEventAction(@event, "ExecutePhase", $"Handler requested waiting in phase {phase}");
                     mutableEvent.IsWaiting = true;
                     hasWaitingHandler = true;
                     break;
                     
-                case PhaseExecutionResult { ShouldCancel: true }:
+                case LSPhaseExecutionResult { ShouldCancel: true }:
                     logEventAction(@event, "ExecutePhase", $"Handler requested cancellation in phase {phase}");
                     mutableEvent.IsCancelled = true;
                     if (!string.IsNullOrEmpty(handlerResult.ErrorMessage) && @event is LSBaseEvent baseEvent) {
@@ -501,13 +491,13 @@ public class LSDispatcher {
                     // Continue with other handlers in this phase, then proceed to CANCEL/COMPLETE phases
                     break;
                     
-                case PhaseExecutionResult { HasFailures: true }:
+                case LSPhaseExecutionResult { HasFailures: true }:
                     logEventAction(@event, "ExecutePhase", $"Handler reported failure in phase {phase}");
                     // Continue with other handlers but track the failure
                     mutableEvent.HasFailures = true;
                     break;
                     
-                case PhaseExecutionResult { Success: false }:
+                case LSPhaseExecutionResult { Success: false }:
                     logEventAction(@event, "ExecutePhase", $"Handler failed in phase {phase}");
                     return handlerResult;
             }
@@ -528,21 +518,25 @@ public class LSDispatcher {
                 }
                 
                 // Return successful completion of this phase - the lifecycle will handle the state transitions
-                return PhaseExecutionResult.Successful();
+                return LSPhaseExecutionResult.Successful();
             } else {
                 // Still waiting for async operation
-                return PhaseExecutionResult.Waiting();
+                return LSPhaseExecutionResult.Waiting();
             }
         }
 
         if (errors.Any()) {
             logEventAction(@event, "ExecutePhase", $"Phase {phase} completed with errors", new { errorCount = errors.Count, errors });
-            return PhaseExecutionResult.Failed($"Phase {phase} had {errors.Count} errors");
+            return LSPhaseExecutionResult.Failed($"Phase {phase} had {errors.Count} errors");
         }
 
         logEventAction(@event, "ExecutePhase", $"Phase {phase} completed successfully");
-        return PhaseExecutionResult.Successful();
+        return LSPhaseExecutionResult.Successful();
     }
+
+    #endregion
+
+    #region Handler Management
 
     /// <summary>
     /// Checks if a handler's instance restriction matches the current event.
@@ -863,4 +857,6 @@ public class LSDispatcher {
     public int GetTotalHandlerCount() {
         return _handlers.Values.Sum(list => list.Count);
     }
+
+    #endregion
 }

@@ -133,7 +133,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// Thread-safe method that notifies the dispatcher to continue processing.
     /// </summary>
     public void Resume() {
-        ContinueProcessingWith(ResumptionType.Resume);
+        continueProcessingWith(ResumptionType.Resume);
     }
 
     /// <summary>
@@ -141,7 +141,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// Thread-safe method that cancels the event and proceeds to the CANCEL phase.
     /// </summary>
     public void Abort() {
-        ContinueProcessingWith(ResumptionType.Abort);
+        continueProcessingWith(ResumptionType.Abort);
     }
 
     /// <summary>
@@ -149,7 +149,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// Thread-safe method that marks the event as having failures and proceeds to the FAILURE phase.
     /// </summary>
     public void Fail() {
-        ContinueProcessingWith(ResumptionType.Fail);
+        continueProcessingWith(ResumptionType.Fail);
     }
 
     /// <summary>
@@ -181,7 +181,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// Handles both immediate processing (when IsWaiting = true) and deferred processing (when IsWaiting = false).
     /// </summary>
     /// <param name="resumptionType">The type of resumption to perform.</param>
-    private void ContinueProcessingWith(ResumptionType resumptionType) {
+    private void continueProcessingWith(ResumptionType resumptionType) {
         lock (_data) { // Use existing lock for thread safety
             if (IsWaiting) {
                 // Scenario 1: Normal async completion - event is already waiting
