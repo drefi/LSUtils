@@ -400,9 +400,22 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     #region Processing
 
     /// <summary>
-    /// Dispatches the event with registered handlers and automatically cleans up.
+    /// Dispatches the event with registered event-scoped handlers and integrates with global handlers.
+    /// 
+    /// This method coordinates the execution of both event-scoped handlers (registered through this builder)
+    /// and global handlers (registered directly on the dispatcher). The integration ensures that:
+    /// - Event-scoped handlers execute only for this specific event instance
+    /// - Global handlers execute for all events of this type
+    /// - All handlers execute in proper phase and priority order
+    /// - Automatic cleanup occurs after one-time execution
+    /// 
+    /// Even if no event-scoped handlers are registered, global handlers will still be processed,
+    /// making this method suitable for all scenarios.
     /// </summary>
-    /// <returns>True if the event completed successfully, false if it was cancelled or had errors.</returns>
+    /// <returns>
+    /// True if the event completed successfully through all phases,
+    /// false if it was cancelled, had critical failures, or is waiting for async operations.
+    /// </returns>
     public bool Dispatch() {
         try {
             // Register the batch if not already registered and if we have handlers

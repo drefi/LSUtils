@@ -34,8 +34,14 @@ public class LSDispatcher {
     private readonly object _lock = new object();
 
     /// <summary>
-    /// Logs an action or state change for an event with structured data.
+    /// Logs an action or state change for an event with structured data for debugging and monitoring.
+    /// This method automatically tracks event processing steps with timestamps and contextual information.
     /// </summary>
+    /// <typeparam name="TEvent">The type of event being logged.</typeparam>
+    /// <param name="event">The event instance to log information for.</param>
+    /// <param name="action">The action being performed (e.g., "ExecutePhase", "HandlerResult").</param>
+    /// <param name="details">Detailed description of what occurred.</param>
+    /// <param name="additionalData">Optional structured data to include in the log entry.</param>
     private void logEventAction<TEvent>(TEvent @event, string action, string details, object? additionalData = null) where TEvent : ILSEvent {
         if (@event is LSBaseEvent baseEvent) {
             var timestamp = System.DateTime.UtcNow;
@@ -126,13 +132,25 @@ public class LSDispatcher {
 
     /// <summary>
     /// Processes an event through all phases in the correct order.
-    /// The event will go through VALIDATE, PREPARE, EXECUTE, FINALIZE, CANCEL (if cancelled), and COMPLETE phases.
+    /// The event will go through VALIDATE → PREPARE → EXECUTE → SUCCESS/FAILURE/CANCEL → COMPLETE phases.
     /// If the event is aborted in any phase (except COMPLETE), the CANCEL phase will run followed by the COMPLETE phase for cleanup.
-    /// This method is internal to prevent external code from bypassing proper event processing flow.
+    /// 
+    /// ⚠️ INTERNAL USE ONLY: This method is internal to prevent external code from bypassing proper event processing flow.
+    /// External code should use event.Dispatch(dispatcher) or event.WithCallbacks(dispatcher).Dispatch() instead.
+    /// 
+    /// The dispatcher automatically handles:
+    /// - Phase sequencing and flow control
+    /// - Handler filtering and execution order  
+    /// - Async operation management (WAITING/Resume/Abort/Fail)
+    /// - Error handling and cleanup
+    /// - Integration between global and event-scoped handlers
     /// </summary>
     /// <typeparam name="TEvent">The type of event to process.</typeparam>
     /// <param name="event">The event instance to process.</param>
-    /// <returns>True if the event completed successfully, false if it was aborted.</returns>
+    /// <returns>
+    /// True if the event completed successfully through all phases,
+    /// false if it was cancelled, had critical failures, or is waiting for async operations.
+    /// </returns>
     internal bool processEvent<TEvent>(TEvent @event) where TEvent : ILSEvent {
         return processEventInternal(@event, resuming: false);
     }
@@ -528,11 +546,19 @@ public class LSDispatcher {
     }
 
     /// <summary>
-    /// Registers a batch of event-scoped handlers as a single unit for better performance.
-    /// This method is used internally by the callback builder system.
+    /// Registers a batch of event-scoped handlers as a single unit for optimal performance and integration.
+    /// This method is used internally by the LSEventCallbackBuilder system to register event-specific handlers
+    /// that execute alongside global handlers.
+    /// 
+    /// Key integration features:
+    /// - Event-scoped handlers only execute for their target event instance
+    /// - Global and event-scoped handlers execute together in priority order
+    /// - Automatic cleanup after one-time execution (MaxExecutions = 1)
+    /// - Proper phase sequencing and async operation support
+    /// - Batch optimization for multiple handlers in the same phase
     /// </summary>
     /// <typeparam name="TEvent">The event type to register handlers for.</typeparam>
-    /// <param name="builder">The builder containing the handlers to register.</param>
+    /// <param name="builder">The callback builder containing the handlers to register.</param>
     /// <returns>A unique identifier for the registered batch that can be used for unregistration.</returns>
     internal System.Guid registerBatchedHandlers<TEvent>(LSEventCallbackBuilder<TEvent> builder) where TEvent : ILSEvent {
         if (builder == null) {

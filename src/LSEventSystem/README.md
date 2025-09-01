@@ -273,6 +273,60 @@ public delegate bool LSEventCondition<in TEvent>(TEvent @event) where TEvent : I
 public bool Dispatch();  // Returns true if completed successfully, false if cancelled/failed
 ```
 
+## Event Dispatch Methods
+
+The LSEventSystem provides two main approaches for dispatching events, depending on whether you need event-specific handlers or only global handlers.
+
+### Direct Event Dispatch
+
+For simple scenarios where you only need global handlers (registered on the dispatcher), you can dispatch events directly:
+
+```csharp
+// Using a specific dispatcher
+var success = myEvent.Dispatch(dispatcher);
+
+// Using the singleton dispatcher (convenience method)
+var success = myEvent.Dispatch();
+```
+
+**Benefits:**
+
+- Clean, simple API for straightforward scenarios
+- Automatically integrates with all global handlers for the event type
+- No need for event-specific handler registration
+- Ideal for events where all logic is in global handlers
+
+### Event-Scoped Dispatch with Callbacks
+
+For scenarios where you need event-specific handlers alongside global handlers:
+
+```csharp
+var success = myEvent.WithCallbacks<MyEvent>(dispatcher)
+    .OnValidatePhase((evt, ctx) => { /* validation logic */ return LSHandlerResult.CONTINUE; })
+    .OnExecutePhase((evt, ctx) => { /* main logic */ return LSHandlerResult.CONTINUE; })
+    .OnSuccess(evt => { /* success handling */ })
+    .Dispatch();
+```
+
+**Benefits:**
+
+- Event-specific handlers execute only for this event instance
+- Global handlers also execute alongside event-specific handlers
+- Fluent API for complex event processing scenarios
+- Automatic handler cleanup after execution
+
+### When to Use Each Approach
+
+- **Use `.Dispatch(dispatcher)`** when:
+  - You only need global handlers to process the event
+  - Simple, straightforward event processing
+  - Event logic is entirely in global handlers
+
+- **Use `.WithCallbacks().Dispatch()`** when:
+  - You need event-specific logic alongside global handlers
+  - Complex, multi-step processing with event-specific state
+  - Dynamic handler registration based on runtime conditions
+
 ## Global Handler Registration
 
 The `LSEventHandlerBuilder<TEvent>` provides fluent API for registering handlers globally that apply to all events of a specific type.

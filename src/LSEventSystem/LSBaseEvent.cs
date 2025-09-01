@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
@@ -243,12 +244,25 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// <summary>
     /// Dispatches this event directly through the specified dispatcher without event-scoped callbacks.
     /// This is the preferred method when you only need global handlers to process the event.
+    /// 
+    /// This method provides a clean, direct API for event processing when no event-specific handlers
+    /// are required. It automatically handles event lifecycle and integrates with the global handler
+    /// system registered on the dispatcher.
+    /// 
     /// For events that need event-specific handlers, use WithCallbacks() instead.
     /// </summary>
-    /// <param name="dispatcher">The dispatcher to process this event with.</param>
-    /// <returns>True if the event completed successfully, false if it was cancelled or had errors.</returns>
+    /// <param name="dispatcher">The dispatcher to process this event with. Must not be null.</param>
+    /// <returns>
+    /// True if the event completed successfully through all phases, 
+    /// false if it was cancelled, had critical failures, or is waiting for async operations.
+    /// </returns>
+    /// <exception cref="LSException">Thrown if the event has already been built or dispatched.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if dispatcher is null.</exception>
     public bool Dispatch(LSDispatcher dispatcher) {
-        if (IsBuilt) throw new LSException("Event has already been built. Use Dispatch() without parameters or create a new event.");
+        if (dispatcher == null) 
+            throw new ArgumentNullException(nameof(dispatcher), "Dispatcher cannot be null");
+        if (IsBuilt) 
+            throw new LSException("Event has already been built. Use Dispatch() without parameters or create a new event.");
         
         Dispatcher = dispatcher;
         IsBuilt = true;
@@ -258,9 +272,16 @@ public abstract class LSBaseEvent : ILSMutableEvent {
 
     /// <summary>
     /// Dispatches this event through the singleton dispatcher without event-scoped callbacks.
-    /// This is a convenience method that uses the default singleton dispatcher.
+    /// This is a convenience method that uses the default singleton dispatcher for simple scenarios.
+    /// 
+    /// Equivalent to calling Dispatch(LSDispatcher.Singleton). Use this when you don't need
+    /// a custom dispatcher configuration and want the simplest possible event processing.
     /// </summary>
-    /// <returns>True if the event completed successfully, false if it was cancelled or had errors.</returns>
+    /// <returns>
+    /// True if the event completed successfully through all phases,
+    /// false if it was cancelled, had critical failures, or is waiting for async operations.
+    /// </returns>
+    /// <exception cref="LSException">Thrown if the event has already been built or dispatched.</exception>
     public bool Dispatch() {
         return Dispatch(LSDispatcher.Singleton);
     }
