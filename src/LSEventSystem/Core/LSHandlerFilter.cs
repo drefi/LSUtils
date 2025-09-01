@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace LSUtils.EventSystem.Core;
+namespace LSUtils.EventSystem;
 
 /// <summary>
 /// Internal utility class for managing handler filtering and selection logic.

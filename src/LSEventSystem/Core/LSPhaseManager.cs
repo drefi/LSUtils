@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace LSUtils.EventSystem.Core;
+namespace LSUtils.EventSystem;
 
 /// <summary>
 /// Internal utility class for managing event phase execution flow and lifecycle.

@@ -169,9 +169,9 @@ namespace LSUtils.Tests {
                     return LSHandlerResult.CONTINUE;
                 });
 
-            // Act - Use Build().Dispatch() pattern
+            // Act - Use WithCallbacks().Dispatch() which should also execute global handlers
             var success = userEvent.WithCallbacks<TestUserRegistrationEvent>(dispatcher).Dispatch();
-
+    
             // Assert
             Assert.That(success, Is.True);
             Assert.That(handlerCalled, Is.True);
@@ -435,12 +435,12 @@ namespace LSUtils.Tests {
 
             // Act - Process young user (should not trigger handler)
             var youngEvent = new TestUserRegistrationEvent(youngUser, "web");
-            youngEvent.WithCallbacks<TestUserRegistrationEvent>(dispatcher).Dispatch();
+            youngEvent.Dispatch(dispatcher);
             Assert.That(adultHandlerCalled, Is.False);
 
             // Process adult user (should trigger handler)
             var adultEvent = new TestUserRegistrationEvent(adultUser, "web");
-            adultEvent.WithCallbacks<TestUserRegistrationEvent>(dispatcher).Dispatch();
+            adultEvent.Dispatch(dispatcher);
             Assert.That(adultHandlerCalled, Is.True);
         }
 
@@ -856,7 +856,7 @@ namespace LSUtils.Tests {
             // Act - Dispatch multiple times
             for (int i = 0; i < 3; i++) {
                 var evt = new TestSystemStartupEvent("max-exec-test");
-                evt.WithCallbacks<TestSystemStartupEvent>(dispatcher).Dispatch();
+                evt.Dispatch(dispatcher);
             }
 
             // Assert
@@ -881,8 +881,8 @@ namespace LSUtils.Tests {
             // Act
             var event1 = new TestUserRegistrationEvent(user1, "web");
             var event2 = new TestUserRegistrationEvent(user2, "web");
-            event1.WithCallbacks<TestUserRegistrationEvent>(dispatcher).Dispatch();
-            event2.WithCallbacks<TestUserRegistrationEvent>(dispatcher).Dispatch();
+            event1.Dispatch(dispatcher);
+            event2.Dispatch(dispatcher);
 
             // Assert
             Assert.That(handlerCalledForUser1, Is.True); // Only for user1
@@ -947,7 +947,7 @@ namespace LSUtils.Tests {
             var startupEvent = new TestSystemStartupEvent("no-handlers");
 
             // Act
-            var success = startupEvent.WithCallbacks<TestSystemStartupEvent>(dispatcher).Dispatch();
+            var success = startupEvent.Dispatch(dispatcher);
 
             // Assert
             Assert.That(success, Is.True); // Should complete with no handlers

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Linq;
-using LSUtils.EventSystem.Core;
 
 namespace LSUtils.EventSystem;
 
@@ -129,6 +128,7 @@ public class LSDispatcher {
     /// Processes an event through all phases in the correct order.
     /// The event will go through VALIDATE, PREPARE, EXECUTE, FINALIZE, CANCEL (if cancelled), and COMPLETE phases.
     /// If the event is aborted in any phase (except COMPLETE), the CANCEL phase will run followed by the COMPLETE phase for cleanup.
+    /// This method is internal to prevent external code from bypassing proper event processing flow.
     /// </summary>
     /// <typeparam name="TEvent">The type of event to process.</typeparam>
     /// <param name="event">The event instance to process.</param>
@@ -255,6 +255,11 @@ public class LSDispatcher {
             
             if (!LSPhaseManager.ProcessPhaseResult(@event, phase, result)) {
                 logEventAction(@event, "ExecutePhaseSequence", $"Phase {phase} requested stop, ending execution");
+                // If the event is waiting, return false to indicate processing is not complete
+                var eventMutable = (ILSMutableEvent)@event;
+                if (eventMutable.IsWaiting) {
+                    return false;
+                }
                 return !@event.IsCancelled;
             }
             
@@ -527,13 +532,27 @@ public class LSDispatcher {
     /// This method is used internally by the callback builder system.
     /// </summary>
     /// <typeparam name="TEvent">The event type to register handlers for.</typeparam>
-    /// <param name="batch">The batch containing the handlers to register.</param>
+    /// <param name="builder">The builder containing the handlers to register.</param>
     /// <returns>A unique identifier for the registered batch that can be used for unregistration.</returns>
-    internal System.Guid registerBatchedHandlers<TEvent>(LSEventCallbackBatch<TEvent> batch) where TEvent : ILSEvent {
+    internal System.Guid registerBatchedHandlers<TEvent>(LSEventCallbackBuilder<TEvent> builder) where TEvent : ILSEvent {
+        if (builder == null) {
+            throw new ArgumentNullException(nameof(builder), "Builder cannot be null");
+        }
+        
+        if (builder.HandlerCount == 0) {
+            // Empty builder - still generate an ID but don't register anything
+            return System.Guid.NewGuid();
+        }
+        
+        // Ensure builder is finalized for optimal execution
+        if (!builder.IsFinalized) {
+            builder.finalizeBatch();
+        }
+        
         var batchId = System.Guid.NewGuid();
 
-        // Register batch handlers for all phases that have handlers
-        var phases = new[] {
+        // Only register for phases that actually have handlers in the builder
+        var phasesWithHandlers = new[] {
             LSEventPhase.VALIDATE,
             LSEventPhase.PREPARE,
             LSEventPhase.EXECUTE,
@@ -541,7 +560,7 @@ public class LSDispatcher {
             LSEventPhase.FAILURE,
             LSEventPhase.CANCEL,
             LSEventPhase.COMPLETE
-        };
+        }.Where(phase => HasHandlersForPhase(builder, phase)).ToArray();
 
         lock (_lock) {
             if (!_handlers.TryGetValue(typeof(TEvent), out var list)) {
@@ -549,24 +568,30 @@ public class LSDispatcher {
                 _handlers[typeof(TEvent)] = list;
             }
 
-            foreach (var phase in phases) {
-                // Only register for phases that have handlers in the batch
-                if (batch.GetHandlersForPhase(phase).Any()) {
-                    var batchedHandler = new LSHandlerRegistration {
-                        Id = System.Guid.NewGuid(), // Each phase handler gets its own ID
-                        EventType = typeof(TEvent),
-                        Handler = (evt, ctx) => executeBatchedHandlers((TEvent)evt, ctx, batch),
-                        Phase = phase,
-                        Priority = LSPhasePriority.NORMAL,
-                        Instance = null, // Don't use Instance field for event-scoped handlers
-                        InstanceType = typeof(TEvent),
-                        MaxExecutions = 1, // One-time execution
-                        Condition = evt => ReferenceEquals(evt, batch.TargetEvent), // Use condition instead
-                        ExecutionCount = 0
-                    };
+            foreach (var phase in phasesWithHandlers) {
+                // Determine the best priority for this phase's batch handler
+                var phaseHandlers = GetHandlersForPhase(builder, phase);
+                var batchPriority = phaseHandlers.Any() 
+                    ? phaseHandlers.Min(h => h.Priority) 
+                    : LSPhasePriority.NORMAL;
 
-                    list.Add(batchedHandler);
-                }
+                var batchedHandler = new LSHandlerRegistration {
+                    Id = System.Guid.NewGuid(), // Each phase handler gets its own ID
+                    EventType = typeof(TEvent),
+                    Handler = (evt, ctx) => executeBatchedHandlers((TEvent)evt, ctx, builder),
+                    Phase = phase,
+                    Priority = batchPriority, // Use the highest priority (lowest enum value) from the batch
+                    Instance = null, // Don't use Instance field for event-scoped handlers
+                    InstanceType = typeof(TEvent),
+                    MaxExecutions = 1, // One-time execution
+                    Condition = null, // Don't restrict - let the batched handler internal logic handle targeting
+                    ExecutionCount = 0,
+                    // Add metadata to identify this as a batched handler
+                    BatchId = batchId,
+                    TargetEvent = builder.TargetEvent
+                };
+
+                list.Add(batchedHandler);
             }
 
             // Sort by priority to ensure correct execution order
@@ -575,6 +600,28 @@ public class LSDispatcher {
 
         return batchId;
     }
+    
+    /// <summary>
+    /// Helper method to check if a builder has handlers for a specific phase.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type.</typeparam>
+    /// <param name="builder">The builder to check.</param>
+    /// <param name="phase">The phase to check for.</param>
+    /// <returns>True if the builder has handlers for the specified phase.</returns>
+    private bool HasHandlersForPhase<TEvent>(LSEventCallbackBuilder<TEvent> builder, LSEventPhase phase) where TEvent : ILSEvent {
+        return builder.Handlers.Any(h => h.Phase == phase);
+    }
+    
+    /// <summary>
+    /// Helper method to get handlers for a specific phase from a builder.
+    /// </summary>
+    /// <typeparam name="TEvent">The event type.</typeparam>
+    /// <param name="builder">The builder to get handlers from.</param>
+    /// <param name="phase">The phase to get handlers for.</param>
+    /// <returns>Handlers for the specified phase.</returns>
+    private IEnumerable<LSBatchedHandler<TEvent>> GetHandlersForPhase<TEvent>(LSEventCallbackBuilder<TEvent> builder, LSEventPhase phase) where TEvent : ILSEvent {
+        return builder.Handlers.Where(h => h.Phase == phase).OrderBy(h => h.Priority);
+    }
 
     /// <summary>
     /// Executes batched handlers for the current phase.
@@ -582,15 +629,20 @@ public class LSDispatcher {
     /// <typeparam name="TEvent">The event type being processed.</typeparam>
     /// <param name="evt">The event instance being processed.</param>
     /// <param name="ctx">The current phase context.</param>
-    /// <param name="batch">The batch containing the handlers to execute.</param>
+    /// <param name="builder">The builder containing the handlers to execute.</param>
     /// <returns>The result of the batch execution.</returns>
-    private LSHandlerResult executeBatchedHandlers<TEvent>(TEvent evt, LSPhaseContext ctx, LSEventCallbackBatch<TEvent> batch)
+    private LSHandlerResult executeBatchedHandlers<TEvent>(TEvent evt, LSPhaseContext ctx, LSEventCallbackBuilder<TEvent> builder)
         where TEvent : ILSEvent {
+
+        // Only execute if this is the target event for this builder
+        if (!ReferenceEquals(evt, builder.TargetEvent)) {
+            return LSHandlerResult.CONTINUE; // Skip silently for other events
+        }
 
         var result = LSHandlerResult.CONTINUE;
 
         // Execute only handlers for the current phase
-        var phaseHandlers = batch.GetHandlersForPhase(ctx.CurrentPhase);
+        var phaseHandlers = GetHandlersForPhase(builder, ctx.CurrentPhase);
 
         foreach (var handler in phaseHandlers) {
             try {

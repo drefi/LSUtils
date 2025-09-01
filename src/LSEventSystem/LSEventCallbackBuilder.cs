@@ -1,4 +1,34 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace LSUtils.EventSystem;
+
+/// <summary>
+/// Internal structure representing a batched handler within an event-scoped callback builder.
+/// This allows multiple handlers to be registered as a single unit for better performance.
+/// </summary>
+public struct LSBatchedHandler<TEvent> where TEvent : ILSEvent {
+    /// <summary>
+    /// The phase in which this handler should execute.
+    /// </summary>
+    public LSEventPhase Phase { get; init; }
+    
+    /// <summary>
+    /// The execution priority within the phase.
+    /// </summary>
+    public LSPhasePriority Priority { get; init; }
+    
+    /// <summary>
+    /// The handler function to execute.
+    /// </summary>
+    public LSPhaseHandler<TEvent> Handler { get; init; }
+    
+    /// <summary>
+    /// Optional condition that must be met for this handler to execute.
+    /// </summary>
+    public LSEventCondition<TEvent>? Condition { get; init; }
+}
 
 /// <summary>
 /// Event-scoped callback builder that provides a fluent API for registering one-time handlers
@@ -11,6 +41,7 @@ namespace LSUtils.EventSystem;
 /// - One-time Execution: Handlers are limited to single execution by default
 /// - Type Safety: Full compile-time type checking for event types
 /// - Fluent API: Method chaining for readable configuration
+/// - Integrated Batch Management: Internally batches handlers for optimal performance
 /// 
 /// Core Phase Methods: OnValidatePhase, OnPreparePhase, OnExecutePhase, OnSuccessPhase, OnCancelPhase, OnCompletePhase
 /// State-Based Handlers: OnError, OnSuccess, OnCancel, OnComplete (simplified single-parameter actions)
@@ -20,8 +51,11 @@ namespace LSUtils.EventSystem;
 public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     private readonly TEvent _event;
     public LSDispatcher Dispatcher { get; protected set; }
-    private readonly LSEventCallbackBatch<TEvent> _batch;
+    private readonly List<LSBatchedHandler<TEvent>> _handlers = new();
+    private readonly object _lock = new object();
     private bool _isRegistered = false;
+    private bool _isFinalized = false;
+    private readonly List<string> _validationWarnings = new();
 
     /// <summary>
     /// Initializes a new callback builder for the specified event and dispatcher.
@@ -31,7 +65,107 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     internal LSEventCallbackBuilder(TEvent @event, LSDispatcher dispatcher) {
         _event = @event;
         Dispatcher = dispatcher;
-        _batch = new LSEventCallbackBatch<TEvent>(@event);
+    }
+    
+    /// <summary>
+    /// Gets the target event instance this builder is bound to.
+    /// </summary>
+    public TEvent TargetEvent => _event;
+    
+    /// <summary>
+    /// Gets the collected handlers in this builder.
+    /// </summary>
+    public IReadOnlyList<LSBatchedHandler<TEvent>> Handlers {
+        get {
+            lock (_lock) {
+                return _handlers.AsReadOnly();
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Gets whether this builder has been finalized and can no longer accept new handlers.
+    /// </summary>
+    public bool IsFinalized {
+        get {
+            lock (_lock) {
+                return _isFinalized;
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Gets any validation warnings that were detected during handler registration.
+    /// </summary>
+    public IReadOnlyList<string> ValidationWarnings => _validationWarnings.AsReadOnly();
+    
+    /// <summary>
+    /// Gets the number of handlers currently registered in this builder.
+    /// </summary>
+    public int HandlerCount {
+        get {
+            lock (_lock) {
+                return _handlers.Count;
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Finalizes the builder, preventing further handler additions and optimizing internal storage.
+    /// </summary>
+    internal void finalizeBatch() {
+        lock (_lock) {
+            if (_isFinalized)
+                return;
+                
+            _isFinalized = true;
+        }
+    }
+    
+    /// <summary>
+    /// Validates the builder configuration and returns any validation issues.
+    /// </summary>
+    /// <returns>List of validation warnings or errors, empty if valid.</returns>
+    private List<string> validateBatch() {
+        var issues = new List<string>();
+        
+        lock (_lock) {
+            if (!_handlers.Any()) {
+                issues.Add("Batch contains no handlers - nothing will be executed");
+                return issues;
+            }
+            
+            if (_event.IsCancelled) {
+                var nonCancelHandlers = _handlers.Count(h => h.Phase != LSEventPhase.CANCEL && h.Phase != LSEventPhase.COMPLETE);
+                if (nonCancelHandlers > 0) {
+                    issues.Add($"Event is already cancelled, but {nonCancelHandlers} non-cancel handlers are registered");
+                }
+            }
+        }
+        
+        return issues;
+    }
+    
+    /// <summary>
+    /// Adds a handler to the builder for the specified phase.
+    /// </summary>
+    /// <param name="handler">The handler to add.</param>
+    /// <param name="phase">The phase to execute in.</param>
+    /// <param name="priority">The execution priority (default: NORMAL).</param>
+    /// <param name="condition">Optional condition for execution.</param>
+    private void addHandler(LSPhaseHandler<TEvent> handler, LSEventPhase phase, LSPhasePriority priority = LSPhasePriority.NORMAL, LSEventCondition<TEvent>? condition = null) {
+        lock (_lock) {
+            if (_isFinalized) {
+                throw new InvalidOperationException("Cannot add handlers to a finalized builder");
+            }
+            
+            _handlers.Add(new LSBatchedHandler<TEvent> {
+                Phase = phase,
+                Priority = priority,
+                Handler = handler,
+                Condition = condition
+            });
+        }
     }
 
     #region Core Phase Methods
@@ -271,17 +405,39 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <returns>True if the event completed successfully, false if it was cancelled or had errors.</returns>
     public bool Dispatch() {
         try {
-            // Register the batch if not already registered
-            if (!_isRegistered) {
-                Dispatcher.registerBatchedHandlers(_batch);
+            // Register the batch if not already registered and if we have handlers
+            if (!_isRegistered && _handlers.Any()) {
+                // Validate batch before registration
+                var validationIssues = validateBatch();
+                _validationWarnings.AddRange(validationIssues);
+                
+                // Finalize the batch for optimal execution
+                finalizeBatch();
+                
+                // Register with dispatcher
+                Dispatcher.registerBatchedHandlers(this);
                 _isRegistered = true;
             }
 
+            // Always process the event, even if no event-scoped handlers exist
+            // This ensures global handlers registered on the dispatcher are executed
             return Dispatcher.processEvent(_event);
         } finally {
             // Auto-cleanup: the batch handler will automatically clean up after one execution
             // No manual cleanup needed due to MaxExecutions = 1 in RegisterBatchedHandlers
         }
+    }
+    
+    /// <summary>
+    /// Validates the current handler configuration and returns any issues found.
+    /// This is automatically called during Dispatch() but can be called manually for early validation.
+    /// </summary>
+    /// <returns>List of validation warnings or errors.</returns>
+    public List<string> Validate() {
+        var issues = validateBatch();
+        _validationWarnings.Clear();
+        _validationWarnings.AddRange(issues);
+        return new List<string>(issues);
     }
 
     #endregion
@@ -294,30 +450,8 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
         LSPhasePriority priority = LSPhasePriority.NORMAL,
         LSEventCondition<TEvent>? condition = null) {
 
-        // Add handler to batch instead of registering immediately
-        switch (phase) {
-            case LSEventPhase.VALIDATE:
-                _batch.OnValidation(handler, priority, condition);
-                break;
-            case LSEventPhase.PREPARE:
-                _batch.OnPrepare(handler, priority, condition);
-                break;
-            case LSEventPhase.EXECUTE:
-                _batch.OnExecution(handler, priority, condition);
-                break;
-            case LSEventPhase.SUCCESS:
-                _batch.OnSuccess(handler, priority, condition);
-                break;
-            case LSEventPhase.FAILURE:
-                _batch.OnFailure(handler, priority, condition);
-                break;
-            case LSEventPhase.CANCEL:
-                _batch.OnCancel(handler, priority, condition);
-                break;
-            case LSEventPhase.COMPLETE:
-                _batch.OnComplete(handler, priority, condition);
-                break;
-        }
+        // Add handler to internal collection instead of using batch methods
+        addHandler(handler, phase, priority, condition);
 
         return this;
     }

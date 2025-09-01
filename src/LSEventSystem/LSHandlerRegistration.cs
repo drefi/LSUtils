@@ -57,4 +57,14 @@ internal class LSHandlerRegistration {
     /// Number of times this handler has been executed.
     /// </summary>
     public int ExecutionCount { get; set; }
+    
+    /// <summary>
+    /// Batch identifier for event-scoped handlers. Null for global handlers.
+    /// </summary>
+    public Guid? BatchId { get; set; }
+    
+    /// <summary>
+    /// Target event instance for event-scoped handlers. Null for global handlers.
+    /// </summary>
+    public ILSEvent? TargetEvent { get; set; }
 }

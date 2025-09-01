@@ -239,4 +239,29 @@ public abstract class LSBaseEvent : ILSMutableEvent {
         IsBuilt = true;
         return new LSEventCallbackBuilder<TEventType>((TEventType)(object)this, Dispatcher);
     }
+
+    /// <summary>
+    /// Dispatches this event directly through the specified dispatcher without event-scoped callbacks.
+    /// This is the preferred method when you only need global handlers to process the event.
+    /// For events that need event-specific handlers, use WithCallbacks() instead.
+    /// </summary>
+    /// <param name="dispatcher">The dispatcher to process this event with.</param>
+    /// <returns>True if the event completed successfully, false if it was cancelled or had errors.</returns>
+    public bool Dispatch(LSDispatcher dispatcher) {
+        if (IsBuilt) throw new LSException("Event has already been built. Use Dispatch() without parameters or create a new event.");
+        
+        Dispatcher = dispatcher;
+        IsBuilt = true;
+        
+        return dispatcher.processEvent(this);
+    }
+
+    /// <summary>
+    /// Dispatches this event through the singleton dispatcher without event-scoped callbacks.
+    /// This is a convenience method that uses the default singleton dispatcher.
+    /// </summary>
+    /// <returns>True if the event completed successfully, false if it was cancelled or had errors.</returns>
+    public bool Dispatch() {
+        return Dispatch(LSDispatcher.Singleton);
+    }
 }
