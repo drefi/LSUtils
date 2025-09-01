@@ -48,45 +48,45 @@ namespace LSUtils.Tests {
             // - File I/O
             // - Network requests
             // - Timer-based operations
-            
+
             _ = evt; // Event reference for future use if needed
             callback(true); // Simulate immediate completion (scenario 2: completion before WAITING return)
         }
-        
+
         private void SimulateAsyncOperationWithFailure<TEvent>(TEvent evt, System.Action<bool> callback) where TEvent : ILSEvent {
             // This simulates async operations that immediately detect a critical failure
             _ = evt; // Event reference for future use if needed
             callback(false); // Simulate immediate failure detection
         }
-        
+
         private void SimulateAsyncOperationWithRecoverableFailure<TEvent>(TEvent evt, System.Action<bool> callback) where TEvent : ILSEvent {
             // This simulates async operations that encounter recoverable failures
             _ = evt; // Event reference for future use if needed
             callback(true); // Simulate recoverable failure detection
         }
-        
+
         private void SimulateImmediateAsyncOperation<TEvent>(TEvent evt, bool success, System.Action<bool> callback) where TEvent : ILSEvent {
             // This simulates async operations that complete immediately (scenario 2)
             // This is the problematic case where Resume/Abort/Fail is called before IsWaiting = true
             _ = evt; // Event reference for future use if needed
             callback(success); // Call immediately - this will cause the race condition
         }
-        
+
         private void SimulateImmediateAsyncOperationWithRecoverableFailure<TEvent>(TEvent evt, System.Action<bool> callback) where TEvent : ILSEvent {
             // This simulates async operations with immediate recoverable failure (scenario 2)
             _ = evt; // Event reference for future use if needed
             callback(true); // Immediately signal recoverable failure
         }
-        
+
         private void SimulateSlowAsyncOperation<TEvent>(TEvent evt, System.Action<bool> callback) where TEvent : ILSEvent {
             // This simulates async operations that complete after the handler returns WAITING
             // In a real implementation, this might use callbacks, events, or other non-Task mechanisms
-            
+
             // For testing purposes, we'll use a simple flag mechanism
             evt.SetData("async.callback", callback);
             evt.SetData("async.pending", true);
         }
-        
+
         private void CompleteSlowAsyncOperation<TEvent>(TEvent evt, bool success) where TEvent : ILSEvent {
             // This simulates the completion of a slow async operation
             if (evt.TryGetData<System.Action<bool>>("async.callback", out var callback)) {
@@ -204,10 +204,9 @@ namespace LSUtils.Tests {
                     evt.SetData("execution.completed", true);
                     return LSHandlerResult.CONTINUE;
                 })
-                .OnCompletePhase((evt, ctx) => {
+                .OnComplete((evt) => {
                     completeCalled = true;
-                    Assert.That(ctx.CurrentPhase, Is.EqualTo(LSEventPhase.COMPLETE));
-                    return LSHandlerResult.CONTINUE;
+                    Assert.That(evt.CurrentPhase, Is.EqualTo(LSEventPhase.COMPLETE));
                 })
                 .Dispatch();
 
@@ -243,9 +242,8 @@ namespace LSUtils.Tests {
                 .OnSuccess(evt => {
                     executionOrder.Add("SUCCESS");
                 })
-                .OnCompletePhase((evt, ctx) => {
+                .OnComplete((evt) => {
                     executionOrder.Add("COMPLETE");
-                    return LSHandlerResult.CONTINUE;
                 })
                 .Dispatch();
 
@@ -284,9 +282,8 @@ namespace LSUtils.Tests {
                     executionCalled = true;
                     return LSHandlerResult.CONTINUE;
                 })
-                .OnCompletePhase((evt, ctx) => {
+                .OnComplete((evt) => {
                     completeCalled = true;
-                    return LSHandlerResult.CONTINUE;
                 })
                 .Dispatch();
 
@@ -527,7 +524,7 @@ namespace LSUtils.Tests {
                     // For now, don't actually call the async operation to avoid the race condition
                     // This demonstrates that when WAITING is returned properly, the system works
                     asyncCompleted = true;
-                    
+
                     return LSHandlerResult.WAITING; // Pause event processing
                 })
                 .OnSuccess(evt => {
@@ -562,7 +559,7 @@ namespace LSUtils.Tests {
             var success = startupEvent.WithCallbacks<TestSystemStartupEvent>(dispatcher)
                 .OnExecutePhase((evt, ctx) => {
                     asyncOperationStarted = true;
-                    
+
                     // Simulate immediate async completion (scenario 2)
                     // The LSEventSystem should handle Resume() being called before WAITING is processed
                     SimulateImmediateAsyncOperation(evt, true, (result) => {
@@ -572,7 +569,7 @@ namespace LSUtils.Tests {
                             evt.Abort();
                         }
                     });
-                    
+
                     return LSHandlerResult.WAITING;
                 })
                 .OnSuccess(evt => {
@@ -601,7 +598,7 @@ namespace LSUtils.Tests {
             var success = startupEvent.WithCallbacks<TestSystemStartupEvent>(dispatcher)
                 .OnExecutePhase((evt, ctx) => {
                     asyncOperationStarted = true;
-                    
+
                     // Simulate immediate async failure (scenario 2)
                     SimulateImmediateAsyncOperation(evt, false, (result) => {
                         if (result) {
@@ -610,7 +607,7 @@ namespace LSUtils.Tests {
                             evt.Abort(); // This should be handled properly even if called before IsWaiting = true
                         }
                     });
-                    
+
                     executePhaseCompleted = true;
                     return LSHandlerResult.WAITING;
                 })
@@ -641,7 +638,7 @@ namespace LSUtils.Tests {
             var success = startupEvent.WithCallbacks<TestSystemStartupEvent>(dispatcher)
                 .OnExecutePhase((evt, ctx) => {
                     asyncOperationStarted = true;
-                    
+
                     // Simulate immediate recoverable failure (scenario 2)
                     SimulateImmediateAsyncOperationWithRecoverableFailure(evt, (hasRecoverableFailure) => {
                         if (hasRecoverableFailure) {
@@ -650,7 +647,7 @@ namespace LSUtils.Tests {
                             evt.Resume();
                         }
                     });
-                    
+
                     return LSHandlerResult.WAITING;
                 })
                 .OnFailure(evt => {
@@ -680,7 +677,7 @@ namespace LSUtils.Tests {
             var success = startupEvent.WithCallbacks<TestSystemStartupEvent>(dispatcher)
                 .OnExecutePhase((evt, ctx) => {
                     asyncOperationStarted = true;
-                    
+
                     // Simulate async operation that will complete later
                     SimulateSlowAsyncOperation(evt, (isSuccess) => {
                         if (isSuccess) {
@@ -689,7 +686,7 @@ namespace LSUtils.Tests {
                             evt.Abort();
                         }
                     });
-                    
+
                     return LSHandlerResult.WAITING; // Handler returns immediately, async operation pending
                 })
                 .OnSuccess(evt => {
@@ -732,17 +729,15 @@ namespace LSUtils.Tests {
                     }
                     return LSHandlerResult.CONTINUE; // Continue to allow FAILURE phase to run
                 })
-                .OnFailurePhase((evt, ctx) => {
+                .OnFailure((evt) => {
                     recoveryAttempted = true;
                     // Simulate recovery
                     evt.SetData("recovered", true);
-                    return LSHandlerResult.CONTINUE;
                 })
-                .OnCompletePhase((evt, ctx) => {
+                .OnComplete((evt) => {
                     // Check that recovery data is available in COMPLETE phase
                     Assert.That(evt.TryGetData<bool>("recovered", out var recovered), Is.True);
                     Assert.That(recovered, Is.True);
-                    return LSHandlerResult.CONTINUE;
                 })
                 .Dispatch();
 
