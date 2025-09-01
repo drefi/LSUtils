@@ -178,46 +178,46 @@ public static class LSSignals {
     public static bool Error(string message, LSDispatcher? dispatcher) {
         dispatcher ??= LSDispatcher.Singleton;
         var @event = new OnErrorEvent(message);
-        return dispatcher.ProcessEvent(@event);
+        return dispatcher.processEvent(@event);
     }
 
     public static bool Warning(string message, LSDispatcher? dispatcher) {
         dispatcher ??= LSDispatcher.Singleton;
         var @event = new OnWarningEvent(message);
-        return dispatcher.ProcessEvent(@event);
+        return dispatcher.processEvent(@event);
     }
 
     public static bool Print(string message, LSDispatcher? dispatcher) {
         dispatcher ??= LSDispatcher.Singleton;
         var @event = new OnPrintEvent(message);
-        return dispatcher.ProcessEvent(@event);
+        return dispatcher.processEvent(@event);
     }
 
     public static bool Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSDispatcher? dispatcher = null) {
         dispatcher ??= LSDispatcher.Singleton;
         var @event = new OnNotifyEvent(new NotificationSignal(message, description, allowDismiss, timeout));
-        return dispatcher.ProcessEvent(@event);
+        return dispatcher.processEvent(@event);
     }
     public static bool Notify(NotificationSignal notificationSignal, LSDispatcher? dispatcher = null) {
         dispatcher ??= LSDispatcher.Singleton;
         var @event = new OnNotifyEvent(notificationSignal);
-        return dispatcher.ProcessEvent(@event);
+        return dispatcher.processEvent(@event);
     }
 
     public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSDispatcher? dispatcher = null) {
         dispatcher ??= LSDispatcher.Singleton;
         var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
-        return dispatcher.ProcessEvent(@event);
+        return dispatcher.processEvent(@event);
     }
     public static bool Confirmation(ConfirmationSignal confirmationSignal, LSDispatcher? dispatcher = null) {
         dispatcher ??= LSDispatcher.Singleton;
         var @event = new OnConfirmationEvent(confirmationSignal);
-        return dispatcher.ProcessEvent(@event);
+        return dispatcher.processEvent(@event);
     }
     public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSDispatcher? dispatcher = null) {
         dispatcher ??= LSDispatcher.Singleton;
         var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
-        return dispatcher.ProcessEvent(@event);
+        return dispatcher.processEvent(@event);
     }
 
     #endregion

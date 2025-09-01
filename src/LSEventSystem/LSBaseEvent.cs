@@ -201,7 +201,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
                 }
 
                 // Resume processing through the dispatcher
-                Dispatcher.ContinueProcessing(this);
+                Dispatcher.continueProcessing(this);
             } else {
                 // Scenario 2: Immediate completion - event not yet waiting, defer the action
                 _deferredResumption = resumptionType;

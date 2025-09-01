@@ -34,7 +34,7 @@ public class LSTimestamp {
         if (dontUpdate == false) Update();
     }
     public void Update() {
-        _dispatcher.ProcessEvent(new OnUpdateEvent(this));
+        _dispatcher.processEvent(new OnUpdateEvent(this));
     }
     public bool AddMinutes(int minutes, bool dontUpdate = false) {
         if (minutes <= 0)

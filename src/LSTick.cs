@@ -28,7 +28,7 @@ public class LSTick {
     public void Initialize(LSDispatcher dispatcher) {
         var @event = new OnInitializeEvent(this);
         _dispatcher = dispatcher;
-        _dispatcher.ProcessEvent(@event);
+        _dispatcher.processEvent(@event);
         if (!@event.IsCancelled) {
             _hasInitialized = true;
             _isPaused = true;
@@ -41,7 +41,7 @@ public class LSTick {
 
     protected bool tickEvent(int tickCount) {
         var @event = new OnTickEvent(this, tickCount);
-        return _dispatcher.ProcessEvent(@event);
+        return _dispatcher.processEvent(@event);
     }
     /// <summary>
     /// Updates the tick count and notifies listeners of tick updates.
@@ -66,7 +66,7 @@ public class LSTick {
         }
 
         var updateEvent = new OnTickUpdateEvent(this, _tickCount, deltaTick, percentage);
-        _dispatcher.ProcessEvent(updateEvent);
+        _dispatcher.processEvent(updateEvent);
     }
 
     /// <summary>
@@ -80,7 +80,7 @@ public class LSTick {
         double deltaTick = (float)delta * DeltaFactor;
 
         var physicsEvent = new OnTickPhysicsUpdateEvent(this, _tickCount, deltaTick, percentage);
-        _dispatcher.ProcessEvent(physicsEvent);
+        _dispatcher.processEvent(physicsEvent);
     }
     /// <summary>
     /// Starts the tick manager.
@@ -106,7 +106,7 @@ public class LSTick {
         if (_hasInitialized == false) return;
         _isPaused = !_isPaused;
         var @event = new OnPauseEvent(this, _isPaused);
-        _dispatcher.ProcessEvent(@event);
+        _dispatcher.processEvent(@event);
     }
 
     /// <summary>
@@ -118,7 +118,7 @@ public class LSTick {
         if (DeltaFactor == value) return;
         DeltaFactor = value;
         var @event = new OnChangeDeltaFactorEvent(this, DeltaFactor, _isPaused);
-        _dispatcher.ProcessEvent(@event);
+        _dispatcher.processEvent(@event);
     }
 
     public void Cleanup() {

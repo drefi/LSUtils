@@ -87,7 +87,7 @@ public class LSEventHandlerBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="handler">The handler function to register.</param>
     /// <returns>A unique identifier for the registered handler that can be used for unregistration.</returns>
     public Guid Register(LSPhaseHandler<TEvent> handler) {
-        return _dispatcher.RegisterHandler(handler, _phase, _priority, _instanceType, _instance, _maxExecutions, _condition);
+        return _dispatcher.registerHandler(handler, _phase, _priority, _instanceType, _instance, _maxExecutions, _condition);
     }
     
     /// <summary>
@@ -96,7 +96,7 @@ public class LSEventHandlerBuilder<TEvent> where TEvent : ILSEvent {
     /// </summary>
     /// <returns>The number of handlers that were removed.</returns>
     public int Unregister() {
-        return _dispatcher.UnregisterHandlers<TEvent>(_phase, _priority, _instanceType, _instance, _maxExecutions, _condition);
+        return _dispatcher.unregisterHandlers<TEvent>(_phase, _priority, _instanceType, _instance, _maxExecutions, _condition);
     }
     
     /// <summary>
@@ -106,7 +106,7 @@ public class LSEventHandlerBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="handler">The specific handler function to unregister.</param>
     /// <returns>The number of handlers that were removed (0 or 1).</returns>
     public int Unregister(LSPhaseHandler<TEvent> handler) {
-        return _dispatcher.UnregisterHandler<TEvent>(handler, _phase, _priority, _instanceType, _instance, _maxExecutions, _condition);
+        return _dispatcher.unregisterHandler<TEvent>(handler, _phase, _priority, _instanceType, _instance, _maxExecutions, _condition);
     }
     
     /// <summary>

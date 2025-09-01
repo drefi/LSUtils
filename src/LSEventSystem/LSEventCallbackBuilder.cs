@@ -43,7 +43,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
     public LSEventCallbackBuilder<TEvent> OnValidatePhase(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.VALIDATE, priority);
+        return registerEventSpecificHandler(handler, LSEventPhase.VALIDATE, priority);
     }
 
     /// <summary>
@@ -53,7 +53,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
     public LSEventCallbackBuilder<TEvent> OnPreparePhase(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.PREPARE, priority);
+        return registerEventSpecificHandler(handler, LSEventPhase.PREPARE, priority);
     }
 
     /// <summary>
@@ -63,7 +63,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
     public LSEventCallbackBuilder<TEvent> OnExecutePhase(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.EXECUTE, priority);
+        return registerEventSpecificHandler(handler, LSEventPhase.EXECUTE, priority);
     }
 
     /// <summary>
@@ -73,7 +73,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
     public LSEventCallbackBuilder<TEvent> OnCompletePhase(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.COMPLETE, priority);
+        return registerEventSpecificHandler(handler, LSEventPhase.COMPLETE, priority);
     }
 
     /// <summary>
@@ -83,7 +83,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
     public LSEventCallbackBuilder<TEvent> OnCancelPhase(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.CANCEL, priority);
+        return registerEventSpecificHandler(handler, LSEventPhase.CANCEL, priority);
     }
 
     /// <summary>
@@ -93,7 +93,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="priority">The execution priority (default: NORMAL).</param>
     /// <returns>This builder for fluent chaining.</returns>
     public LSEventCallbackBuilder<TEvent> OnSuccessPhase(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
-        return RegisterEventSpecificHandler(handler, LSEventPhase.SUCCESS, priority);
+        return registerEventSpecificHandler(handler, LSEventPhase.SUCCESS, priority);
     }
 
        /// <summary>
@@ -103,7 +103,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
        /// <param name="priority">The execution priority (default: NORMAL).</param>
        /// <returns>This builder for fluent chaining.</returns>
        public LSEventCallbackBuilder<TEvent> OnFailurePhase(LSPhaseHandler<TEvent> handler, LSPhasePriority priority = LSPhasePriority.NORMAL) {
-           return RegisterEventSpecificHandler(handler, LSEventPhase.FAILURE, priority);
+           return registerEventSpecificHandler(handler, LSEventPhase.FAILURE, priority);
        }
     #endregion
 
@@ -116,14 +116,14 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="action">Action to execute on error</param>
     /// <returns>This builder for fluent chaining</returns>
     public LSEventCallbackBuilder<TEvent> OnError(LSAction<TEvent> action) {
-        return RegisterEventSpecificHandler(
+        return registerEventSpecificHandler(
             (evt, ctx) => {
                 action(evt);
                 return LSHandlerResult.CONTINUE;
             },
             LSEventPhase.COMPLETE,
             LSPhasePriority.NORMAL,
-            evt => !string.IsNullOrEmpty(GetErrorMessage(evt))
+            evt => !string.IsNullOrEmpty(getErrorMessage(evt))
         );
     }
 
@@ -136,7 +136,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <returns>This builder for fluent chaining</returns>
     public LSEventCallbackBuilder<TEvent> OnCancel(LSAction<TEvent>? action, LSPhasePriority priority = LSPhasePriority.NORMAL) {
         if (action == null) return this; //this prevent errors when using LSEventOptions
-        return RegisterEventSpecificHandler(
+        return registerEventSpecificHandler(
             (evt, _) => {
                 action(evt);
                 return LSHandlerResult.CONTINUE;
@@ -153,7 +153,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <returns>This builder for fluent chaining</returns>
     public LSEventCallbackBuilder<TEvent> OnSuccess(LSAction<TEvent>? action, LSPhasePriority priority = LSPhasePriority.NORMAL) {
         if (action == null) return this; //this is to prevent errors when using LSEventOptions
-        return RegisterEventSpecificHandler(
+        return registerEventSpecificHandler(
             (evt, ctx) => {
                 action(evt);
                 return LSHandlerResult.CONTINUE;
@@ -165,7 +165,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     }
     public LSEventCallbackBuilder<TEvent> OnComplete(LSAction<TEvent>? action, LSPhasePriority priority = LSPhasePriority.NORMAL) {
         if (action == null) return this; //this is to prevent errors when using LSEventOptions
-        return RegisterEventSpecificHandler(
+        return registerEventSpecificHandler(
             (evt, ctx) => {
                 action(evt);
                 return LSHandlerResult.CONTINUE;
@@ -184,7 +184,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
        /// <returns>This builder for fluent chaining</returns>
        public LSEventCallbackBuilder<TEvent> OnFailure(LSAction<TEvent>? action, LSPhasePriority priority = LSPhasePriority.NORMAL) {
            if (action == null) return this;
-           return RegisterEventSpecificHandler(
+           return registerEventSpecificHandler(
                (evt, ctx) => {
                    action(evt);
                    return LSHandlerResult.CONTINUE;
@@ -224,10 +224,10 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="phase">The phase in which to check the condition (default: VALIDATE).</param>
     /// <returns>This builder for fluent chaining.</returns>
     public LSEventCallbackBuilder<TEvent> CancelIf(LSEventCondition<TEvent> condition, string errorMessage = "", LSEventPhase phase = LSEventPhase.VALIDATE) {
-        return RegisterEventSpecificHandler((evt, ctx) => {
+        return registerEventSpecificHandler((evt, ctx) => {
             if (condition(evt)) {
                 if (!string.IsNullOrEmpty(errorMessage)) {
-                    SetErrorMessage(evt, errorMessage);
+                    setErrorMessage(evt, errorMessage);
                 }
                 return LSHandlerResult.CANCEL;
             }
@@ -242,7 +242,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// <param name="maxRetries">The maximum number of retries.</param>
     /// <returns>This builder for fluent chaining.</returns>
     public LSEventCallbackBuilder<TEvent> RetryOnError(LSPhaseHandler<TEvent> handler, int maxRetries = 3) {
-        return RegisterEventSpecificHandler((evt, ctx) => {
+        return registerEventSpecificHandler((evt, ctx) => {
             try {
                 return handler(evt, ctx);
             } catch (LSException ex) {
@@ -255,7 +255,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
                     return LSHandlerResult.RETRY;
                 }
 
-                SetErrorMessage(evt, $"Handler failed after {maxRetries} retries: {ex.Message}");
+                setErrorMessage(evt, $"Handler failed after {maxRetries} retries: {ex.Message}");
                 return LSHandlerResult.CANCEL;
             }
         }, LSEventPhase.EXECUTE);
@@ -273,11 +273,11 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
         try {
             // Register the batch if not already registered
             if (!_isRegistered) {
-                Dispatcher.RegisterBatchedHandlers(_batch);
+                Dispatcher.registerBatchedHandlers(_batch);
                 _isRegistered = true;
             }
 
-            return Dispatcher.ProcessEvent(_event);
+            return Dispatcher.processEvent(_event);
         } finally {
             // Auto-cleanup: the batch handler will automatically clean up after one execution
             // No manual cleanup needed due to MaxExecutions = 1 in RegisterBatchedHandlers
@@ -288,7 +288,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
 
     #region Private Helper Methods
 
-    private LSEventCallbackBuilder<TEvent> RegisterEventSpecificHandler(
+    private LSEventCallbackBuilder<TEvent> registerEventSpecificHandler(
         LSPhaseHandler<TEvent> handler,
         LSEventPhase phase,
         LSPhasePriority priority = LSPhasePriority.NORMAL,
@@ -327,7 +327,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// </summary>
     /// <param name="evt">The event to get error message from.</param>
     /// <returns>The error message or null if none exists.</returns>
-    private static string? GetErrorMessage(TEvent evt) {
+    private static string? getErrorMessage(TEvent evt) {
         if (evt is LSBaseEvent baseEvent) {
             return baseEvent.ErrorMessage;
         }
@@ -344,7 +344,7 @@ public class LSEventCallbackBuilder<TEvent> where TEvent : ILSEvent {
     /// </summary>
     /// <param name="evt">The event to set error message on.</param>
     /// <param name="message">The error message to set.</param>
-    private static void SetErrorMessage(TEvent evt, string message) {
+    private static void setErrorMessage(TEvent evt, string message) {
         if (evt is LSBaseEvent baseEvent) {
             baseEvent.ErrorMessage = message;
         } else {
