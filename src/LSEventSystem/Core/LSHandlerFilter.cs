@@ -39,6 +39,12 @@ internal static class LSHandlerFilter {
     /// <param name="event">The event being processed.</param>
     /// <returns>True if the handler should execute for this event.</returns>
     private static bool matchesInstance<TEvent>(LSHandlerRegistration handler, TEvent @event) where TEvent : ILSEvent {
+        // Check for event-scoped handlers (batched handlers with TargetEvent)
+        if (handler.TargetEvent != null) {
+            return ReferenceEquals(handler.TargetEvent, @event);
+        }
+        
+        // Check for instance-specific handlers
         if (handler.Instance == null) {
             return true;
         }
