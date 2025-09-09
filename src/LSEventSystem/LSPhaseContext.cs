@@ -18,7 +18,7 @@ public class LSPhaseContext {
     /// <summary>
     /// The priority level of the current handler within the phase.
     /// </summary>
-    public LSPhasePriority Priority { get; }
+    public LSESPriority Priority { get; }
     
     /// <summary>
     /// Total time elapsed since event processing started.
@@ -51,7 +51,7 @@ public class LSPhaseContext {
     /// <param name="elapsed">Time elapsed since event processing started.</param>
     /// <param name="executed">Number of handlers executed in the current phase.</param>
     /// <param name="errors">List of errors that have occurred during processing.</param>
-    internal LSPhaseContext(LSEventPhase phase, LSPhasePriority priority, TimeSpan elapsed, int executed, List<string> errors) {
+    internal LSPhaseContext(LSEventPhase phase, LSESPriority priority, TimeSpan elapsed, int executed, List<string> errors) {
         CurrentPhase = phase;
         Priority = priority;
         ElapsedTime = elapsed;

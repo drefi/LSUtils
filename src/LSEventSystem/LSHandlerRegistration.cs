@@ -31,7 +31,7 @@ internal class LSHandlerRegistration {
     /// <summary>
     /// The execution priority within the phase.
     /// </summary>
-    public LSPhasePriority Priority { get; set; }
+    public LSESPriority Priority { get; set; }
     
     /// <summary>
     /// The type of instance this handler is restricted to, if any.

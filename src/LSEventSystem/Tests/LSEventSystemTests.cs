@@ -457,15 +457,15 @@ namespace LSUtils.Tests {
                 .OnValidatePhase((evt, ctx) => {
                     executionOrder.Add("Normal");
                     return LSHandlerResult.CONTINUE;
-                }, LSPhasePriority.NORMAL)
+                }, LSESPriority.NORMAL)
                 .OnValidatePhase((evt, ctx) => {
                     executionOrder.Add("Critical");
                     return LSHandlerResult.CONTINUE;
-                }, LSPhasePriority.CRITICAL)
+                }, LSESPriority.CRITICAL)
                 .OnValidatePhase((evt, ctx) => {
                     executionOrder.Add("High");
                     return LSHandlerResult.CONTINUE;
-                }, LSPhasePriority.HIGH)
+                }, LSESPriority.HIGH)
                 .Dispatch();
 
             // Assert
@@ -1071,19 +1071,19 @@ namespace LSUtils.Tests {
                 .OnValidatePhase((evt, ctx) => {
                     executionOrder.Add("Validate-Normal");
                     return LSHandlerResult.CONTINUE;
-                }, LSPhasePriority.NORMAL)
+                }, LSESPriority.NORMAL)
                 .OnValidatePhase((evt, ctx) => {
                     executionOrder.Add("Validate-Critical");
                     return LSHandlerResult.CONTINUE;
-                }, LSPhasePriority.CRITICAL)
+                }, LSESPriority.CRITICAL)
                 .OnExecutePhase((evt, ctx) => {
                     executionOrder.Add("Execute-High");
                     return LSHandlerResult.CONTINUE;
-                }, LSPhasePriority.HIGH)
+                }, LSESPriority.HIGH)
                 .OnExecutePhase((evt, ctx) => {
                     executionOrder.Add("Execute-Low");
                     return LSHandlerResult.CONTINUE;
-                }, LSPhasePriority.LOW)
+                }, LSESPriority.LOW)
                 .Dispatch();
 
             // Assert

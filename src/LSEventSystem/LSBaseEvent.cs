@@ -93,7 +93,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// </summary>
     /// <param name="key">The key to store the data under.</param>
     /// <param name="value">The value to store.</param>
-    public void SetData(string key, object value) => _data[key] = value;
+    public void SetData<T>(string key, T value) => _data[key] = value!;
 
     /// <summary>
     /// Sets an error message for this event.
@@ -187,7 +187,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
             if (IsWaiting) {
                 // Scenario 1: Normal async completion - event is already waiting
                 IsWaiting = false;
-                
+
                 // Set appropriate outcome state
                 switch (resumptionType) {
                     case ResumptionType.Resume:
@@ -206,7 +206,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
             } else {
                 // Scenario 2: Immediate completion - event not yet waiting, defer the action
                 _deferredResumption = resumptionType;
-                
+
                 // Apply state changes immediately for immediate effect
                 switch (resumptionType) {
                     case ResumptionType.Resume:
@@ -219,7 +219,7 @@ public abstract class LSBaseEvent : ILSMutableEvent {
                         HasFailures = true;
                         break;
                 }
-                
+
                 // Note: No dispatcher call here - the dispatcher will check for deferred resumption
             }
         }
@@ -259,14 +259,14 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// <exception cref="LSException">Thrown if the event has already been built or dispatched.</exception>
     /// <exception cref="ArgumentNullException">Thrown if dispatcher is null.</exception>
     public bool Dispatch(LSDispatcher dispatcher) {
-        if (dispatcher == null) 
+        if (dispatcher == null)
             throw new ArgumentNullException(nameof(dispatcher), "Dispatcher cannot be null");
-        if (IsBuilt) 
+        if (IsBuilt)
             throw new LSException("Event has already been built. Use Dispatch() without parameters or create a new event.");
-        
+
         Dispatcher = dispatcher;
         IsBuilt = true;
-        
+
         return dispatcher.processEvent(this);
     }
 

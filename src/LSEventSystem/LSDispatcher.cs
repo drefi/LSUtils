@@ -94,7 +94,7 @@ public class LSDispatcher {
     internal System.Guid registerHandler<TEvent>(
         LSPhaseHandler<TEvent> handler,
         LSEventPhase phase,
-        LSPhasePriority priority,
+        LSESPriority priority,
         System.Type? instanceType,
         object? instance,
         int maxExecutions,
@@ -462,7 +462,7 @@ public class LSDispatcher {
     /// <returns>The number of handlers that were removed.</returns>
     internal int unregisterHandlers<TEvent>(
         LSEventPhase phase,
-        LSPhasePriority priority,
+        LSESPriority priority,
         System.Type? instanceType,
         object? instance,
         int maxExecutions,
@@ -510,7 +510,7 @@ public class LSDispatcher {
     internal int unregisterHandler<TEvent>(
         LSPhaseHandler<TEvent> handlerToRemove,
         LSEventPhase phase,
-        LSPhasePriority priority,
+        LSESPriority priority,
         System.Type? instanceType,
         object? instance,
         int maxExecutions,
@@ -599,7 +599,7 @@ public class LSDispatcher {
                 var phaseHandlers = GetHandlersForPhase(builder, phase);
                 var batchPriority = phaseHandlers.Any() 
                     ? phaseHandlers.Min(h => h.Priority) 
-                    : LSPhasePriority.NORMAL;
+                    : LSESPriority.NORMAL;
 
                 var batchedHandler = new LSHandlerRegistration {
                     Id = System.Guid.NewGuid(), // Each phase handler gets its own ID
@@ -744,7 +744,7 @@ public class LSDispatcher {
                 }
             } catch (LSException ex) {
                 // Log error but continue with remaining handlers unless it's critical validation
-                if (ctx.CurrentPhase == LSEventPhase.VALIDATE && handler.Priority == LSPhasePriority.CRITICAL) {
+                if (ctx.CurrentPhase == LSEventPhase.VALIDATE && handler.Priority == LSESPriority.CRITICAL) {
                     evt.SetData("batch.error", ex.Message);
                     return LSHandlerResult.CANCEL;
                 }

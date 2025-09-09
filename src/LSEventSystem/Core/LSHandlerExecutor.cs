@@ -96,7 +96,7 @@ internal static class LSHandlerExecutor {
         logAction(@event, "HandleLSException", errorMsg, null);
         
         // Critical validation failures should stop processing
-        if (phase == LSEventPhase.VALIDATE && handler.Priority == LSPhasePriority.CRITICAL) {
+        if (phase == LSEventPhase.VALIDATE && handler.Priority == LSESPriority.CRITICAL) {
             return LSPhaseExecutionResult.Cancelled("Critical validation failure");
         }
         
@@ -119,7 +119,7 @@ internal static class LSHandlerExecutor {
         logAction(@event, "HandleUnexpectedException", errorMsg, null);
         
         // Critical validation failures should stop processing
-        if (phase == LSEventPhase.VALIDATE && handler.Priority == LSPhasePriority.CRITICAL) {
+        if (phase == LSEventPhase.VALIDATE && handler.Priority == LSESPriority.CRITICAL) {
             return LSPhaseExecutionResult.Cancelled("Critical validation failure");
         }
         

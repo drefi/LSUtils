@@ -57,36 +57,6 @@ public enum LSEventPhase {
 }
 
 /// <summary>
-/// Execution priority within a phase. Lower numeric values execute first.
-/// </summary>
-public enum LSPhasePriority {
-    /// <summary>
-    /// System-critical operations such as validation and security checks.
-    /// </summary>
-    CRITICAL = 0,
-
-    /// <summary>
-    /// Important business logic that should run early in the phase.
-    /// </summary>
-    HIGH = 1,
-
-    /// <summary>
-    /// Standard operations and normal business logic. Default priority.
-    /// </summary>
-    NORMAL = 2,
-
-    /// <summary>
-    /// Nice-to-have features and optional functionality.
-    /// </summary>
-    LOW = 3,
-
-    /// <summary>
-    /// Background operations like logging, metrics, and non-critical cleanup.
-    /// </summary>
-    BACKGROUND = 4
-}
-
-/// <summary>
 /// Result of handler execution that controls the flow of event processing.
 /// </summary>
 public enum LSHandlerResult {

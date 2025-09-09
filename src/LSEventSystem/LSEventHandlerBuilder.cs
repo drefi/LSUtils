@@ -11,7 +11,7 @@ namespace LSUtils.EventSystem;
 public class LSEventHandlerBuilder<TEvent> where TEvent : ILSEvent {
     private readonly LSDispatcher _dispatcher;
     private LSEventPhase _phase = LSEventPhase.EXECUTE;
-    private LSPhasePriority _priority = LSPhasePriority.NORMAL;
+    private LSESPriority _priority = LSESPriority.NORMAL;
     private Type? _instanceType = null;
     private object? _instance = null;
     private int _maxExecutions = -1;
@@ -41,7 +41,7 @@ public class LSEventHandlerBuilder<TEvent> where TEvent : ILSEvent {
     /// </summary>
     /// <param name="priority">The execution priority.</param>
     /// <returns>This registration builder for fluent chaining.</returns>
-    public LSEventHandlerBuilder<TEvent> WithPriority(LSPhasePriority priority) {
+    public LSEventHandlerBuilder<TEvent> WithPriority(LSESPriority priority) {
         _priority = priority;
         return this;
     }

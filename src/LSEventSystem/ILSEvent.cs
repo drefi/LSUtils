@@ -68,7 +68,7 @@ public interface ILSEvent {
     /// </summary>
     /// <param name="key">The unique key to store the data under.</param>
     /// <param name="value">The data value to store.</param>
-    void SetData(string key, object value);
+    void SetData<T>(string key, T value);
 
     /// <summary>
     /// Retrieves strongly-typed data associated with this event.
@@ -90,22 +90,4 @@ public interface ILSEvent {
     /// <param name="value">When this method returns, contains the retrieved value if successful, or the default value for T if unsuccessful.</param>
     /// <returns>true if the data was found and successfully cast to the specified type; otherwise, false.</returns>
     bool TryGetData<T>(string key, out T value);
-
-    /// <summary>
-    /// Signals that an async operation has completed successfully and event processing should resume.
-    /// Thread-safe method that can be called from any thread to continue event processing.
-    /// </summary>
-    void Resume();
-
-    /// <summary>
-    /// Signals that an async operation has failed critically and event processing should be cancelled.
-    /// Thread-safe method that sets IsCancelled = true and proceeds to CANCEL phase.
-    /// </summary>
-    void Abort();
-
-    /// <summary>
-    /// Signals that an async operation has failed non-critically and event processing should continue with failures.
-    /// Thread-safe method that sets HasFailures = true and proceeds to FAILURE phase.
-    /// </summary>
-    void Fail();
 }
