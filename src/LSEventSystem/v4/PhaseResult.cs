@@ -26,5 +26,4 @@ public enum PhaseProcessResult {
     /// </summary>
     CANCELLED,
 
-    COMPLETED,
 }

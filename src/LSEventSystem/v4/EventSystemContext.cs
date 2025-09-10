@@ -10,7 +10,7 @@ namespace LSUtils.EventSystem;
 /// </summary>
 public class EventSystemContext {
     public LSESDispatcher Dispatcher { get; }
-    public IEventSystemState CurrentState { get; internal set; }
+    public IEventSystemState? CurrentState { get; internal set; }
     public ILSEvent Event { get; internal set; }
     public IReadOnlyList<IHandlerEntry> Handlers { get; }
 
@@ -20,63 +20,53 @@ public class EventSystemContext {
     public bool HasFailures { get; internal set; }
     public bool IsCancelled { get; internal set; }
 
-    public EventSystemContext(LSESDispatcher dispatcher, ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
+    protected EventSystemContext(LSESDispatcher dispatcher, ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
         Event = @event;
         Dispatcher = dispatcher;
-        CurrentState = new BusinessState(this);
         Handlers = handlers;
+        CurrentState = new BusinessState(this);
     }
 
-    internal StateProcessResult processEvent() {
-        do {
+    /// <summary>
+    /// Processes the event through its lifecycle until completion, cancellation, or waiting state.
+    /// Can only be called by the event itself.
+    /// </summary>
+    internal EventProcessResult processEvent() {
+        if (Event.InDispatch == false) throw new LSException("Event must be marked as InDispatch before processing.");
+        while (CurrentState != null) {
             var nextState = CurrentState.Process();
             var result = CurrentState.StateResult;
             switch (result) {
                 case StateProcessResult.CANCELLED:
                     IsCancelled = true;
-                    return StateProcessResult.CANCELLED;
+                    break;
                 case StateProcessResult.FAILURE:
                     HasFailures = true;
                     break;
                 case StateProcessResult.WAITING:
                     //stay in current state
-                    return StateProcessResult.WAITING;
-                case StateProcessResult.CONTINUE:
+                    return EventProcessResult.WAITING;
+                case StateProcessResult.SUCCESS:
                 default:
                     break;
             }
-
-        } while (CurrentState != null);
-        return HasFailures ? StateProcessResult.FAILURE : StateProcessResult.CONTINUE;
+            CurrentState = nextState;
+        }
+        return IsCancelled ? EventProcessResult.CANCELLED : HasFailures ? EventProcessResult.FAILURE : EventProcessResult.SUCCESS;
     }
 
     /// <summary>
     /// Handles waiting state resumption.
     /// </summary>
-    public IEventSystemState? Resume() => CurrentState.Resume();
+    public IEventSystemState? Resume() => CurrentState?.Resume();
 
     /// <summary>
     /// Handles waiting state abortion.
     /// </summary>
-    public IEventSystemState? Cancel() => CurrentState.Cancel();
-    public IEventSystemState? Fail() => CurrentState.Fail();
+    public IEventSystemState? Cancel() => CurrentState?.Cancel();
+    public IEventSystemState? Fail() => CurrentState?.Fail();
 
-    internal bool getHandlersForState(System.Type stateType, out Stack<StateHandlerEntry> handlersStack) {
-        handlersStack = new Stack<StateHandlerEntry>();
-        var handlers = Handlers.OfType<StateHandlerEntry>()
-            .Where(h => h.StateType == stateType)
-            .OrderByDescending(h => h.Priority);
-        if (!handlers.Any()) return false;
-        foreach (var handler in handlers) handlersStack.Push(handler);
-        return true;
-    }
-    internal bool getHandlersForPhase(EventSystemPhase phase, out Stack<PhaseHandlerEntry> handlersStack) {
-        handlersStack = new Stack<PhaseHandlerEntry>();
-        var handlers = Handlers.OfType<PhaseHandlerEntry>()
-            .Where(h => h.Phase == phase)
-            .OrderByDescending(h => h.Priority);
-        if (!handlers.Any()) return false;
-        foreach (var handler in handlers) handlersStack.Push(handler);
-        return true;
+    internal static EventSystemContext Create(LSESDispatcher dispatcher, ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
+        return new EventSystemContext(dispatcher, @event, handlers);
     }
 }

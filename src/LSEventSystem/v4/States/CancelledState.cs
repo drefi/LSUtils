@@ -10,6 +10,8 @@ public class CancelledState : IEventSystemState {
     protected readonly EventSystemContext _context;
     protected Stack<StateHandlerEntry> _handlers = new();
     public StateProcessResult StateResult { get; protected set; } = StateProcessResult.UNKNOWN;
+    public bool HasFailures => false;
+    public bool HasCancelled => true; //always true for CancelledState since the StateResult is different from actually being cancelled
 
     public CancelledState(EventSystemContext context) {
         _context = context;
@@ -22,18 +24,10 @@ public class CancelledState : IEventSystemState {
             handlerEntry.Handler(_context.Event);
         }
 
+        StateResult = StateProcessResult.SUCCESS;
         return new CompletedState(_context);
     }
-
-    public IEventSystemState? Resume() {
-        return null;
-    }
-
-    public IEventSystemState? Cancel() {
-        return null;
-    }
-
-    public IEventSystemState? Fail() {
-        return null;
-    }
+    public IEventSystemState? Resume() => null;
+    public IEventSystemState? Cancel() => null;
+    public IEventSystemState? Fail() => null;
 }

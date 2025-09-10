@@ -43,16 +43,10 @@ public interface ILSEvent {
     bool IsCompleted { get; }
 
     /// <summary>
-    /// The current phase being executed in the event processing pipeline.
-    /// Provides real-time visibility into the event's progress through the system.
+    /// Indicates whether the event is currently being dispatched.
+    /// Prevents non-Dispatch(dispatcher) calls and ensures thread safety during processing.
     /// </summary>
-    LSEventPhase CurrentPhase { get; }
-
-    /// <summary>
-    /// Flags indicating which phases have been completed successfully.
-    /// Uses bitwise operations to efficiently track multiple completed phases.
-    /// </summary>
-    LSEventPhase CompletedPhases { get; }
+    bool InDispatch { get; }
 
     /// <summary>
     /// Read-only access to event data stored as key-value pairs.
@@ -90,4 +84,6 @@ public interface ILSEvent {
     /// <param name="value">When this method returns, contains the retrieved value if successful, or the default value for T if unsuccessful.</param>
     /// <returns>true if the data was found and successfully cast to the specified type; otherwise, false.</returns>
     bool TryGetData<T>(string key, out T value);
+
+    public EventProcessResult Dispatch();
 }

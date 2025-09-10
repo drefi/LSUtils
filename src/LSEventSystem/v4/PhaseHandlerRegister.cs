@@ -1,64 +1,58 @@
 using System;
 using System.Collections.Generic;
-
 namespace LSUtils.EventSystem;
 
-/// <summary>
-/// Phase registration builder.
-/// </summary>
-public class PhaseHandlerRegister<TEvent> where TEvent : ILSEvent {
+public class PhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseState {
     protected readonly LSESDispatcher _dispatcher;
-    protected EventSystemPhase _phase = EventSystemPhase.EXECUTE;
+    //protected EventSystemPhase _phase = EventSystemPhase.EXECUTE;
+    protected System.Type _phaseType = typeof(TPhase);
     protected Func<EventSystemContext, HandlerProcessResult>? _handler = null;
     protected LSESPriority _priority = LSESPriority.NORMAL;
     protected Func<ILSEvent, IHandlerEntry, bool> _condition = (evt, entry) => true;
+    public bool IsBuild { get; protected set; } = false;
+    protected PhaseHandlerEntry? _entry = null;
 
-    internal PhaseHandlerRegister(LSESDispatcher dispatcher) {
+    protected PhaseHandlerRegister(LSESDispatcher dispatcher) {
         _dispatcher = dispatcher;
     }
-
-    /// <summary>
-    /// Registers a conditional handler for the specified phase.
-    /// </summary>
-    public PhaseHandlerRegister<TEvent> OnPhase(EventSystemPhase phase) {
-        _phase = phase;
-        return this;
-    }
-
-
-    public PhaseHandlerRegister<TEvent> WithPriority(LSESPriority priority) {
+    // public PhaseHandlerRegister<TPhase> OnPhase(EventSystemPhase phase) {
+    //     _phase = phase;
+    //     return this;
+    // }
+    public PhaseHandlerRegister<TPhase> WithPriority(LSESPriority priority) {
         _priority = priority;
         return this;
     }
-    public PhaseHandlerRegister<TEvent> When(Func<ILSEvent, IHandlerEntry, bool> condition) {
+    public PhaseHandlerRegister<TPhase> When(Func<ILSEvent, IHandlerEntry, bool> condition) {
         if (condition == null) throw new LSArgumentNullException(nameof(condition));
         _condition += condition;
         return this;
     }
-
-    public System.Guid Register(Func<EventSystemContext, HandlerProcessResult> handler) {
-        var entry = new PhaseHandlerEntry {
-            Phase = _phase,
+    public PhaseHandlerRegister<TPhase> Handler(Func<EventSystemContext, HandlerProcessResult> handler) {
+        _handler = handler;
+        return this;
+    }
+    public PhaseHandlerEntry Build() {
+        if (_handler == null) throw new LSArgumentNullException(nameof(_handler));
+        if (_phaseType == null) throw new LSException("invalid_phase_none");
+        if (IsBuild && _entry != null) return _entry;
+        _entry = new PhaseHandlerEntry {
+            //Phase = _phase,
+            PhaseType = _phaseType,
             Priority = _priority,
-            Handler = handler,
+            Handler = _handler,
             Condition = _condition
         };
-
-        return _dispatcher.registerHandler(typeof(TEvent), entry);
+        IsBuild = true;
+        return _entry;
+    }
+    public System.Guid Register() {
+        if (IsBuild) throw new LSException("handler_already_built");
+        var entry = Build();
+        return _dispatcher.registerHandler(typeof(TPhase), entry);
     }
 
-    /// <summary>
-    /// Registers different handlers for multiple phases using a dictionary.
-    /// </summary>
-    public void Batch(EventSystemPhase phase, params Func<EventSystemContext, HandlerProcessResult>[] handlers) {
-        foreach (var handler in handlers) {
-            var entry = new PhaseHandlerEntry {
-                Phase = phase,
-                Priority = _priority,
-                Handler = handler,
-                Condition = _condition
-            };
-            _dispatcher.registerHandler(typeof(TEvent), entry);
-        }
+    internal static PhaseHandlerRegister<TPhase> Create(LSESDispatcher dispatcher) {
+        return new PhaseHandlerRegister<TPhase>(dispatcher);
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace LSUtils.EventSystem;
 
@@ -10,7 +11,7 @@ namespace LSUtils.EventSystem;
 /// </summary>
 public abstract class BaseEvent : ILSEvent {
     private readonly ConcurrentDictionary<string, object> _data = new();
-
+    private readonly LSESDispatcher _dispatcher;
     /// <summary>
     /// Unique identifier for this event instance.
     /// </summary>
@@ -24,38 +25,43 @@ public abstract class BaseEvent : ILSEvent {
     /// <summary>
     /// Current phase being executed (only relevant in Business state).
     /// </summary>
-    public EventSystemPhase CurrentPhase { get; internal set; } = EventSystemPhase.VALIDATE;
+    //public EventSystemPhase CurrentPhase { get; internal set; } = EventSystemPhase.VALIDATE;
 
     /// <summary>
     /// Phases that have been completed successfully.
     /// </summary>
-    public EventSystemPhase CompletedPhases { get; internal set; }
+    //public EventSystemPhase CompletedPhases { get; internal set; }
 
     /// <summary>
     /// Indicates if the event processing was cancelled.
     /// </summary>
-    public bool IsCancelled { get; internal set; }
+    public bool IsCancelled => _isCanceled();
+    protected Func<bool> _isCanceled = () => false;
 
     /// <summary>
     /// Indicates if the event has failures but processing can continue.
     /// In v4, this is determined by phase results rather than a separate flag.
     /// </summary>
-    public bool HasFailures { get; internal set; }
+    public bool HasFailures => _hasFailures();
+    protected Func<bool> _hasFailures = () => false;
 
     /// <summary>
     /// Indicates if the event has completed processing.
     /// </summary>
     public bool IsCompleted { get; internal set; }
-
+    public bool InDispatch { get; internal set; }
     /// <summary>
     /// Read-only access to event data.
     /// </summary>
     public IReadOnlyDictionary<string, object> Data => _data;
 
-    LSEventPhase ILSEvent.CurrentPhase => throw new NotImplementedException();
-
-    LSEventPhase ILSEvent.CompletedPhases => throw new NotImplementedException();
-
+    private BaseEvent() {
+        throw new LSException("Default constructor is not allowed. Use the constructor with dispatcher parameter.");
+    }
+    //constructor with dispatcher
+    protected BaseEvent(LSESDispatcher dispatcher) {
+        _dispatcher = dispatcher ?? throw new LSArgumentNullException(nameof(dispatcher));
+    }
     /// <summary>
     /// Stores data associated with this event.
     /// </summary>
@@ -86,29 +92,29 @@ public abstract class BaseEvent : ILSEvent {
     }
 
     /// <summary>
-    /// Dispatches this event through the specified dispatcher.
-    /// </summary>
-    /// <param name="dispatcher">The dispatcher to process the event with.</param>
-    /// <returns>True if the event completed successfully, false if cancelled or failed.</returns>
-    public StateProcessResult Dispatch(LSESDispatcher dispatcher) {
-        if (dispatcher == null) {
-            throw new ArgumentNullException(nameof(dispatcher));
-        }
-        List<IHandlerEntry> handlers = dispatcher.getHandlers(this.GetType());
-
-        return dispatcher.processEvent(this, handlers);
-    }
-
-    /// <summary>
     /// Dispatches this event through the singleton dispatcher.
     /// </summary>
     /// <returns>True if the event completed successfully, false if cancelled or failed.</returns>
-    public StateProcessResult Dispatch() {
-        return Dispatch(LSESDispatcher.Singleton);
+    public EventProcessResult Dispatch() {
+        if (_dispatcher == null) throw new ArgumentNullException(nameof(_dispatcher));
+        List<IHandlerEntry> handlers = _dispatcher.getHandlers(GetType());
+        if (_eventHandlers.Count > 0) handlers.AddRange(_eventHandlers);
+
+        InDispatch = true;
+        var context = EventSystemContext.Create(_dispatcher, this, handlers);
+        _isCanceled = () => context.IsCancelled;
+        _hasFailures = () => context.HasFailures;
+        return context.processEvent();
     }
-
-    public void WithCallbacks() {
-
+    List<IHandlerEntry> _eventHandlers = new();
+    public ILSEvent WithPhaseCallbacks<TPhase>(params Func<PhaseHandlerRegister<TPhase>, PhaseHandlerEntry>[] configure) where TPhase : BusinessState.PhaseState {
+        foreach (var config in configure) {
+            var register = PhaseHandlerRegister<TPhase>.Create(_dispatcher);
+            var entry = config(register);
+            if (entry == null) throw new LSArgumentNullException(nameof(entry));
+            _eventHandlers.Add(entry);
+        }
+        return this;
     }
 
 }

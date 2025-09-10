@@ -4,41 +4,39 @@ using System.Linq;
 
 namespace LSUtils.EventSystem;
 
-/// <summary>
-/// Clean v4 dispatcher that acts as a state manager for event processing.
-/// Implements proper state pattern with single public method for global handler registration.
-/// </summary>
 public class LSESDispatcher {
-    /// <summary>
-    /// Gets the singleton instance of the dispatcher.
-    /// </summary>
     public static LSESDispatcher Singleton { get; } = new LSESDispatcher();
 
     private readonly Dictionary<Type, List<IHandlerEntry>> _handlers = new();
 
-    /// <summary>
-    /// The only public method for registering global handlers.
-    /// Clean API that fundamentally changes how handlers are registered.
-    /// </summary>
-    /// <typeparam name="TEvent">The event type to register handlers for.</typeparam>
-    /// <param name="configurePhaseHandler">Action to configure the event registration.</param>
-    /// <returns>True if the handler was successfully registered.</returns>
-    public bool ForEvent<TEvent>(LSAction<PhaseHandlerRegister<TEvent>> configurePhaseHandler) where TEvent : ILSEvent {
+    public System.Guid[] ForEvent<TEvent>(Func<EventSystemRegister<TEvent>, System.Guid[]> configureRegister) where TEvent : ILSEvent {
         try {
-            var register = new PhaseHandlerRegister<TEvent>(this);
-            configurePhaseHandler(register);
-            return true;
+            var register = new EventSystemRegister<TEvent>(this);
+            return configureRegister(register);
         } catch {
-            return false;
+            return Array.Empty<System.Guid>();
         }
     }
-    public bool ForEvent<TEvent>(LSAction<StateHandlerRegister<TEvent>> configureStateHandler) where TEvent : ILSEvent {
+    // used to register phase handlers
+    public System.Guid ForEventPhase<TEvent, TPhase>(Func<PhaseHandlerRegister<TPhase>, PhaseHandlerEntry> configurePhaseHandler) where TEvent : ILSEvent where TPhase : BusinessState.PhaseState {
         try {
-            var register = new StateHandlerRegister<TEvent>(this);
-            configureStateHandler(register);
-            return true;
+            var register = PhaseHandlerRegister<TPhase>.Create(this);
+            var entry = configurePhaseHandler(register);
+            if (entry == null) throw new LSArgumentNullException(nameof(entry));
+            return registerHandler(typeof(TEvent), entry);
         } catch {
-            return false;
+            return System.Guid.Empty;
+        }
+    }
+    // used to register state handlers
+    public System.Guid ForEventState<TEvent, TState>(Func<StateHandlerRegister<TState>, StateHandlerEntry> configureStateHandler) where TEvent : ILSEvent where TState : IEventSystemState {
+        try {
+            var register = new StateHandlerRegister<TState>(this);
+            var entry = configureStateHandler(register);
+            if (entry == null) throw new LSArgumentNullException(nameof(entry));
+            return registerHandler(typeof(TEvent), entry);
+        } catch {
+            return System.Guid.Empty;
         }
     }
     /// <summary>
@@ -51,41 +49,12 @@ public class LSESDispatcher {
         _handlers[eventType].Add(entry);
         return entry.ID;
     }
-
     /// <summary>
-    /// Internal method to get handlers for a specific phase.
-    /// Used by state implementations for phase processing.
+    /// Internal method to get handlers for a specific event type.
+    /// Can only be called by the event itself.
     /// </summary>
-    // internal List<PhaseHandlerEntry> getHandlersForPhase(Type eventType, EventSystemPhases phase) {
-    //     if (!_handlers.TryGetValue(eventType, out var handlers)) {
-    //         return new List<PhaseHandlerEntry>();
-    //     }
-
-    //     return handlers
-    //         .OfType<PhaseHandlerEntry>()
-    //         .Where(h => h.Phase == phase)
-    //         .ToList();
-    // }
-    // internal List<StateHandlerEntry> getHandlersForState(Type eventType, Type stateType) {
-    //     if (!_handlers.TryGetValue(eventType, out var handlers)) {
-    //         return new List<StateHandlerEntry>();
-    //     }
-
-    //     return handlers
-    //         .OfType<StateHandlerEntry>()
-    //         .Where(h => h.StateType == stateType)
-    //         .ToList();
-    // }
     internal List<IHandlerEntry> getHandlers(Type eventType) {
         return _handlers.TryGetValue(eventType, out var handlers) ? handlers : new List<IHandlerEntry>();
     }
 
-    /// <summary>
-    /// Internal method to process an event through the state machine.
-    /// Creates and manages the state context for the event.
-    /// </summary>
-    internal StateProcessResult processEvent(ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
-        var context = new EventSystemContext(this, @event, handlers);
-        return context.processEvent();
-    }
 }

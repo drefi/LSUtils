@@ -9,6 +9,8 @@ namespace LSUtils.EventSystem;
 public interface IEventSystemState {
 
     StateProcessResult StateResult { get; }
+    bool HasFailures { get; }
+    bool HasCancelled { get; }
     IEventSystemState? Process();
     /// <summary>
     /// Processes the event in this state or resumes processing from a waiting state.

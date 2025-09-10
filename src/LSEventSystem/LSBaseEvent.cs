@@ -82,6 +82,8 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// </summary>
     public IReadOnlyDictionary<string, object> Data => _data;
 
+    public bool InDispatch => throw new NotImplementedException();
+
     /// <summary>
     /// Initializes a new event instance.
     /// </summary>
@@ -284,5 +286,9 @@ public abstract class LSBaseEvent : ILSMutableEvent {
     /// <exception cref="LSException">Thrown if the event has already been built or dispatched.</exception>
     public bool Dispatch() {
         return Dispatch(LSDispatcher.Singleton);
+    }
+
+    EventProcessResult ILSEvent.Dispatch() {
+        throw new NotImplementedException();
     }
 }

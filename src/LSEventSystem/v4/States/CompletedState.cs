@@ -2,14 +2,12 @@ using System.Collections.Generic;
 
 namespace LSUtils.EventSystem;
 
-/// <summary>
-/// Completed state implementation for v4.
-/// Final state - no further processing possible.
-/// </summary>
 public class CompletedState : IEventSystemState {
     protected readonly EventSystemContext _context;
     protected Stack<StateHandlerEntry> _handlers = new();
     public StateProcessResult StateResult { get; protected set; } = StateProcessResult.UNKNOWN;
+    public bool HasFailures => false;
+    public bool HasCancelled => false;
 
     public CompletedState(EventSystemContext context) {
         _context = context;
@@ -22,6 +20,7 @@ public class CompletedState : IEventSystemState {
             handlerEntry.Handler(_context.Event);
         }
 
+        StateResult = StateProcessResult.SUCCESS;
         return null;
     }
 
