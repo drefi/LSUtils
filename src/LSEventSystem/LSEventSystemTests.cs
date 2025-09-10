@@ -11,7 +11,7 @@ namespace LSUtils.EventSystem.Tests;
 /// Tests the simplified state machine, priority-based execution, and clean API.
 /// </summary>
 [TestFixture]
-public class LSEventSystem_v4_Test {
+public class LSEventSystemTests {
 
     #region Test Events
 
