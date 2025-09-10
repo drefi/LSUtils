@@ -6,8 +6,8 @@ namespace LSUtils.EventSystem;
 /// Internal handler entry for event-scoped handlers in v3.
 /// </summary>
 internal class LSEventScopedHandler_v3 {
-    public required LSEventPhase Phase { get; set; }
-    public required LSESPriority Priority { get; set; }
+    public required LSLegacyEventPhase Phase { get; set; }
+    public required LSPriority Priority { get; set; }
     public required LSHandlerExecutionMode_v3 ExecutionMode { get; set; }
     public required Func<ILSEvent, LSHandlerResult> Handler { get; set; }
     public Func<ILSEvent, bool>? Condition { get; set; }

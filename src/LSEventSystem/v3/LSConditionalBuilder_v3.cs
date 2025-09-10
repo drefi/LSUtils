@@ -7,11 +7,11 @@ namespace LSUtils.EventSystem;
 /// </summary>
 public class LSConditionalBuilder_v3<TEvent> where TEvent : ILSEvent {
     private readonly LSDispatcher_v3 _dispatcher;
-    private readonly LSEventPhase _phase;
+    private readonly LSLegacyEventPhase _phase;
     private readonly Func<TEvent, bool> _condition;
     private readonly bool _invert;
 
-    internal LSConditionalBuilder_v3(LSDispatcher_v3 dispatcher, LSEventPhase phase, Func<TEvent, bool> condition, bool invert) {
+    internal LSConditionalBuilder_v3(LSDispatcher_v3 dispatcher, LSLegacyEventPhase phase, Func<TEvent, bool> condition, bool invert) {
         _dispatcher = dispatcher;
         _phase = phase;
         _condition = condition;
@@ -21,7 +21,7 @@ public class LSConditionalBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Adds a sequential handler to the conditional block.
     /// </summary>
-    public LSConditionalBuilder_v3<TEvent> Sequential(Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSConditionalBuilder_v3<TEvent> Sequential(Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         registerHandler(handler, LSHandlerExecutionMode_v3.Sequential, priority);
         return this;
     }
@@ -29,7 +29,7 @@ public class LSConditionalBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Adds a parallel handler to the conditional block.
     /// </summary>
-    public LSConditionalBuilder_v3<TEvent> Parallel(Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSConditionalBuilder_v3<TEvent> Parallel(Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         registerHandler(handler, LSHandlerExecutionMode_v3.Parallel, priority);
         return this;
     }
@@ -88,7 +88,7 @@ public class LSConditionalBuilder_v3<TEvent> where TEvent : ILSEvent {
         return this;
     }
 
-    private void registerHandler(Func<TEvent, LSHandlerResult> handler, LSHandlerExecutionMode_v3 mode, LSESPriority priority) {
+    private void registerHandler(Func<TEvent, LSHandlerResult> handler, LSHandlerExecutionMode_v3 mode, LSPriority priority) {
         var entry = new LSHandlerEntry_v3 {
             Phase = _phase,
             Priority = priority,
@@ -113,7 +113,7 @@ public class LSConditionalBuilder_v3<TEvent> where TEvent : ILSEvent {
 internal class ConditionalSequentialGroupBuilder<TEvent> : LSSequentialGroupBuilder<TEvent> where TEvent : ILSEvent {
     private readonly Func<TEvent, bool> _condition;
 
-    internal ConditionalSequentialGroupBuilder(LSDispatcher_v3 dispatcher, LSEventPhase phase, Func<TEvent, bool> condition) 
+    internal ConditionalSequentialGroupBuilder(LSDispatcher_v3 dispatcher, LSLegacyEventPhase phase, Func<TEvent, bool> condition) 
         : base(dispatcher, phase) {
         _condition = condition;
     }
@@ -128,7 +128,7 @@ internal class ConditionalSequentialGroupBuilder<TEvent> : LSSequentialGroupBuil
 internal class ConditionalParallelGroupBuilder<TEvent> : LSParallelGroupBuilder<TEvent> where TEvent : ILSEvent {
     private readonly Func<TEvent, bool> _condition;
 
-    internal ConditionalParallelGroupBuilder(LSDispatcher_v3 dispatcher, LSEventPhase phase, Func<TEvent, bool> condition) 
+    internal ConditionalParallelGroupBuilder(LSDispatcher_v3 dispatcher, LSLegacyEventPhase phase, Func<TEvent, bool> condition) 
         : base(dispatcher, phase) {
         _condition = condition;
     }

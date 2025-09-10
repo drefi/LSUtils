@@ -64,7 +64,7 @@ public class LSDispatcher_v3 {
     /// </summary>
     internal bool processEventWithHandlers(ILSEvent @event, List<LSHandlerEntry_v3> handlers) {
         // Process core phases: VALIDATE → PREPARE → EXECUTE
-        var corePhases = new[] { LSEventPhase.VALIDATE, LSEventPhase.PREPARE, LSEventPhase.EXECUTE };
+        var corePhases = new[] { LSLegacyEventPhase.VALIDATE, LSLegacyEventPhase.PREPARE, LSLegacyEventPhase.EXECUTE };
 
         foreach (var phase in corePhases) {
             // If the event is our base event type, we can set the properties
@@ -84,8 +84,8 @@ public class LSDispatcher_v3 {
             // Check for cancellation after each core phase
             if (@event.IsCancelled) {
                 // Process cancellation flow: CANCEL → COMPLETE
-                processPhaseAndMarkCompleted(@event, LSEventPhase.CANCEL, handlers);
-                processPhaseAndMarkCompleted(@event, LSEventPhase.COMPLETE, handlers);
+                processPhaseAndMarkCompleted(@event, LSLegacyEventPhase.CANCEL, handlers);
+                processPhaseAndMarkCompleted(@event, LSLegacyEventPhase.COMPLETE, handlers);
                 return false; // Cancelled events are not successful
             }
         }
@@ -93,14 +93,14 @@ public class LSDispatcher_v3 {
         // Determine next phase based on event state
         if (@event is LSBaseEvent_v3 baseEvent3 && baseEvent3.HasFailures) {
             // Failure flow: FAILURE → COMPLETE
-            processPhaseAndMarkCompleted(@event, LSEventPhase.FAILURE, handlers);
+            processPhaseAndMarkCompleted(@event, LSLegacyEventPhase.FAILURE, handlers);
         } else {
             // Success flow: SUCCESS → COMPLETE
-            processPhaseAndMarkCompleted(@event, LSEventPhase.SUCCESS, handlers);
+            processPhaseAndMarkCompleted(@event, LSLegacyEventPhase.SUCCESS, handlers);
         }
 
         // Always process COMPLETE phase
-        processPhaseAndMarkCompleted(@event, LSEventPhase.COMPLETE, handlers);
+        processPhaseAndMarkCompleted(@event, LSLegacyEventPhase.COMPLETE, handlers);
 
         // If the event is our base event type, we can set the properties
         if (@event is LSBaseEvent_v3 finalBaseEvent) {
@@ -109,7 +109,7 @@ public class LSDispatcher_v3 {
         return true;
     }
 
-    private void processPhaseAndMarkCompleted(ILSEvent @event, LSEventPhase phase, List<LSHandlerEntry_v3> handlers) {
+    private void processPhaseAndMarkCompleted(ILSEvent @event, LSLegacyEventPhase phase, List<LSHandlerEntry_v3> handlers) {
         if (@event is LSBaseEvent_v3 baseEvent) {
             baseEvent.CurrentPhase = phase;
         }
@@ -121,7 +121,7 @@ public class LSDispatcher_v3 {
         }
     }
 
-    private bool processPhase(ILSEvent @event, LSEventPhase phase, List<LSHandlerEntry_v3> handlers) {
+    private bool processPhase(ILSEvent @event, LSLegacyEventPhase phase, List<LSHandlerEntry_v3> handlers) {
         // Get handlers for this phase, ordered by priority FIRST, then by registration order
         // This preserves the intended execution flow: handlerA -> handlerB & handlerC -> handlerD
         var phaseHandlers = handlers

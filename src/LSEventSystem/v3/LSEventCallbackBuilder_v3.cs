@@ -43,7 +43,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Registers handlers for the VALIDATE phase with nested callback support.
     /// </summary>
     public LSEventCallbackBuilder_v3<TEvent> OnValidate(Action<LSEventPhaseBuilder_v3<TEvent>> configurePhase) {
-        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSEventPhase.VALIDATE);
+        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSLegacyEventPhase.VALIDATE);
         configurePhase(phaseBuilder);
         return this;
     }
@@ -52,7 +52,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Registers handlers for the PREPARE phase with nested callback support.
     /// </summary>
     public LSEventCallbackBuilder_v3<TEvent> OnPrepare(Action<LSEventPhaseBuilder_v3<TEvent>> configurePhase) {
-        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSEventPhase.PREPARE);
+        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSLegacyEventPhase.PREPARE);
         configurePhase(phaseBuilder);
         return this;
     }
@@ -61,7 +61,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Registers handlers for the EXECUTE phase with nested callback support.
     /// </summary>
     public LSEventCallbackBuilder_v3<TEvent> OnExecute(Action<LSEventPhaseBuilder_v3<TEvent>> configurePhase) {
-        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSEventPhase.EXECUTE);
+        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSLegacyEventPhase.EXECUTE);
         configurePhase(phaseBuilder);
         return this;
     }
@@ -70,7 +70,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Registers handlers for the SUCCESS phase with nested callback support.
     /// </summary>
     public LSEventCallbackBuilder_v3<TEvent> OnSuccess(Action<LSEventPhaseBuilder_v3<TEvent>> configurePhase) {
-        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSEventPhase.SUCCESS);
+        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSLegacyEventPhase.SUCCESS);
         configurePhase(phaseBuilder);
         return this;
     }
@@ -79,7 +79,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Registers handlers for the FAILURE phase with nested callback support.
     /// </summary>
     public LSEventCallbackBuilder_v3<TEvent> OnFailure(Action<LSEventPhaseBuilder_v3<TEvent>> configurePhase) {
-        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSEventPhase.FAILURE);
+        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSLegacyEventPhase.FAILURE);
         configurePhase(phaseBuilder);
         return this;
     }
@@ -88,7 +88,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Registers handlers for the CANCEL phase with nested callback support.
     /// </summary>
     public LSEventCallbackBuilder_v3<TEvent> OnCancel(Action<LSEventPhaseBuilder_v3<TEvent>> configurePhase) {
-        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSEventPhase.CANCEL);
+        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSLegacyEventPhase.CANCEL);
         configurePhase(phaseBuilder);
         return this;
     }
@@ -97,7 +97,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Registers handlers for the COMPLETE phase with nested callback support.
     /// </summary>
     public LSEventCallbackBuilder_v3<TEvent> OnComplete(Action<LSEventPhaseBuilder_v3<TEvent>> configurePhase) {
-        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSEventPhase.COMPLETE);
+        var phaseBuilder = new LSEventPhaseBuilder_v3<TEvent>(this, LSLegacyEventPhase.COMPLETE);
         configurePhase(phaseBuilder);
         return this;
     }
@@ -109,7 +109,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Registers a sequential handler for a specific phase.
     /// </summary>
-    public LSEventCallbackBuilder_v3<TEvent> OnSequential(LSEventPhase phase, Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSEventCallbackBuilder_v3<TEvent> OnSequential(LSLegacyEventPhase phase, Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         RegisterEventScopedHandler(phase, handler, LSHandlerExecutionMode_v3.Sequential, priority);
         return this;
     }
@@ -117,7 +117,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Registers a parallel handler for a specific phase.
     /// </summary>
-    public LSEventCallbackBuilder_v3<TEvent> OnParallel(LSEventPhase phase, Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSEventCallbackBuilder_v3<TEvent> OnParallel(LSLegacyEventPhase phase, Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         RegisterEventScopedHandler(phase, handler, LSHandlerExecutionMode_v3.Parallel, priority);
         return this;
     }
@@ -232,7 +232,7 @@ public class LSEventCallbackBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Registers an event-scoped handler that will be combined with global handlers during dispatch.
     /// </summary>
-    internal void RegisterEventScopedHandler(LSEventPhase phase, Func<TEvent, LSHandlerResult> handler, LSHandlerExecutionMode_v3 mode, LSESPriority priority, Func<TEvent, bool>? condition = null) {
+    internal void RegisterEventScopedHandler(LSLegacyEventPhase phase, Func<TEvent, LSHandlerResult> handler, LSHandlerExecutionMode_v3 mode, LSPriority priority, Func<TEvent, bool>? condition = null) {
         if (_isFinalized) {
             throw new InvalidOperationException("Cannot add handlers to a finalized builder");
         }

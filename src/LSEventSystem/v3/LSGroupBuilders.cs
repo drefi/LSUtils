@@ -7,9 +7,9 @@ namespace LSUtils.EventSystem;
 /// </summary>
 public class LSSequentialGroupBuilder<TEvent> where TEvent : ILSEvent {
     private readonly LSDispatcher_v3 _dispatcher;
-    private readonly LSEventPhase _phase;
+    private readonly LSLegacyEventPhase _phase;
 
-    internal LSSequentialGroupBuilder(LSDispatcher_v3 dispatcher, LSEventPhase phase) {
+    internal LSSequentialGroupBuilder(LSDispatcher_v3 dispatcher, LSLegacyEventPhase phase) {
         _dispatcher = dispatcher;
         _phase = phase;
     }
@@ -17,7 +17,7 @@ public class LSSequentialGroupBuilder<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Adds a handler to the sequential group.
     /// </summary>
-    public LSSequentialGroupBuilder<TEvent> Handler(Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSSequentialGroupBuilder<TEvent> Handler(Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         registerHandler(handler, priority);
         return this;
     }
@@ -35,7 +35,7 @@ public class LSSequentialGroupBuilder<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Adds a conditional handler to the group.
     /// </summary>
-    public LSSequentialGroupBuilder<TEvent> When(Func<TEvent, bool> condition, Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSSequentialGroupBuilder<TEvent> When(Func<TEvent, bool> condition, Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         var entry = new LSHandlerEntry_v3 {
             Phase = _phase,
             Priority = priority,
@@ -57,7 +57,7 @@ public class LSSequentialGroupBuilder<TEvent> where TEvent : ILSEvent {
         return this;
     }
 
-    private void registerHandler(Func<TEvent, LSHandlerResult> handler, LSESPriority priority) {
+    private void registerHandler(Func<TEvent, LSHandlerResult> handler, LSPriority priority) {
         var entry = new LSHandlerEntry_v3 {
             Phase = _phase,
             Priority = priority,
@@ -74,9 +74,9 @@ public class LSSequentialGroupBuilder<TEvent> where TEvent : ILSEvent {
 /// </summary>
 public class LSParallelGroupBuilder<TEvent> where TEvent : ILSEvent {
     private readonly LSDispatcher_v3 _dispatcher;
-    private readonly LSEventPhase _phase;
+    private readonly LSLegacyEventPhase _phase;
 
-    internal LSParallelGroupBuilder(LSDispatcher_v3 dispatcher, LSEventPhase phase) {
+    internal LSParallelGroupBuilder(LSDispatcher_v3 dispatcher, LSLegacyEventPhase phase) {
         _dispatcher = dispatcher;
         _phase = phase;
     }
@@ -84,7 +84,7 @@ public class LSParallelGroupBuilder<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Adds a handler to the parallel group.
     /// </summary>
-    public LSParallelGroupBuilder<TEvent> Handler(Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSParallelGroupBuilder<TEvent> Handler(Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         registerHandler(handler, priority);
         return this;
     }
@@ -102,7 +102,7 @@ public class LSParallelGroupBuilder<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Adds a conditional handler to the group.
     /// </summary>
-    public LSParallelGroupBuilder<TEvent> When(Func<TEvent, bool> condition, Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSParallelGroupBuilder<TEvent> When(Func<TEvent, bool> condition, Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         var entry = new LSHandlerEntry_v3 {
             Phase = _phase,
             Priority = priority,
@@ -115,7 +115,7 @@ public class LSParallelGroupBuilder<TEvent> where TEvent : ILSEvent {
         return this;
     }
 
-    private void registerHandler(Func<TEvent, LSHandlerResult> handler, LSESPriority priority) {
+    private void registerHandler(Func<TEvent, LSHandlerResult> handler, LSPriority priority) {
         var entry = new LSHandlerEntry_v3 {
             Phase = _phase,
             Priority = priority,
@@ -132,10 +132,10 @@ public class LSParallelGroupBuilder<TEvent> where TEvent : ILSEvent {
 /// </summary>
 public class LSPriorityGroupBuilder<TEvent> where TEvent : ILSEvent {
     private readonly LSDispatcher_v3 _dispatcher;
-    private readonly LSEventPhase _phase;
-    private readonly LSESPriority _priority;
+    private readonly LSLegacyEventPhase _phase;
+    private readonly LSPriority _priority;
 
-    internal LSPriorityGroupBuilder(LSDispatcher_v3 dispatcher, LSEventPhase phase, LSESPriority priority) {
+    internal LSPriorityGroupBuilder(LSDispatcher_v3 dispatcher, LSLegacyEventPhase phase, LSPriority priority) {
         _dispatcher = dispatcher;
         _phase = phase;
         _priority = priority;

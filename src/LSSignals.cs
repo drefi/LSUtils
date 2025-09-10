@@ -16,7 +16,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for print messages.
     /// </summary>
-    public class OnPrintEvent : LSEvent<string> {
+    public class OnPrintEvent : LSLegacyEvent<string> {
         /// <summary>
         /// The print message.
         /// </summary>
@@ -32,7 +32,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for error messages.
     /// </summary>
-    public class OnErrorEvent : LSEvent<string> {
+    public class OnErrorEvent : LSLegacyEvent<string> {
         /// <summary>
         /// The error message.
         /// </summary>
@@ -48,7 +48,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for warning messages.
     /// </summary>
-    public class OnWarningEvent : LSEvent<string> {
+    public class OnWarningEvent : LSLegacyEvent<string> {
         /// <summary>
         /// The warning message.
         /// </summary>
@@ -105,7 +105,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for confirmation messages.
     /// </summary>
-    public class OnConfirmationEvent : LSEvent<ConfirmationSignal> {
+    public class OnConfirmationEvent : LSLegacyEvent<ConfirmationSignal> {
         public ConfirmationSignal ConfirmationSignal => Instance;
         /// <summary>
         /// Initializes a new instance of the <see cref="OnConfirmationEvent"/> class with confirm and cancel buttons.
@@ -142,7 +142,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for general notifications.
     /// </summary>
-    public class OnNotifyEvent : LSEvent<NotificationSignal> {
+    public class OnNotifyEvent : LSLegacyEvent<NotificationSignal> {
 
         /// <summary>
         /// The notification message.
@@ -175,47 +175,47 @@ public static class LSSignals {
 
     #region Static Methods
 
-    public static bool Error(string message, LSDispatcher? dispatcher) {
-        dispatcher ??= LSDispatcher.Singleton;
+    public static bool Error(string message, LSLegacyDispatcher? dispatcher) {
+        dispatcher ??= LSLegacyDispatcher.Singleton;
         var @event = new OnErrorEvent(message);
         return dispatcher.processEvent(@event);
     }
 
-    public static bool Warning(string message, LSDispatcher? dispatcher) {
-        dispatcher ??= LSDispatcher.Singleton;
+    public static bool Warning(string message, LSLegacyDispatcher? dispatcher) {
+        dispatcher ??= LSLegacyDispatcher.Singleton;
         var @event = new OnWarningEvent(message);
         return dispatcher.processEvent(@event);
     }
 
-    public static bool Print(string message, LSDispatcher? dispatcher) {
-        dispatcher ??= LSDispatcher.Singleton;
+    public static bool Print(string message, LSLegacyDispatcher? dispatcher) {
+        dispatcher ??= LSLegacyDispatcher.Singleton;
         var @event = new OnPrintEvent(message);
         return dispatcher.processEvent(@event);
     }
 
-    public static bool Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSDispatcher? dispatcher = null) {
-        dispatcher ??= LSDispatcher.Singleton;
+    public static bool Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSLegacyDispatcher? dispatcher = null) {
+        dispatcher ??= LSLegacyDispatcher.Singleton;
         var @event = new OnNotifyEvent(new NotificationSignal(message, description, allowDismiss, timeout));
         return dispatcher.processEvent(@event);
     }
-    public static bool Notify(NotificationSignal notificationSignal, LSDispatcher? dispatcher = null) {
-        dispatcher ??= LSDispatcher.Singleton;
+    public static bool Notify(NotificationSignal notificationSignal, LSLegacyDispatcher? dispatcher = null) {
+        dispatcher ??= LSLegacyDispatcher.Singleton;
         var @event = new OnNotifyEvent(notificationSignal);
         return dispatcher.processEvent(@event);
     }
 
-    public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSDispatcher? dispatcher = null) {
-        dispatcher ??= LSDispatcher.Singleton;
+    public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSLegacyDispatcher? dispatcher = null) {
+        dispatcher ??= LSLegacyDispatcher.Singleton;
         var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
         return dispatcher.processEvent(@event);
     }
-    public static bool Confirmation(ConfirmationSignal confirmationSignal, LSDispatcher? dispatcher = null) {
-        dispatcher ??= LSDispatcher.Singleton;
+    public static bool Confirmation(ConfirmationSignal confirmationSignal, LSLegacyDispatcher? dispatcher = null) {
+        dispatcher ??= LSLegacyDispatcher.Singleton;
         var @event = new OnConfirmationEvent(confirmationSignal);
         return dispatcher.processEvent(@event);
     }
-    public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSDispatcher? dispatcher = null) {
-        dispatcher ??= LSDispatcher.Singleton;
+    public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSLegacyDispatcher? dispatcher = null) {
+        dispatcher ??= LSLegacyDispatcher.Singleton;
         var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
         return dispatcher.processEvent(@event);
     }

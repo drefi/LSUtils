@@ -47,12 +47,12 @@ public abstract class LSBaseEvent_v3 : ILSEvent {
     /// <summary>
     /// The current phase being executed.
     /// </summary>
-    public LSEventPhase CurrentPhase { get; set; } = LSEventPhase.VALIDATE;
+    public LSLegacyEventPhase CurrentPhase { get; set; } = LSLegacyEventPhase.VALIDATE;
 
     /// <summary>
     /// Flags indicating which phases have been completed.
     /// </summary>
-    public LSEventPhase CompletedPhases { get; set; }
+    public LSLegacyEventPhase CompletedPhases { get; set; }
 
     /// <summary>
     /// Indicates whether this event has been built with a callback builder.

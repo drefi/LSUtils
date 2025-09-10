@@ -8,9 +8,9 @@ namespace LSUtils.EventSystem;
 /// </summary>
 public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
     private readonly LSDispatcher_v3 _dispatcher;
-    private readonly LSEventPhase _phase;
+    private readonly LSLegacyEventPhase _phase;
 
-    internal LSPhaseBuilder_v3(LSDispatcher_v3 dispatcher, LSEventPhase phase) {
+    internal LSPhaseBuilder_v3(LSDispatcher_v3 dispatcher, LSLegacyEventPhase phase) {
         _dispatcher = dispatcher;
         _phase = phase;
     }
@@ -20,7 +20,7 @@ public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Registers a sequential handler.
     /// </summary>
-    public LSPhaseBuilder_v3<TEvent> Sequential(Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSPhaseBuilder_v3<TEvent> Sequential(Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         registerHandler(handler, LSHandlerExecutionMode_v3.Sequential, priority);
         return this;
     }
@@ -28,7 +28,7 @@ public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Registers a parallel handler.
     /// </summary>
-    public LSPhaseBuilder_v3<TEvent> Parallel(Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSPhaseBuilder_v3<TEvent> Parallel(Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         registerHandler(handler, LSHandlerExecutionMode_v3.Parallel, priority);
         return this;
     }
@@ -36,7 +36,7 @@ public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Registers a handler (alias for sequential).
     /// </summary>
-    public LSPhaseBuilder_v3<TEvent> Handler(Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSPhaseBuilder_v3<TEvent> Handler(Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         return Sequential(handler, priority);
     }
 
@@ -78,7 +78,7 @@ public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Creates a high priority group builder.
     /// </summary>
     public LSPhaseBuilder_v3<TEvent> HighPriority(Action<LSPriorityGroupBuilder<TEvent>> configureGroup) {
-        var groupBuilder = new LSPriorityGroupBuilder<TEvent>(_dispatcher, _phase, LSESPriority.HIGH);
+        var groupBuilder = new LSPriorityGroupBuilder<TEvent>(_dispatcher, _phase, LSPriority.HIGH);
         configureGroup(groupBuilder);
         return this;
     }
@@ -87,7 +87,7 @@ public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Creates a normal priority group builder.
     /// </summary>
     public LSPhaseBuilder_v3<TEvent> NormalPriority(Action<LSPriorityGroupBuilder<TEvent>> configureGroup) {
-        var groupBuilder = new LSPriorityGroupBuilder<TEvent>(_dispatcher, _phase, LSESPriority.NORMAL);
+        var groupBuilder = new LSPriorityGroupBuilder<TEvent>(_dispatcher, _phase, LSPriority.NORMAL);
         configureGroup(groupBuilder);
         return this;
     }
@@ -96,7 +96,7 @@ public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// Creates a low priority group builder.
     /// </summary>
     public LSPhaseBuilder_v3<TEvent> LowPriority(Action<LSPriorityGroupBuilder<TEvent>> configureGroup) {
-        var groupBuilder = new LSPriorityGroupBuilder<TEvent>(_dispatcher, _phase, LSESPriority.LOW);
+        var groupBuilder = new LSPriorityGroupBuilder<TEvent>(_dispatcher, _phase, LSPriority.LOW);
         configureGroup(groupBuilder);
         return this;
     }
@@ -126,7 +126,7 @@ public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
     /// <summary>
     /// Registers a conditional handler directly.
     /// </summary>
-    public LSPhaseBuilder_v3<TEvent> When(Func<TEvent, bool> condition, Func<TEvent, LSHandlerResult> handler, LSESPriority priority = LSESPriority.NORMAL) {
+    public LSPhaseBuilder_v3<TEvent> When(Func<TEvent, bool> condition, Func<TEvent, LSHandlerResult> handler, LSPriority priority = LSPriority.NORMAL) {
         registerConditionalHandler(handler, LSHandlerExecutionMode_v3.Sequential, priority, condition);
         return this;
     }
@@ -157,7 +157,7 @@ public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
 
     #endregion
 
-    private void registerHandler(Func<TEvent, LSHandlerResult> handler, LSHandlerExecutionMode_v3 mode, LSESPriority priority) {
+    private void registerHandler(Func<TEvent, LSHandlerResult> handler, LSHandlerExecutionMode_v3 mode, LSPriority priority) {
         var entry = new LSHandlerEntry_v3 {
             Phase = _phase,
             Priority = priority,
@@ -168,7 +168,7 @@ public class LSPhaseBuilder_v3<TEvent> where TEvent : ILSEvent {
         _dispatcher.registerHandler<TEvent>(entry);
     }
 
-    private void registerConditionalHandler(Func<TEvent, LSHandlerResult> handler, LSHandlerExecutionMode_v3 mode, LSESPriority priority, Func<TEvent, bool> condition) {
+    private void registerConditionalHandler(Func<TEvent, LSHandlerResult> handler, LSHandlerExecutionMode_v3 mode, LSPriority priority, Func<TEvent, bool> condition) {
         var entry = new LSHandlerEntry_v3 {
             Phase = _phase,
             Priority = priority,

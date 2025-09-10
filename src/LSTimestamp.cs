@@ -3,27 +3,27 @@ namespace LSUtils;
 using LSUtils.EventSystem;
 
 public class LSTimestamp {
-    public class OnUpdateEvent : LSEvent<LSTimestamp> {
+    public class OnUpdateEvent : LSLegacyEvent<LSTimestamp> {
         public LSTimestamp Timestamp => Instance;
         public OnUpdateEvent(LSTimestamp timestamp) : base(timestamp) { }
     }
-    protected LSDispatcher _dispatcher;
+    protected LSLegacyDispatcher _dispatcher;
     public int TotalMinutes;
     public int Minute { get { return TotalMinutes % 60; } }
     public int Hour { get { return (TotalMinutes / 60) % 24; } }
     public int Day { get { return TotalMinutes / 60 / 24; } }
 
-    public LSTimestamp(LSDispatcher? dispatcher = null) {
+    public LSTimestamp(LSLegacyDispatcher? dispatcher = null) {
         TotalMinutes = 0;
-        _dispatcher = dispatcher == null ? LSDispatcher.Singleton : dispatcher;
+        _dispatcher = dispatcher == null ? LSLegacyDispatcher.Singleton : dispatcher;
     }
-    public LSTimestamp(int day, int hour, int minute, LSDispatcher? dispatcher = null) : this(dispatcher) {
+    public LSTimestamp(int day, int hour, int minute, LSLegacyDispatcher? dispatcher = null) : this(dispatcher) {
         SetTimestamp(day, hour, minute, true);
     }
-    public LSTimestamp(LSTimestamp copy, LSDispatcher? dispatcher = null) : this(dispatcher) {
+    public LSTimestamp(LSTimestamp copy, LSLegacyDispatcher? dispatcher = null) : this(dispatcher) {
         TotalMinutes = copy.TotalMinutes;
     }
-    public LSTimestamp(int totalMinutes, LSDispatcher? dispatcher = null) : this(dispatcher) {
+    public LSTimestamp(int totalMinutes, LSLegacyDispatcher? dispatcher = null) : this(dispatcher) {
         TotalMinutes = totalMinutes;
     }
     public void SetTimestamp(int day, int hour, int minute, bool dontUpdate = false) {

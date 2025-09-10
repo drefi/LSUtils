@@ -41,17 +41,17 @@ public static class LSEventSystem_v3_Examples {
                 .Sequential(evt => {
                     Console.WriteLine($"[GLOBAL-1] Validating level up for {evt.PlayerName}: {evt.OldLevel} → {evt.NewLevel}");
                     return evt.NewLevel > evt.OldLevel ? LSHandlerResult.CONTINUE : LSHandlerResult.FAILURE;
-                }, LSESPriority.HIGH)
+                }, LSPriority.HIGH)
                 
                 .Parallel(evt => {
                     Console.WriteLine($"[GLOBAL-2] Parallel validation check for {evt.PlayerName}");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.HIGH)
+                }, LSPriority.HIGH)
                 
                 .Sequential(evt => {
                     Console.WriteLine($"[GLOBAL-3] Final validation step for {evt.PlayerName}");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.HIGH)
+                }, LSPriority.HIGH)
                 
                 .When(evt => evt.NewLevel > 50, evt => {
                     Console.WriteLine($"[GLOBAL] High level validation for {evt.PlayerName}");
@@ -101,7 +101,7 @@ public static class LSEventSystem_v3_Examples {
                     Console.WriteLine($"[GLOBAL] Applying level up: {evt.PlayerName} is now level {evt.NewLevel}!");
                     evt.SetData("levelApplied", true);
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.HIGH)
+                }, LSPriority.HIGH)
                 
                 .Unless(evt => evt.IsMaxLevel, unless => unless
                     .Sequential(evt => {
@@ -178,17 +178,17 @@ public static class LSEventSystem_v3_Examples {
                 .Sequential(evt => {
                     Console.WriteLine($"[EVENT-SCOPED-1] Special validation for {evt.PlayerName} reaching level 50");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.HIGH)
+                }, LSPriority.HIGH)
                 
                 .Parallel(evt => {
                     Console.WriteLine($"[EVENT-SCOPED-2] Event-specific parallel check");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.HIGH)
+                }, LSPriority.HIGH)
                 
                 .Sequential(evt => {
                     Console.WriteLine($"[EVENT-SCOPED-3] Final event-specific validation");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.HIGH)
+                }, LSPriority.HIGH)
                 
                 .When(evt => evt.PlayerName == "Alice", alice => alice
                     .Sequential(evt => {

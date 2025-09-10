@@ -75,8 +75,8 @@ public class LSEventSystem_v3_Test {
         Assert.That(startupEvent.CreatedAt, Is.GreaterThan(DateTime.MinValue));
         Assert.That(startupEvent.IsCancelled, Is.False);
         Assert.That(startupEvent.IsCompleted, Is.False);
-        Assert.That(startupEvent.CurrentPhase, Is.EqualTo(LSEventPhase.VALIDATE));
-        Assert.That(startupEvent.CompletedPhases, Is.EqualTo((LSEventPhase)0));
+        Assert.That(startupEvent.CurrentPhase, Is.EqualTo(LSLegacyEventPhase.VALIDATE));
+        Assert.That(startupEvent.CompletedPhases, Is.EqualTo((LSLegacyEventPhase)0));
         Assert.That(startupEvent.Version, Is.EqualTo("1.0.0"));
     }
 
@@ -414,23 +414,23 @@ public class LSEventSystem_v3_Test {
                 .Sequential(evt => {
                     executionOrder.Add("Normal-1");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.NORMAL)
+                }, LSPriority.NORMAL)
                 .Sequential(evt => {
                     executionOrder.Add("Critical-1");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.CRITICAL)
+                }, LSPriority.CRITICAL)
                 .Sequential(evt => {
                     executionOrder.Add("High-1");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.HIGH)
+                }, LSPriority.HIGH)
                 .Sequential(evt => {
                     executionOrder.Add("Normal-2");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.NORMAL)
+                }, LSPriority.NORMAL)
                 .Sequential(evt => {
                     executionOrder.Add("Critical-2");
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.CRITICAL)
+                }, LSPriority.CRITICAL)
             )
             .Dispatch();
 
@@ -670,12 +670,12 @@ public class LSEventSystem_v3_Test {
                         return LSHandlerResult.CANCEL;
                     }
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.HIGH)
+                }, LSPriority.HIGH)
                 .Sequential(evt => {
                     workflowSteps.Add("validation-detailed");
                     evt.SetData("validation.passed", true);
                     return LSHandlerResult.CONTINUE;
-                }, LSESPriority.NORMAL)
+                }, LSPriority.NORMAL)
             )
             .OnPrepare(prepare => prepare
                 .Sequential(evt => {

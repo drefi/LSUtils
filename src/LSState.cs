@@ -18,7 +18,7 @@ public abstract class LSState<TState, TContext> : ILSState
     where TContext : ILSContext {
 
     #region Public Properties
-    public LSDispatcher Dispatcher { get; }
+    public LSLegacyDispatcher Dispatcher { get; }
     public bool IsInitialized { get; protected set; }
     /// <summary>
     /// Gets the unique identifier for this state instance.
@@ -41,9 +41,9 @@ public abstract class LSState<TState, TContext> : ILSState
     /// Initializes a new instance of the state with the specified context.
     /// </summary>
     /// <param name="context">The context instance that provides shared data and services to this state.</param>
-    protected LSState(TContext context, LSDispatcher? dispatcher = null) {
+    protected LSState(TContext context, LSLegacyDispatcher? dispatcher = null) {
         Context = context ?? throw new System.ArgumentNullException(nameof(context));
-        Dispatcher = dispatcher ?? LSDispatcher.Singleton;
+        Dispatcher = dispatcher ?? LSLegacyDispatcher.Singleton;
         ID = System.Guid.NewGuid();
     }
     #endregion
@@ -96,7 +96,7 @@ public abstract class LSState<TState, TContext> : ILSState
     /// <summary>
     /// Event triggered when a state is being initialized.
     /// </summary>
-    public class OnInitializeEvent : LSEvent<TState> {
+    public class OnInitializeEvent : LSLegacyEvent<TState> {
         public TState State => Instance;
         public OnInitializeEvent(TState state) : base(state) { }
     }
@@ -104,7 +104,7 @@ public abstract class LSState<TState, TContext> : ILSState
     /// <summary>
     /// Event triggered when a state is being entered.
     /// </summary>
-    public class OnEnterEvent : LSEvent<TState> {
+    public class OnEnterEvent : LSLegacyEvent<TState> {
         public TState State => Instance;
         public OnEnterEvent(TState state) : base(state) { }
     }
@@ -112,7 +112,7 @@ public abstract class LSState<TState, TContext> : ILSState
     /// <summary>
     /// Event triggered when a state is being exited.
     /// </summary>
-    public class OnExitEvent : LSEvent<TState> {
+    public class OnExitEvent : LSLegacyEvent<TState> {
         public TState State => Instance;
         public OnExitEvent(TState state) : base(state) { }
     }
