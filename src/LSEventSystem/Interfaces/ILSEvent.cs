@@ -126,24 +126,8 @@ public interface ILSEvent {
     /// LSStateHandlerRegister and should return the configured register.
     /// </param>
     /// <returns>This event instance for method chaining</returns>
-    ILSEvent WithStateCallbacks<TState>(params System.Func<LSStateHandlerRegister<TState>, LSStateHandlerRegister<TState>>[] configure) where TState : IEventProcessState;
-    
-    /// <summary>
-    /// Adds event-scoped state handlers with strongly-typed event return for method chaining.
-    /// 
-    /// This is the generic version of WithStateCallbacks that returns the concrete event type
-    /// instead of ILSEvent, enabling continued method chaining with type-specific methods.
-    /// Functionally identical to the non-generic version.
-    /// </summary>
-    /// <typeparam name="TEvent">The concrete event type to return for chaining</typeparam>
-    /// <typeparam name="TState">The specific state type (SucceedState, CancelledState, CompletedState)</typeparam>
-    /// <param name="configure">
-    /// Configuration functions that set up state handlers. Each function receives a
-    /// LSStateHandlerRegister and should return the configured register.
-    /// </param>
-    /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    TEvent WithStateCallbacks<TEvent, TState>(params System.Func<LSStateHandlerRegister<TState>, LSStateHandlerRegister<TState>>[] configure) where TState : IEventProcessState;
-    
+    TEvent WithStateCallbacks<TEvent, TState>(params System.Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>>[] configure) where TState : IEventProcessState where TEvent : ILSEvent;
+
     /// <summary>
     /// Adds event-scoped phase handlers that execute during specific business processing phases.
     /// 
@@ -162,24 +146,8 @@ public interface ILSEvent {
     /// LSPhaseHandlerRegister and should return the configured register.
     /// </param>
     /// <returns>This event instance for method chaining</returns>
-    ILSEvent WithPhaseCallbacks<TPhase>(params System.Func<LSPhaseHandlerRegister<TPhase>, LSPhaseHandlerRegister<TPhase>>[] configure) where TPhase : LSEventBusinessState.PhaseState;
-    
-    /// <summary>
-    /// Adds event-scoped phase handlers with strongly-typed event return for method chaining.
-    /// 
-    /// This is the generic version of WithPhaseCallbacks that returns the concrete event type
-    /// instead of ILSEvent, enabling continued method chaining with type-specific methods.
-    /// Functionally identical to the non-generic version.
-    /// </summary>
-    /// <typeparam name="TEvent">The concrete event type to return for chaining</typeparam>
-    /// <typeparam name="TPhase">The specific phase type (ValidatePhaseState, ConfigurePhaseState, etc.)</typeparam>
-    /// <param name="configure">
-    /// Configuration functions that set up phase handlers. Each function receives a
-    /// LSPhaseHandlerRegister and should return the configured register.
-    /// </param>
-    /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    TEvent WithPhaseCallbacks<TEvent, TPhase>(params System.Func<LSPhaseHandlerRegister<TPhase>, LSPhaseHandlerRegister<TPhase>>[] configure) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState;
-    
+    TEvent WithPhaseCallbacks<TEvent, TPhase>(params System.Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>>[] configure) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState;
+
     /// <summary>
     /// Adds event-scoped handlers using the comprehensive event register configuration system.
     /// 

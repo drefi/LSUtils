@@ -273,16 +273,8 @@ public abstract class LSEvent : ILSEvent {
     /// var result = event.Dispatch();
     /// </code>
     /// </example>
-    public ILSEvent WithPhaseCallbacks<TPhase>(params System.Func<LSPhaseHandlerRegister<TPhase>, LSPhaseHandlerRegister<TPhase>>[] configure) where TPhase : LSEventBusinessState.PhaseState {
-        if (configure == null || configure.Length == 0) return this;
-        foreach (var config in configure) {
-            var register = config(new LSPhaseHandlerRegister<TPhase>());
-            if (register == null) throw new LSArgumentNullException(nameof(register));
-            var entry = register.Build();
-            if (entry == null) throw new LSArgumentNullException(nameof(entry));
-            _eventHandlers.Add(entry);
-        }
-        return this;
+    public ILSEvent WithPhaseCallbacks<TPhase>(params System.Func<LSPhaseHandlerRegister<ILSEvent, TPhase>, LSPhaseHandlerRegister<ILSEvent, TPhase>>[] configure) where TPhase : LSEventBusinessState.PhaseState {
+        return WithPhaseCallbacks<ILSEvent, TPhase>(configure);
     }
 
     /// <summary>
@@ -296,8 +288,16 @@ public abstract class LSEvent : ILSEvent {
     /// <typeparam name="TPhase">The specific phase state type (ValidatePhaseState, ConfigurePhaseState, etc.)</typeparam>
     /// <param name="configure">Array of configuration functions that create phase handler entries</param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    public TEvent WithPhaseCallbacks<TEvent, TPhase>(params System.Func<LSPhaseHandlerRegister<TPhase>, LSPhaseHandlerRegister<TPhase>>[] configure) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState {
-        return (TEvent)WithPhaseCallbacks<TPhase>(configure);
+    public TEvent WithPhaseCallbacks<TEvent, TPhase>(params System.Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>>[] configure) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState {
+        if (configure == null || configure.Length == 0) return (TEvent)(object)this;
+        foreach (var config in configure) {
+            var register = config(new LSPhaseHandlerRegister<TEvent, TPhase>());
+            if (register == null) throw new LSArgumentNullException(nameof(register));
+            var entry = register.Build();
+            if (entry == null) throw new LSArgumentNullException(nameof(entry));
+            _eventHandlers.Add(entry);
+        }
+        return (TEvent)(object)this;
     }
 
     /// <summary>
@@ -321,15 +321,8 @@ public abstract class LSEvent : ILSEvent {
     /// <param name="configure">Array of configuration functions that create state handler entries</param>
     /// <returns>This event instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when any configuration function or resulting entry is null</exception>
-    public ILSEvent WithStateCallbacks<TState>(params System.Func<LSStateHandlerRegister<TState>, LSStateHandlerRegister<TState>>[] configure) where TState : IEventProcessState {
-        if (configure == null || configure.Length == 0) return this;
-        foreach (var config in configure) {
-            var register = config(new LSStateHandlerRegister<TState>());
-            var entry = register.Build();
-            if (entry == null) throw new LSArgumentNullException(nameof(entry));
-            _eventHandlers.Add(entry);
-        }
-        return this;
+    public ILSEvent WithStateCallbacks<TState>(params System.Func<LSStateHandlerRegister<ILSEvent, TState>, LSStateHandlerRegister<ILSEvent, TState>>[] configure) where TState : IEventProcessState {
+        return WithStateCallbacks<ILSEvent, TState>(configure);
     }
 
     /// <summary>
@@ -343,8 +336,15 @@ public abstract class LSEvent : ILSEvent {
     /// <typeparam name="TState">The specific state type (LSEventSucceedState, LSEventCancelledState, LSEventCompletedState)</typeparam>
     /// <param name="configure">Array of configuration functions that create state handler entries</param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    public TEvent WithStateCallbacks<TEvent, TState>(params System.Func<LSStateHandlerRegister<TState>, LSStateHandlerRegister<TState>>[] configure) where TState : IEventProcessState {
-        return (TEvent)WithStateCallbacks<TState>(configure);
+    public TEvent WithStateCallbacks<TEvent, TState>(params System.Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>>[] configure) where TState : IEventProcessState where TEvent : ILSEvent {
+        if (configure == null || configure.Length == 0) return (TEvent)(object)this;
+        foreach (var config in configure) {
+            var register = config(new LSStateHandlerRegister<TEvent, TState>());
+            var entry = register.Build();
+            if (entry == null) throw new LSArgumentNullException(nameof(entry));
+            _eventHandlers.Add(entry);
+        }
+        return (TEvent)(object)this;
     }
 
     /// <summary>

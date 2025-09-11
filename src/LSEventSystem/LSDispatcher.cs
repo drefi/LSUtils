@@ -98,9 +98,9 @@ public class LSDispatcher {
     /// <returns>
     /// The unique ID of the registered handler, or Guid.Empty if registration failed.
     /// </returns>
-    public System.Guid ForEventPhase<TEvent, TPhase>(Func<LSPhaseHandlerRegister<TPhase>, LSPhaseHandlerRegister<TPhase>> configurePhaseHandler) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState {
+    public System.Guid ForEventPhase<TEvent, TPhase>(Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>> configurePhaseHandler) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState {
         try {
-            var register = configurePhaseHandler(new LSPhaseHandlerRegister<TPhase>());
+            var register = configurePhaseHandler(new LSPhaseHandlerRegister<TEvent, TPhase>());
             var entry = register.Build();
             if (entry == null) throw new LSArgumentNullException(nameof(entry));
             return registerHandler(typeof(TEvent), entry);
@@ -135,9 +135,9 @@ public class LSDispatcher {
     /// <returns>
     /// The unique ID of the registered handler, or Guid.Empty if registration failed.
     /// </returns>
-    public System.Guid ForEventState<TEvent, TState>(Func<LSStateHandlerRegister<TState>, LSStateHandlerRegister<TState>> configureStateHandler) where TEvent : ILSEvent where TState : IEventProcessState {
+    public System.Guid ForEventState<TEvent, TState>(Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>> configureStateHandler) where TEvent : ILSEvent where TState : IEventProcessState {
         try {
-            var register = configureStateHandler(new LSStateHandlerRegister<TState>());
+            var register = configureStateHandler(new LSStateHandlerRegister<TEvent, TState>());
             var entry = register.Build();
             if (entry == null) throw new LSArgumentNullException(nameof(entry));
             return registerHandler(typeof(TEvent), entry);

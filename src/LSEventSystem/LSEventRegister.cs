@@ -74,9 +74,9 @@ public class LSEventRegister<TEvent> where TEvent : ILSEvent {
     /// <param name="configureStateHandler">Function to configure the state handler</param>
     /// <returns>This register instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when configuration returns null entry</exception>
-    public LSEventRegister<TEvent> OnState<TState>(params Func<LSStateHandlerRegister<TState>, LSStateHandlerRegister<TState>>[] configureStateHandler) where TState : IEventProcessState {
+    public LSEventRegister<TEvent> OnState<TState>(params Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>>[] configureStateHandler) where TState : IEventProcessState {
         foreach (var handler in configureStateHandler) {
-            var register = new LSStateHandlerRegister<TState>();
+            var register = new LSStateHandlerRegister<TEvent, TState>();
             register = handler(register);
             if (register == null) throw new LSArgumentNullException(nameof(register));
             var entry = register.Build();
@@ -104,9 +104,9 @@ public class LSEventRegister<TEvent> where TEvent : ILSEvent {
     /// <param name="configurePhaseHandler">Function to configure the phase handler</param>
     /// <returns>This register instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when configuration returns null entry</exception>
-    public LSEventRegister<TEvent> OnPhase<TPhase>(params Func<LSPhaseHandlerRegister<TPhase>, LSPhaseHandlerRegister<TPhase>>[] configurePhaseHandler) where TPhase : LSEventBusinessState.PhaseState {
+    public LSEventRegister<TEvent> OnPhase<TPhase>(params Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>>[] configurePhaseHandler) where TPhase : LSEventBusinessState.PhaseState {
         foreach (var handler in configurePhaseHandler) {
-            var register = new LSPhaseHandlerRegister<TPhase>();
+            var register = new LSPhaseHandlerRegister<TEvent, TPhase>();
             register = handler(register);
             if (register == null) throw new LSArgumentNullException(nameof(register));
             var entry = register.Build();

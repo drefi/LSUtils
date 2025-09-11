@@ -15,22 +15,6 @@ namespace LSUtils.EventSystem;
 /// - Priority-based execution ordering
 /// - Conditional execution based on event state
 /// - Integration with dispatcher registration system
-/// 
-/// Usage Pattern:
-/// The register is typically used within dispatcher registration calls:
-/// <code>
-/// dispatcher.ForEventPhase&lt;MyEvent, BusinessState.ValidatePhaseState&gt;(register => 
-///     register
-///         .WithPriority(LSESPriority.HIGH)
-///         .When((evt, entry) => evt.GetData&lt;bool&gt;("requiresValidation"))
-///         .Handler(ctx => {
-///             // Phase-specific logic
-///             return HandlerProcessResult.SUCCESS;
-///         })
-///         .Build()
-/// );
-/// </code>
-/// 
 /// Phase Types:
 /// - <see cref="LSEventBusinessState.ValidatePhaseState"/>: Input validation and early checks
 /// - <see cref="LSEventBusinessState.ConfigurePhaseState"/>: Resource allocation and setup
@@ -43,7 +27,7 @@ namespace LSUtils.EventSystem;
 /// - Registration operations are thread-safe via dispatcher
 /// </summary>
 /// <typeparam name="TPhase">The specific phase state type this handler will execute in</typeparam>
-public class LSPhaseHandlerRegister<TPhase> where TPhase : LSEventBusinessState.PhaseState {
+public class LSPhaseHandlerRegister<TEvent, TPhase> where TPhase : LSEventBusinessState.PhaseState where TEvent : ILSEvent {
 
     /// <summary>
     /// The type of phase this handler will execute in.
@@ -103,7 +87,7 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : LSEventBusinessState.
     /// </summary>
     /// <param name="priority">The priority level for handler execution</param>
     /// <returns>This register instance for method chaining</returns>
-    public LSPhaseHandlerRegister<TPhase> WithPriority(LSPriority priority) {
+    public LSPhaseHandlerRegister<TEvent, TPhase> WithPriority(LSPriority priority) {
         _priority = priority;
         return this;
     }
@@ -126,9 +110,9 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : LSEventBusinessState.
     /// <param name="condition">Function that returns true if handler should execute</param>
     /// <returns>This register instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when condition is null</exception>
-    public LSPhaseHandlerRegister<TPhase> When(Func<ILSEvent, IHandlerEntry, bool> condition) {
+    public LSPhaseHandlerRegister<TEvent, TPhase> When(Func<TEvent, IHandlerEntry, bool> condition) {
         if (condition == null) throw new LSArgumentNullException(nameof(condition));
-        _condition += condition;
+        _condition += new Func<ILSEvent, IHandlerEntry, bool>((evt, entry) => condition((TEvent)evt, entry));
         return this;
     }
 
@@ -160,7 +144,7 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : LSEventBusinessState.
     /// <param name="handler">Function that implements the phase-specific logic</param>
     /// <returns>This register instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when handler is null</exception>
-    public LSPhaseHandlerRegister<TPhase> Handler(Func<LSEventProcessContext, HandlerProcessResult> handler) {
+    public LSPhaseHandlerRegister<TEvent, TPhase> Handler(Func<LSEventProcessContext, HandlerProcessResult> handler) {
         _handler = handler;
         return this;
     }
@@ -208,9 +192,9 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : LSEventBusinessState.
     /// Convenience method to create a handler that cancels the event if a condition is met.
     /// This will override any previously set handler and create a new one that checks the condition.
     /// </summary>
-    public LSPhaseHandlerRegister<TPhase> CancelIf(Func<ILSEvent, IHandlerEntry, bool> condition) {
+    public LSPhaseHandlerRegister<TEvent, TPhase> CancelIf(Func<TEvent, IHandlerEntry, bool> condition) {
         if (condition == null) throw new LSArgumentNullException(nameof(condition));
-        _condition = condition; // ensure this is the only condition in the entry
+        _condition = new Func<ILSEvent, IHandlerEntry, bool>((evt, entry) => condition((TEvent)evt, entry));
         return Handler((ctx) => HandlerProcessResult.CANCELLED).WithPriority(LSPriority.CRITICAL);
     }
 
@@ -238,7 +222,7 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : LSEventBusinessState.
     /// </summary>
     /// <returns>Unique identifier for the registered handler</returns>
     /// <exception cref="LSException">Thrown when handler has already been built</exception>
-    public System.Guid Register<TEvent>(LSDispatcher dispatcher) {
+    public System.Guid Register(LSDispatcher dispatcher) {
         if (IsBuild) throw new LSException("handler_already_built");
         var entry = Build();
         return dispatcher.registerHandler(typeof(TEvent), entry);

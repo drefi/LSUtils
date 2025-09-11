@@ -41,7 +41,7 @@ namespace LSUtils.EventSystem;
 /// - Registration operations are thread-safe via dispatcher
 /// </summary>
 /// <typeparam name="TState">The specific state type this handler will execute in</typeparam>
-public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
+public class LSStateHandlerRegister<TEvent, TState> where TState : IEventProcessState where TEvent : ILSEvent {
 
     /// <summary>
     /// Priority level for handler execution within the state.
@@ -96,7 +96,7 @@ public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
     /// </summary>
     /// <param name="priority">The priority level for handler execution</param>
     /// <returns>This register instance for method chaining</returns>
-    public LSStateHandlerRegister<TState> WithPriority(LSPriority priority) {
+    public LSStateHandlerRegister<TEvent, TState> WithPriority(LSPriority priority) {
         _priority = priority;
         return this;
     }
@@ -120,9 +120,9 @@ public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
     /// <param name="condition">Function that returns true if handler should execute</param>
     /// <returns>This register instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when condition is null</exception>
-    public LSStateHandlerRegister<TState> When(Func<ILSEvent, IHandlerEntry, bool> condition) {
+    public LSStateHandlerRegister<TEvent, TState> When(Func<TEvent, IHandlerEntry, bool> condition) {
         if (condition == null) throw new LSArgumentNullException(nameof(condition));
-        _condition += condition;
+        _condition += new Func<ILSEvent, IHandlerEntry, bool>((evt, entry) => condition((TEvent)evt, entry));
         return this;
     }
 
@@ -152,8 +152,8 @@ public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
     /// </summary>
     /// <param name="handler">Action that implements the state-specific logic</param>
     /// <returns>This register instance for method chaining</returns>
-    public LSStateHandlerRegister<TState> Handler(LSAction<ILSEvent> handler) {
-        _handler = handler;
+    public LSStateHandlerRegister<TEvent, TState> Handler(LSAction<TEvent> handler) {
+        _handler = new LSAction<ILSEvent>((evt) => handler((TEvent)(object)evt));
         return this;
     }
     /// <summary>
