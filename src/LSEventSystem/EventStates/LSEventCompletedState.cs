@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace LSUtils.EventSystem;
 
@@ -11,26 +12,18 @@ namespace LSUtils.EventSystem;
 /// 
 /// Key Characteristics:
 /// - Absolute terminal state - no further transitions possible
-/// - Executes completion handlers for final cleanup and logging
+/// - Executes completion handlers
 /// - Returns null to indicate end of state machine processing
 /// - Accepts events from any other state (Success, Cancelled, Business)
 /// - Always reports successful state processing (StateResult.SUCCESS)
 /// 
 /// Handler Execution:
-/// - Runs all registered StateHandlerEntry instances for CompletedState
+/// - Runs all registered StateHandlerEntry instances for LSEventCompletedState
 /// - Handlers execute in priority order for consistent finalization
 /// - Conditional handlers are evaluated before execution
-/// - Handler failures are logged but don't affect completion
-/// 
-/// Usage Scenarios:
-/// - Final audit logging and metrics collection
-/// - Resource cleanup and disposal
-/// - External system notifications of completion
-/// - Performance monitoring and profiling
-/// - Database transaction commits or rollbacks
 /// 
 /// State Machine Role:
-/// - Entry: From SucceedState, CancelledState, or direct transitions
+/// - Entry: From any other state
 /// - Exit: None - this is the absolute terminal state
 /// - Purpose: Ensure all events have a consistent final processing step
 /// 
@@ -39,32 +32,32 @@ namespace LSUtils.EventSystem;
 /// - State properties are immutable after processing
 /// - No external control operations supported
 /// </summary>
-public class CompletedState : IEventProcessState {
+public class LSEventCompletedState : IEventProcessState {
     /// <summary>
     /// Reference to the event system context providing access to event data and handlers.
     /// Used for executing final completion handlers and accessing event information.
     /// </summary>
     protected readonly LSEventProcessContext _context;
-    
+
     /// <summary>
     /// Stack of state handlers to execute during completion processing.
     /// Contains final cleanup and logging handlers for the completed event.
     /// </summary>
     protected Stack<LSStateHandlerEntry> _handlers = new();
-    
+
     /// <summary>
     /// The result of completion state processing.
     /// Always set to SUCCESS after handler execution, indicating successful completion.
     /// </summary>
     public StateProcessResult StateResult { get; protected set; } = StateProcessResult.UNKNOWN;
-    
+
     /// <summary>
     /// Indicates if the state has encountered failures during processing.
     /// Always false for CompletedState as completion processing always succeeds.
     /// Individual handler failures don't prevent successful completion.
     /// </summary>
     public bool HasFailures => false;
-    
+
     /// <summary>
     /// Indicates if the state represents a cancelled event.
     /// Always false for CompletedState as this represents successful completion processing,
@@ -79,8 +72,14 @@ public class CompletedState : IEventProcessState {
     /// completion handler execution and final event processing.
     /// </summary>
     /// <param name="context">The event system context containing event and handler information</param>
-    public CompletedState(LSEventProcessContext context) {
+    public LSEventCompletedState(LSEventProcessContext context) {
         _context = context;
+        var handlers = _context.Handlers
+            .OfType<LSStateHandlerEntry>()
+            .Where(h => h.StateType == typeof(LSEventCompletedState))
+            .OrderByDescending(h => h.Priority).ToList();
+        foreach (var handler in handlers) _handlers.Push(handler);
+
     }
 
     /// <summary>

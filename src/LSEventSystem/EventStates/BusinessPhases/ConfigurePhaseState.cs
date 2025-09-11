@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace LSUtils.EventSystem;
 
-public partial class BusinessState {
+public partial class LSEventBusinessState {
     #region Phase State
     /// <summary>
     /// Manages the configuration phase of business event processing.
@@ -47,7 +47,7 @@ public partial class BusinessState {
     public class ConfigurePhaseState : PhaseState {
         //public override EventSystemPhase Phase => EventSystemPhase.CONFIGURE;
         int _waitingHandlers = 0;
-        
+
         /// <summary>
         /// Constructs a new ConfigurePhaseState with the specified context and handlers.
         /// 
@@ -57,7 +57,7 @@ public partial class BusinessState {
         /// </summary>
         /// <param name="context">The BusinessState context managing phase transitions</param>
         /// <param name="handlers">Collection of configuration handlers to execute</param>
-        public ConfigurePhaseState(BusinessState context, List<LSPhaseHandlerEntry> handlers) : base(context, handlers) { }
+        public ConfigurePhaseState(LSEventBusinessState context, List<LSPhaseHandlerEntry> handlers) : base(context, handlers) { }
 
         /// <summary>
         /// Processes the configuration phase with fault-tolerant execution.
@@ -128,7 +128,7 @@ public partial class BusinessState {
                                 continue;
                             }
                             PhaseResult = PhaseProcessResult.WAITING;
-                            _context.StateResult = StateProcessResult.WAITING;
+                            _stateContext.StateResult = StateProcessResult.WAITING;
                             return this;
                         case HandlerProcessResult.CANCELLED:
                             return Cancel();
@@ -143,7 +143,7 @@ public partial class BusinessState {
                     PhaseResult = PhaseProcessResult.CONTINUE;
                 }
             }
-            return _context.getPhaseState<ExecutePhaseState>();
+            return _stateContext.getPhaseState<ExecutePhaseState>();
         }
 
         /// <summary>
@@ -230,8 +230,8 @@ public partial class BusinessState {
         // when cancelling from configure phase, cleanup phase must run before cancelling the event
         public override PhaseState? Cancel() {
             PhaseResult = PhaseProcessResult.CANCELLED;
-            _context.StateResult = StateProcessResult.CANCELLED;
-            return _context.getPhaseState<CleanupPhaseState>();
+            _stateContext.StateResult = StateProcessResult.CANCELLED;
+            return _stateContext.getPhaseState<CleanupPhaseState>();
         }
     }
     #endregion

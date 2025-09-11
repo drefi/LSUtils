@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace LSUtils.EventSystem;
 
-public partial class BusinessState {
+public partial class LSEventBusinessState {
     #region Phase State
     /// <summary>
     /// Abstract base class for all business phase states in the LSEventSystem v4.
@@ -39,55 +39,55 @@ public partial class BusinessState {
         /// Ensures thread-safe access to handler state and results.
         /// </summary>
         protected object _lock = new();
-        
+
         /// <summary>
         /// Reference to the parent BusinessState that owns this phase.
         /// Provides access to the overall event context and state management.
         /// </summary>
-        protected BusinessState _context;
-        
+        protected LSEventBusinessState _stateContext;
+
         /// <summary>
         /// Complete list of handlers available for this phase.
         /// Filtered during construction to include only handlers for this phase type.
         /// </summary>
         protected List<LSPhaseHandlerEntry> _handlers = new();
-        
+
         /// <summary>
         /// The currently executing handler entry, if any.
         /// Used for tracking and debugging purposes.
         /// </summary>
         protected LSPhaseHandlerEntry? _currentHandler;
-        
+
         /// <summary>
         /// Stack of handlers remaining to be executed in this phase.
         /// Handlers are pre-sorted by priority during phase construction.
         /// </summary>
         protected readonly Stack<LSPhaseHandlerEntry> _remainingHandlers = new();
-        
+
         /// <summary>
         /// Dictionary tracking the execution result of each handler.
         /// Used to determine overall phase outcome and manage retries.
         /// </summary>
         protected Dictionary<IHandlerEntry, HandlerProcessResult> _handlerResults = new();
-        
+
         /// <summary>
         /// The final result of this phase execution.
         /// Determines the next phase transition or state change.
         /// </summary>
         public PhaseProcessResult PhaseResult { get; protected set; } = PhaseProcessResult.UNKNOWN;
-        
+
         /// <summary>
         /// Indicates whether any handlers in this phase have failed.
         /// Used for phase outcome evaluation and error handling.
         /// </summary>
         public virtual bool HasFailures => _handlerResults.Where(x => x.Value == HandlerProcessResult.FAILURE).Any();
-        
+
         /// <summary>
         /// Indicates whether any handlers in this phase are in a waiting state.
         /// Determines if the phase should pause for external input.
         /// </summary>
         public virtual bool IsWaiting => _handlerResults.Where(x => x.Value == HandlerProcessResult.WAITING).Any();
-        
+
         /// <summary>
         /// Indicates whether any handlers in this phase have been cancelled.
         /// Used to trigger immediate phase and event termination.
@@ -103,12 +103,13 @@ public partial class BusinessState {
         /// </summary>
         /// <param name="context">The parent BusinessState providing event context</param>
         /// <param name="handlers">Complete list of phase handlers for filtering</param>
-        public PhaseState(BusinessState context, List<LSPhaseHandlerEntry> handlers) {
-            _context = context;
-            _handlers = handlers;
-            foreach (var handler in handlers
+        public PhaseState(LSEventBusinessState context, List<LSPhaseHandlerEntry> handlers) {
+            _stateContext = context;
+            _handlers = handlers
                 .Where(h => h.PhaseType == GetType())
-                .OrderBy(h => h.Priority)) {
+                .OrderBy(h => h.Priority)
+                .ToList();
+            foreach (var handler in _handlers) {
                 _remainingHandlers.Push(handler);
             }
         }
@@ -130,7 +131,7 @@ public partial class BusinessState {
         /// - Phase is waiting for external input
         /// </returns>
         public abstract PhaseState? Process();
-        
+
         /// <summary>
         /// Resumes processing from a waiting state.
         /// 
@@ -140,7 +141,7 @@ public partial class BusinessState {
         /// </summary>
         /// <returns>The next phase to execute, or null to remain in current phase</returns>
         public virtual PhaseState? Resume() { return null; }
-        
+
         /// <summary>
         /// Cancels the current phase execution.
         /// 
@@ -149,7 +150,7 @@ public partial class BusinessState {
         /// </summary>
         /// <returns>The next phase to execute during cancellation, or null to end processing</returns>
         public virtual PhaseState? Cancel() { return null; }
-        
+
         /// <summary>
         /// Handles phase failure scenarios.
         /// 
@@ -185,10 +186,15 @@ public partial class BusinessState {
             if (handlerEntry == null) return HandlerProcessResult.UNKNOWN;
             if (!_handlerResults.ContainsKey(handlerEntry)) _handlerResults[handlerEntry] = HandlerProcessResult.UNKNOWN;
 
-            // Check condition if present, if condition not met skip this handler
-            if (!handlerEntry.Condition(_context._context.Event, handlerEntry)) return HandlerProcessResult.SUCCESS;
+            // get condition list, all must be true to execute handler, since the default Condition is true if at least one is false skip handler execution
+            foreach (var condition in handlerEntry.Condition.GetInvocationList()) {
+                var conditionFunc = condition as System.Func<ILSEvent, IHandlerEntry, bool>;
+                // if one condition returns false skip handler execution
+                if (conditionFunc != null && !conditionFunc(_stateContext._eventContext.Event, handlerEntry))
+                    return HandlerProcessResult.SUCCESS;
+            }
             // Execute handler
-            var result = handlerEntry.Handler(_context._context);
+            var result = handlerEntry.Handler(_stateContext._eventContext);
             //always update results
             _handlerResults[handlerEntry] = result;
             handlerEntry.ExecutionCount++;

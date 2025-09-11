@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace LSUtils.EventSystem;
 
-public partial class BusinessState {
+public partial class LSEventBusinessState {
     #region Phase State
     /// <summary>
     /// Final phase in the business processing pipeline responsible for cleanup and finalization.
@@ -54,7 +54,7 @@ public partial class BusinessState {
         /// </summary>
         /// <param name="context">The BusinessState context managing phase transitions</param>
         /// <param name="handlers">Collection of cleanup handlers to execute</param>
-        public CleanupPhaseState(BusinessState context, List<LSPhaseHandlerEntry> handlers) : base(context, handlers) { }
+        public CleanupPhaseState(LSEventBusinessState context, List<LSPhaseHandlerEntry> handlers) : base(context, handlers) { }
 
         /// <summary>
         /// Processes the cleanup phase by executing all cleanup handlers.
@@ -111,25 +111,31 @@ public partial class BusinessState {
         /// Handles cancellation requests during cleanup processing.
         /// 
         /// When cancellation is requested during cleanup, the phase is marked
-        /// as cancelled and processing terminates immediately. This ensures
-        /// that critical cancellation scenarios can interrupt even cleanup operations.
+        /// as cancelled but since the core business phases completed successfully,
+        /// this should not result in an overall cancelled state.
         /// 
         /// Cancellation Effects:
         /// - Sets phase result to CANCELLED
-        /// - Sets business state result to CANCELLED
+        /// - Does NOT set business state result to CANCELLED (unlike other phases)
         /// - Terminates phase processing immediately
         /// - No further handlers execute
         /// 
+        /// Special Behavior:
+        /// CleanupPhase cancellation is treated differently because the core
+        /// business logic (Validate, Configure, Execute) has already completed
+        /// successfully. Cleanup cancellation should not negate that success.
+        /// 
         /// Use Cases:
-        /// - Critical system shutdown scenarios
-        /// - Emergency termination requirements
-        /// - Timeout scenarios that must be respected
-        /// - Security-related immediate termination
+        /// - Non-critical cleanup operations that can be skipped
+        /// - Timeout scenarios during cleanup that shouldn't affect business success
+        /// - Resource cleanup that fails but doesn't impact overall event success
         /// </summary>
         /// <returns>Always null to indicate immediate phase termination</returns>
         public override PhaseState? Cancel() {
             PhaseResult = PhaseProcessResult.CANCELLED;
-            _context.StateResult = StateProcessResult.CANCELLED;
+            // Note: Unlike other phases, CleanupPhase cancellation does NOT set
+            // _stateContext.StateResult = StateProcessResult.CANCELLED
+            // because core business phases completed successfully
             return null; // End phase immediately
         }
     }

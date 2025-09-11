@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace LSUtils.EventSystem;
 
-public partial class BusinessState {
+public partial class LSEventBusinessState {
     #region Phase State
     /// <summary>
     /// First phase in the business processing pipeline responsible for validation and early checks.
@@ -60,7 +60,7 @@ public partial class BusinessState {
         /// </summary>
         /// <param name="context">The BusinessState context managing phase transitions</param>
         /// <param name="handlers">Collection of validation handlers to execute</param>
-        public ValidatePhaseState(BusinessState context, List<LSPhaseHandlerEntry> handlers) : base(context, handlers) { }
+        public ValidatePhaseState(LSEventBusinessState context, List<LSPhaseHandlerEntry> handlers) : base(context, handlers) { }
 
         /// <summary>
         /// Processes the validation phase with strict failure handling.
@@ -115,8 +115,7 @@ public partial class BusinessState {
                             continue;
                         case HandlerProcessResult.FAILURE://if at least one handler fails skip remaining handlers also phase fails;
                             PhaseResult = PhaseProcessResult.FAILURE;
-                            _context.StateResult = StateProcessResult.FAILURE;
-                            return null; // on validade failure skip remaining handlers and end phase & state immediately
+                            return null; // on validate failure skip remaining handlers and go directly to CompletedState
                         case HandlerProcessResult.WAITING:// waiting don't block handler processing but fails phase execution if not resumed;
                             continue;
                         case HandlerProcessResult.CANCELLED:
@@ -135,7 +134,7 @@ public partial class BusinessState {
                 //all handlers succeeded, continue to next phase
                 PhaseResult = PhaseProcessResult.CONTINUE;
             }
-            return _context.getPhaseState<ConfigurePhaseState>();
+            return _stateContext.getPhaseState<ConfigurePhaseState>();
         }
         
         /// <summary>
@@ -161,8 +160,7 @@ public partial class BusinessState {
         /// <returns>Always null to indicate immediate processing termination</returns>
         public override PhaseState? Cancel() {
             PhaseResult = PhaseProcessResult.CANCELLED;
-            _context.StateResult = StateProcessResult.CANCELLED; //this is a drible da vaca
-            return null;
+            return null; // go directly to CancelledState, no cleanup needed
         }
     }
     #endregion

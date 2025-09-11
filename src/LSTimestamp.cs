@@ -2,29 +2,38 @@ namespace LSUtils;
 
 using LSUtils.EventSystem;
 
-public class LSTimestamp {
-    public class OnUpdateEvent : LSLegacyEvent<LSTimestamp> {
-        public LSTimestamp Timestamp => Instance;
-        public OnUpdateEvent(LSTimestamp timestamp) : base(timestamp) { }
+public class LSTimestamp : ILSEventable {
+    public class OnUpdateEvent : LSEvent<LSTimestamp> {
+        public OnUpdateEvent(LSTimestamp timestamp, LSEventOptions? options = null) : base(timestamp, options) { }
     }
-    protected LSLegacyDispatcher _dispatcher;
+    
+    public LSDispatcher? Dispatcher { get; protected set; }
     public int TotalMinutes;
     public int Minute { get { return TotalMinutes % 60; } }
     public int Hour { get { return (TotalMinutes / 60) % 24; } }
     public int Day { get { return TotalMinutes / 60 / 24; } }
 
-    public LSTimestamp(LSLegacyDispatcher? dispatcher = null) {
+    public LSTimestamp() {
         TotalMinutes = 0;
-        _dispatcher = dispatcher == null ? LSLegacyDispatcher.Singleton : dispatcher;
     }
-    public LSTimestamp(int day, int hour, int minute, LSLegacyDispatcher? dispatcher = null) : this(dispatcher) {
+    
+    public LSTimestamp(int day, int hour, int minute) {
+        TotalMinutes = 0;
         SetTimestamp(day, hour, minute, true);
     }
-    public LSTimestamp(LSTimestamp copy, LSLegacyDispatcher? dispatcher = null) : this(dispatcher) {
+    
+    public LSTimestamp(LSTimestamp copy) {
         TotalMinutes = copy.TotalMinutes;
     }
-    public LSTimestamp(int totalMinutes, LSLegacyDispatcher? dispatcher = null) : this(dispatcher) {
+    
+    public LSTimestamp(int totalMinutes) {
         TotalMinutes = totalMinutes;
+    }
+    
+    public EventProcessResult Initialize(LSEventOptions options) {
+        Dispatcher = options.Dispatcher;
+        //TODO: proper event
+        return EventProcessResult.SUCCESS;
     }
     public void SetTimestamp(int day, int hour, int minute, bool dontUpdate = false) {
         AddDays(day, true);
@@ -34,7 +43,11 @@ public class LSTimestamp {
         if (dontUpdate == false) Update();
     }
     public void Update() {
-        _dispatcher.processEvent(new OnUpdateEvent(this));
+        if (Dispatcher != null) {
+            var options = new LSEventOptions(Dispatcher, this);
+            var updateEvent = new OnUpdateEvent(this, options);
+            updateEvent.Dispatch();
+        }
     }
     public bool AddMinutes(int minutes, bool dontUpdate = false) {
         if (minutes <= 0)

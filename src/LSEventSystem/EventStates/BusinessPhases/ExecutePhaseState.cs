@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace LSUtils.EventSystem;
 
-public partial class BusinessState {
+public partial class LSEventBusinessState {
     #region Phase State
     /// <summary>
     /// Manages the execution phase of business event processing.
@@ -70,7 +70,7 @@ public partial class BusinessState {
         /// </summary>
         /// <param name="context">The BusinessState context managing phase transitions</param>
         /// <param name="handlers">Collection of execution handlers to process</param>
-        public ExecutePhaseState(BusinessState context, List<LSPhaseHandlerEntry> handlers) : base(context, handlers) { }
+        public ExecutePhaseState(LSEventBusinessState context, List<LSPhaseHandlerEntry> handlers) : base(context, handlers) { }
 
         /// <summary>
         /// Processes the execution phase with comprehensive failure tracking.
@@ -160,7 +160,7 @@ public partial class BusinessState {
                 }
                 PhaseResult = HasFailures ? PhaseProcessResult.FAILURE : PhaseProcessResult.CONTINUE;
             }
-            return _context.getPhaseState<CleanupPhaseState>();
+            return _stateContext.getPhaseState<CleanupPhaseState>();
         }
         
         /// <summary>
@@ -213,7 +213,7 @@ public partial class BusinessState {
                 //all waiting handlers have resumed, continue processing
                 PhaseResult = HasFailures ? PhaseProcessResult.FAILURE : PhaseProcessResult.CONTINUE;
                 //StateResult = StateProcessResult.CONTINUE;
-                return _context.getPhaseState<CleanupPhaseState>();
+                return _stateContext.getPhaseState<CleanupPhaseState>();
             }
             PhaseResult = PhaseProcessResult.WAITING;
             return this;
@@ -307,7 +307,7 @@ public partial class BusinessState {
             if (_waitingHandlers == 0) {
                 //all waiting handlers have resumed, continue processing
                 PhaseResult = PhaseProcessResult.FAILURE;
-                return _context.getPhaseState<CleanupPhaseState>();
+                return _stateContext.getPhaseState<CleanupPhaseState>();
             }
             _hasFailures = true;
             PhaseResult = PhaseProcessResult.WAITING;

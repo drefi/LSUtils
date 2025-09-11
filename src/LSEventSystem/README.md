@@ -26,39 +26,45 @@ LSEventSystem v4 is a clean, state-machine-based event processing framework desi
 ## Key Features
 
 ### ✅ **Clean State Machine Architecture**
+
 - Sequential phase execution: VALIDATE → CONFIGURE → EXECUTE → CLEANUP
 - Clear state transitions with well-defined outcomes
 - Terminal states for completion, cancellation, and failure scenarios
 
 ### ✅ **Flexible Handler Registration**
+
 - Global handlers via dispatcher registration
 - Event-scoped handlers for dynamic behavior
 - Priority-based execution within phases
 - Type-safe registration with compile-time validation
 
 ### ✅ **Robust Error Handling**
+
 - Distinction between recoverable failures and critical cancellations
 - Graceful degradation with continued processing on failures
 - Comprehensive exception handling and logging
 
 ### ✅ **Asynchronous Operation Support**
+
 - WAITING state for external input requirements
 - Resume/Cancel/Fail operations for async coordination
 - No internal threading - external control required
 
 ### ✅ **Thread-Safe Data Management**
+
 - Concurrent dictionary for event data storage
 - Type-safe data access with TryGetData patterns
 - Immutable event state from handler perspective
 
 ### ✅ **Comprehensive Testing Support**
+
 - Built-in test infrastructure
 - Handler execution tracking and validation
 - State transition verification
 
 ## Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        LSEventSystem v4                        │
 ├─────────────────────────────────────────────────────────────────┤
@@ -92,28 +98,36 @@ LSEventSystem v4 is a clean, state-machine-based event processing framework desi
 ## Core Components
 
 ### BaseEvent
+
 Abstract base class for all events in the system. Provides:
+
 - Unique identification and timestamp tracking
 - Thread-safe data storage and retrieval
 - Integration with dispatcher and state machine
 - Event-scoped handler configuration
 
 ### LSESDispatcher
+
 Central handler registration and management system. Features:
+
 - Singleton pattern for application-wide access
 - Type-safe handler registration
 - Support for both phase and state handlers
 - Internal handler storage and retrieval
 
 ### EventSystemContext
+
 Coordination point for event processing. Manages:
+
 - State machine transitions
 - Handler execution context
 - Event lifecycle tracking
 - External interaction points (Resume/Cancel/Fail)
 
 ### Phase States
+
 Individual phases in the business processing pipeline:
+
 - **ValidatePhaseState**: Input validation and early checks
 - **ConfigurePhaseState**: Resource allocation and setup
 - **ExecutePhaseState**: Core business logic execution
@@ -225,22 +239,26 @@ switch (result) {
 ## Event Lifecycle
 
 ### 1. **Creation Phase**
+
 - Event instantiation with required data
 - Optional event-scoped handler configuration
 - Data initialization and validation
 
 ### 2. **Registration Phase**
+
 - Handler retrieval from dispatcher
 - Event-scoped handler integration
 - Context creation and initialization
 
 ### 3. **Processing Phase**
+
 - State machine initialization (BusinessState)
 - Sequential phase execution
 - Handler execution with priority ordering
 - State transitions based on results
 
 ### 4. **Completion Phase**
+
 - Transition to terminal state (Succeed/Cancelled/Completed)
 - Final handler execution
 - Resource cleanup and finalization
@@ -342,6 +360,7 @@ dispatcher.ForEvent<UserRegistrationEvent>(register => register
 ## Phase-Based Processing
 
 ### Validate Phase
+
 **Purpose**: Input validation, permission checks, early validation logic
 **Behavior**: Any failure stops processing immediately
 **Typical Usage**: Security checks, data format validation, permission verification
@@ -370,6 +389,7 @@ dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.ValidatePhaseState
 ```
 
 ### Configure Phase
+
 **Purpose**: Configuration, setup, resource allocation, state preparation
 **Behavior**: Failures don't stop processing but trigger cleanup
 **Waiting Support**: Can pause for external configuration
@@ -395,6 +415,7 @@ dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.ConfigurePhaseStat
 ```
 
 ### Execute Phase
+
 **Purpose**: Core business logic and main event processing
 **Behavior**: Failures don't stop other handlers, continues to cleanup
 **Waiting Support**: Can pause for async operations
@@ -425,6 +446,7 @@ dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.ExecutePhaseState>
 ```
 
 ### Cleanup Phase
+
 **Purpose**: Cleanup, finalization, resource disposal
 **Behavior**: Always executes, failures don't stop other cleanup handlers
 **Best Practice**: Should never fail
@@ -452,6 +474,7 @@ dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.CleanupPhaseState>
 ## State Management
 
 ### BusinessState
+
 The primary processing state that manages all phases:
 
 ```csharp
@@ -463,6 +486,7 @@ The primary processing state that manages all phases:
 ```
 
 ### SucceedState
+
 Handles post-success processing and cleanup:
 
 ```csharp
@@ -478,6 +502,7 @@ dispatcher.ForEventState<UserRegistrationEvent, SucceedState>(
 ```
 
 ### CancelledState
+
 Handles cancellation cleanup:
 
 ```csharp
@@ -493,6 +518,7 @@ dispatcher.ForEventState<UserRegistrationEvent, CancelledState>(
 ```
 
 ### CompletedState
+
 Final state for all events:
 
 ```csharp
@@ -1155,6 +1181,7 @@ var result = fileEvent.Dispatch();
 ### Core Interfaces
 
 #### ILSEvent
+
 ```csharp
 public interface ILSEvent {
     Guid ID { get; }
@@ -1173,6 +1200,7 @@ public interface ILSEvent {
 ```
 
 #### IEventSystemState
+
 ```csharp
 public interface IEventSystemState {
     StateProcessResult StateResult { get; }
@@ -1187,6 +1215,7 @@ public interface IEventSystemState {
 ```
 
 #### IHandlerEntry
+
 ```csharp
 public interface IHandlerEntry {
     Guid ID { get; }
@@ -1198,7 +1227,8 @@ public interface IHandlerEntry {
 
 ### Core Classes
 
-#### BaseEvent
+#### LSEvent
+
 ```csharp
 public abstract class BaseEvent : ILSEvent {
     public Guid ID { get; }
@@ -1219,7 +1249,8 @@ public abstract class BaseEvent : ILSEvent {
 }
 ```
 
-#### LSESDispatcher
+#### LSDispatcher
+
 ```csharp
 public class LSESDispatcher {
     public static LSESDispatcher Singleton { get; }
@@ -1230,7 +1261,8 @@ public class LSESDispatcher {
 }
 ```
 
-#### EventSystemContext
+#### LSEventProcessContext
+
 ```csharp
 public class EventSystemContext {
     public LSESDispatcher Dispatcher { get; }
@@ -1249,6 +1281,7 @@ public class EventSystemContext {
 ### Enumerations
 
 #### EventProcessResult
+
 ```csharp
 public enum EventProcessResult {
     UNKNOWN,
@@ -1260,6 +1293,7 @@ public enum EventProcessResult {
 ```
 
 #### HandlerProcessResult
+
 ```csharp
 public enum HandlerProcessResult {
     UNKNOWN,
@@ -1271,6 +1305,7 @@ public enum HandlerProcessResult {
 ```
 
 #### StateProcessResult
+
 ```csharp
 public enum StateProcessResult {
     UNKNOWN,
@@ -1282,6 +1317,7 @@ public enum StateProcessResult {
 ```
 
 #### PhaseProcessResult
+
 ```csharp
 public enum PhaseProcessResult {
     UNKNOWN,
@@ -1293,6 +1329,7 @@ public enum PhaseProcessResult {
 ```
 
 #### LSESPriority
+
 ```csharp
 public enum LSESPriority {
     BACKGROUND = 0,
@@ -1305,7 +1342,8 @@ public enum LSESPriority {
 
 ### Registration Builders
 
-#### EventSystemRegister<TEvent>
+#### EventSystemRegister\<TEvent\>
+
 ```csharp
 public class EventSystemRegister<TEvent> where TEvent : ILSEvent {
     public EventSystemRegister<TEvent> OnPhase<TPhase>(Func<PhaseHandlerRegister<TPhase>, PhaseHandlerEntry> configurePhaseHandler) where TPhase : BusinessState.PhaseState;
@@ -1314,7 +1352,8 @@ public class EventSystemRegister<TEvent> where TEvent : ILSEvent {
 }
 ```
 
-#### PhaseHandlerRegister<TPhase>
+#### PhaseHandlerRegister\<TPhase\>
+
 ```csharp
 public class PhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseState {
     public PhaseHandlerRegister<TPhase> WithPriority(LSESPriority priority);
@@ -1324,7 +1363,8 @@ public class PhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseStat
 }
 ```
 
-#### StateHandlerRegister<TState>
+#### StateHandlerRegister\<TState\>
+
 ```csharp
 public class StateHandlerRegister<TState> where TState : IEventSystemState {
     public StateHandlerRegister<TState> WithPriority(LSESPriority priority);
@@ -1347,58 +1387,6 @@ The v4 redesign introduces significant architectural changes focused on simplifi
 3. **Unified Handler Registration**: Single dispatcher with fluent API
 4. **Improved Error Handling**: Distinction between failures and cancellations
 5. **Better Async Support**: Explicit waiting states with external control
-
-#### Migration Steps
-
-1. **Update Event Classes**:
-```csharp
-// v3
-public class MyEvent : LSBaseEvent {
-    public MyEvent() : base() { }
-}
-
-// v4
-public class MyEvent : BaseEvent {
-    public MyEvent(LSESDispatcher dispatcher) : base(dispatcher) { }
-}
-```
-
-2. **Update Handler Registration**:
-```csharp
-// v3
-LSDispatcher.Singleton.RegisterHandler<MyEvent>(
-    LSEventPhase.VALIDATE,
-    (evt, ctx) => LSPhaseResult.CONTINUE,
-    LSPhasePriority.NORMAL);
-
-// v4
-LSESDispatcher.Singleton.ForEventPhase<MyEvent, BusinessState.ValidatePhaseState>(
-    register => register
-        .WithPriority(LSESPriority.NORMAL)
-        .Handler(ctx => HandlerProcessResult.SUCCESS)
-        .Build());
-```
-
-3. **Update Return Values**:
-```csharp
-// v3
-return LSPhaseResult.CONTINUE;
-return LSPhaseResult.CANCEL;
-return LSPhaseResult.WAITING;
-
-// v4
-return HandlerProcessResult.SUCCESS;
-return HandlerProcessResult.CANCELLED;
-return HandlerProcessResult.WAITING;
-```
-
-4. **Update Phase Names**:
-- VALIDATE → ValidatePhaseState
-- PREPARE → ConfigurePhaseState  
-- EXECUTE → ExecutePhaseState
-- COMPLETE → CleanupPhaseState
-- SUCCESS/FAILURE → State handlers
-- CANCEL → CancelledState handlers
 
 ## Performance Considerations
 
@@ -1426,6 +1414,7 @@ return HandlerProcessResult.WAITING;
 ### Common Issues
 
 #### 1. Event Not Processing
+
 ```csharp
 // Check if dispatcher is properly injected
 var event = new MyEvent(LSESDispatcher.Singleton); // ✅ Correct
@@ -1436,6 +1425,7 @@ var handlerIds = dispatcher.ForEventPhase<MyEvent, BusinessState.ValidatePhaseSt
 ```
 
 #### 2. Handlers Not Executing
+
 ```csharp
 // Check handler conditions
 .When((evt, entry) => {
@@ -1447,6 +1437,7 @@ var handlerIds = dispatcher.ForEventPhase<MyEvent, BusinessState.ValidatePhaseSt
 ```
 
 #### 3. Event Stuck in Waiting State
+
 ```csharp
 // Ensure external actor calls Resume(), Cancel(), or Fail()
 var context = GetEventContext(eventId);
@@ -1459,6 +1450,7 @@ RegisterCallback(operationId, () => {
 ```
 
 #### 4. Data Not Available
+
 ```csharp
 // Use safe data access
 if (event.TryGetData("key", out string value)) {
@@ -1476,6 +1468,7 @@ public static class DataKeys {
 ### Debugging
 
 #### Enable Detailed Logging
+
 ```csharp
 dispatcher.ForEventPhase<MyEvent, BusinessState.ValidatePhaseState>(
     register => register
@@ -1494,6 +1487,7 @@ dispatcher.ForEventPhase<MyEvent, BusinessState.ValidatePhaseState>(
 ```
 
 #### Track Handler Execution
+
 ```csharp
 dispatcher.ForEventPhase<MyEvent, BusinessState.ExecutePhaseState>(
     register => register

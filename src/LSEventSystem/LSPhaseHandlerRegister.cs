@@ -32,10 +32,10 @@ namespace LSUtils.EventSystem;
 /// </code>
 /// 
 /// Phase Types:
-/// - <see cref="BusinessState.ValidatePhaseState"/>: Input validation and early checks
-/// - <see cref="BusinessState.ConfigurePhaseState"/>: Resource allocation and setup
-/// - <see cref="BusinessState.ExecutePhaseState"/>: Core business logic execution
-/// - <see cref="BusinessState.CleanupPhaseState"/>: Finalization and resource cleanup
+/// - <see cref="LSEventBusinessState.ValidatePhaseState"/>: Input validation and early checks
+/// - <see cref="LSEventBusinessState.ConfigurePhaseState"/>: Resource allocation and setup
+/// - <see cref="LSEventBusinessState.ExecutePhaseState"/>: Core business logic execution
+/// - <see cref="LSEventBusinessState.CleanupPhaseState"/>: Finalization and resource cleanup
 /// 
 /// Thread Safety:
 /// - Builder instances are not thread-safe and should not be shared
@@ -43,43 +43,38 @@ namespace LSUtils.EventSystem;
 /// - Registration operations are thread-safe via dispatcher
 /// </summary>
 /// <typeparam name="TPhase">The specific phase state type this handler will execute in</typeparam>
-public class LSPhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseState {
-    /// <summary>
-    /// Reference to the dispatcher that will register the built handler.
-    /// Used for internal registration operations and handler management.
-    /// </summary>
-    protected readonly LSDispatcher _dispatcher;
-    
+public class LSPhaseHandlerRegister<TPhase> where TPhase : LSEventBusinessState.PhaseState {
+
     /// <summary>
     /// The type of phase this handler will execute in.
     /// Determined automatically from the generic type parameter TPhase.
     /// </summary>
     protected System.Type _phaseType = typeof(TPhase);
-    
+
     /// <summary>
     /// The handler function that will execute during the phase.
     /// Takes EventSystemContext and returns HandlerProcessResult to control flow.
     /// </summary>
     protected Func<LSEventProcessContext, HandlerProcessResult>? _handler = null;
-    
+
     /// <summary>
     /// Priority level for handler execution within the phase.
     /// Handlers execute in priority order: CRITICAL → HIGH → NORMAL → LOW → BACKGROUND.
     /// </summary>
     protected LSPriority _priority = LSPriority.NORMAL;
-    
+
     /// <summary>
     /// Condition function determining if the handler should execute.
     /// Evaluated at runtime based on event state and handler configuration.
     /// </summary>
     protected Func<ILSEvent, IHandlerEntry, bool> _condition = (evt, entry) => true;
-    
+
     /// <summary>
     /// Indicates whether this builder has already been used to create a handler entry.
     /// Prevents multiple builds from the same register instance.
     /// </summary>
     public bool IsBuild { get; protected set; } = false;
-    
+
     /// <summary>
     /// Cached handler entry created by the Build() method.
     /// Null until Build() is called, then contains the immutable handler configuration.
@@ -91,10 +86,8 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseSt
     /// Called by the dispatcher when setting up handler registration contexts.
     /// </summary>
     /// <param name="dispatcher">The dispatcher instance that will handle registration</param>
-    protected LSPhaseHandlerRegister(LSDispatcher dispatcher) {
-        _dispatcher = dispatcher;
-    }
-    
+    internal LSPhaseHandlerRegister() { }
+
     /// <summary>
     /// Sets the execution priority for this handler within its phase.
     /// 
@@ -114,7 +107,7 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseSt
         _priority = priority;
         return this;
     }
-    
+
     /// <summary>
     /// Adds a condition that must be met for the handler to execute.
     /// 
@@ -138,7 +131,7 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseSt
         _condition += condition;
         return this;
     }
-    
+
     /// <summary>
     /// Sets the main handler function that executes during the phase.
     /// 
@@ -210,7 +203,17 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseSt
         IsBuild = true;
         return _entry;
     }
-    
+
+    /// <summary>
+    /// Convenience method to create a handler that cancels the event if a condition is met.
+    /// This will override any previously set handler and create a new one that checks the condition.
+    /// </summary>
+    public LSPhaseHandlerRegister<TPhase> CancelIf(Func<ILSEvent, IHandlerEntry, bool> condition) {
+        if (condition == null) throw new LSArgumentNullException(nameof(condition));
+        _condition = condition; // ensure this is the only condition in the entry
+        return Handler((ctx) => HandlerProcessResult.CANCELLED).WithPriority(LSPriority.CRITICAL);
+    }
+
     /// <summary>
     /// Builds the handler and immediately registers it with the dispatcher.
     /// 
@@ -220,7 +223,7 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseSt
     /// 
     /// Registration Process:
     /// 1. Validates handler configuration (calls Build() internally)
-    /// 2. Registers handler with dispatcher for the TPhase type
+    /// 2. Registers handler with dispatcher for the TEvent type
     /// 3. Returns unique handler ID for tracking/unregistration
     /// 
     /// Handler Lifecycle:
@@ -235,25 +238,9 @@ public class LSPhaseHandlerRegister<TPhase> where TPhase : BusinessState.PhaseSt
     /// </summary>
     /// <returns>Unique identifier for the registered handler</returns>
     /// <exception cref="LSException">Thrown when handler has already been built</exception>
-    public System.Guid Register() {
+    public System.Guid Register<TEvent>(LSDispatcher dispatcher) {
         if (IsBuild) throw new LSException("handler_already_built");
         var entry = Build();
-        return _dispatcher.registerHandler(typeof(TPhase), entry);
-    }
-
-    /// <summary>
-    /// Internal factory method for creating phase handler register instances.
-    /// 
-    /// Used by the dispatcher and event system infrastructure to create
-    /// register instances with proper dispatcher references. Client code
-    /// should not call this method directly.
-    /// 
-    /// The factory pattern ensures proper initialization and maintains
-    /// the separation between public API and internal implementation details.
-    /// </summary>
-    /// <param name="dispatcher">The dispatcher instance for handler registration</param>
-    /// <returns>New register instance ready for configuration</returns>
-    internal static LSPhaseHandlerRegister<TPhase> Create(LSDispatcher dispatcher) {
-        return new LSPhaseHandlerRegister<TPhase>(dispatcher);
+        return dispatcher.registerHandler(typeof(TEvent), entry);
     }
 }

@@ -89,7 +89,7 @@ public class LSEventProcessContext {
         Event = @event;
         Dispatcher = dispatcher;
         Handlers = handlers;
-        CurrentState = new BusinessState(this);
+        CurrentState = new LSEventBusinessState(this);
     }
 
     /// <summary>

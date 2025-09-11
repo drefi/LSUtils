@@ -7,7 +7,7 @@ namespace LSUtils.EventSystem;
 /// Success state for events that completed all business phases successfully.
 /// 
 /// The SucceedState represents successful completion of all business processing
-/// phases without critical failures or cancellations. This state executes
+/// phases without failures or cancellations. This state executes
 /// success-specific handlers before transitioning to the final CompletedState.
 /// 
 /// Key Characteristics:
@@ -47,7 +47,7 @@ namespace LSUtils.EventSystem;
 /// - State properties are immutable after initialization
 /// - External control methods return null (no transitions)
 /// </summary>
-public class SucceedState : IEventProcessState {
+public class LSEventSucceedState : IEventProcessState {
     /// <summary>
     /// Reference to the event system context providing access to event data and handlers.
     /// Used for loading success handlers and accessing event processing information.
@@ -95,9 +95,12 @@ public class SucceedState : IEventProcessState {
     /// 4. Conditional handlers will be evaluated during execution
     /// </summary>
     /// <param name="context">The event system context containing event and handler information</param>
-    public SucceedState(LSEventProcessContext context) {
+    public LSEventSucceedState(LSEventProcessContext context) {
         _context = context;
-        var handlers = _context.Handlers.OfType<LSStateHandlerEntry>().OrderByDescending(h => h.Priority).ToList();
+        var handlers = _context.Handlers
+            .OfType<LSStateHandlerEntry>()
+            .Where(h => h.StateType == typeof(LSEventSucceedState))
+            .OrderByDescending(h => h.Priority).ToList();
         foreach (var handler in handlers) _handlers.Push(handler);
     }
 
@@ -144,7 +147,7 @@ public class SucceedState : IEventProcessState {
         }
 
         StateResult = StateProcessResult.SUCCESS;
-        return new CompletedState(_context);
+        return new LSEventCompletedState(_context);
     }
 
     /// <summary>

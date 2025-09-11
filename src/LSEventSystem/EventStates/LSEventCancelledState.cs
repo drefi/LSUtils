@@ -1,33 +1,25 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace LSUtils.EventSystem;
 
 /// <summary>
-/// Terminal state for events that have been cancelled due to critical failures.
+/// State for events that have been cancelled.
 /// 
-/// The CancelledState represents the final destination for events that encountered
-/// critical errors requiring immediate termination. This state executes any
-/// registered cancellation handlers before transitioning to the CompletedState.
+/// This state executes any registered cancellation handlers before transitioning 
+/// to the CompletedState.
 /// 
 /// Key Characteristics:
-/// - Terminal state in the event processing pipeline
-/// - Executes cancellation-specific handlers for cleanup and logging
+/// - Executes cancellation-specific handlers
 /// - Always reports HasCancelled = true
 /// - Cannot be resumed, failed, or cancelled again
 /// - Transitions to CompletedState after handler execution
 /// 
 /// Handler Execution:
-/// - Runs all registered StateHandlerEntry instances for CancelledState
+/// - Runs all registered StateHandlerEntry instances for LSEventCancelledState
 /// - Handlers are executed in priority order (CRITICAL to BACKGROUND)
 /// - Conditional handlers are evaluated before execution
 /// - Handler failures do not affect state progression
-/// 
-/// Usage Scenarios:
-/// - Security violations requiring immediate termination
-/// - Critical validation failures
-/// - System errors that cannot be recovered
-/// - User-initiated cancellation requests
-/// - Timeout conditions in external operations
 /// 
 /// State Transitions:
 /// - Entry: From any state via Cancel() operations
@@ -39,7 +31,7 @@ namespace LSUtils.EventSystem;
 /// - State properties are read-only after initialization
 /// - External control methods return null (no transitions)
 /// </summary>
-public class CancelledState : IEventProcessState {
+public class LSEventCancelledState : IEventProcessState {
     /// <summary>
     /// Reference to the event system context providing access to event data and handlers.
     /// Used to retrieve registered cancellation handlers and event information.
@@ -79,8 +71,13 @@ public class CancelledState : IEventProcessState {
     /// The context provides access to registered cancellation handlers and event data.
     /// </summary>
     /// <param name="context">The event system context containing event and handler information</param>
-    public CancelledState(LSEventProcessContext context) {
+    public LSEventCancelledState(LSEventProcessContext context) {
         _context = context;
+        var handlers = _context.Handlers
+            .OfType<LSStateHandlerEntry>()
+            .Where(h => h.StateType == typeof(LSEventCancelledState))
+            .OrderByDescending(h => h.Priority).ToList();
+        foreach (var handler in handlers) _handlers.Push(handler);
     }
 
     /// <summary>
@@ -119,7 +116,7 @@ public class CancelledState : IEventProcessState {
         }
 
         StateResult = StateProcessResult.SUCCESS;
-        return new CompletedState(_context);
+        return new LSEventCompletedState(_context);
     }
     
     /// <summary>

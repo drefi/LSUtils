@@ -5,9 +5,9 @@ using System.Linq;
 namespace LSUtils.EventSystem;
 
 /// <summary>
-/// Business state implementation for v4.
+/// Business state implementation.
 /// 
-/// The BusinessState is the primary processing state in the LSEventSystem v4, responsible for
+/// The BusinessState is the primary processing state in the LSEventSystem, responsible for
 /// managing the sequential execution of business phases: VALIDATE → CONFIGURE → EXECUTE → CLEANUP.
 /// This state implements the core business logic flow and handles the majority of event processing.
 /// 
@@ -19,8 +19,8 @@ namespace LSUtils.EventSystem;
 /// - Error handling and failure recovery coordination
 /// 
 /// Phase Execution Model:
-/// 1. **Validate Phase**: Input validation, security checks, early validation logic
-/// 2. **Configure Phase**: Resource allocation, setup, state preparation
+/// 1. **Validate Phase**: validation logic, all handlers must be successful to continue
+/// 2. **Configure Phase**: Resource allocation, setup, state preparation, failure in all handlers skip Execute phase
 /// 3. **Execute Phase**: Core business logic execution
 /// 4. **Cleanup Phase**: Resource cleanup, finalization, logging
 /// 
@@ -33,12 +33,12 @@ namespace LSUtils.EventSystem;
 /// The BusinessState coordinates with individual PhaseState implementations to ensure
 /// proper execution order, result handling, and state machine flow control.
 /// </summary>
-public partial class BusinessState : IEventProcessState {
+public partial class LSEventBusinessState : IEventProcessState {
     /// <summary>
     /// Reference to the event system context providing access to event data,
     /// dispatcher, and other processing components.
     /// </summary>
-    protected LSEventProcessContext _context;
+    protected LSEventProcessContext _eventContext;
     
     /// <summary>
     /// The currently active phase being processed.
@@ -89,10 +89,10 @@ public partial class BusinessState : IEventProcessState {
     /// based on their PhaseType property.
     /// </summary>
     /// <param name="context">The event system context containing event data and handlers</param>
-    public BusinessState(LSEventProcessContext context) {
-        _context = context;
+    public LSEventBusinessState(LSEventProcessContext context) {
+        _eventContext = context;
         //handlers are ordered and selected by type in the phase itself
-        var handlers = _context.Handlers.OfType<LSPhaseHandlerEntry>().ToList();
+        var handlers = _eventContext.Handlers.OfType<LSPhaseHandlerEntry>().ToList();
         var validate = new ValidatePhaseState(this, handlers);
         _phases.Add(validate);
         _phases.Add(new ConfigurePhaseState(this, handlers));
@@ -154,20 +154,30 @@ public partial class BusinessState : IEventProcessState {
     /// <param name="callback">Function to execute on the current phase (Process or Resume)</param>
     /// <returns>The next state to transition to based on phase results</returns>
     IEventProcessState phaseProcess(Func<PhaseState?> callback) {
-        if (_currentPhase == null) return new SucceedState(_context); //no phases left to process
+        if (_currentPhase == null) return new LSEventSucceedState(_eventContext); //no phases left to process
         var nextPhase = callback();
         var processPhaseResult = _currentPhase.PhaseResult;
         _phaseResults[_currentPhase] = processPhaseResult;
         switch (processPhaseResult) {
-            case PhaseProcessResult.CANCELLED: //when phase is cancelled move to cancelled state
-                StateResult = StateProcessResult.CANCELLED;
-                _currentPhase = null;
-                return new CancelledState(_context);
+            case PhaseProcessResult.CANCELLED: 
+                // Special handling for CleanupPhase cancellation
+                if (_currentPhase is CleanupPhaseState) {
+                    // CleanupPhase cancellation should still result in SUCCESS
+                    // since core business phases (Validate, Configure, Execute) completed successfully
+                    StateResult = StateProcessResult.SUCCESS;
+                    _currentPhase = null;
+                    return new LSEventSucceedState(_eventContext);
+                } else {
+                    // Other phase cancellations move to cancelled state
+                    StateResult = StateProcessResult.CANCELLED;
+                    _currentPhase = null;
+                    return new LSEventCancelledState(_eventContext);
+                }
             case PhaseProcessResult.FAILURE: //when phase fails move to completed state
                 if (nextPhase == null) {
                     StateResult = StateProcessResult.FAILURE;
                     _currentPhase = null;
-                    return new CompletedState(_context);
+                    return new LSEventCompletedState(_eventContext);
                 }
                 break;
             case PhaseProcessResult.WAITING: //this can happen when is the last phase but a handler is still waiting
@@ -207,7 +217,7 @@ public partial class BusinessState : IEventProcessState {
     /// </returns>
     public IEventProcessState Process() {
         IEventProcessState result = this;
-        if (_currentPhase == null) return new SucceedState(_context); //all phases completed successfully move to succeed state
+        if (_currentPhase == null) return new LSEventSucceedState(_eventContext); //all phases completed successfully move to succeed state
         do {
             result = phaseProcess(_currentPhase.Process);
         } while (_currentPhase != null);
@@ -273,7 +283,7 @@ public partial class BusinessState : IEventProcessState {
     /// </returns>
     public IEventProcessState Cancel() {
         var result = _currentPhase?.Cancel();
-        return new CancelledState(_context);
+        return new LSEventCancelledState(_eventContext);
     }
     
     /// <summary>

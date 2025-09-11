@@ -16,49 +16,55 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for print messages.
     /// </summary>
-    public class OnPrintEvent : LSLegacyEvent<string> {
+    public class OnPrintEvent : LSEvent {
         /// <summary>
         /// The print message.
         /// </summary>
-        public string Message => Instance;
+        public string Message { get; protected set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="OnPrintEvent"/> class.
         /// </summary>
         /// <param name="message">The message to print.</param>
-        public OnPrintEvent(string message) : base(message) { }
+        public OnPrintEvent(LSEventOptions options, string message) : base(options) {
+            Message = message;
+        }
     }
 
     /// <summary>
     /// Event triggered for error messages.
     /// </summary>
-    public class OnErrorEvent : LSLegacyEvent<string> {
+    public class OnErrorEvent : LSEvent {
         /// <summary>
         /// The error message.
         /// </summary>
-        public string Message => Instance;
+        public string Message { get; protected set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="OnErrorEvent"/> class.
         /// </summary>
         /// <param name="message">The error message.</param>
-        public OnErrorEvent(string message) : base(message) { }
+        public OnErrorEvent(LSEventOptions options, string message) : base(options) {
+            Message = message;
+        }
     }
 
     /// <summary>
     /// Event triggered for warning messages.
     /// </summary>
-    public class OnWarningEvent : LSLegacyEvent<string> {
+    public class OnWarningEvent : LSEvent {
         /// <summary>
         /// The warning message.
         /// </summary>
-        public string Message => Instance;
+        public string Message { get; protected set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="OnWarningEvent"/> class.
         /// </summary>
         /// <param name="message">The warning message.</param>
-        public OnWarningEvent(string message) : base(message) { }
+        public OnWarningEvent(LSEventOptions options, string message) : base(options) {
+            Message = message;
+        }
     }
 
     public class ConfirmationSignal {
@@ -105,12 +111,14 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for confirmation messages.
     /// </summary>
-    public class OnConfirmationEvent : LSLegacyEvent<ConfirmationSignal> {
-        public ConfirmationSignal ConfirmationSignal => Instance;
+    public class OnConfirmationEvent : LSEvent {
+        public ConfirmationSignal ConfirmationSignal { get; protected set; }
         /// <summary>
         /// Initializes a new instance of the <see cref="OnConfirmationEvent"/> class with confirm and cancel buttons.
         /// </summary>
-        public OnConfirmationEvent(ConfirmationSignal confirmationSignal) : base(confirmationSignal) { }
+        public OnConfirmationEvent(LSEventOptions options, ConfirmationSignal confirmationSignal) : base(options) {
+            ConfirmationSignal = confirmationSignal;
+        }
     }
 
 
@@ -142,24 +150,24 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for general notifications.
     /// </summary>
-    public class OnNotifyEvent : LSLegacyEvent<NotificationSignal> {
-
+    public class OnNotifyEvent : LSEvent {
+        protected NotificationSignal _notificationSignal;
         /// <summary>
         /// The notification message.
         /// </summary>
-        public string Message => Instance.Message;
+        public string Message => _notificationSignal.Message;
         /// <summary>
         /// The notification description.
         /// </summary>
-        public string Description => Instance.Description;
+        public string Description => _notificationSignal.Description;
         /// <summary>
         /// Indicates if the notification can be dismissed.
         /// </summary>
-        public bool AllowDismiss => Instance.AllowDismiss;
+        public bool AllowDismiss => _notificationSignal.AllowDismiss;
         /// <summary>
         /// The timeout for the notification (in seconds).
         /// </summary>
-        public double NotificationTimeout => Instance.NotificationTimeout;
+        public double NotificationTimeout => _notificationSignal.NotificationTimeout;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="OnNotifyEvent"/> class.
@@ -168,56 +176,50 @@ public static class LSSignals {
         /// <param name="description">The notification description.</param>
         /// <param name="allowDismiss">Whether the notification can be dismissed.</param>
         /// <param name="notificationTimeout">Timeout in seconds.</param>
-        public OnNotifyEvent(NotificationSignal notificationSignal) : base(notificationSignal) { }
+        public OnNotifyEvent(LSEventOptions options, NotificationSignal notificationSignal) : base(options) {
+            _notificationSignal = notificationSignal;
+        }
     }
 
     #endregion
 
     #region Static Methods
 
-    public static bool Error(string message, LSLegacyDispatcher? dispatcher) {
-        dispatcher ??= LSLegacyDispatcher.Singleton;
-        var @event = new OnErrorEvent(message);
-        return dispatcher.processEvent(@event);
+    public static void Error(string message, LSEventOptions? options = null) {
+        var @event = new OnErrorEvent(options ?? new LSEventOptions(), message);
+        @event.Dispatch();
     }
 
-    public static bool Warning(string message, LSLegacyDispatcher? dispatcher) {
-        dispatcher ??= LSLegacyDispatcher.Singleton;
-        var @event = new OnWarningEvent(message);
-        return dispatcher.processEvent(@event);
+    public static void Warning(string message, LSEventOptions? options = null) {
+        var @event = new OnWarningEvent(options ?? new LSEventOptions(), message);
+        @event.Dispatch();
     }
 
-    public static bool Print(string message, LSLegacyDispatcher? dispatcher) {
-        dispatcher ??= LSLegacyDispatcher.Singleton;
-        var @event = new OnPrintEvent(message);
-        return dispatcher.processEvent(@event);
+    public static void Print(string message, LSDispatcher? dispatcher = null) {
+        var @event = new OnPrintEvent(new LSEventOptions(dispatcher), message);
+        @event.Dispatch();
     }
 
-    public static bool Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSLegacyDispatcher? dispatcher = null) {
-        dispatcher ??= LSLegacyDispatcher.Singleton;
-        var @event = new OnNotifyEvent(new NotificationSignal(message, description, allowDismiss, timeout));
-        return dispatcher.processEvent(@event);
+    public static void Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSEventOptions? options = null) {
+        var @event = new OnNotifyEvent(options ?? new LSEventOptions(), new NotificationSignal(message, description, allowDismiss, timeout));
+        @event.Dispatch();
     }
-    public static bool Notify(NotificationSignal notificationSignal, LSLegacyDispatcher? dispatcher = null) {
-        dispatcher ??= LSLegacyDispatcher.Singleton;
-        var @event = new OnNotifyEvent(notificationSignal);
-        return dispatcher.processEvent(@event);
+    public static void Notify(NotificationSignal notificationSignal, LSEventOptions? options = null) {
+        var @event = new OnNotifyEvent(options ?? new LSEventOptions(), notificationSignal);
+        @event.Dispatch();
     }
 
-    public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSLegacyDispatcher? dispatcher = null) {
-        dispatcher ??= LSLegacyDispatcher.Singleton;
-        var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
-        return dispatcher.processEvent(@event);
+    public static void Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSEventOptions? options = null) {
+        var @event = new OnConfirmationEvent(options ?? new LSEventOptions(), new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
+        @event.Dispatch();
     }
-    public static bool Confirmation(ConfirmationSignal confirmationSignal, LSLegacyDispatcher? dispatcher = null) {
-        dispatcher ??= LSLegacyDispatcher.Singleton;
-        var @event = new OnConfirmationEvent(confirmationSignal);
-        return dispatcher.processEvent(@event);
+    public static void Confirmation(ConfirmationSignal confirmationSignal, LSEventOptions? options = null) {
+        var @event = new OnConfirmationEvent(options ?? new LSEventOptions(), confirmationSignal);
+        @event.Dispatch();
     }
-    public static bool Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSLegacyDispatcher? dispatcher = null) {
-        dispatcher ??= LSLegacyDispatcher.Singleton;
-        var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
-        return dispatcher.processEvent(@event);
+    public static void Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSEventOptions? options = null) {
+        var @event = new OnConfirmationEvent(options ?? new LSEventOptions(), new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
+        @event.Dispatch();
     }
 
     #endregion

@@ -7,962 +7,971 @@ using LSUtils.EventSystem;
 namespace LSUtils.EventSystem.Tests;
 
 /// <summary>
-/// Comprehensive NUnit tests for the LSEventSystem v4 clean redesign.
-/// Tests the simplified state machine, priority-based execution, and clean API.
+/// Comprehensive NUnit tests for LSEventSystem.
 /// </summary>
 [TestFixture]
 public class LSEventSystemTests {
+    // user registration class
+    public class User : ILSEventable {
+        public string Email { get; set; }
+        public string Password { get; set; }
 
-    #region Test Events
+        public LSDispatcher? Dispatcher => throw new NotImplementedException();
 
-    /// <summary>
-    /// Test event for user registration scenarios
-    /// </summary>
-    private class TestUserRegistrationEvent : LSEvent {
-        public string Email { get; }
-        public string Name { get; }
-        public string RegistrationSource { get; }
-        public bool RequiresEmailVerification { get; }
-
-        public TestUserRegistrationEvent(LSDispatcher dispatcher, string email, string name, string source, bool requiresVerification = true) : base(dispatcher) {
+        //constructor
+        public User(string email, string password) {
             Email = email;
-            Name = name;
-            RegistrationSource = source;
-            RequiresEmailVerification = requiresVerification;
+            Password = password;
+        }
 
-            // Store initial data
-            SetData("registration.source", source);
-            SetData("verification.required", requiresVerification);
-            SetData("user.email", email);
-            SetData("user.name", name);
+        public EventProcessResult Initialize(LSEventOptions options) {
+            return OnInitializeEvent.Create(this, options).Dispatch();
         }
     }
 
-    /// <summary>
-    /// Test event for system startup scenarios
-    /// </summary>
-    private class TestSystemStartupEvent : LSEvent {
-        public string Version { get; }
-        public DateTime StartupTime { get; }
-
-        public TestSystemStartupEvent(LSDispatcher dispatcher, string version) : base(dispatcher) {
-            Version = version;
-            StartupTime = DateTime.UtcNow;
-            SetData("system.version", version);
-            SetData("startup.time", StartupTime);
-        }
+    //user registration event class LSEvent<TInstance>
+    public class UserRegistrationEvent : LSEvent<User> {
+        public UserRegistrationEvent(User instance, LSEventOptions? options) : base(instance, options) { }
     }
-
-    /// <summary>
-    /// Test event for order processing scenarios
-    /// </summary>
-    private class TestOrderProcessingEvent : LSEvent {
-        public decimal Amount { get; }
-        public string Currency { get; }
-        public string OrderId { get; }
-
-        public TestOrderProcessingEvent(LSDispatcher dispatcher, decimal amount, string currency, string orderId) : base(dispatcher) {
-            Amount = amount;
-            Currency = currency;
-            OrderId = orderId;
-            SetData("order.amount", amount);
-            SetData("order.currency", currency);
-            SetData("order.id", orderId);
-        }
-    }
-
-    #endregion
-
-    #region Test Fixtures
-
-    private LSDispatcher _dispatcher;
-
+    //setup
+    private LSDispatcher? _dispatcher = new LSDispatcher();
     [SetUp]
-    public void SetUp() {
+    public void Setup() {
         _dispatcher = new LSDispatcher();
     }
 
+    //cleanup
     [TearDown]
-    public void TearDown() {
-        _dispatcher = null!;
+    public void Cleanup() {
+        _dispatcher = null;
     }
 
-    #endregion
-
-    #region Basic Event Tests
-
+    //Test user creation
     [Test]
-    public void Test_BaseEvent_Basic_Properties() {
-        // Arrange & Act
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-
-        // Assert
-        Assert.That(userEvent.ID, Is.Not.EqualTo(Guid.Empty));
-        Assert.That(userEvent.CreatedAt, Is.GreaterThan(DateTime.MinValue));
-        Assert.That(userEvent.IsCancelled, Is.False);
-        Assert.That(userEvent.HasFailures, Is.False);
-        Assert.That(userEvent.IsCompleted, Is.False);
-        Assert.That(userEvent.Email, Is.EqualTo("test@example.com"));
-        Assert.That(userEvent.Name, Is.EqualTo("Test User"));
-        Assert.That(userEvent.RegistrationSource, Is.EqualTo("web"));
-        Assert.That(userEvent.RequiresEmailVerification, Is.True);
+    public void TestUserCreation() {
+        var user = new User("test@example.com", "password123");
+        Assert.That(user.Email, Is.EqualTo("test@example.com"));
+        Assert.That(user.Password, Is.EqualTo("password123"));
     }
-
+    //Test user initialization
     [Test]
-    public void Test_Event_Data_Storage_And_Retrieval() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "mobile");
-
-        // Act & Assert - Initial data
-        Assert.That(userEvent.GetData<string>("registration.source"), Is.EqualTo("mobile"));
-        Assert.That(userEvent.GetData<bool>("verification.required"), Is.True);
-        Assert.That(userEvent.GetData<string>("user.email"), Is.EqualTo("test@example.com"));
-
-        // Act & Assert - Setting new data
-        userEvent.SetData("custom.field", "custom value");
-        userEvent.SetData("numeric.field", 42);
-        userEvent.SetData("object.field", new { test = "value" });
-
-        Assert.That(userEvent.GetData<string>("custom.field"), Is.EqualTo("custom value"));
-        Assert.That(userEvent.GetData<int>("numeric.field"), Is.EqualTo(42));
-        Assert.That(userEvent.GetData<object>("object.field"), Is.Not.Null);
-
-        // Act & Assert - TryGetData
-        Assert.That(userEvent.TryGetData<string>("custom.field", out var customValue), Is.True);
-        Assert.That(customValue, Is.EqualTo("custom value"));
-        Assert.That(userEvent.TryGetData<string>("non.existent", out var _), Is.False);
-    }
-
-    #endregion
-
-    #region Dispatcher Tests
-
-    [Test]
-    public void Test_Dispatcher_Basic_Event_Processing() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var result = userEvent.Dispatch();
-        // Assert
+    public void TestUserInitialization() {
+        var user = new User("test@example.com", "password123");
+        var result = user.Initialize(new LSEventOptions(_dispatcher));
         Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
-        Assert.That(userEvent.IsCompleted, Is.False); // No handlers registered, so just processes through
     }
-
+    //Test user creation event
     [Test]
-    public void Test_Dispatcher_ForEvent_Registration() {
-        // Act
-        var handlerIds = _dispatcher.ForEvent<TestUserRegistrationEvent>(register =>
-            register.OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                phaseRegister.Handler(context => {
+    public void TestUserCreationEvent() {
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
+    }
+    //Test user registration event with global handler
+    [Test]
+    public void TestUserRegistrationForEventWithGlobalPhaseHandler() {
+        List<string> handledPhases = new List<string>();
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                Console.WriteLine("ValidatePhase handler executed.");
+                handledPhases.Add("ValidatePhase");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ConfigurePhaseState>(pReg => pReg.Handler(ctx => {
+                Console.WriteLine("ConfigurePhase handler executed.");
+                handledPhases.Add("ConfigurePhase");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ExecutePhaseState>(pReg => pReg.Handler(ctx => {
+                Console.WriteLine("ExecutePhase handler executed.");
+                handledPhases.Add("ExecutePhase");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            //cleanup
+            .OnPhase<LSEventBusinessState.CleanupPhaseState>(pReg => pReg.Handler(ctx => {
+                Console.WriteLine("CleanupPhase handler executed.");
+                handledPhases.Add("CleanupPhase");
+                return HandlerProcessResult.SUCCESS;
+            })));
+        var user = new User("test@example.com", "password123");
+        Console.WriteLine("User created.");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        Console.WriteLine("User registration event dispatched.");
+        Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
+        Assert.That(handledPhases, Is.EquivalentTo(new[] { "ValidatePhase", "ConfigurePhase", "ExecutePhase", "CleanupPhase" }));
+
+        var anotherUserRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var anotherResult = anotherUserRegistrationEvent.Dispatch();
+        Console.WriteLine("Another user registration event dispatched.");
+        Assert.That(anotherResult, Is.EqualTo(EventProcessResult.SUCCESS));
+        Assert.That(handledPhases, Is.EquivalentTo(new[] { "ValidatePhase", "ConfigurePhase", "ExecutePhase", "CleanupPhase", "ValidatePhase", "ConfigurePhase", "ExecutePhase", "CleanupPhase" }));
+        Console.WriteLine("Test completed");
+    }
+    //Test user registration event with event-scoped handler
+    [Test]
+    public void TestUserRegistrationForEventWithEventScopedHandler() {
+        List<string> handledPhases = new List<string>();
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent
+            .WithCallback<UserRegistrationEvent>(
+                evtRegister => evtRegister
+                .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                    Console.WriteLine("ValidatePhase handler executed.");
+                    handledPhases.Add("ValidatePhase");
                     return HandlerProcessResult.SUCCESS;
-                }).Build()
-            ).Register()
-        );
-
-        // Assert
-        Assert.That(handlerIds, Is.Not.Null);
-        Assert.That(handlerIds.Length, Is.EqualTo(1));
-        Assert.That(handlerIds[0], Is.Not.EqualTo(Guid.Empty));
-
-        // Verify handler is registered
-        var handlers = _dispatcher.getHandlers(typeof(TestUserRegistrationEvent));
-        Assert.That(handlers.Count, Is.EqualTo(1));
-    }
-
-    [Test]
-    public void Test_Dispatcher_ForEventPhase_Registration() {
-        // Act
-        var handlerId = _dispatcher.ForEventPhase<TestUserRegistrationEvent, BusinessState.ValidatePhaseState>(register =>
-            register.Handler(context => {
-                return HandlerProcessResult.SUCCESS;
-            }).Build()
-        );
-
-        // Assert
-        Assert.That(handlerId, Is.Not.EqualTo(Guid.Empty));
-
-        // Verify handler is registered
-        var handlers = _dispatcher.getHandlers(typeof(TestUserRegistrationEvent));
-        Assert.That(handlers.Count, Is.EqualTo(1));
-        Assert.That(handlers[0], Is.TypeOf<LSPhaseHandlerEntry>());
-    }
-
-    [Test]
-    public void Test_Dispatcher_ForEventState_Registration() {
-        // Arrange
-
-        // Act
-        var handlerId = _dispatcher.ForEventState<TestUserRegistrationEvent, CancelledState>(register =>
-            register.Handler(@event => {
-                Assert.That(@event.IsCancelled, Is.True);
-            }).Build()
-        );
-
-        // Assert
-        Assert.That(handlerId, Is.Not.EqualTo(Guid.Empty));
-
-        // Verify handler is registered
-        var handlers = _dispatcher.getHandlers(typeof(TestUserRegistrationEvent));
-        Assert.That(handlers.Count, Is.EqualTo(1));
-        Assert.That(handlers[0], Is.TypeOf<LSStateHandlerEntry>());
-    }
-
-    #endregion
-
-    #region State Machine Tests
-
-    [Test]
-    public void Test_BusinessState_Creation_And_Basic_Properties() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var handlers = new List<IHandlerEntry>();
-        var context = LSEventProcessContext.Create(_dispatcher, userEvent, handlers);
-
-        // Act
-        var businessState = new BusinessState(context);
-
-        // Assert
-        Assert.That(businessState.StateResult, Is.EqualTo(StateProcessResult.UNKNOWN));
-    }
-
-    [Test]
-    public void Test_EventSystemContext_Creation_And_Properties() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var handlers = new List<IHandlerEntry>();
-
-        // Act
-        var context = LSEventProcessContext.Create(_dispatcher, userEvent, handlers);
-
-        // Assert
-        Assert.That(context.Dispatcher, Is.EqualTo(_dispatcher));
-        Assert.That(context.Event, Is.EqualTo(userEvent));
-        Assert.That(context.Handlers, Is.EqualTo(handlers));
-        Assert.That(context.CurrentState, Is.TypeOf<BusinessState>());
-        Assert.That(context.HasFailures, Is.False);
-        Assert.That(context.IsCancelled, Is.False);
-    }
-
-    [Test]
-    public void Test_StateProcessResult_Enumeration_Values() {
-        // Test that all expected values exist
-        Assert.That(Enum.IsDefined(typeof(StateProcessResult), StateProcessResult.UNKNOWN));
-        Assert.That(Enum.IsDefined(typeof(StateProcessResult), StateProcessResult.SUCCESS));
-        Assert.That(Enum.IsDefined(typeof(StateProcessResult), StateProcessResult.FAILURE));
-        Assert.That(Enum.IsDefined(typeof(StateProcessResult), StateProcessResult.WAITING));
-        Assert.That(Enum.IsDefined(typeof(StateProcessResult), StateProcessResult.CANCELLED));
-    }
-
-    [Test]
-    public void Test_HandlerProcessResult_Enumeration_Values() {
-        // Test that all expected values exist
-        Assert.That(Enum.IsDefined(typeof(HandlerProcessResult), HandlerProcessResult.UNKNOWN));
-        Assert.That(Enum.IsDefined(typeof(HandlerProcessResult), HandlerProcessResult.SUCCESS));
-        Assert.That(Enum.IsDefined(typeof(HandlerProcessResult), HandlerProcessResult.FAILURE));
-        Assert.That(Enum.IsDefined(typeof(HandlerProcessResult), HandlerProcessResult.CANCELLED));
-        Assert.That(Enum.IsDefined(typeof(HandlerProcessResult), HandlerProcessResult.WAITING));
-    }
-
-    #endregion
-
-    #region Handler Entry Tests
-
-    [Test]
-    public void Test_PhaseHandlerEntry_Creation_And_Properties() {
-        // Arrange & Act
-        var entry = new LSPhaseHandlerEntry {
-            PhaseType = typeof(BusinessState.ValidatePhaseState),
-            Priority = LSPriority.HIGH,
-            Handler = context => HandlerProcessResult.SUCCESS,
-            Condition = (evt, handlerEntry) => true,
-            Description = "Test handler"
-        };
-
-        // Assert
-        Assert.That(entry.ID, Is.Not.EqualTo(Guid.Empty));
-        Assert.That(entry.PhaseType, Is.EqualTo(typeof(BusinessState.ValidatePhaseState)));
-        Assert.That(entry.Priority, Is.EqualTo(LSPriority.HIGH));
-        Assert.That(entry.Handler, Is.Not.Null);
-        Assert.That(entry.Condition, Is.Not.Null);
-        Assert.That(entry.Description, Is.EqualTo("Test handler"));
-        Assert.That(entry.ExecutionCount, Is.EqualTo(0));
-        Assert.That(entry.WaitingBlockExecution, Is.False);
-    }
-
-    [Test]
-    public void Test_StateHandlerEntry_Creation_And_Properties() {
-        // Arrange & Act
-        var entry = new LSStateHandlerEntry {
-            StateType = typeof(CancelledState),
-            Priority = LSPriority.CRITICAL,
-            Handler = evt => { /* do nothing */ },
-            Condition = (evt, handlerEntry) => evt.IsCancelled
-        };
-
-        // Assert
-        Assert.That(entry.ID, Is.Not.EqualTo(Guid.Empty));
-        Assert.That(entry.StateType, Is.EqualTo(typeof(CancelledState)));
-        Assert.That(entry.Priority, Is.EqualTo(LSPriority.CRITICAL));
-        Assert.That(entry.Handler, Is.Not.Null);
-        Assert.That(entry.Condition, Is.Not.Null);
-        Assert.That(entry.ExecutionCount, Is.EqualTo(0));
-    }
-
-    [Test]
-    public void Test_LSESPriority_Enumeration_Values() {
-        // Test that all expected priorities exist
-        Assert.That(Enum.IsDefined(typeof(LSPriority), LSPriority.BACKGROUND));
-        Assert.That(Enum.IsDefined(typeof(LSPriority), LSPriority.LOW));
-        Assert.That(Enum.IsDefined(typeof(LSPriority), LSPriority.NORMAL));
-        Assert.That(Enum.IsDefined(typeof(LSPriority), LSPriority.HIGH));
-        Assert.That(Enum.IsDefined(typeof(LSPriority), LSPriority.CRITICAL));
-
-        // Test priority ordering (lower numbers = higher priority)
-        Assert.That((int)LSPriority.BACKGROUND, Is.EqualTo(0));
-        Assert.That((int)LSPriority.LOW, Is.EqualTo(1));
-        Assert.That((int)LSPriority.NORMAL, Is.EqualTo(2));
-        Assert.That((int)LSPriority.HIGH, Is.EqualTo(3));
-        Assert.That((int)LSPriority.CRITICAL, Is.EqualTo(4));
-    }
-
-    #endregion
-
-    #region Handler Registration Tests
-
-    [Test]
-    public void Test_PhaseHandlerRegister_Building_And_Registration() {
-        // Arrange
-        var register = LSPhaseHandlerRegister<BusinessState.ValidatePhaseState>.Create(_dispatcher);
-
-        // Act
-        var entry = register
-            .WithPriority(LSPriority.HIGH)
-            .When((evt, handlerEntry) => evt is TestUserRegistrationEvent)
-            .Handler(context => {
-                return HandlerProcessResult.SUCCESS;
-            })
-            .Build();
-
-        // Assert
-        Assert.That(entry, Is.Not.Null);
-        Assert.That(entry.PhaseType, Is.EqualTo(typeof(BusinessState.ValidatePhaseState)));
-        Assert.That(entry.Priority, Is.EqualTo(LSPriority.HIGH));
-        Assert.That(entry.Handler, Is.Not.Null);
-        Assert.That(entry.Condition, Is.Not.Null);
-        Assert.That(register.IsBuild, Is.True);
-    }
-
-    [Test]
-    public void Test_StateHandlerRegister_Building_And_Registration() {
-        // Arrange
-        var register = new LSStateHandlerRegister<CompletedState>(_dispatcher);
-
-        // Act
-        var entry = register
-            .WithPriority(LSPriority.LOW)
-            .When((evt, handlerEntry) => evt.IsCompleted)
-            .Handler(evt => {
-                // Do something when event is completed
-                Assert.That(evt.IsCompleted, Is.True);
-            })
-            .Build();
-
-        // Assert
-        Assert.That(entry, Is.Not.Null);
-        Assert.That(entry.StateType, Is.EqualTo(typeof(CompletedState)));
-        Assert.That(entry.Priority, Is.EqualTo(LSPriority.LOW));
-        Assert.That(entry.Handler, Is.Not.Null);
-        Assert.That(entry.Condition, Is.Not.Null);
-        Assert.That(register.IsBuild, Is.True);
-    }
-
-    [Test]
-    public void Test_EventSystemRegister_Multiple_Handlers() {
-        // Arrange
-        var register = new LSEventRegister<TestUserRegistrationEvent>(_dispatcher);
-        var executionOrder = new List<string>();
-
-        // Act
-        var handlerIds = register
-            .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                phaseRegister
-                    .WithPriority(LSPriority.HIGH)
-                    .Handler(context => {
-                        executionOrder.Add("VALIDATE");
-                        return HandlerProcessResult.SUCCESS;
-                    })
-                    .Build()
+                }))
+                .OnPhase<LSEventBusinessState.ConfigurePhaseState>(pReg => pReg.Handler(ctx => {
+                    Console.WriteLine("ConfigurePhase handler executed.");
+                    handledPhases.Add("ConfigurePhase");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.ExecutePhaseState>(pReg => pReg.Handler(ctx => {
+                    Console.WriteLine("ExecutePhase handler executed.");
+                    handledPhases.Add("ExecutePhase");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.CleanupPhaseState>(pReg => pReg.Handler(ctx => {
+                    Console.WriteLine("CleanupPhase handler executed.");
+                    handledPhases.Add("CleanupPhase");
+                    return HandlerProcessResult.SUCCESS;
+                }))
             )
-            .OnPhase<BusinessState.ExecutePhaseState>(phaseRegister =>
-                phaseRegister
-                    .WithPriority(LSPriority.NORMAL)
-                    .Handler(context => {
-                        executionOrder.Add("EXECUTE");
-                        return HandlerProcessResult.SUCCESS;
-                    })
-                    .Build()
-            )
-            .OnState<CompletedState>(stateRegister =>
-                stateRegister
-                    .WithPriority(LSPriority.LOW)
-                    .Handler(evt => {
-                        executionOrder.Add("COMPLETED");
-                    })
-                    .Build()
-            )
-            .Register();
-
-        // Assert
-        Assert.That(handlerIds, Is.Not.Null);
-        Assert.That(handlerIds.Length, Is.EqualTo(3));
-        Assert.That(handlerIds.All(id => id != Guid.Empty), Is.True);
-
-        // Verify handlers are registered
-        var handlers = _dispatcher.getHandlers(typeof(TestUserRegistrationEvent));
-        Assert.That(handlers.Count, Is.EqualTo(3));
-    }
-
-    #endregion
-
-    #region Integration Tests
-
-    [Test]
-    public void Test_Complete_Event_Processing_Flow() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var executionOrder = new List<string>();
-
-        // Register handlers for different phases
-        _dispatcher.ForEvent<TestUserRegistrationEvent>(register =>
-            register
-                .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .WithPriority(LSPriority.HIGH)
-                        .Handler(context => {
-                            executionOrder.Add("VALIDATE");
-                            var evt = (TestUserRegistrationEvent)context.Event;
-                            Assert.That(evt.Email, Is.EqualTo("test@example.com"));
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.ConfigurePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .WithPriority(LSPriority.NORMAL)
-                        .Handler(context => {
-                            executionOrder.Add("CONFIGURE");
-                            context.Event.SetData("configured", true);
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.ExecutePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .WithPriority(LSPriority.NORMAL)
-                        .Handler(context => {
-                            executionOrder.Add("EXECUTE");
-                            Assert.That(context.Event.GetData<bool>("configured"), Is.True);
-                            context.Event.SetData("executed", true);
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnState<SucceedState>(stateRegister =>
-                    stateRegister
-                        .Handler(evt => {
-                            executionOrder.Add("SUCCESS");
-                        })
-                        .Build()
-                )
-                .OnState<CompletedState>(stateRegister =>
-                    stateRegister
-                        .Handler(evt => {
-                            executionOrder.Add("COMPLETED");
-                        })
-                        .Build()
-                )
-                .Register()
-        );
-
-        // Act
-        var result = userEvent.Dispatch();
-
-        // Assert
+            .Dispatch();
         Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
-        Assert.That(executionOrder.Count, Is.GreaterThan(0));
-        Assert.That(executionOrder.Contains("VALIDATE"), Is.True);
-        Assert.That(userEvent.GetData<bool>("configured"), Is.True);
-        Assert.That(userEvent.GetData<bool>("executed"), Is.True);
+        Assert.That(handledPhases, Is.EquivalentTo(new[] { "ValidatePhase", "ConfigurePhase", "ExecutePhase", "CleanupPhase" }));
+        Console.WriteLine("Test completed");
     }
 
+    //Test user registration event with both global and event-scoped handlers
     [Test]
-    public void Test_Priority_Based_Handler_Execution() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var executionOrder = new List<string>();
+    public void TestUserRegistrationWithGlobalAndEventScopedHandlers() {
+        List<string> handledPhases = new List<string>();
+        
+        // Register global handlers first
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                Console.WriteLine("GLOBAL ValidatePhase handler executed.");
+                handledPhases.Add("GLOBAL_ValidatePhase");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ConfigurePhaseState>(pReg => pReg.Handler(ctx => {
+                Console.WriteLine("GLOBAL ConfigurePhase handler executed.");
+                handledPhases.Add("GLOBAL_ConfigurePhase");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ExecutePhaseState>(pReg => pReg.Handler(ctx => {
+                Console.WriteLine("GLOBAL ExecutePhase handler executed.");
+                handledPhases.Add("GLOBAL_ExecutePhase");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.CleanupPhaseState>(pReg => pReg.Handler(ctx => {
+                Console.WriteLine("GLOBAL CleanupPhase handler executed.");
+                handledPhases.Add("GLOBAL_CleanupPhase");
+                return HandlerProcessResult.SUCCESS;
+            })));
 
-        // Register handlers with different priorities in the same phase
-        _dispatcher.ForEvent<TestUserRegistrationEvent>(register =>
-            register
-                .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .WithPriority(LSPriority.LOW)
-                        .Handler(context => {
-                            executionOrder.Add("LOW_PRIORITY");
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .WithPriority(LSPriority.CRITICAL)
-                        .Handler(context => {
-                            executionOrder.Add("CRITICAL_PRIORITY");
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .WithPriority(LSPriority.NORMAL)
-                        .Handler(context => {
-                            executionOrder.Add("NORMAL_PRIORITY");
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .Register()
-        );
-
-        // Act
-        var result = userEvent.Dispatch();
-
-        // Assert
+        var user = new User("test@example.com", "password123");
+        Console.WriteLine("User created.");
+        
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        
+        // Add event-scoped handlers and dispatch
+        var result = userRegistrationEvent
+            .WithCallback<UserRegistrationEvent>(
+                evtRegister => evtRegister
+                .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                    Console.WriteLine("EVENT-SCOPED ValidatePhase handler executed.");
+                    handledPhases.Add("EVENT_ValidatePhase");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.ConfigurePhaseState>(pReg => pReg.Handler(ctx => {
+                    Console.WriteLine("EVENT-SCOPED ConfigurePhase handler executed.");
+                    handledPhases.Add("EVENT_ConfigurePhase");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.ExecutePhaseState>(pReg => pReg.Handler(ctx => {
+                    Console.WriteLine("EVENT-SCOPED ExecutePhase handler executed.");
+                    handledPhases.Add("EVENT_ExecutePhase");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.CleanupPhaseState>(pReg => pReg.Handler(ctx => {
+                    Console.WriteLine("EVENT-SCOPED CleanupPhase handler executed.");
+                    handledPhases.Add("EVENT_CleanupPhase");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+            )
+            .Dispatch();
+            
+        Console.WriteLine("User registration event with both global and event-scoped handlers dispatched.");
+        
         Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
-        Assert.That(executionOrder.Count, Is.EqualTo(3));
-
-        // Should execute in priority order: CRITICAL (4) -> NORMAL (2) -> LOW (1)
-        // Note: Higher priority values execute first in this implementation
-        var criticalIndex = executionOrder.IndexOf("CRITICAL_PRIORITY");
-        var normalIndex = executionOrder.IndexOf("NORMAL_PRIORITY");
-        var lowIndex = executionOrder.IndexOf("LOW_PRIORITY");
-
-        Assert.That(criticalIndex, Is.LessThan(normalIndex));
-        Assert.That(normalIndex, Is.LessThan(lowIndex));
+        
+        // Check that both global and event-scoped handlers were executed
+        // The exact order depends on your LSEventSystem implementation
+        Assert.That(handledPhases.Count, Is.EqualTo(8), "Expected 8 handlers to be executed (4 global + 4 event-scoped)");
+        
+        // Verify that all expected handler types were called
+        Assert.That(handledPhases.Count(h => h.StartsWith("GLOBAL_")), Is.EqualTo(4), "Expected 4 global handlers");
+        Assert.That(handledPhases.Count(h => h.StartsWith("EVENT_")), Is.EqualTo(4), "Expected 4 event-scoped handlers");
+        
+        // Verify that all phases were handled
+        Assert.That(handledPhases.Any(h => h.Contains("ValidatePhase")), Is.True, "ValidatePhase should be handled");
+        Assert.That(handledPhases.Any(h => h.Contains("ConfigurePhase")), Is.True, "ConfigurePhase should be handled");
+        Assert.That(handledPhases.Any(h => h.Contains("ExecutePhase")), Is.True, "ExecutePhase should be handled");
+        Assert.That(handledPhases.Any(h => h.Contains("CleanupPhase")), Is.True, "CleanupPhase should be handled");
+        
+        Console.WriteLine($"Handlers executed in order: {string.Join(", ", handledPhases)}");
+        Console.WriteLine("Test completed - both global and event-scoped handlers worked together");
     }
 
+    //Test BusinessState processing through all phases
     [Test]
-    public void Test_Conditional_Handler_Execution() {
-        // Arrange
-        var userEvent1 = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var userEvent2 = new TestUserRegistrationEvent(_dispatcher, "admin@example.com", "Admin User", "admin");
-        var webHandlerExecuted = false;
-        var adminHandlerExecuted = false;
-        int executionCount = 0;
+    public void TestBusinessStateProcessing() {
+        List<string> handledPhases = new List<string>();
+        
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                Console.WriteLine("BusinessState - ValidatePhase executed.");
+                handledPhases.Add("Validate");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ConfigurePhaseState>(pReg => pReg.Handler(ctx => {
+                Console.WriteLine("BusinessState - ConfigurePhase executed.");
+                handledPhases.Add("Configure");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ExecutePhaseState>(pReg => pReg.Handler(ctx => {
+                Console.WriteLine("BusinessState - ExecutePhase executed.");
+                handledPhases.Add("Execute");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.CleanupPhaseState>(pReg => pReg.Handler(ctx => {
+                Console.WriteLine("BusinessState - CleanupPhase executed.");
+                handledPhases.Add("Cleanup");
+                return HandlerProcessResult.SUCCESS;
+            })));
 
-        // Register conditional handlers
-        _dispatcher.ForEvent<TestUserRegistrationEvent>(register =>
-            register
-                .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .When((evt, entry) => {
-                            var userEvt = evt as TestUserRegistrationEvent;
-                            return userEvt?.RegistrationSource == "web";
-                        })
-                        .Handler(context => {
-                            webHandlerExecuted = true;
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .When((evt, entry) => {
-                            var userEvt = evt as TestUserRegistrationEvent;
-                            return userEvt?.RegistrationSource == "admin";
-                        })
-                        .Handler(context => {
-                            adminHandlerExecuted = true;
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.ExecutePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .When((evt, entry) => entry.ExecutionCount == 0) //run only if no prior handler executed
-                        .Handler(context => {
-                            executionCount++;
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .Register()
-        );
-
-        // Act
-        var result1 = userEvent1.Dispatch();
-        Assert.That(executionCount, Is.EqualTo(1)); // First event should trigger execution
-        var result2 = userEvent2.Dispatch();
-        Assert.That(executionCount, Is.EqualTo(1)); // Second event should not trigger execution again
-
-        // Assert
-        Assert.That(result1, Is.EqualTo(EventProcessResult.SUCCESS));
-        Assert.That(result2, Is.EqualTo(EventProcessResult.SUCCESS));
-        Assert.That(webHandlerExecuted, Is.True);
-        Assert.That(adminHandlerExecuted, Is.True);
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
+        Assert.That(handledPhases, Is.EqualTo(new[] { "Validate", "Configure", "Execute", "Cleanup" }));
+        Console.WriteLine("BusinessState test completed - all phases executed in correct order");
     }
 
+    //Test SucceedState behavior after successful business processing
     [Test]
-    public void Test_Handler_Failure_Processing() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var executionOrder = new List<string>();
+    public void TestSucceedStateHandlers() {
+        List<string> executedHandlers = new List<string>();
+        
+        // Register success state handlers
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                Console.WriteLine("SucceedState handler executed.");
+                executedHandlers.Add("Success");
+            }))
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                Console.WriteLine("Business phase handler executed.");
+                executedHandlers.Add("BusinessPhase");
+                return HandlerProcessResult.SUCCESS;
+            })));
 
-        // Register handlers with one that fails
-        _dispatcher.ForEvent<TestUserRegistrationEvent>(register =>
-            register
-                .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .Handler(context => {
-                            executionOrder.Add("VALIDATE_SUCCESS");
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.ExecutePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .Handler(context => {
-                            executionOrder.Add("EXECUTE_FAILURE");
-                            return HandlerProcessResult.FAILURE;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.CleanupPhaseState>(phaseRegister =>
-                    phaseRegister
-                        .Handler(context => {
-                            executionOrder.Add("CLEANUP");
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .Register()
-        );
-
-        // Act
-        var result = userEvent.Dispatch();
-
-        // Assert
-        Assert.That(executionOrder.Contains("VALIDATE_SUCCESS"), Is.True);
-        Assert.That(executionOrder.Contains("EXECUTE_FAILURE"), Is.True);
-        // Should still reach cleanup phase even after failure
-        Assert.That(executionOrder.Contains("CLEANUP"), Is.True);
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
+        Assert.That(executedHandlers, Contains.Item("BusinessPhase"));
+        Assert.That(executedHandlers, Contains.Item("Success"));
+        Console.WriteLine("SucceedState test completed - success handlers executed after business phases");
     }
 
+    //Test CompletedState behavior as final terminal state
     [Test]
-    public void Test_Handler_Cancellation_Processing() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var executionOrder = new List<string>();
+    public void TestCompletedStateHandlers() {
+        List<string> executedHandlers = new List<string>();
+        
+        // Register completion state handlers
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                Console.WriteLine("CompletedState handler executed.");
+                executedHandlers.Add("Completed");
+            }))
+            .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                Console.WriteLine("SucceedState handler executed.");
+                executedHandlers.Add("Success");
+            }))
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                Console.WriteLine("Business phase handler executed.");
+                executedHandlers.Add("BusinessPhase");
+                return HandlerProcessResult.SUCCESS;
+            })));
 
-        // Register handlers with one that cancels
-        _dispatcher.ForEvent<TestUserRegistrationEvent>(register =>
-            register
-                .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .Handler(context => {
-                            executionOrder.Add("VALIDATE_CANCEL");
-                            return HandlerProcessResult.CANCELLED;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.ExecutePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .Handler(context => {
-                            executionOrder.Add("EXECUTE_SHOULD_NOT_RUN");
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnState<CancelledState>(stateRegister =>
-                    stateRegister
-                        .Handler(evt => {
-                            executionOrder.Add("CANCELLED_STATE");
-                        })
-                        .Build()
-                )
-                .Register()
-        );
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
+        Assert.That(executedHandlers, Contains.Item("BusinessPhase"));
+        Assert.That(executedHandlers, Contains.Item("Success"));
+        Assert.That(executedHandlers, Contains.Item("Completed"));
+        Console.WriteLine("CompletedState test completed - completion handlers executed as final step");
+    }
 
-        // Act
-        var result = userEvent.Dispatch();
+    //Test CancelledState behavior when event is cancelled
+    [Test]
+    public void TestCancelledStateHandlers() {
+        List<string> executedHandlers = new List<string>();
+        
+        // Register cancellation state handlers
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                Console.WriteLine("CancelledState handler executed.");
+                executedHandlers.Add("Cancelled");
+            }))
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                Console.WriteLine("CompletedState handler executed after cancellation.");
+                executedHandlers.Add("Completed");
+            }))
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                Console.WriteLine("Business phase handler - simulating cancellation.");
+                executedHandlers.Add("BusinessPhase");
+                return HandlerProcessResult.CANCELLED;
+            })));
 
-        // Assert
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
         Assert.That(result, Is.EqualTo(EventProcessResult.CANCELLED));
-        Assert.That(executionOrder.Contains("VALIDATE_CANCEL"), Is.True);
-        Assert.That(executionOrder.Contains("EXECUTE_SHOULD_NOT_RUN"), Is.False);
-        Assert.That(userEvent.IsCancelled, Is.True);
+        Assert.That(executedHandlers, Contains.Item("BusinessPhase"));
+        Assert.That(executedHandlers, Contains.Item("Cancelled"));
+        Assert.That(executedHandlers, Contains.Item("Completed"));
+        Console.WriteLine("CancelledState test completed - cancellation flow executed correctly");
     }
 
+    //Test state transitions flow (Business → Success → Completed)
     [Test]
-    public void Test_Event_Data_Persistence_Across_Processing() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        const string testKey = "cross.phase.data";
-        const string testValue = "persistent-value";
+    public void TestStateTransitionFlow() {
+        List<string> stateFlow = new List<string>();
+        
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Validate");
+                Console.WriteLine("BusinessState-Validate executed");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ExecutePhaseState>(eReg => eReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Execute");
+                Console.WriteLine("BusinessState-Execute executed");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                stateFlow.Add("SucceedState");
+                Console.WriteLine("SucceedState executed");
+            }))
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                stateFlow.Add("CompletedState");
+                Console.WriteLine("CompletedState executed");
+            })));
 
-        // Register handlers that set and verify data across phases
-        _dispatcher.ForEvent<TestUserRegistrationEvent>(register =>
-            register
-                .OnPhase<BusinessState.ValidatePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .Handler(context => {
-                            context.Event.SetData(testKey, testValue);
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnPhase<BusinessState.ExecutePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .Handler(context => {
-                            var retrievedValue = context.Event.GetData<string>(testKey);
-                            Assert.That(retrievedValue, Is.EqualTo(testValue));
-                            context.Event.SetData("execute.verified", true);
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .OnState<CompletedState>(stateRegister =>
-                    stateRegister
-                        .Handler(evt => {
-                            var retrievedValue = evt.GetData<string>(testKey);
-                            Assert.That(retrievedValue, Is.EqualTo(testValue));
-                            var executeVerified = evt.GetData<bool>("execute.verified");
-                            Assert.That(executeVerified, Is.True);
-                        })
-                        .Build()
-                )
-                .Register()
-        );
-
-        // Act
-        var result = userEvent.Dispatch();
-
-        // Assert
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
         Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
-        Assert.That(userEvent.GetData<string>(testKey), Is.EqualTo(testValue));
-        Assert.That(userEvent.GetData<bool>("execute.verified"), Is.True);
-    }
-
-    #endregion
-
-    #region Error Handling Tests
-
-    [Test]
-    public void Test_PhaseHandlerRegister_Invalid_Configuration() {
-        // Arrange
-        var register = LSPhaseHandlerRegister<BusinessState.ValidatePhaseState>.Create(_dispatcher);
-
-        // Act & Assert - Building without handler should throw
-        Assert.Throws<LSArgumentNullException>(() => register.Build());
-
-        // Act & Assert - Registering without building should throw
-        Assert.Throws<LSArgumentNullException>(() => register.Register());
-    }
-
-    [Test]
-    public void Test_StateHandlerRegister_Invalid_Configuration() {
-        // Arrange
-        var register = new LSStateHandlerRegister<CompletedState>(_dispatcher);
-
-        // Act & Assert - Building without handler should throw
-        Assert.Throws<LSException>(() => register.Build());
-
-        // Act & Assert - Building twice should throw
-        register.Handler(evt => { });
-        register.Build();
-        Assert.Throws<LSException>(() => register.Build());
-    }
-
-    [Test]
-    public void Test_EventSystemRegister_Null_Handler_Entry() {
-        // Arrange
-        var register = new LSEventRegister<TestUserRegistrationEvent>(_dispatcher);
-
-        // Act & Assert - Null phase handler should throw
-        Assert.Throws<LSArgumentNullException>(() =>
-            register.OnPhase<BusinessState.ValidatePhaseState>(phaseRegister => null!)
-        );
-
-        // Act & Assert - Null state handler should throw  
-        Assert.Throws<LSArgumentNullException>(() =>
-            register.OnState<CompletedState>(stateRegister => null!)
-        );
-    }
-
-    [Test]
-    public void Test_Dispatcher_ForEvent_Exception_Handling() {
-        // Arrange
-        // Act - Invalid configuration should return empty array
-        var handlerIds = _dispatcher.ForEvent<TestUserRegistrationEvent>(register => {
-            throw new InvalidOperationException("Test exception");
-        });
-
-        // Assert
-        Assert.That(handlerIds, Is.Not.Null);
-        Assert.That(handlerIds.Length, Is.EqualTo(0));
-    }
-
-    [Test]
-    public void Test_Dispatcher_ForEventPhase_Exception_Handling() {
-        // Act - Invalid configuration should return empty GUID
-        var handlerId = _dispatcher.ForEventPhase<TestUserRegistrationEvent, BusinessState.ValidatePhaseState>(register => {
-            throw new InvalidOperationException("Test exception");
-        });
-
-        // Assert
-        Assert.That(handlerId, Is.EqualTo(Guid.Empty));
-    }
-
-    [Test]
-    public void Test_Dispatcher_ForEventState_Exception_Handling() {
-        // Act - Invalid configuration should return empty GUID
-        var handlerId = _dispatcher.ForEventState<TestUserRegistrationEvent, CompletedState>(register => {
-            throw new InvalidOperationException("Test exception");
-        });
-
-        // Assert
-        Assert.That(handlerId, Is.EqualTo(Guid.Empty));
-    }
-
-    #endregion
-
-    #region State Specific Tests
-
-    [Test]
-    public void Test_CancelledState_Processing() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var handlers = new List<IHandlerEntry>();
-        var context = LSEventProcessContext.Create(_dispatcher, userEvent, handlers);
-        var cancelledState = new CancelledState(context);
-
-        // Act
-        var nextState = cancelledState.Process();
-
-        // Assert
-        Assert.That(nextState, Is.TypeOf<CompletedState>());
-        Assert.That(cancelledState.Resume(), Is.Null);
-        Assert.That(cancelledState.Cancel(), Is.Null);
-        Assert.That(cancelledState.Fail(), Is.Null);
-    }
-
-    [Test]
-    public void Test_CompletedState_Processing() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var handlers = new List<IHandlerEntry>();
-        var context = LSEventProcessContext.Create(_dispatcher, userEvent, handlers);
-        var completedState = new CompletedState(context);
-
-        // Act
-        var nextState = completedState.Process();
-
-        // Assert
-        Assert.That(nextState, Is.Null);
-        Assert.That(completedState.Resume(), Is.Null);
-        Assert.That(completedState.Cancel(), Is.Null);
-        Assert.That(completedState.Fail(), Is.Null);
-    }
-
-    [Test]
-    public void Test_SucceedState_Processing() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var handlers = new List<IHandlerEntry>();
-        var context = LSEventProcessContext.Create(_dispatcher, userEvent, handlers);
-        var succeedState = new SucceedState(context);
-
-        // Act
-        var nextState = succeedState.Process();
-
-        // Assert
-        Assert.That(nextState, Is.TypeOf<CompletedState>());
-        Assert.That(succeedState.Resume(), Is.Null);
-        Assert.That(succeedState.Cancel(), Is.Null);
-        Assert.That(succeedState.Fail(), Is.Null);
-    }
-
-    #endregion
-
-    #region Performance and Edge Case Tests
-
-    [Test]
-    public void Test_Multiple_Events_Parallel_Processing() {
-        // Arrange
-        var events = new List<TestUserRegistrationEvent>();
-        var processedEmails = new List<string>();
-
-        for (int i = 0; i < 10; i++) {
-            events.Add(new TestUserRegistrationEvent(_dispatcher, $"user{i}@example.com", $"User {i}", "web"));
+        
+        // Print the full flow for debugging
+        Console.WriteLine($"Full state flow: {string.Join(" → ", stateFlow)}");
+        
+        // Verify state transition order (adjust based on actual implementation)
+        var businessStateIndex = stateFlow.FindIndex(s => s.StartsWith("BusinessState"));
+        var succeedStateIndex = stateFlow.FindIndex(s => s == "SucceedState");
+        var completedStateIndex = stateFlow.FindIndex(s => s == "CompletedState");
+        
+        Console.WriteLine($"BusinessState index: {businessStateIndex}, SucceedState index: {succeedStateIndex}, CompletedState index: {completedStateIndex}");
+        
+        // Verify that BusinessState executes before other states
+        Assert.That(businessStateIndex, Is.GreaterThanOrEqualTo(0), "BusinessState should execute");
+        
+        // Verify both SucceedState and CompletedState execute
+        Assert.That(succeedStateIndex, Is.GreaterThanOrEqualTo(0), "SucceedState should execute");
+        Assert.That(completedStateIndex, Is.GreaterThanOrEqualTo(0), "CompletedState should execute");
+        
+        // BusinessState should execute before both terminal states
+        if (succeedStateIndex >= 0) {
+            Assert.That(businessStateIndex, Is.LessThan(succeedStateIndex), "BusinessState should execute before SucceedState");
         }
-
-        // Register handler
-        _dispatcher.ForEvent<TestUserRegistrationEvent>(register =>
-            register
-                .OnPhase<BusinessState.ExecutePhaseState>(phaseRegister =>
-                    phaseRegister
-                        .Handler(context => {
-                            var evt = (TestUserRegistrationEvent)context.Event;
-                            lock (processedEmails) {
-                                processedEmails.Add(evt.Email);
-                            }
-                            return HandlerProcessResult.SUCCESS;
-                        })
-                        .Build()
-                )
-                .Register()
-        );
-
-        // Act
-        var results = events.Select(evt => evt.Dispatch()).ToList();
-
-        // Assert
-        Assert.That(results.All(r => r == EventProcessResult.SUCCESS), Is.True);
-        Assert.That(processedEmails.Count, Is.EqualTo(10));
-        Assert.That(processedEmails.All(email => email.Contains("@example.com")), Is.True);
-    }
-
-    [Test]
-    public void Test_Event_With_No_Handlers() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-
-        // Act - Process event with no registered handlers
-        var result = userEvent.Dispatch();
-
-        // Assert
-        Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS));
-        Assert.That(userEvent.IsCompleted, Is.False); // No state changes occurred
-    }
-
-    [Test]
-    public void Test_Large_Event_Data_Storage() {
-        // Arrange
-        var userEvent = new TestUserRegistrationEvent(_dispatcher, "test@example.com", "Test User", "web");
-        var largeDataStructure = new Dictionary<string, object>();
-
-        // Add large amount of data
-        for (int i = 0; i < 1000; i++) {
-            largeDataStructure[$"key_{i}"] = $"value_{i}_{Guid.NewGuid()}";
+        if (completedStateIndex >= 0) {
+            Assert.That(businessStateIndex, Is.LessThan(completedStateIndex), "BusinessState should execute before CompletedState");
         }
-
-        // Act
-        userEvent.SetData("large.dataset", largeDataStructure);
-        var retrievedData = userEvent.GetData<Dictionary<string, object>>("large.dataset");
-
-        // Assert
-        Assert.That(retrievedData, Is.Not.Null);
-        Assert.That(retrievedData.Count, Is.EqualTo(1000));
-        Assert.That(retrievedData["key_500"], Is.Not.Null);
+        
+        Console.WriteLine($"State transition flow: {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("State transition test completed - correct flow verified");
     }
-    #endregion
+
+    //Test failure state transitions (Business → Completed, skipping Success)
+    [Test]
+    public void TestFailureStateTransitionFlow() {
+        List<string> stateFlow = new List<string>();
+        
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Validate");
+                return HandlerProcessResult.FAILURE;
+            }))
+            .OnPhase<LSEventBusinessState.CleanupPhaseState>(cReg => cReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Cleanup");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                stateFlow.Add("SucceedState");
+            }))
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                stateFlow.Add("CompletedState");
+            })));
+
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.FAILURE));
+        
+        // Verify that SucceedState was skipped due to failure
+        Assert.That(stateFlow, Does.Not.Contain("SucceedState"), "SucceedState should be skipped on failure");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Cleanup"), "Cleanup should be skipped when ValidatePhase fails");
+        Assert.That(stateFlow, Contains.Item("CompletedState"), "CompletedState should still execute");
+        
+        Console.WriteLine($"Failure state flow: {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("Failure state transition test completed - ValidatePhase failure skips all remaining phases");
+    }
+
+    //Test cancellation state transitions (Business → Cancelled → Completed)
+    [Test]
+    public void TestCancellationStateTransitionFlow() {
+        List<string> stateFlow = new List<string>();
+        
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Validate");
+                return HandlerProcessResult.CANCELLED;
+            }))
+            .OnPhase<LSEventBusinessState.CleanupPhaseState>(cReg => cReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Cleanup");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                stateFlow.Add("SucceedState");
+            }))
+            .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                stateFlow.Add("CancelledState");
+            }))
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                stateFlow.Add("CompletedState");
+            })));
+
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.CANCELLED));
+        
+        // Verify cancellation flow
+        Assert.That(stateFlow, Does.Not.Contain("SucceedState"), "SucceedState should be skipped on cancellation");
+        Assert.That(stateFlow, Contains.Item("CancelledState"), "CancelledState should execute");
+        Assert.That(stateFlow, Contains.Item("CompletedState"), "CompletedState should execute after cancellation");
+        
+        var cancelledIndex = stateFlow.FindIndex(s => s == "CancelledState");
+        var completedIndex = stateFlow.FindIndex(s => s == "CompletedState");
+        Assert.That(cancelledIndex, Is.LessThan(completedIndex), "CancelledState should execute before CompletedState");
+        
+        Console.WriteLine($"Cancellation state flow: {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("Cancellation state transition test completed - correct flow verified");
+    }
+    
+    //Test cancellation from ValidatePhase - should go directly to CancelledState
+    [Test]
+    public void TestValidatePhaseCancellation() {
+        List<string> stateFlow = new List<string>();
+        
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Validate");
+                return HandlerProcessResult.CANCELLED;
+            }))
+            .OnPhase<LSEventBusinessState.ConfigurePhaseState>(cReg => cReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Configure");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ExecutePhaseState>(eReg => eReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Execute");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.CleanupPhaseState>(clReg => clReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Cleanup");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                stateFlow.Add("SucceedState");
+            }))
+            .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                stateFlow.Add("CancelledState");
+            }))
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                stateFlow.Add("CompletedState");
+            })));
+
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.CANCELLED));
+        
+        // Verify ValidatePhase cancellation skips all remaining phases
+        Assert.That(stateFlow, Contains.Item("BusinessState-Validate"), "ValidatePhase should execute");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Configure"), "ConfigurePhase should be skipped");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Execute"), "ExecutePhase should be skipped");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Cleanup"), "CleanupPhase should be skipped");
+        Assert.That(stateFlow, Does.Not.Contain("SucceedState"), "SucceedState should be skipped");
+        Assert.That(stateFlow, Contains.Item("CancelledState"), "CancelledState should execute");
+        Assert.That(stateFlow, Contains.Item("CompletedState"), "CompletedState should execute");
+        
+        Console.WriteLine($"ValidatePhase cancellation flow: {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("ValidatePhase cancellation test completed - direct transition to CancelledState");
+    }
+    
+    //Test cancellation from ConfigurePhase - should go directly to CancelledState  
+    [Test]
+    public void TestConfigurePhaseCancellation() {
+        List<string> stateFlow = new List<string>();
+        
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Validate");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ConfigurePhaseState>(cReg => cReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Configure");
+                return HandlerProcessResult.CANCELLED;
+            }))
+            .OnPhase<LSEventBusinessState.ExecutePhaseState>(eReg => eReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Execute");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.CleanupPhaseState>(clReg => clReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Cleanup");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                stateFlow.Add("SucceedState");
+            }))
+            .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                stateFlow.Add("CancelledState");
+            }))
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                stateFlow.Add("CompletedState");
+            })));
+
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.CANCELLED));
+        
+        // Verify ConfigurePhase cancellation skips remaining phases
+        Assert.That(stateFlow, Contains.Item("BusinessState-Validate"), "ValidatePhase should execute");
+        Assert.That(stateFlow, Contains.Item("BusinessState-Configure"), "ConfigurePhase should execute");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Execute"), "ExecutePhase should be skipped");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Cleanup"), "CleanupPhase should be skipped");
+        Assert.That(stateFlow, Does.Not.Contain("SucceedState"), "SucceedState should be skipped");
+        Assert.That(stateFlow, Contains.Item("CancelledState"), "CancelledState should execute");
+        Assert.That(stateFlow, Contains.Item("CompletedState"), "CompletedState should execute");
+        
+        Console.WriteLine($"ConfigurePhase cancellation flow: {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("ConfigurePhase cancellation test completed - direct transition to CancelledState");
+    }
+    
+    //Test cancellation from ExecutePhase - should go directly to CancelledState
+    [Test] 
+    public void TestExecutePhaseCancellation() {
+        List<string> stateFlow = new List<string>();
+        
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Validate");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ConfigurePhaseState>(cReg => cReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Configure");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ExecutePhaseState>(eReg => eReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Execute");
+                return HandlerProcessResult.CANCELLED;
+            }))
+            .OnPhase<LSEventBusinessState.CleanupPhaseState>(clReg => clReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Cleanup");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                stateFlow.Add("SucceedState");
+            }))
+            .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                stateFlow.Add("CancelledState");
+            }))
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                stateFlow.Add("CompletedState");
+            })));
+
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.CANCELLED));
+        
+        // Verify ExecutePhase cancellation skips remaining phases
+        Assert.That(stateFlow, Contains.Item("BusinessState-Validate"), "ValidatePhase should execute");
+        Assert.That(stateFlow, Contains.Item("BusinessState-Configure"), "ConfigurePhase should execute");
+        Assert.That(stateFlow, Contains.Item("BusinessState-Execute"), "ExecutePhase should execute");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Cleanup"), "CleanupPhase should be skipped");
+        Assert.That(stateFlow, Does.Not.Contain("SucceedState"), "SucceedState should be skipped");
+        Assert.That(stateFlow, Contains.Item("CancelledState"), "CancelledState should execute");
+        Assert.That(stateFlow, Contains.Item("CompletedState"), "CompletedState should execute");
+        
+        Console.WriteLine($"ExecutePhase cancellation flow: {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("ExecutePhase cancellation test completed - direct transition to CancelledState");
+    }
+    
+    //Test cancellation from CleanupPhase - should go directly to CancelledState
+    [Test]
+    public void TestCleanupPhaseCancellation() {
+        List<string> stateFlow = new List<string>();
+        
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Validate");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ConfigurePhaseState>(cReg => cReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Configure");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.ExecutePhaseState>(eReg => eReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Execute");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnPhase<LSEventBusinessState.CleanupPhaseState>(clReg => clReg.Handler(ctx => {
+                stateFlow.Add("BusinessState-Cleanup");
+                return HandlerProcessResult.CANCELLED;
+            }))
+            .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                stateFlow.Add("SucceedState");
+            }))
+            .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                stateFlow.Add("CancelledState");
+            }))
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                stateFlow.Add("CompletedState");
+            })));
+
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent.Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS)); // CleanupPhase cancellation still results in SUCCESS
+        
+        // Verify CleanupPhase cancellation goes through SucceedState → CompletedState (core phases completed)
+        Assert.That(stateFlow, Contains.Item("BusinessState-Validate"), "ValidatePhase should execute");
+        Assert.That(stateFlow, Contains.Item("BusinessState-Configure"), "ConfigurePhase should execute");
+        Assert.That(stateFlow, Contains.Item("BusinessState-Execute"), "ExecutePhase should execute");
+        Assert.That(stateFlow, Contains.Item("BusinessState-Cleanup"), "CleanupPhase should execute");
+        Assert.That(stateFlow, Contains.Item("SucceedState"), "SucceedState should execute (core phases completed)");
+        Assert.That(stateFlow, Does.Not.Contain("CancelledState"), "CancelledState should NOT execute (only cleanup cancelled)");
+        Assert.That(stateFlow, Contains.Item("CompletedState"), "CompletedState should execute");
+        
+        // Verify execution order: SucceedState → CompletedState (no CancelledState)
+        var succeedIndex = stateFlow.FindIndex(s => s == "SucceedState");
+        var completedIndex = stateFlow.FindIndex(s => s == "CompletedState");
+        Assert.That(succeedIndex, Is.LessThan(completedIndex), "SucceedState should execute before CompletedState");
+        
+        Console.WriteLine($"CleanupPhase cancellation flow: {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("CleanupPhase cancellation test completed - core phases succeeded, cleanup cancelled but still goes to SucceedState");
+    }
+    
+    //Test multiple events with cancellation in different phases
+    [Test]
+    public void TestMultipleEventsCancellationFlow() {
+        List<string> allStateFlows = new List<string>();
+        
+        // Test cancellation in each phase with separate events
+        var phases = new[] {
+            ("Validate", typeof(LSEventBusinessState.ValidatePhaseState)),
+            ("Configure", typeof(LSEventBusinessState.ConfigurePhaseState)),
+            ("Execute", typeof(LSEventBusinessState.ExecutePhaseState)),
+            ("Cleanup", typeof(LSEventBusinessState.CleanupPhaseState))
+        };
+        
+        foreach (var (phaseName, phaseType) in phases) {
+            List<string> stateFlow = new List<string>();
+            
+            // Create a new dispatcher for each test to avoid interference
+            var localDispatcher = new LSDispatcher();
+            
+            // Register handlers for all phases, but make the target phase return CANCELLED
+            localDispatcher.ForEvent<UserRegistrationEvent>(registration => {
+                if (phaseType == typeof(LSEventBusinessState.ValidatePhaseState)) {
+                    registration.OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                        stateFlow.Add($"BusinessState-{phaseName}");
+                        return HandlerProcessResult.CANCELLED;
+                    }));
+                } else {
+                    registration.OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                        stateFlow.Add("BusinessState-Validate");
+                        return HandlerProcessResult.SUCCESS;
+                    }));
+                }
+                
+                if (phaseType == typeof(LSEventBusinessState.ConfigurePhaseState)) {
+                    registration.OnPhase<LSEventBusinessState.ConfigurePhaseState>(cReg => cReg.Handler(ctx => {
+                        stateFlow.Add($"BusinessState-{phaseName}");
+                        return HandlerProcessResult.CANCELLED;
+                    }));
+                } else {
+                    registration.OnPhase<LSEventBusinessState.ConfigurePhaseState>(cReg => cReg.Handler(ctx => {
+                        stateFlow.Add("BusinessState-Configure");
+                        return HandlerProcessResult.SUCCESS;
+                    }));
+                }
+                
+                if (phaseType == typeof(LSEventBusinessState.ExecutePhaseState)) {
+                    registration.OnPhase<LSEventBusinessState.ExecutePhaseState>(eReg => eReg.Handler(ctx => {
+                        stateFlow.Add($"BusinessState-{phaseName}");
+                        return HandlerProcessResult.CANCELLED;
+                    }));
+                } else {
+                    registration.OnPhase<LSEventBusinessState.ExecutePhaseState>(eReg => eReg.Handler(ctx => {
+                        stateFlow.Add("BusinessState-Execute");
+                        return HandlerProcessResult.SUCCESS;
+                    }));
+                }
+                
+                if (phaseType == typeof(LSEventBusinessState.CleanupPhaseState)) {
+                    registration.OnPhase<LSEventBusinessState.CleanupPhaseState>(clReg => clReg.Handler(ctx => {
+                        stateFlow.Add($"BusinessState-{phaseName}");
+                        return HandlerProcessResult.CANCELLED;
+                    }));
+                } else {
+                    registration.OnPhase<LSEventBusinessState.CleanupPhaseState>(clReg => clReg.Handler(ctx => {
+                        stateFlow.Add("BusinessState-Cleanup");
+                        return HandlerProcessResult.SUCCESS;
+                    }));
+                }
+                
+                // Register state handlers
+                return registration
+                    .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                        stateFlow.Add("SucceedState");
+                    }))
+                    .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                        stateFlow.Add("CancelledState");
+                    }))
+                    .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                        stateFlow.Add("CompletedState");
+                    }));
+            });
+            
+            // Execute the event
+            var user = new User("test@example.com", "password123");
+            var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(localDispatcher));
+            var result = userRegistrationEvent.Dispatch();
+            
+            // Verify cancellation result
+            if (phaseName == "Cleanup") {
+                // CleanupPhase cancellation should result in SUCCESS (core phases completed)
+                Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS), $"{phaseName}Phase cancellation should return SUCCESS (core phases completed)");
+                Assert.That(stateFlow, Does.Not.Contain("CancelledState"), $"{phaseName}Phase cancellation should NOT execute CancelledState");
+                Assert.That(stateFlow, Contains.Item("SucceedState"), $"{phaseName}Phase cancellation should execute SucceedState (core phases completed)");
+            } else {
+                // Other phases should result in CANCELLED
+                Assert.That(result, Is.EqualTo(EventProcessResult.CANCELLED), $"{phaseName}Phase cancellation should return CANCELLED");
+                Assert.That(stateFlow, Contains.Item("CancelledState"), $"{phaseName}Phase cancellation should execute CancelledState");
+                Assert.That(stateFlow, Does.Not.Contain("SucceedState"), $"{phaseName}Phase cancellation should skip SucceedState");
+            }
+            Assert.That(stateFlow, Contains.Item("CompletedState"), $"{phaseName}Phase cancellation should execute CompletedState");
+            
+            allStateFlows.Add($"{phaseName}: {string.Join(" → ", stateFlow)}");
+            Console.WriteLine($"{phaseName}Phase cancellation: {string.Join(" → ", stateFlow)}");
+        }
+        
+        Console.WriteLine("Multiple events cancellation test completed:");
+        foreach (var flow in allStateFlows) {
+            Console.WriteLine($"  {flow}");
+        }
+    }
+    
+    //Test cancellation from ValidatePhase with event-scoped handlers
+    [Test]
+    public void TestValidatePhaseCancellationEventScoped() {
+        List<string> stateFlow = new List<string>();
+        
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent
+            .WithCallback<UserRegistrationEvent>(
+                evtRegister => evtRegister
+                .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                    stateFlow.Add("BusinessState-Validate");
+                    return HandlerProcessResult.CANCELLED;
+                }))
+                .OnPhase<LSEventBusinessState.ConfigurePhaseState>(cReg => cReg.Handler(ctx => {
+                    stateFlow.Add("BusinessState-Configure");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.ExecutePhaseState>(eReg => eReg.Handler(ctx => {
+                    stateFlow.Add("BusinessState-Execute");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.CleanupPhaseState>(clReg => clReg.Handler(ctx => {
+                    stateFlow.Add("BusinessState-Cleanup");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                    stateFlow.Add("SucceedState");
+                }))
+                .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                    stateFlow.Add("CancelledState");
+                }))
+                .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                    stateFlow.Add("CompletedState");
+                }))
+            )
+            .Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.CANCELLED));
+        
+        // Verify ValidatePhase cancellation skips all remaining phases (event-scoped)
+        Assert.That(stateFlow, Contains.Item("BusinessState-Validate"), "ValidatePhase should execute");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Configure"), "ConfigurePhase should be skipped");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Execute"), "ExecutePhase should be skipped");
+        Assert.That(stateFlow, Does.Not.Contain("BusinessState-Cleanup"), "CleanupPhase should be skipped");
+        Assert.That(stateFlow, Does.Not.Contain("SucceedState"), "SucceedState should be skipped");
+        Assert.That(stateFlow, Contains.Item("CancelledState"), "CancelledState should execute");
+        Assert.That(stateFlow, Contains.Item("CompletedState"), "CompletedState should execute");
+        
+        Console.WriteLine($"ValidatePhase cancellation flow (event-scoped): {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("ValidatePhase cancellation test (event-scoped) completed - direct transition to CancelledState");
+    }
+    
+    //Test cancellation from CleanupPhase with event-scoped handlers
+    [Test]
+    public void TestCleanupPhaseCancellationEventScoped() {
+        List<string> stateFlow = new List<string>();
+        
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent
+            .WithCallback<UserRegistrationEvent>(
+                evtRegister => evtRegister
+                .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                    stateFlow.Add("BusinessState-Validate");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.ConfigurePhaseState>(cReg => cReg.Handler(ctx => {
+                    stateFlow.Add("BusinessState-Configure");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.ExecutePhaseState>(eReg => eReg.Handler(ctx => {
+                    stateFlow.Add("BusinessState-Execute");
+                    return HandlerProcessResult.SUCCESS;
+                }))
+                .OnPhase<LSEventBusinessState.CleanupPhaseState>(clReg => clReg.Handler(ctx => {
+                    stateFlow.Add("BusinessState-Cleanup");
+                    return HandlerProcessResult.CANCELLED;
+                }))
+                .OnState<LSEventSucceedState>(successReg => successReg.Handler(evt => {
+                    stateFlow.Add("SucceedState");
+                }))
+                .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                    stateFlow.Add("CancelledState");
+                }))
+                .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                    stateFlow.Add("CompletedState");
+                }))
+            )
+            .Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS)); // CleanupPhase cancellation still results in SUCCESS
+        
+        // Verify CleanupPhase cancellation goes through SucceedState → CompletedState (event-scoped)
+        Assert.That(stateFlow, Contains.Item("BusinessState-Validate"), "ValidatePhase should execute");
+        Assert.That(stateFlow, Contains.Item("BusinessState-Configure"), "ConfigurePhase should execute");
+        Assert.That(stateFlow, Contains.Item("BusinessState-Execute"), "ExecutePhase should execute");
+        Assert.That(stateFlow, Contains.Item("BusinessState-Cleanup"), "CleanupPhase should execute");
+        Assert.That(stateFlow, Contains.Item("SucceedState"), "SucceedState should execute (core phases completed)");
+        Assert.That(stateFlow, Does.Not.Contain("CancelledState"), "CancelledState should NOT execute (only cleanup cancelled)");
+        Assert.That(stateFlow, Contains.Item("CompletedState"), "CompletedState should execute");
+        
+        // Verify execution order: SucceedState → CompletedState (no CancelledState)
+        var succeedIndex = stateFlow.FindIndex(s => s == "SucceedState");
+        var completedIndex = stateFlow.FindIndex(s => s == "CompletedState");
+        Assert.That(succeedIndex, Is.LessThan(completedIndex), "SucceedState should execute before CompletedState");
+        
+        Console.WriteLine($"CleanupPhase cancellation flow (event-scoped): {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("CleanupPhase cancellation test (event-scoped) completed - core phases succeeded, cleanup cancelled but still goes to SucceedState");
+    }
+    
+    //Test mixed global and event-scoped cancellation handlers
+    [Test]
+    public void TestMixedGlobalAndEventScopedCancellation() {
+        List<string> stateFlow = new List<string>();
+        
+        // Register global handlers
+        _dispatcher!.ForEvent<UserRegistrationEvent>(registration => registration
+            .OnPhase<LSEventBusinessState.ValidatePhaseState>(vReg => vReg.Handler(ctx => {
+                stateFlow.Add("Global-ValidatePhase");
+                return HandlerProcessResult.SUCCESS;
+            }))
+            .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                stateFlow.Add("Global-CancelledState");
+            }))
+            .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                stateFlow.Add("Global-CompletedState");
+            })));
+
+        var user = new User("test@example.com", "password123");
+        var userRegistrationEvent = new UserRegistrationEvent(user, new LSEventOptions(_dispatcher));
+        var result = userRegistrationEvent
+            .WithCallback<UserRegistrationEvent>(
+                evtRegister => evtRegister
+                .OnPhase<LSEventBusinessState.ConfigurePhaseState>(cReg => cReg.Handler(ctx => {
+                    stateFlow.Add("EventScoped-ConfigurePhase");
+                    return HandlerProcessResult.CANCELLED; // Cancel in ConfigurePhase
+                }))
+                .OnState<LSEventCancelledState>(cancelReg => cancelReg.Handler(evt => {
+                    stateFlow.Add("EventScoped-CancelledState");
+                }))
+                .OnState<LSEventCompletedState>(completeReg => completeReg.Handler(evt => {
+                    stateFlow.Add("EventScoped-CompletedState");
+                }))
+            )
+            .Dispatch();
+        
+        Assert.That(result, Is.EqualTo(EventProcessResult.CANCELLED));
+        
+        // Verify both global and event-scoped handlers executed
+        Assert.That(stateFlow, Contains.Item("Global-ValidatePhase"), "Global ValidatePhase handler should execute");
+        Assert.That(stateFlow, Contains.Item("EventScoped-ConfigurePhase"), "Event-scoped ConfigurePhase handler should execute");
+        Assert.That(stateFlow, Contains.Item("Global-CancelledState"), "Global CancelledState handler should execute");
+        Assert.That(stateFlow, Contains.Item("EventScoped-CancelledState"), "Event-scoped CancelledState handler should execute");
+        Assert.That(stateFlow, Contains.Item("Global-CompletedState"), "Global CompletedState handler should execute");
+        Assert.That(stateFlow, Contains.Item("EventScoped-CompletedState"), "Event-scoped CompletedState handler should execute");
+        
+        Console.WriteLine($"Mixed global/event-scoped cancellation flow: {string.Join(" → ", stateFlow)}");
+        Console.WriteLine("Mixed global and event-scoped cancellation test completed - both handler types executed");
+    }
+    // create a cancellation test for each phase that goes directly to cancelled state, multiple events should be fired with callbacks for each phase
 }

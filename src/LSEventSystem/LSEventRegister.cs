@@ -17,23 +17,6 @@ namespace LSUtils.EventSystem;
 /// - Fluent method chaining for readable configuration
 /// - Batch registration with single dispatcher call
 /// - Automatic handler entry collection and management
-/// 
-/// Usage Pattern:
-/// Used within dispatcher ForEvent() calls to register multiple handlers:
-/// <code>
-/// dispatcher.ForEvent&lt;MyEvent&gt;(register => register
-///     .OnPhase&lt;BusinessState.ValidatePhaseState&gt;(phase => phase
-///         .Handler(ctx => ValidateData(ctx))
-///         .Build())
-///     .OnPhase&lt;BusinessState.ExecutePhaseState&gt;(phase => phase
-///         .Handler(ctx => ProcessData(ctx))
-///         .Build())
-///     .OnState&lt;SucceedState&gt;(state => state
-///         .Handler(evt => SendNotification(evt))
-///         .Build())
-///     .Register());
-/// </code>
-/// 
 /// Handler Types:
 /// - Phase Handlers: Execute during specific business phases
 /// - State Handlers: Execute during state transitions
@@ -58,12 +41,6 @@ namespace LSUtils.EventSystem;
 /// <typeparam name="TEvent">The specific event type this register configures handlers for</typeparam>
 public class LSEventRegister<TEvent> where TEvent : ILSEvent {
     /// <summary>
-    /// Reference to the dispatcher that will register all collected handler entries.
-    /// Used for creating sub-builders and performing final batch registration.
-    /// </summary>
-    private readonly LSDispatcher _dispatcher;
-    
-    /// <summary>
     /// Collection of handler entries configured through the fluent API.
     /// Accumulates both phase and state handlers for batch registration.
     /// </summary>
@@ -73,87 +50,78 @@ public class LSEventRegister<TEvent> where TEvent : ILSEvent {
     /// Internal constructor for creating event system register instances.
     /// Called by the dispatcher when setting up multi-handler registration contexts.
     /// </summary>
-    /// <param name="dispatcher">The dispatcher instance for handler registration</param>
-    internal LSEventRegister(LSDispatcher dispatcher) {
-        _dispatcher = dispatcher;
-    }
-    
+    public LSEventRegister() { }
+
     /// <summary>
-    /// Registers a state handler for a specific state transition.
+    /// Create state handlers entries for a specific state transition.
     /// 
     /// State handlers execute when events enter specific states such as
-    /// SucceedState, CancelledState, or CompletedState. They perform
-    /// finalization, logging, and notification operations.
+    /// LSEventSucceedState, LSEventCancelledState, or LSEventCompletedState.
     /// 
     /// Configuration Process:
-    /// 1. Creates StateHandlerRegister for the specified state type
-    /// 2. Calls configuration function to build handler entry
-    /// 3. Validates returned entry is not null
-    /// 4. Adds entry to collection for batch registration
+    /// 1. For each provided configuration function creates StateHandlerRegister for the specified state type
+    /// 2. Calls configuration function to configure register
+    /// 3. Builds the entry
+    /// 4. Validates entry
+    /// 5. Adds entry to collection for batch registration
     /// 
     /// Common State Types:
-    /// - SucceedState: Successful completion handlers
-    /// - CancelledState: Cancellation cleanup handlers
-    /// - CompletedState: Final completion handlers
-    /// 
-    /// Handler Responsibilities:
-    /// - Logging and audit trail updates
-    /// - External system notifications
-    /// - Cleanup and resource disposal
-    /// - Metrics and performance tracking
+    /// - LSEventSucceedState: Successful handlers
+    /// - LSEventCancelledState: Cancellation handlers
+    /// - LSEventCompletedState: Final completion handlers
     /// </summary>
     /// <typeparam name="TState">The state type this handler will execute in</typeparam>
     /// <param name="configureStateHandler">Function to configure the state handler</param>
     /// <returns>This register instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when configuration returns null entry</exception>
-    public LSEventRegister<TEvent> OnState<TState>(Func<LSStateHandlerRegister<TState>, LSStateHandlerEntry> configureStateHandler) where TState : IEventProcessState {
-        var register = new LSStateHandlerRegister<TState>(_dispatcher);
-        var entry = configureStateHandler(register);
-        if (entry == null) throw new LSArgumentNullException(nameof(entry));
-        _entries.Add(entry);
+    public LSEventRegister<TEvent> OnState<TState>(params Func<LSStateHandlerRegister<TState>, LSStateHandlerRegister<TState>>[] configureStateHandler) where TState : IEventProcessState {
+        foreach (var handler in configureStateHandler) {
+            var register = new LSStateHandlerRegister<TState>();
+            register = handler(register);
+            if (register == null) throw new LSArgumentNullException(nameof(register));
+            var entry = register.Build();
+            _entries.Add(entry);
+        }
         return this;
     }
-    
+
     /// <summary>
-    /// Registers a phase handler for a specific business phase.
+    /// Create handlers for a specific business phase.
     /// 
     /// Phase handlers execute during business processing phases such as
     /// validation, configuration, execution, and cleanup. They implement
     /// the core business logic and control event flow.
     /// 
     /// Configuration Process:
-    /// 1. Creates PhaseHandlerRegister for the specified phase type
-    /// 2. Calls configuration function to build handler entry
-    /// 3. Validates returned entry is not null
-    /// 4. Adds entry to collection for batch registration
-    /// 
-    /// Phase Types:
-    /// - BusinessState.ValidatePhaseState: Input validation and early checks
-    /// - BusinessState.ConfigurePhaseState: Resource allocation and setup
-    /// - BusinessState.ExecutePhaseState: Core business logic execution
-    /// - BusinessState.CleanupPhaseState: Finalization and resource cleanup
-    /// 
-    /// Handler Responsibilities:
-    /// - Business logic implementation
-    /// - Data validation and transformation
-    /// - External service integration
-    /// - Error handling and recovery
-    /// - Flow control through return values
+    /// 1. For each provided configuration function creates PhaseHandlerRegister for the specified phase type
+    /// 2. Calls configuration function to configure register
+    /// 3. Builds the entry
+    /// 4. Validates entry
+    /// 5. Adds entry to collection for batch registration
+
     /// </summary>
     /// <typeparam name="TPhase">The phase type this handler will execute in</typeparam>
     /// <param name="configurePhaseHandler">Function to configure the phase handler</param>
     /// <returns>This register instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when configuration returns null entry</exception>
-    public LSEventRegister<TEvent> OnPhase<TPhase>(Func<LSPhaseHandlerRegister<TPhase>, LSPhaseHandlerEntry> configurePhaseHandler) where TPhase : BusinessState.PhaseState {
-        var register = LSPhaseHandlerRegister<TPhase>.Create(_dispatcher);
-        var entry = configurePhaseHandler(register);
-        if (entry == null) throw new LSArgumentNullException(nameof(entry));
-        _entries.Add(entry);
+    public LSEventRegister<TEvent> OnPhase<TPhase>(params Func<LSPhaseHandlerRegister<TPhase>, LSPhaseHandlerRegister<TPhase>>[] configurePhaseHandler) where TPhase : LSEventBusinessState.PhaseState {
+        foreach (var handler in configurePhaseHandler) {
+            var register = new LSPhaseHandlerRegister<TPhase>();
+            register = handler(register);
+            if (register == null) throw new LSArgumentNullException(nameof(register));
+            var entry = register.Build();
+            _entries.Add(entry);
+        }
         return this;
     }
-    
     /// <summary>
-    /// Registers all configured handlers with the dispatcher and returns their IDs.
+    /// Retrieves the list of all configured handler entries.
+    /// </summary>
+    public IReadOnlyList<IHandlerEntry> GetEntries() {
+        return _entries.AsReadOnly();
+    }
+    /// <summary>
+    /// Internal method to registers all configured handlers with the dispatcher and returns their IDs.
     /// 
     /// Performs batch registration of all handler entries collected through
     /// the fluent API. Each handler is registered individually with the dispatcher
@@ -181,10 +149,11 @@ public class LSEventRegister<TEvent> where TEvent : ILSEvent {
     /// - Callers should check returned array length if needed
     /// </summary>
     /// <returns>Array of unique identifiers for all successfully registered handlers</returns>
-    public System.Guid[] Register() {
+    internal System.Guid[] register(LSDispatcher dispatcher) {
         var ids = new List<System.Guid>();
         foreach (var entry in _entries) {
-            var id = _dispatcher.registerHandler(typeof(TEvent), entry);
+            var id = dispatcher.registerHandler(typeof(TEvent), entry);
+            if (id == Guid.Empty) continue;
             ids.Add(id);
         }
         return ids.ToArray();

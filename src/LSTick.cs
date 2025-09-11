@@ -6,7 +6,7 @@ namespace LSUtils;
 /// <summary>
 /// Manages clock and notifies any registered listeners when the clock ticks.
 /// </summary>
-public class LSTick {
+public class LSTick : ILSEventable {
     public static LSTick Singleton { get; } = new LSTick(DEFAULT_TICK_VALUE);
     const float DEFAULT_TICK_VALUE = 1f;
     protected int _tickCount;
@@ -14,34 +14,36 @@ public class LSTick {
     protected bool _hasInitialized;
     protected bool _isPaused;
     protected double _tickTimer;
-    protected LSLegacyDispatcher _dispatcher = null!;
     public readonly float TICK_VALUE;
     public string ClassName => nameof(LSTick);
     public System.Guid ID { get; protected set; }
     public int DeltaFactor { get; protected set; } = 1;
+
+    public LSDispatcher? Dispatcher { get; protected set; }
+
 
     protected LSTick(float tickValue) {
         TICK_VALUE = tickValue;
         ID = System.Guid.NewGuid();
     }
 
-    public void Initialize(LSLegacyDispatcher dispatcher) {
-        var @event = new OnInitializeEvent(this);
-        _dispatcher = dispatcher;
-        _dispatcher.processEvent(@event);
-        if (!@event.IsCancelled) {
-            _hasInitialized = true;
-            _isPaused = true;
-            _tickCount = 0;
-            _resetTickCount = 0;
-            _tickTimer = 0f;
-            tickEvent(_tickCount);
-        }
+    public EventProcessResult Initialize(LSEventOptions options) {
+        Dispatcher = options.Dispatcher;
+        return OnInitializeEvent.Create<LSTick>(this, options)
+            .OnCompleted((evt) => {
+                _hasInitialized = true;
+                _isPaused = true;
+                _tickCount = 0;
+                _resetTickCount = 0;
+                _tickTimer = 0f;
+                tickEvent(_tickCount, new LSEventOptions(options.Dispatcher, this));
+            })
+            .Dispatch();
     }
 
-    protected bool tickEvent(int tickCount) {
-        var @event = new OnTickEvent(this, tickCount);
-        return _dispatcher.processEvent(@event);
+    protected EventProcessResult tickEvent(int tickCount, LSEventOptions? options) {
+        var @event = new OnTickEvent(this, tickCount, options);
+        return @event.Dispatch();
     }
     /// <summary>
     /// Updates the tick count and notifies listeners of tick updates.
@@ -62,11 +64,8 @@ public class LSTick {
                 _resetTickCount++;
                 _tickCount = 0;
             }
-            tickEvent(_tickCount);
+            tickEvent(_tickCount, new LSEventOptions(Dispatcher, this));
         }
-
-        var updateEvent = new OnTickUpdateEvent(this, _tickCount, deltaTick, percentage);
-        _dispatcher.processEvent(updateEvent);
     }
 
     /// <summary>
@@ -78,9 +77,6 @@ public class LSTick {
         float percentage = (float)(_tickTimer / TICK_VALUE);
         if (_hasInitialized == false || _isPaused) return;
         double deltaTick = (float)delta * DeltaFactor;
-
-        var physicsEvent = new OnTickPhysicsUpdateEvent(this, _tickCount, deltaTick, percentage);
-        _dispatcher.processEvent(physicsEvent);
     }
     /// <summary>
     /// Starts the tick manager.
@@ -105,8 +101,8 @@ public class LSTick {
     public void TogglePause() {
         if (_hasInitialized == false) return;
         _isPaused = !_isPaused;
-        var @event = new OnPauseEvent(this, _isPaused);
-        _dispatcher.processEvent(@event);
+        var @event = new OnPauseEvent(this, _isPaused, new LSEventOptions(Dispatcher, this));
+        @event.Dispatch();
     }
 
     /// <summary>
@@ -117,8 +113,8 @@ public class LSTick {
     public void SetDeltaFactor(int value) {
         if (DeltaFactor == value) return;
         DeltaFactor = value;
-        var @event = new OnChangeDeltaFactorEvent(this, DeltaFactor, _isPaused);
-        _dispatcher.processEvent(@event);
+        var @event = new OnChangeDeltaFactorEvent(this, DeltaFactor, _isPaused, new LSEventOptions(Dispatcher, this));
+        @event.Dispatch();
     }
 
     public void Cleanup() {
@@ -127,57 +123,28 @@ public class LSTick {
 
     #region Events
 
-    public class OnInitializeEvent : LSLegacyEvent<LSTick> {
-        public OnInitializeEvent(LSTick tickManager) : base(tickManager) {
-        }
-    }
-
-    public class OnTickEvent : LSLegacyEvent<LSTick> {
+    public class OnTickEvent : LSEvent<LSTick> {
         public int TickCount { get; }
 
-        public OnTickEvent(LSTick tickManager, int tickCount) : base(tickManager) {
+        public OnTickEvent(LSTick tickManager, int tickCount, LSEventOptions? options) : base(tickManager, options) {
             TickCount = tickCount;
         }
     }
 
-    public class OnTickUpdateEvent : LSLegacyEvent<LSTick> {
-        public int TickCount { get; }
-        public double DeltaTick { get; }
-        public float Percentage { get; }
-
-        public OnTickUpdateEvent(LSTick tickManager, int tickCount, double deltaTick, float percentage) : base(tickManager) {
-            TickCount = tickCount;
-            DeltaTick = deltaTick;
-            Percentage = percentage;
-        }
-    }
-
-    public class OnTickPhysicsUpdateEvent : LSLegacyEvent<LSTick> {
-        public int TickCount { get; }
-        public double DeltaTick { get; }
-        public float Percentage { get; }
-
-        public OnTickPhysicsUpdateEvent(LSTick tickManager, int tickCount, double deltaTick, float percentage) : base(tickManager) {
-            TickCount = tickCount;
-            DeltaTick = deltaTick;
-            Percentage = percentage;
-        }
-    }
-
-    public class OnChangeDeltaFactorEvent : LSLegacyEvent<LSTick> {
+    public class OnChangeDeltaFactorEvent : LSEvent<LSTick> {
         public int Speed { get; }
         public bool IsPaused { get; }
 
-        public OnChangeDeltaFactorEvent(LSTick tickManager, int speed, bool isPaused) : base(tickManager) {
+        public OnChangeDeltaFactorEvent(LSTick tickManager, int speed, bool isPaused, LSEventOptions? options) : base(tickManager, options) {
             Speed = speed;
             IsPaused = isPaused;
         }
     }
 
-    public class OnPauseEvent : LSLegacyEvent<LSTick> {
+    public class OnPauseEvent : LSEvent<LSTick> {
         public bool IsPaused { get; }
 
-        public OnPauseEvent(LSTick tickManager, bool isPaused) : base(tickManager) {
+        public OnPauseEvent(LSTick tickManager, bool isPaused, LSEventOptions? options) : base(tickManager, options) {
             IsPaused = isPaused;
         }
     }

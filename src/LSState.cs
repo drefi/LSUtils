@@ -13,12 +13,12 @@ namespace LSUtils;
 /// for event handling. It maintains compatibility with the ILSState interface while providing
 /// improved performance and cleaner architecture.
 /// </remarks>
-public abstract class LSState<TState, TContext> : ILSState
+public abstract class LSState<TState, TContext> : ILSState, ILSEventable
     where TState : LSState<TState, TContext>
     where TContext : ILSContext {
 
     #region Public Properties
-    public LSLegacyDispatcher Dispatcher { get; }
+    public LSDispatcher? Dispatcher { get; protected set; }
     public bool IsInitialized { get; protected set; }
     /// <summary>
     /// Gets the unique identifier for this state instance.
@@ -41,33 +41,40 @@ public abstract class LSState<TState, TContext> : ILSState
     /// Initializes a new instance of the state with the specified context.
     /// </summary>
     /// <param name="context">The context instance that provides shared data and services to this state.</param>
-    protected LSState(TContext context, LSLegacyDispatcher? dispatcher = null) {
+    protected LSState(TContext context) {
         Context = context ?? throw new System.ArgumentNullException(nameof(context));
-        Dispatcher = dispatcher ?? LSLegacyDispatcher.Singleton;
         ID = System.Guid.NewGuid();
     }
     #endregion
 
-    public void Initialize() {
-        if (this is not TState stateInstance)
-            throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
-        var @event = new OnInitializeEvent(stateInstance);
-        @event.WithCallbacks<OnInitializeEvent>(Dispatcher)
-            .CancelIf(evt => IsInitialized)
-            .Dispatch();
-        IsInitialized = true;
+    public EventProcessResult Initialize(LSEventOptions options) {
+        try {
+            if (this is not TState stateInstance)
+                throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
+            Dispatcher = options.Dispatcher;
+            var @event = new OnInitializeEvent(stateInstance, options);
+            return @event.CancelPhaseIf<LSEventBusinessState.ValidatePhaseState>((evt, entry) => IsInitialized)
+                .OnSucceed(evt => IsInitialized = true).Dispatch();
+        } catch (LSException e) {
+            throw new LSException($"Failed to initialize state {ClassName}.", e);
+        }
     }
 
     #region ILSState Implementation
     protected LSAction? _exitCallback;
     public void Enter<T>(LSAction<T> enterCallback, LSAction<T> exitCallback) where T : ILSState {
         if (this is not T tState || this is not TState stateInstance)
-            throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
+            throw new LSException($"Cannot cast {this.GetType().AssemblyQualifiedName} to {typeof(TState).AssemblyQualifiedName}.");
+        if (Dispatcher == null)
+            throw new LSException($"State {ClassName} is not initialized. Dispatcher is null.");
         _exitCallback = exitCallback == null ? null : () => exitCallback(tState);
-        var @event = new OnEnterEvent(stateInstance);
-        @event.WithCallbacks<OnEnterEvent>(Dispatcher)
-            .Dispatch();
-        enterCallback?.Invoke(tState);
+        var options = new LSEventOptions(Dispatcher, this);
+        var @event = new OnEnterEvent(options, stateInstance);
+        @event.WithStateCallbacks<LSEventCompletedState>(register => register
+            .When((evt, entry) => enterCallback != null)
+            .Handler((evt) => {
+                enterCallback?.Invoke(tState);
+            })).Dispatch();
     }
 
     /// <summary>
@@ -76,12 +83,16 @@ public abstract class LSState<TState, TContext> : ILSState
     public void Exit(LSAction callback) {
         if (this is not TState stateInstance)
             throw new LSException($"Cannot cast {this.GetType().FullName} to {typeof(TState).FullName}.");
-        var @event = new OnExitEvent(stateInstance);
-        @event.WithCallbacks<OnExitEvent>(Dispatcher)
-            .Dispatch();
-        _exitCallback?.Invoke();
-        _exitCallback = null;
-        callback?.Invoke();
+        var options = new LSEventOptions(Dispatcher, this);
+        var @event = new OnExitEvent(options, stateInstance);
+        @event.WithStateCallbacks<LSEventCompletedState>(register => register
+            .When((evt, entry) => _exitCallback != null)
+            .Handler((evt) => {
+                _exitCallback?.Invoke();
+                _exitCallback = null;
+            }))
+            .OnCompleted(evt => callback?.Invoke());
+        @event.Dispatch();
     }
     #endregion
 
@@ -96,25 +107,31 @@ public abstract class LSState<TState, TContext> : ILSState
     /// <summary>
     /// Event triggered when a state is being initialized.
     /// </summary>
-    public class OnInitializeEvent : LSLegacyEvent<TState> {
-        public TState State => Instance;
-        public OnInitializeEvent(TState state) : base(state) { }
+    public class OnInitializeEvent : LSEvent {
+        public TState State { get; protected set; }
+        public OnInitializeEvent(TState state, LSEventOptions options) : base(options) {
+            State = state;
+        }
     }
 
     /// <summary>
     /// Event triggered when a state is being entered.
     /// </summary>
-    public class OnEnterEvent : LSLegacyEvent<TState> {
-        public TState State => Instance;
-        public OnEnterEvent(TState state) : base(state) { }
+    public class OnEnterEvent : LSEvent {
+        public TState State { get; protected set; }
+        public OnEnterEvent(LSEventOptions options, TState state) : base(options) {
+            State = state;
+        }
     }
 
     /// <summary>
     /// Event triggered when a state is being exited.
     /// </summary>
-    public class OnExitEvent : LSLegacyEvent<TState> {
-        public TState State => Instance;
-        public OnExitEvent(TState state) : base(state) { }
+    public class OnExitEvent : LSEvent {
+        public TState State { get; protected set; }
+        public OnExitEvent(LSEventOptions options, TState state) : base(options) {
+            State = state;
+        }
     }
     #endregion
 }

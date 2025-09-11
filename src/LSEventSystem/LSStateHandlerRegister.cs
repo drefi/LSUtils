@@ -31,9 +31,9 @@ namespace LSUtils.EventSystem;
 /// </code>
 /// 
 /// State Types:
-/// - <see cref="SucceedState"/>: Successful event completion
-/// - <see cref="CancelledState"/>: Event was cancelled due to critical failures
-/// - <see cref="CompletedState"/>: Event completed (with or without failures)
+/// - <see cref="LSEventSucceedState"/>: Successful event completion
+/// - <see cref="LSEventCancelledState"/>: Event was cancelled due to critical failures
+/// - <see cref="LSEventCompletedState"/>: Event completed (with or without failures)
 /// 
 /// Thread Safety:
 /// - Builder instances are not thread-safe and should not be shared
@@ -42,36 +42,32 @@ namespace LSUtils.EventSystem;
 /// </summary>
 /// <typeparam name="TState">The specific state type this handler will execute in</typeparam>
 public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
-    /// <summary>
-    /// Reference to the dispatcher that will register the built handler.
-    /// Used for internal registration operations and handler management.
-    /// </summary>
-    private readonly LSDispatcher _dispatcher;
-    
+
     /// <summary>
     /// Priority level for handler execution within the state.
     /// Handlers execute in priority order: CRITICAL → HIGH → NORMAL → LOW → BACKGROUND.
     /// </summary>
     protected LSPriority _priority = LSPriority.NORMAL;
-    
+
     /// <summary>
     /// The type of state this handler will execute in.
     /// Determined automatically from the generic type parameter TState.
     /// </summary>
     protected System.Type _stateType = typeof(TState);
-    
+
     /// <summary>
     /// The handler action that will execute when the event enters this state.
     /// Takes the event as parameter for state-specific processing.
     /// </summary>
     protected LSAction<ILSEvent>? _handler = null;
-    
+
     /// <summary>
     /// Condition function determining if the handler should execute.
     /// Evaluated at runtime based on event state and handler configuration.
+    /// Defaults to always true so that handlers are executed unless explicitly skipped.
     /// </summary>
     protected Func<ILSEvent, IHandlerEntry, bool> _condition = (evt, entry) => true;
-    
+
     /// <summary>
     /// Indicates whether this builder has already been used to create a handler entry.
     /// Prevents multiple builds from the same register instance.
@@ -83,10 +79,8 @@ public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
     /// Called by the dispatcher when setting up handler registration contexts.
     /// </summary>
     /// <param name="dispatcher">The dispatcher instance that will handle registration</param>
-    internal LSStateHandlerRegister(LSDispatcher dispatcher) {
-        _dispatcher = dispatcher;
-    }
-    
+    internal LSStateHandlerRegister() { }
+
     /// <summary>
     /// Sets the execution priority for this handler within its state.
     /// 
@@ -106,13 +100,14 @@ public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
         _priority = priority;
         return this;
     }
-    
+
     /// <summary>
     /// Adds a condition that must be met for the handler to execute.
     /// 
     /// Conditions are evaluated at runtime when the state processes handlers.
-    /// Multiple conditions can be added and will be combined with logical AND.
-    /// If any condition returns false, the handler is skipped.
+    /// Multiple conditions can be added for evaluation.
+    /// When a condition returns false, the handler is skipped.
+    /// Default condition always returns true if none are added.
     /// 
     /// Common Usage Patterns:
     /// - Success/failure checks: evt.GetData&lt;bool&gt;("operationSucceeded")
@@ -130,7 +125,7 @@ public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
         _condition += condition;
         return this;
     }
-    
+
     /// <summary>
     /// Sets the main handler action that executes when the event enters the state.
     /// 
@@ -193,7 +188,7 @@ public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
         IsBuild = true;
         return entry;
     }
-    
+
     /// <summary>
     /// Builds the handler and immediately registers it with the dispatcher.
     /// 
@@ -218,10 +213,9 @@ public class LSStateHandlerRegister<TState> where TState : IEventProcessState {
     /// </summary>
     /// <returns>Unique identifier for the registered handler</returns>
     /// <exception cref="LSException">Thrown when handler has already been built</exception>
-    public System.Guid Register() {
+    public System.Guid Register(LSDispatcher dispatcher) {
         if (IsBuild) throw new LSException("handler_already_built");
         var entry = Build();
-        return _dispatcher.registerHandler(typeof(TState), entry);
+        return dispatcher.registerHandler(typeof(TState), entry);
     }
-
 }
