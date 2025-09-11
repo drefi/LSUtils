@@ -4,25 +4,38 @@
 [![NUnit](https://img.shields.io/badge/NUnit-4.2.2-brightgreen)](https://nunit.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A comprehensive utility library providing event systems, mathematical utilities, collections, and graph algorithms for .NET 8 applications.
+A comprehensive utility library providing advanced event systems, mathematical utilities, collections, and graph algorithms for .NET 8 applications.
 
 ## 🚀 Quick Start
 
 ```csharp
 // Initialize the event system
 var options = new LSEventOptions();
-var tick = LSTick.Singleton;
-tick.Initialize(options);
+var dispatcher = options.Dispatcher;
 
-// Subscribe to tick events
-options.Dispatcher.ForEvent<LSTick.OnTickEvent>(register => register
-    .OnPhase<BusinessState.ExecutePhaseState>(phase => phase
-        .Handler(ctx => {
-            Console.WriteLine($"Tick: {ctx.Event.TickCount}");
-            return HandlerProcessResult.SUCCESS;
-        })
-        .Build())
-    .Register());
+// Register global phase handlers
+dispatcher.ForEventPhase<UserRegistrationEvent, LSEventBusinessState.ValidatePhaseState>(
+    register => register.Handler(ctx => {
+        var user = ctx.Event.UserData;
+        return user.IsValid ? HandlerProcessResult.SUCCESS : HandlerProcessResult.FAILURE;
+    })
+);
+
+// Process events with comprehensive phase handling
+var userEvent = new UserRegistrationEvent(options, newUser);
+var result = userEvent.Dispatch();
+
+switch (result) {
+    case EventProcessResult.SUCCESS:
+        Console.WriteLine("User registered successfully");
+        break;
+    case EventProcessResult.CANCELLED:
+        Console.WriteLine("Registration was cancelled");
+        break;
+    case EventProcessResult.FAILURE:
+        Console.WriteLine("Registration failed validation");
+        break;
+}
 ```
 
 ## 📋 Table of Contents
@@ -31,23 +44,27 @@ options.Dispatcher.ForEvent<LSTick.OnTickEvent>(register => register
 - [Components](#-components)
 - [Installation](#-installation)
 - [Getting Started](#-getting-started)
-- [Core Systems](#-core-systems)
-- [Recent Changes](#-recent-changes)
-- [Migration Guide](#-migration-guide)
+- [Event System Usage](#-event-system-usage)
+- [Phase Cancellation](#-phase-cancellation)
+- [Handler Registration](#-handler-registration)
+- [State Management](#-state-management)
 - [Examples](#-examples)
 - [API Reference](#-api-reference)
-- [Contributing](#-contributing)
+- [Testing](#-testing)
 
 ## ✨ Features
 
-### 🎯 LSEventSystem v4
+### 🎯 LSEventSystem - Advanced Event Processing
 
-- **State-machine based event processing** with sequential phases
-- **Type-safe handler registration** with fluent API
-- **Asynchronous operation support** with external control
-- **Comprehensive error handling** and cancellation support
-- **Priority-based execution** within phases
-- **Thread-safe data management** with concurrent dictionaries
+- **Sequential Phase Processing**: Validate → Configure → Execute → Cleanup phases
+- **Smart Cancellation Handling**: CleanupPhase cancellation preserves business success
+- **Dual Registration Patterns**: Global dispatcher and event-scoped handler support
+- **Event-Driven Processing**: Events initiate their own processing (dispatcher only registers handlers)
+- **Type-safe Fluent API** with comprehensive compile-time checking
+- **Asynchronous Operation Support** with external control and resumption
+- **Comprehensive Error Handling** with detailed failure tracking
+- **Priority-based Execution** within phases for precise control
+- **Thread-safe Operations** with concurrent data structures
 
 ### 🧮 Mathematical Utilities
 
@@ -116,12 +133,12 @@ dotnet build
 ### As Package Reference
 
 ```xml
-<PackageReference Include="LSUtils" Version="4.0.0" />
+<PackageReference Include="LSUtils" Version="*" />
 ```
 
 ## 🚀 Getting Started
 
-### 1. Basic Event System Usage
+### Basic Event System Usage
 
 ```csharp
 using LSUtils.EventSystem;
@@ -136,276 +153,163 @@ public class UserActionEvent : LSEvent {
         Action = action;
         UserId = userId;
         SetData("action", action);
-        SetData("user_id", userId);
+        SetData("userId", userId);
     }
 }
 
-// Register handlers
-var dispatcher = LSDispatcher.Singleton;
-dispatcher.ForEventPhase<UserActionEvent, BusinessState.ValidatePhaseState>(
+// Register and process events
+var options = new LSEventOptions();
+var userAction = new UserActionEvent(options, "login", 12345);
+var result = userAction.Dispatch();
+```
+
+## 🎯 Event System Usage
+
+### Quick Example
+
+```csharp
+// Define your event class
+public class UserRegistrationEvent : LSEvent {
+    public UserData UserData { get; }
+    
+    public UserRegistrationEvent(LSEventOptions options, UserData userData) 
+        : base(options) {
+        UserData = userData;
+        SetData("userData", userData);
+        SetData("registrationTime", DateTime.UtcNow);
+    }
+}
+
+// Register global handlers
+var options = new LSEventOptions();
+var dispatcher = options.Dispatcher;
+
+dispatcher.ForEventPhase<UserRegistrationEvent, LSEventBusinessState.ValidatePhaseState>(
     register => register
         .WithPriority(LSPriority.HIGH)
         .Handler(ctx => {
-            var userId = ctx.Event.GetData<int>("user_id");
-            if (userId <= 0) {
-                return HandlerProcessResult.FAILURE;
-            }
-            return HandlerProcessResult.SUCCESS;
+            var userData = ctx.Event.UserData;
+            return userData.IsValid() ? HandlerProcessResult.SUCCESS : HandlerProcessResult.FAILURE;
         })
-        .Build());
+);
 
-// Dispatch event
-var options = new LSEventOptions(dispatcher);
-var userEvent = new UserActionEvent(options, "login", 123);
+// Process the event
+var userEvent = new UserRegistrationEvent(options, newUser);
 var result = userEvent.Dispatch();
 ```
 
-### 2. State Management
+For comprehensive documentation, see [LSEventSystem README](src/LSEventSystem/README.md).
+
+## 🚫 Phase Cancellation
+
+### Key Behavior
+
+**Standard Phases (Validate, Configure, Execute)**: Cancellation → `EventProcessResult.CANCELLED`
+
+**CleanupPhase Special Case**: Cancellation → `EventProcessResult.SUCCESS` (preserves business success)
 
 ```csharp
-public class GameContext : ILSContext {
-    public string PlayerName { get; set; }
-    public int Level { get; set; }
-}
-
-public class MenuState : LSState<MenuState, GameContext> {
-    public MenuState(GameContext context) : base(context) { }
-    
-    public override void Cleanup() {
-        // Cleanup resources
-    }
-}
-
-// Usage
-var context = new GameContext { PlayerName = "Player1", Level = 1 };
-var menuState = new MenuState(context);
-var options = new LSEventOptions();
-menuState.Initialize(options);
-```
-
-### 3. Tick System
-
-```csharp
-// Initialize tick system
-var tick = LSTick.Singleton;
-var options = new LSEventOptions();
-tick.Initialize(options);
-
-// Subscribe to tick events
-options.Dispatcher.ForEvent<LSTick.OnTickEvent>(register => register
-    .OnPhase<BusinessState.ExecutePhaseState>(phase => phase
-        .Handler(ctx => {
-            var tickCount = ctx.Event.TickCount;
-            // Update game logic
+// CleanupPhase cancellation preserves success since core phases completed
+dispatcher.ForEventPhase<MyEvent, LSEventBusinessState.CleanupPhaseState>(
+    register => register.Handler(ctx => {
+        try {
+            CleanupResources();
             return HandlerProcessResult.SUCCESS;
-        })
-        .Build())
-    .Register());
-
-// In your game loop
-tick.Update(deltaTime);
+        } catch (Exception) {
+            return HandlerProcessResult.CANCELLED; // → SucceedState (not CancelledState!)
+        }
+    })
+);
 ```
 
-## 🏗️ Core Systems
+For detailed phase cancellation documentation, see [LSEventSystem README](src/LSEventSystem/README.md).
 
-### LSEventSystem v4
+## 🔧 Handler Registration
 
-The heart of LSUtils is the event system providing:
-
-#### Phase-Based Processing
-
-- **Validate**: Input validation and security checks
-- **Configure**: Resource allocation and setup
-- **Execute**: Core business logic
-- **Cleanup**: Resource cleanup and finalization
-
-#### State Machine
-
-- **BusinessState**: Main processing state
-- **SucceedState**: Success handling
-- **CancelledState**: Cancellation cleanup  
-- **CompletedState**: Final cleanup
-- **WaitingState**: Asynchronous operation pause
-
-#### Handler Registration
+### Global vs Event-Scoped
 
 ```csharp
-// Global handlers
-dispatcher.ForEventPhase<MyEvent, BusinessState.ValidatePhaseState>(
+// Global handlers (for all events of this type)
+dispatcher.ForEventPhase<UserEvent, LSEventBusinessState.ValidatePhaseState>(
     register => register
         .WithPriority(LSPriority.CRITICAL)
-        .When((evt, entry) => evt.GetData<bool>("requiresValidation"))
-        .Handler(ctx => {
-            // Validation logic
-            return HandlerProcessResult.SUCCESS;
-        })
-        .Build());
+        .Handler(ctx => { /* Global validation */ })
+);
 
-// Event-scoped handlers
-var event = new MyEvent(options)
-    .WithPhaseCallbacks<BusinessState.ExecutePhaseState>(
-        register => register
-            .Handler(ctx => {
-                // Event-specific logic
-                return HandlerProcessResult.SUCCESS;
-            })
-            .Build()
+// Event-scoped handlers (for specific event instances)
+var userEvent = new UserEvent(options, userData)
+    .WithPhaseCallbacks<LSEventBusinessState.ExecutePhaseState>(register => register
+        .Handler(ctx => { /* Specific execution logic */ })
     );
 ```
 
-## 🔄 Recent Changes
+For comprehensive handler registration patterns, see [LSEventSystem README](src/LSEventSystem/README.md).
 
-### Version 4.0 - Major Architectural Update
+## 🏛️ State Management
 
-#### Breaking Changes
-
-- **LSEventOptions Introduction**: Events now require `LSEventOptions` instead of direct dispatcher injection
-- **Handler Registration Refactoring**: Constructors no longer require dispatcher parameters
-- **State Management Modernization**: `LSState` now implements `ILSEventable` interface
-- **Signal System Update**: `LSSignals` migrated to v4 event architecture
-
-#### New Features
-
-- **ILSEventable Interface**: Standardized initialization pattern for eventable objects
-- **LSBasicEvents**: Factory methods for common event patterns
-- **Enhanced Testing**: Improved test infrastructure with better isolation
-- **Logging Integration**: Comprehensive logging system with multiple providers
-
-#### Improvements
-
-- **Better Separation of Concerns**: Cleaner architecture with reduced coupling
-- **Improved Type Safety**: Enhanced generic constraints and type checking
-- **Performance Optimizations**: Reduced object allocation in hot paths
-- **Documentation**: Comprehensive API documentation and examples
-
-### Migration from v3 to v4
-
-#### Constructor Changes
+### Basic State Integration
 
 ```csharp
-// v3
-var register = new LSPhaseHandlerRegister<ValidatePhaseState>(dispatcher);
-
-// v4
-var register = new LSPhaseHandlerRegister<ValidatePhaseState>();
+public class MainMenuState : LSState<MainMenuState, GameContext> {
+    protected override void OnInitialize(LSEventOptions options) {
+        // Register state-specific event handlers
+        options.Dispatcher.ForEventPhase<MenuActionEvent, LSEventBusinessState.ExecutePhaseState>(
+            register => register.Handler(ctx => {
+                HandleMenuAction(ctx.Event);
+                return HandlerProcessResult.SUCCESS;
+            })
+        );
+    }
+}
 ```
 
-#### Event Creation
-
-```csharp
-// v3
-var event = new MyEvent(dispatcher, data);
-
-// v4
-var options = new LSEventOptions(dispatcher);
-var event = new MyEvent(options, data);
-```
-
-#### State Initialization
-
-```csharp
-// v3
-state.Initialize(dispatcher);
-
-// v4
-var options = new LSEventOptions(dispatcher);
-state.Initialize(options);
-```
+For complete state management patterns, see [LSEventSystem README](src/LSEventSystem/README.md).
 
 ## 📚 Examples
 
-### Complete E-commerce Order Processing
+### Simple Order Processing
 
 ```csharp
 public class OrderEvent : LSEvent {
     public int OrderId { get; }
     public decimal Amount { get; }
-    public int CustomerId { get; }
     
-    public OrderEvent(LSEventOptions options, int orderId, decimal amount, int customerId) 
+    public OrderEvent(LSEventOptions options, int orderId, decimal amount) 
         : base(options) {
         OrderId = orderId;
         Amount = amount;
-        CustomerId = customerId;
-        
         SetData("order_id", orderId);
         SetData("amount", amount);
-        SetData("customer_id", customerId);
     }
 }
 
-// Register processing pipeline
-var dispatcher = LSDispatcher.Singleton;
+// Register basic processing pipeline
+var options = new LSEventOptions();
+var dispatcher = options.Dispatcher;
 
-// Validation
-dispatcher.ForEventPhase<OrderEvent, BusinessState.ValidatePhaseState>(
-    register => register
-        .WithPriority(LSPriority.CRITICAL)
-        .Handler(ctx => {
-            var amount = ctx.Event.GetData<decimal>("amount");
-            if (amount <= 0) {
-                ctx.Event.SetData("error", "Invalid amount");
-                return HandlerProcessResult.CANCELLED;
-            }
-            return HandlerProcessResult.SUCCESS;
-        })
-        .Build());
+dispatcher.ForEventPhase<OrderEvent, LSEventBusinessState.ValidatePhaseState>(
+    register => register.Handler(ctx => {
+        var amount = ctx.Event.GetData<decimal>("amount");
+        return amount > 0 ? HandlerProcessResult.SUCCESS : HandlerProcessResult.FAILURE;
+    })
+);
 
-// Configuration
-dispatcher.ForEventPhase<OrderEvent, BusinessState.ConfigurePhaseState>(
-    register => register
-        .Handler(ctx => {
-            var orderId = ctx.Event.GetData<int>("order_id");
-            var reservationId = ReserveInventory(orderId);
-            ctx.Event.SetData("reservation_id", reservationId);
-            return HandlerProcessResult.SUCCESS;
-        })
-        .Build());
-
-// Execution
-dispatcher.ForEventPhase<OrderEvent, BusinessState.ExecutePhaseState>(
-    register => register
-        .Handler(ctx => {
-            var customerId = ctx.Event.GetData<int>("customer_id");
-            var amount = ctx.Event.GetData<decimal>("amount");
-            
-            // Process payment asynchronously
-            var paymentId = ProcessPayment(customerId, amount);
-            ctx.Event.SetData("payment_id", paymentId);
-            
-            // Payment processing would resume via external callback
-            return HandlerProcessResult.WAITING;
-        })
-        .Build());
-
-// Cleanup
-dispatcher.ForEventPhase<OrderEvent, BusinessState.CleanupPhaseState>(
-    register => register
-        .Handler(ctx => {
-            // Always cleanup, regardless of success/failure
-            if (ctx.Event.TryGetData("reservation_id", out int reservationId)) {
-                ReleaseReservation(reservationId);
-            }
-            return HandlerProcessResult.SUCCESS;
-        })
-        .Build());
-
-// Success handling
-dispatcher.ForEventState<OrderEvent, SucceedState>(
-    register => register
-        .Handler(evt => {
-            var orderId = evt.GetData<int>("order_id");
-            SendConfirmationEmail(orderId);
-        })
-        .Build());
+dispatcher.ForEventPhase<OrderEvent, LSEventBusinessState.ExecutePhaseState>(
+    register => register.Handler(ctx => {
+        var orderId = ctx.Event.GetData<int>("order_id");
+        ProcessPayment(orderId);
+        return HandlerProcessResult.SUCCESS;
+    })
+);
 
 // Usage
-var options = new LSEventOptions(dispatcher);
-var order = new OrderEvent(options, 12345, 99.99m, 67890);
+var order = new OrderEvent(options, 12345, 99.99m);
 var result = order.Dispatch();
 ```
 
-### Graph Pathfinding
+For comprehensive examples including e-commerce, file processing, and advanced patterns, see [LSEventSystem README](src/LSEventSystem/README.md).
+
+### Graph Pathfinding Example
 
 ```csharp
 using LSUtils.Graphs;
@@ -472,6 +376,7 @@ public abstract class LSEvent : ILSEvent {
 public class LSDispatcher {
     public static LSDispatcher Singleton { get; }
     
+    // Register handlers for events (does not process events directly)
     public Guid[] ForEvent<TEvent>(Func<LSEventRegister<TEvent>, Guid[]> configureRegister) where TEvent : ILSEvent;
     public Guid ForEventPhase<TEvent, TPhase>(Func<LSPhaseHandlerRegister<TPhase>, LSPhaseHandlerRegister<TPhase>> configurePhaseHandler) where TEvent : ILSEvent where TPhase : BusinessState.PhaseState;
     public Guid ForEventState<TEvent, TState>(Func<LSStateHandlerRegister<TState>, LSStateHandlerRegister<TState>> configureStateHandler) where TEvent : ILSEvent where TState : IEventProcessState;
@@ -596,7 +501,7 @@ public class CustomBusinessEvent : LSEvent {
 - Follow C# naming conventions
 - Add comprehensive tests for new features
 - Update documentation for API changes
-- Use semantic versioning for releases
+- Ensure backward compatibility when possible
 
 ## 📄 License
 

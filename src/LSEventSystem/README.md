@@ -1,8 +1,8 @@
-# LSEventSystem v4 - Comprehensive Documentation
+# LSEventSystem - Comprehensive Documentation
 
 ## Overview
 
-LSEventSystem v4 is a clean, state-machine-based event processing framework designed for robust, scalable event handling in .NET applications. It provides a simplified yet powerful approach to event processing through sequential phases with proper failure handling, cancellation support, and asynchronous operation management.
+LSEventSystem is a clean, state-machine-based event processing framework designed for robust, scalable event handling in .NET applications. It provides a simplified yet powerful approach to event processing through sequential phases with proper failure handling, cancellation support, and asynchronous operation management.
 
 ## Table of Contents
 
@@ -19,9 +19,8 @@ LSEventSystem v4 is a clean, state-machine-based event processing framework desi
 11. [Best Practices](#best-practices)
 12. [Examples](#examples)
 13. [API Reference](#api-reference)
-14. [Migration Guide](#migration-guide)
-15. [Performance Considerations](#performance-considerations)
-16. [Troubleshooting](#troubleshooting)
+14. [Performance Considerations](#performance-considerations)
+15. [Troubleshooting](#troubleshooting)
 
 ## Key Features
 
@@ -66,13 +65,13 @@ LSEventSystem v4 is a clean, state-machine-based event processing framework desi
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│                        LSEventSystem v4                        │
+│                        LSEventSystem                           │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────┐    ┌──────────────────┐    ┌───────────────┐  │
 │  │   Events    │    │   Dispatcher     │    │   Handlers    │  │
 │  │             │    │                  │    │               │  │
-│  │ BaseEvent   │◄──►│ LSESDispatcher   │◄──►│ PhaseHandler  │  │
+│  │ LSEvent     │◄──►│ LSDispatcher     │◄──►│ PhaseHandler  │  │
 │  │ ILSEvent    │    │ Registration     │    │ StateHandler  │  │
 │  │             │    │ Management       │    │               │  │
 │  └─────────────┘    └──────────────────┘    └───────────────┘  │
@@ -97,7 +96,7 @@ LSEventSystem v4 is a clean, state-machine-based event processing framework desi
 
 ## Core Components
 
-### BaseEvent
+### LSEvent
 
 Abstract base class for all events in the system. Provides:
 
@@ -106,7 +105,7 @@ Abstract base class for all events in the system. Provides:
 - Integration with dispatcher and state machine
 - Event-scoped handler configuration
 
-### LSESDispatcher
+### LSDispatcher
 
 Central handler registration and management system. Features:
 
@@ -115,7 +114,7 @@ Central handler registration and management system. Features:
 - Support for both phase and state handlers
 - Internal handler storage and retrieval
 
-### EventSystemContext
+### LSEventProcessContext
 
 Coordination point for event processing. Manages:
 
@@ -138,13 +137,13 @@ Individual phases in the business processing pipeline:
 ### 1. Define Your Event
 
 ```csharp
-public class UserRegistrationEvent : BaseEvent {
+public class UserRegistrationEvent : LSEvent {
     public string Email { get; }
     public string Name { get; }
     public string RegistrationSource { get; }
 
-    public UserRegistrationEvent(LSESDispatcher dispatcher, string email, string name, string source)
-        : base(dispatcher) {
+    public UserRegistrationEvent(LSEventOptions options, string email, string name, string source)
+        : base(options) {
         Email = email;
         Name = name;
         RegistrationSource = source;
@@ -153,6 +152,7 @@ public class UserRegistrationEvent : BaseEvent {
         SetData("email", email);
         SetData("name", name);
         SetData("source", source);
+        SetData("registrationTime", DateTime.UtcNow);
     }
 }
 ```
@@ -160,12 +160,13 @@ public class UserRegistrationEvent : BaseEvent {
 ### 2. Register Global Handlers
 
 ```csharp
-var dispatcher = LSESDispatcher.Singleton;
+var options = new LSEventOptions();
+var dispatcher = options.Dispatcher;
 
 // Register validation handler
-dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.ValidatePhaseState>(
+dispatcher.ForEventPhase<UserRegistrationEvent, LSEventBusinessState.ValidatePhaseState>(
     register => register
-        .WithPriority(LSESPriority.HIGH)
+        .WithPriority(LSPriority.HIGH)
         .Handler(ctx => {
             var email = ctx.Event.GetData<string>("email");
             if (string.IsNullOrEmpty(email) || !email.Contains("@")) {
@@ -174,10 +175,10 @@ dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.ValidatePhaseState
             }
             return HandlerProcessResult.SUCCESS;
         })
-        .Build());
+);
 
 // Register execution handler
-dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.ExecutePhaseState>(
+dispatcher.ForEventPhase<UserRegistrationEvent, LSEventBusinessState.ExecutePhaseState>(
     register => register
         .Handler(ctx => {
             var email = ctx.Event.GetData<string>("email");
@@ -189,7 +190,7 @@ dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.ExecutePhaseState>
             
             return HandlerProcessResult.SUCCESS;
         })
-        .Build());
+);
 ```
 
 ### 3. Create and Dispatch Events
@@ -197,18 +198,17 @@ dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.ExecutePhaseState>
 ```csharp
 // Create event with optional event-scoped handlers
 var registrationEvent = new UserRegistrationEvent(
-    dispatcher, 
+    options, 
     "user@example.com", 
     "John Doe", 
     "web_form")
-    .WithPhaseCallbacks<BusinessState.CleanupPhaseState>(
+    .WithPhaseCallbacks<LSEventBusinessState.CleanupPhaseState>(
         register => register
             .Handler(ctx => {
                 // Event-specific cleanup logic
                 LogRegistrationAttempt(ctx.Event);
                 return HandlerProcessResult.SUCCESS;
             })
-            .Build()
     );
 
 // Dispatch and handle result
@@ -271,32 +271,27 @@ Global handlers are registered with the dispatcher and execute for all events of
 
 ```csharp
 // Single handler registration
-var handlerId = dispatcher.ForEventPhase<UserRegistrationEvent, BusinessState.ValidatePhaseState>(
+var handlerId = dispatcher.ForEventPhase<UserRegistrationEvent, LSEventBusinessState.ValidatePhaseState>(
     register => register
-        .WithPriority(LSESPriority.CRITICAL)
+        .WithPriority(LSPriority.CRITICAL)
         .When((evt, entry) => evt.GetData<string>("source") == "web_form") // Conditional execution
         .Handler(ctx => {
             // Validation logic specific to web form registrations
             return HandlerProcessResult.SUCCESS;
-        })
-        .Build());
+        }));
 
 // Multiple handler registration
 var handlerIds = dispatcher.ForEvent<UserRegistrationEvent>(register => register
-    .OnPhase<BusinessState.ValidatePhaseState>(phase => phase
-        .WithPriority(LSESPriority.HIGH)
-        .Handler(ctx => ValidateEmailFormat(ctx))
-        .Build())
-    .OnPhase<BusinessState.ValidatePhaseState>(phase => phase
-        .WithPriority(LSESPriority.NORMAL)
-        .Handler(ctx => CheckEmailAvailability(ctx))
-        .Build())
-    .OnPhase<BusinessState.ExecutePhaseState>(phase => phase
-        .Handler(ctx => CreateUserAccount(ctx))
-        .Build())
-    .OnState<SucceedState>(state => state
-        .Handler(evt => SendWelcomeEmail(evt))
-        .Build())
+    .OnPhase<LSEventBusinessState.ValidatePhaseState>(phase => phase
+        .WithPriority(LSPriority.HIGH)
+        .Handler(ctx => ValidateEmailFormat(ctx)))
+    .OnPhase<LSEventBusinessState.ValidatePhaseState>(phase => phase
+        .WithPriority(LSPriority.NORMAL)
+        .Handler(ctx => CheckEmailAvailability(ctx)))
+    .OnPhase<LSEventBusinessState.ExecutePhaseState>(phase => phase
+        .Handler(ctx => CreateUserAccount(ctx)))
+    .OnState<LSEventSucceedState>(state => state
+        .Handler(evt => SendWelcomeEmail(evt)))
     .Register());
 ```
 
@@ -305,11 +300,11 @@ var handlerIds = dispatcher.ForEvent<UserRegistrationEvent>(register => register
 Event-scoped handlers are specific to individual event instances and execute alongside global handlers:
 
 ```csharp
-var event = new UserRegistrationEvent(dispatcher, email, name, "api")
-    .WithPhaseCallbacks<BusinessState.ValidatePhaseState>(
+var event = new UserRegistrationEvent(options, email, name, "api")
+    .WithPhaseCallbacks<LSEventBusinessState.ValidatePhaseState>(
         // Custom validation for API registrations
         register => register
-            .WithPriority(LSESPriority.HIGH)
+            .WithPriority(LSPriority.HIGH)
             .Handler(ctx => {
                 var apiKey = ctx.Event.GetData<string>("api_key");
                 if (!ValidateApiKey(apiKey)) {
@@ -317,16 +312,18 @@ var event = new UserRegistrationEvent(dispatcher, email, name, "api")
                 }
                 return HandlerProcessResult.SUCCESS;
             })
-            .Build()
+            .Handler(ctx => {
+                // API-specific validation logic
+                return ValidateApiUser(ctx);
+            })
     )
-    .WithPhaseCallbacks<BusinessState.ExecutePhaseState>(
+    .WithPhaseCallbacks<LSEventBusinessState.ExecutePhaseState>(
         // Custom execution logic
         register => register
             .Handler(ctx => {
                 // API-specific user creation logic
                 return CreateApiUser(ctx);
             })
-            .Build()
     );
 ```
 
@@ -342,18 +339,15 @@ Handlers within each phase execute in priority order:
 
 ```csharp
 dispatcher.ForEvent<UserRegistrationEvent>(register => register
-    .OnPhase<BusinessState.ValidatePhaseState>(phase => phase
-        .WithPriority(LSESPriority.CRITICAL)
-        .Handler(ctx => SecurityValidation(ctx)) // Executes first
-        .Build())
-    .OnPhase<BusinessState.ValidatePhaseState>(phase => phase
-        .WithPriority(LSESPriority.HIGH)
-        .Handler(ctx => BusinessValidation(ctx)) // Executes second
-        .Build())
-    .OnPhase<BusinessState.ValidatePhaseState>(phase => phase
-        .WithPriority(LSESPriority.BACKGROUND)
-        .Handler(ctx => LogValidation(ctx)) // Executes last
-        .Build())
+    .OnPhase<LSEventBusinessState.ValidatePhaseState>(phase => phase
+        .WithPriority(LSPriority.CRITICAL)
+        .Handler(ctx => SecurityValidation(ctx))) // Executes first
+    .OnPhase<LSEventBusinessState.ValidatePhaseState>(phase => phase
+        .WithPriority(LSPriority.HIGH)
+        .Handler(ctx => BusinessValidation(ctx))) // Executes second
+    .OnPhase<LSEventBusinessState.ValidatePhaseState>(phase => phase
+        .WithPriority(LSPriority.BACKGROUND)
+        .Handler(ctx => LogValidation(ctx))) // Executes last
     .Register());
 ```
 
@@ -913,14 +907,14 @@ public void UserRegistration_WithInvalidEmail_ShouldFail() {
 ### E-commerce Order Processing
 
 ```csharp
-public class OrderProcessingEvent : BaseEvent {
+public class OrderProcessingEvent : LSEvent {
     public int OrderId { get; }
     public decimal Amount { get; }
     public string Currency { get; }
     public int CustomerId { get; }
     
-    public OrderProcessingEvent(LSESDispatcher dispatcher, int orderId, decimal amount, string currency, int customerId)
-        : base(dispatcher) {
+    public OrderProcessingEvent(LSEventOptions options, int orderId, decimal amount, string currency, int customerId)
+        : base(options) {
         OrderId = orderId;
         Amount = amount;
         Currency = currency;
@@ -934,12 +928,13 @@ public class OrderProcessingEvent : BaseEvent {
 }
 
 // Register handlers
-var dispatcher = LSESDispatcher.Singleton;
+var options = new LSEventOptions();
+var dispatcher = options.Dispatcher;
 
 // Validation phase
-dispatcher.ForEventPhase<OrderProcessingEvent, BusinessState.ValidatePhaseState>(
+dispatcher.ForEventPhase<OrderProcessingEvent, LSEventBusinessState.ValidatePhaseState>(
     register => register
-        .WithPriority(LSESPriority.CRITICAL)
+        .WithPriority(LSPriority.CRITICAL)
         .Handler(ctx => {
             // Validate customer
             var customerId = ctx.Event.GetData<int>("customer_id");
@@ -956,11 +951,10 @@ dispatcher.ForEventPhase<OrderProcessingEvent, BusinessState.ValidatePhaseState>
             }
             
             return HandlerProcessResult.SUCCESS;
-        })
-        .Build());
+        });
 
 // Configuration phase
-dispatcher.ForEventPhase<OrderProcessingEvent, BusinessState.ConfigurePhaseState>(
+dispatcher.ForEventPhase<OrderProcessingEvent, LSEventBusinessState.ConfigurePhaseState>(
     register => register
         .Handler(ctx => {
             // Reserve inventory
@@ -1374,20 +1368,6 @@ public class StateHandlerRegister<TState> where TState : IEventSystemState {
 }
 ```
 
-## Migration Guide
-
-### From v3 to v4
-
-The v4 redesign introduces significant architectural changes focused on simplification and clarity:
-
-#### Key Changes
-
-1. **Simplified Phase Model**: Reduced from 7 phases to 4 clean phases
-2. **State Machine Architecture**: Clear state-based processing with defined transitions
-3. **Unified Handler Registration**: Single dispatcher with fluent API
-4. **Improved Error Handling**: Distinction between failures and cancellations
-5. **Better Async Support**: Explicit waiting states with external control
-
 ## Performance Considerations
 
 ### Memory Management
@@ -1558,7 +1538,7 @@ var event = new MyEvent(dispatcher)
 
 ## Conclusion
 
-LSEventSystem v4 provides a robust, clean, and scalable foundation for event-driven applications. Its state-machine architecture, comprehensive error handling, and flexible handler registration make it suitable for a wide range of use cases from simple business logic to complex asynchronous workflows.
+LSEventSystem provides a robust, clean, and scalable foundation for event-driven applications. Its state-machine architecture, comprehensive error handling, and flexible handler registration make it suitable for a wide range of use cases from simple business logic to complex asynchronous workflows.
 
 The framework's emphasis on immutability, type safety, and clear separation of concerns ensures maintainable and testable code while providing the flexibility needed for real-world applications.
 
