@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace LSUtils.EventSystem;
@@ -52,7 +53,15 @@ public partial class LSEventBusinessState {
         //public override EventSystemPhase Phase => EventSystemPhase.EXECUTE;
         int _waitingHandlers = 0;
         bool _hasFailures = false;
-        
+
+        /// <summary>
+        /// Indicates whether this phase has handlers in waiting state.
+        /// 
+        /// ExecutePhase overrides the base IsWaiting to check for pending
+        /// asynchronous operations tracked by the waiting counter.
+        /// </summary>
+        public override bool IsWaiting => _waitingHandlers > 0;
+
         /// <summary>
         /// Indicates whether any handlers in this phase have failed.
         /// 
@@ -61,7 +70,7 @@ public partial class LSEventBusinessState {
         /// as handlers complete with failure results.
         /// </summary>
         public override bool HasFailures => _hasFailures;
-        
+
         /// <summary>
         /// Constructs a new ExecutePhaseState with the specified context and handlers.
         /// 
@@ -162,7 +171,7 @@ public partial class LSEventBusinessState {
             }
             return _stateContext.getPhaseState<CleanupPhaseState>();
         }
-        
+
         /// <summary>
         /// Resumes execution phase processing after waiting handlers complete successfully.
         /// 
@@ -203,6 +212,7 @@ public partial class LSEventBusinessState {
         /// CleanupPhaseState if all operations complete, or this instance if still waiting
         /// </returns>
         public override PhaseState? Resume() {
+            if (IsCancelled) return Cancel();
             //decreasing the count is a way to tell how many handlers are still waiting to resume
             //if value is negative it means that Resume() was called before the handler actually went to waiting state
             //it should not be a problem, because the handler will not be processed again
@@ -218,7 +228,7 @@ public partial class LSEventBusinessState {
             PhaseResult = PhaseProcessResult.WAITING;
             return this;
         }
-        
+
         /// <summary>
         /// Handles cancellation requests during execution processing.
         /// 
@@ -253,7 +263,7 @@ public partial class LSEventBusinessState {
             PhaseResult = PhaseProcessResult.CANCELLED;
             return null;
         }
-        
+
         /// <summary>
         /// Handles failure notifications for waiting handlers during execution.
         /// 

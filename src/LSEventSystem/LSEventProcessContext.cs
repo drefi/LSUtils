@@ -38,20 +38,20 @@ public class LSEventProcessContext {
     /// Provides access to globally registered handlers for event processing.
     /// </summary>
     public LSDispatcher Dispatcher { get; }
-    
+
     /// <summary>
     /// The current state in the event processing state machine.
     /// Can be BusinessState, SucceedState, CancelledState, or CompletedState.
     /// Null when processing is complete.
     /// </summary>
     public IEventProcessState? CurrentState { get; internal set; }
-    
+
     /// <summary>
     /// The event being processed through the state machine.
     /// Contains all event data and provides access to event metadata.
     /// </summary>
     public ILSEvent Event { get; internal set; }
-    
+
     /// <summary>
     /// Read-only collection of all handlers available for this event.
     /// Includes both global handlers from the dispatcher and event-scoped handlers.
@@ -64,7 +64,7 @@ public class LSEventProcessContext {
     /// Does not prevent processing completion - events can complete with failures.
     /// </summary>
     public bool HasFailures { get; internal set; }
-    
+
     /// <summary>
     /// Indicates if the event processing has been cancelled.
     /// True when cancellation has been requested or a handler returned CANCELLED.
@@ -121,24 +121,31 @@ public class LSEventProcessContext {
     /// <exception cref="LSException">Thrown when event is not marked as InDispatch</exception>
     internal EventProcessResult processEvent() {
         if (Event.InDispatch == false) throw new LSException("Event must be marked as InDispatch before processing.");
+        EventProcessResult result = EventProcessResult.UNKNOWN;
         while (CurrentState != null) {
-            var nextState = CurrentState.Process();
-            var result = CurrentState.StateResult;
-            switch (result) {
-                case StateProcessResult.CANCELLED:
-                    IsCancelled = true;
-                    break;
-                case StateProcessResult.FAILURE:
-                    HasFailures = true;
-                    break;
-                case StateProcessResult.WAITING:
-                    //stay in current state
-                    return EventProcessResult.WAITING;
-                case StateProcessResult.SUCCESS:
-                default:
-                    break;
-            }
+            var currentState = CurrentState;
+            result = process(currentState, out var nextState, currentState.Process);
+            if (result == EventProcessResult.WAITING) return EventProcessResult.WAITING;
             CurrentState = nextState;
+        }
+        return result;
+    }
+    EventProcessResult process(IEventProcessState currentState, out IEventProcessState? nextState, System.Func<IEventProcessState?> callback) {
+        nextState = callback();
+        var result = currentState.StateResult;
+        switch (result) {
+            case StateProcessResult.CANCELLED:
+                IsCancelled = true;
+                break;
+            case StateProcessResult.FAILURE:
+                HasFailures = true;
+                break;
+            case StateProcessResult.WAITING:
+                //stay in current state
+                return EventProcessResult.WAITING;
+            case StateProcessResult.SUCCESS:
+            default:
+                break;
         }
         return IsCancelled ? EventProcessResult.CANCELLED : HasFailures ? EventProcessResult.FAILURE : EventProcessResult.SUCCESS;
     }
@@ -158,7 +165,17 @@ public class LSEventProcessContext {
     /// 5. Processing continues from the paused state
     /// </summary>
     /// <returns>The next state to transition to, or null if processing remains in current state</returns>
-    public IEventProcessState? Resume() => CurrentState?.Resume();
+    public EventProcessResult Resume() {
+        if (Event.InDispatch == false) throw new LSException("Event must be marked as InDispatch before processing.");
+        EventProcessResult result = EventProcessResult.UNKNOWN;
+        while (CurrentState != null) {
+            var currentState = CurrentState;
+            result = process(currentState, out var nextState, currentState.Resume);
+            if (result == EventProcessResult.WAITING) return EventProcessResult.WAITING;
+            CurrentState = nextState;
+        }
+        return result;
+    }
 
     /// <summary>
     /// Cancels processing from a waiting state.
@@ -170,8 +187,18 @@ public class LSEventProcessContext {
     /// Results in transition to CancelledState and eventual completion.
     /// </summary>
     /// <returns>The next state to transition to, typically CancelledState</returns>
-    public IEventProcessState? Cancel() => CurrentState?.Cancel();
-    
+    public EventProcessResult Cancel() {
+        if (Event.InDispatch == false) throw new LSException("Event must be marked as InDispatch before processing.");
+        EventProcessResult result = EventProcessResult.UNKNOWN;
+        while (CurrentState != null) {
+            var currentState = CurrentState;
+            result = process(currentState, out var nextState, currentState.Cancel);
+            if (result == EventProcessResult.WAITING) return EventProcessResult.WAITING;
+            CurrentState = nextState;
+        }
+        return result;
+    }
+
     /// <summary>
     /// Marks processing as failed from a waiting state.
     /// 
@@ -182,7 +209,17 @@ public class LSEventProcessContext {
     /// Sets HasFailures flag and continues processing through appropriate phases.
     /// </summary>
     /// <returns>The next state to transition to, allowing failure handling to continue</returns>
-    public IEventProcessState? Fail() => CurrentState?.Fail();
+    public EventProcessResult Fail() {
+        if (Event.InDispatch == false) throw new LSException("Event must be marked as InDispatch before processing.");
+        EventProcessResult result = EventProcessResult.UNKNOWN;
+        while (CurrentState != null) {
+            var currentState = CurrentState;
+            result = process(currentState, out var nextState, currentState.Fail);
+            if (result == EventProcessResult.WAITING) return EventProcessResult.WAITING;
+            CurrentState = nextState;
+        }
+        return result;
+    }
 
     /// <summary>
     /// Factory method for creating EventSystemContext instances.

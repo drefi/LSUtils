@@ -99,44 +99,16 @@ public partial class LSEventBusinessState {
                 while (_remainingHandlers.Count > 0) {
                     _currentHandler = _remainingHandlers.Pop();
                     var result = processCurrentHandler(_currentHandler);
-                    if (result == HandlerProcessResult.CANCELLED) Cancel();
+                    if (result == HandlerProcessResult.CANCELLED) {
+                        PhaseResult = PhaseProcessResult.CANCELLED;
+                        return null; // End processing immediately on cancellation
+                    }
+
                 }
                 PhaseResult = HasFailures ? PhaseProcessResult.FAILURE : PhaseProcessResult.CONTINUE;
                 //StateResult = StateProcessResult.CONTINUE;
             }
             return null; // End of phases
-        }
-        
-        /// <summary>
-        /// Handles cancellation requests during cleanup processing.
-        /// 
-        /// When cancellation is requested during cleanup, the phase is marked
-        /// as cancelled but since the core business phases completed successfully,
-        /// this should not result in an overall cancelled state.
-        /// 
-        /// Cancellation Effects:
-        /// - Sets phase result to CANCELLED
-        /// - Does NOT set business state result to CANCELLED (unlike other phases)
-        /// - Terminates phase processing immediately
-        /// - No further handlers execute
-        /// 
-        /// Special Behavior:
-        /// CleanupPhase cancellation is treated differently because the core
-        /// business logic (Validate, Configure, Execute) has already completed
-        /// successfully. Cleanup cancellation should not negate that success.
-        /// 
-        /// Use Cases:
-        /// - Non-critical cleanup operations that can be skipped
-        /// - Timeout scenarios during cleanup that shouldn't affect business success
-        /// - Resource cleanup that fails but doesn't impact overall event success
-        /// </summary>
-        /// <returns>Always null to indicate immediate phase termination</returns>
-        public override PhaseState? Cancel() {
-            PhaseResult = PhaseProcessResult.CANCELLED;
-            // Note: Unlike other phases, CleanupPhase cancellation does NOT set
-            // _stateContext.StateResult = StateProcessResult.CANCELLED
-            // because core business phases completed successfully
-            return null; // End phase immediately
         }
     }
     #endregion

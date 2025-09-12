@@ -39,37 +39,37 @@ public partial class LSEventBusinessState : IEventProcessState {
     /// dispatcher, and other processing components.
     /// </summary>
     protected LSEventProcessContext _eventContext;
-    
+
     /// <summary>
     /// The currently active phase being processed.
     /// Null when all phases have completed or processing has terminated.
     /// </summary>
     PhaseState? _currentPhase = null;
-    
+
     /// <summary>
     /// Complete list of all phases in execution order.
     /// Initialized with ValidatePhaseState, ConfigurePhaseState, ExecutePhaseState, CleanupPhaseState.
     /// </summary>
     List<PhaseState> _phases = new();
-    
+
     /// <summary>
     /// Dictionary tracking the completion result of each phase.
     /// Used to evaluate overall business state outcome and determine final transitions.
     /// </summary>
     protected Dictionary<PhaseState, PhaseProcessResult?> _phaseResults = new();
-    
+
     /// <summary>
     /// The final result of business state processing.
     /// Determines the next state transition when business processing completes.
     /// </summary>
     public StateProcessResult StateResult { get; protected set; } = StateProcessResult.UNKNOWN;
-    
+
     /// <summary>
     /// Indicates whether any phase has encountered failures during processing.
     /// True if any phase result is FAILURE, affecting final state transition logic.
     /// </summary>
     public bool HasFailures => _phaseResults.Values.Any(r => r == PhaseProcessResult.FAILURE);
-    
+
     /// <summary>
     /// Indicates whether any phase has been cancelled during processing.
     /// True if any phase result is CANCELLED, typically leading to immediate termination.
@@ -110,7 +110,7 @@ public partial class LSEventBusinessState : IEventProcessState {
     internal PhaseState? getPhaseState(System.Type type) {
         return _phases.FirstOrDefault(p => p.GetType() == type);
     }
-    
+
     /// <summary>
     /// Retrieves a phase state instance by its generic type parameter.
     /// Type-safe access to specific phase states with compile-time type checking.
@@ -120,7 +120,7 @@ public partial class LSEventBusinessState : IEventProcessState {
     internal T? getPhaseState<T>() where T : PhaseState {
         return getPhaseState(typeof(T)) as T;
     }
-    
+
     /// <summary>
     /// Attempts to retrieve a phase state instance with safe null checking.
     /// Provides the TryGet pattern for safe access to phase states.
@@ -153,13 +153,13 @@ public partial class LSEventBusinessState : IEventProcessState {
     /// </summary>
     /// <param name="callback">Function to execute on the current phase (Process or Resume)</param>
     /// <returns>The next state to transition to based on phase results</returns>
-    IEventProcessState phaseProcess(Func<PhaseState?> callback) {
+    IEventProcessState? phaseProcess(Func<PhaseState?> callback) {
         if (_currentPhase == null) return new LSEventSucceedState(_eventContext); //no phases left to process
         var nextPhase = callback();
         var processPhaseResult = _currentPhase.PhaseResult;
         _phaseResults[_currentPhase] = processPhaseResult;
         switch (processPhaseResult) {
-            case PhaseProcessResult.CANCELLED: 
+            case PhaseProcessResult.CANCELLED:
                 // Special handling for CleanupPhase cancellation
                 if (_currentPhase is CleanupPhaseState) {
                     // CleanupPhase cancellation should still result in SUCCESS
@@ -215,11 +215,13 @@ public partial class LSEventBusinessState : IEventProcessState {
     /// - CancelledState: Critical failure during processing  
     /// - BusinessState: Waiting for external input
     /// </returns>
-    public IEventProcessState Process() {
-        IEventProcessState result = this;
+    public IEventProcessState? Process() {
+        IEventProcessState? result = this;
         if (_currentPhase == null) return new LSEventSucceedState(_eventContext); //all phases completed successfully move to succeed state
         do {
             result = phaseProcess(_currentPhase.Process);
+            if (result == null) return null;
+            if (result.StateResult == StateProcessResult.WAITING) return result; //pause processing if waiting
         } while (_currentPhase != null);
 
         return result; //all phases completed successfully move to succeed state
@@ -253,13 +255,27 @@ public partial class LSEventBusinessState : IEventProcessState {
     /// - BusinessState: Still waiting for additional external input
     /// </returns>
     /// <exception cref="LSException">Thrown when there is no active phase to resume</exception>
-    public IEventProcessState Resume() {
-        IEventProcessState result = this;
-        if (_currentPhase == null) throw new LSException("Cannot resume business state with no active phase.");
-        do {
-            result = phaseProcess(_currentPhase.Resume);
-        } while (_currentPhase != null);
+    public IEventProcessState? Resume() {
+        Console.WriteLine($"[BusinessState] Resume() called, _currentPhase: {_currentPhase?.GetType().Name}");
+        IEventProcessState? result = null;
+        if (_currentPhase == null) return result;
+        
+        // First, try to resume the current phase
+        Console.WriteLine($"[BusinessState] Calling Resume() on phase: {_currentPhase.GetType().Name}");
+        var resumeResult = phaseProcess(_currentPhase.Resume);
+        Console.WriteLine($"[BusinessState] Resume() returned: {resumeResult?.GetType().Name}, StateResult: {resumeResult?.StateResult}");
+        if (resumeResult == null) return null;
+        if (resumeResult.StateResult == StateProcessResult.WAITING) return this;
+        
+        // If resume caused a phase transition, continue with normal processing
+        while (_currentPhase != null) {
+            Console.WriteLine($"[BusinessState] Continuing with Process() on phase: {_currentPhase.GetType().Name}");
+            result = phaseProcess(_currentPhase.Process);
+            if (result == null) return null;
+            if (result.StateResult == StateProcessResult.WAITING) return this; //pause processing if waiting
+        }
 
+        Console.WriteLine($"[BusinessState] Resume() complete, final result: {result?.GetType().Name}");
         return result; //all phases completed successfully move to succeed state
     }
     /// <summary>
@@ -281,11 +297,13 @@ public partial class LSEventBusinessState : IEventProcessState {
     /// <returns>
     /// Always returns CancelledState for proper cleanup and finalization.
     /// </returns>
-    public IEventProcessState Cancel() {
-        var result = _currentPhase?.Cancel();
+    public IEventProcessState? Cancel() {
+        if (_currentPhase == null) return null;
+        var result = _currentPhase.Cancel();
+        StateResult = StateProcessResult.CANCELLED;
         return new LSEventCancelledState(_eventContext);
     }
-    
+
     /// <summary>
     /// Handles failure scenarios in the business state.
     /// 

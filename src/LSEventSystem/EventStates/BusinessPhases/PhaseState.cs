@@ -79,20 +79,26 @@ public partial class LSEventBusinessState {
         /// <summary>
         /// Indicates whether any handlers in this phase have failed.
         /// Used for phase outcome evaluation and error handling.
+        /// This is the only case where the handler results should determine if the phase has failures
+        /// because the phase result is set based on the handler results
         /// </summary>
         public virtual bool HasFailures => _handlerResults.Where(x => x.Value == HandlerProcessResult.FAILURE).Any();
 
         /// <summary>
         /// Indicates whether any handlers in this phase are in a waiting state.
         /// Determines if the phase should pause for external input.
+        /// the handler results should not determine if the phase is waiting
+        /// because the handler results could have been waiting but then resumed and finished and was not updated correctly
         /// </summary>
-        public virtual bool IsWaiting => _handlerResults.Where(x => x.Value == HandlerProcessResult.WAITING).Any();
+        public virtual bool IsWaiting => PhaseResult == PhaseProcessResult.WAITING;
 
         /// <summary>
         /// Indicates whether any handlers in this phase have been cancelled.
         /// Used to trigger immediate phase and event termination.
+        /// The Handler results should not determine if the phase is cancelled
+        /// because the handler results could have been cancelled but then resumed and finished and was not updated correctly
         /// </summary>
-        public virtual bool IsCancelled => _handlerResults.Where(x => x.Value == HandlerProcessResult.CANCELLED).Any();
+        public virtual bool IsCancelled => PhaseResult == PhaseProcessResult.CANCELLED;
         /// <summary>
         /// Initializes a new phase state with the specified context and handlers.
         /// 
@@ -139,7 +145,7 @@ public partial class LSEventBusinessState {
         /// Default implementation returns null, indicating no resumption logic.
         /// Phases that support waiting operations should override this method.
         /// </summary>
-        /// <returns>The next phase to execute, or null to remain in current phase</returns>
+        /// <returns>The next phase to execute, or null to to end processing</returns>
         public virtual PhaseState? Resume() { return null; }
 
         /// <summary>
@@ -186,18 +192,21 @@ public partial class LSEventBusinessState {
             if (handlerEntry == null) return HandlerProcessResult.UNKNOWN;
             if (!_handlerResults.ContainsKey(handlerEntry)) _handlerResults[handlerEntry] = HandlerProcessResult.UNKNOWN;
 
+            var context = _stateContext._eventContext;
+
             // get condition list, all must be true to execute handler, since the default Condition is true if at least one is false skip handler execution
             foreach (var condition in handlerEntry.Condition.GetInvocationList()) {
                 var conditionFunc = condition as System.Func<ILSEvent, IHandlerEntry, bool>;
                 // if one condition returns false skip handler execution
-                if (conditionFunc != null && !conditionFunc(_stateContext._eventContext.Event, handlerEntry))
-                    return HandlerProcessResult.SUCCESS;
+                if (conditionFunc != null && !conditionFunc(context.Event, handlerEntry))
+                    return HandlerProcessResult.SUCCESS; // Since the condition was not met we consider the handler successfully processed.
+                                                         // This is so that handlers created with CancelIf can be considered processed even if their condition is not met.
             }
             // Execute handler
-            var result = handlerEntry.Handler(_stateContext._eventContext);
+            var result = handlerEntry.Handler(context);
             //always update results
-            _handlerResults[handlerEntry] = result;
             handlerEntry.ExecutionCount++;
+            _handlerResults[handlerEntry] = result;
 
             return result;
         }

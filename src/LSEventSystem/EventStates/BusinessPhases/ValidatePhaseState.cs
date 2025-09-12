@@ -51,6 +51,7 @@ public partial class LSEventBusinessState {
     /// - Waiting: Treated as failure (validation must be synchronous)
     /// </summary>
     public class ValidatePhaseState : PhaseState {
+        private int _waitingHandlers;
         /// <summary>
         /// Constructs a new ValidatePhaseState with the specified context and handlers.
         /// 
@@ -117,6 +118,10 @@ public partial class LSEventBusinessState {
                             PhaseResult = PhaseProcessResult.FAILURE;
                             return null; // on validate failure skip remaining handlers and go directly to CompletedState
                         case HandlerProcessResult.WAITING:// waiting don't block handler processing but fails phase execution if not resumed;
+                            _waitingHandlers++;
+                            if (_waitingHandlers == 0) {
+                                _handlerResults[_currentHandler] = HandlerProcessResult.SUCCESS;
+                            }
                             continue;
                         case HandlerProcessResult.CANCELLED:
                             return Cancel();
@@ -124,19 +129,42 @@ public partial class LSEventBusinessState {
                     }
                 }
                 if (IsWaiting) { //if there is any handler waiting, it causes the event to fail;
-                    PhaseResult = PhaseProcessResult.WAITING;
+                    PhaseResult = PhaseProcessResult.FAILURE;
                     // in validate if a handler is waiting, is considered that the event has failed,
                     // the reason is that validate phase is expected to be quick and synchronous
                     // all handlers should be executed, thats why the check is done after all handlers are processed;
                     //StateResult = StateProcessResult.FAILURE;
-                    return this;
+                    return null;
                 }
                 //all handlers succeeded, continue to next phase
                 PhaseResult = PhaseProcessResult.CONTINUE;
             }
             return _stateContext.getPhaseState<ConfigurePhaseState>();
         }
-        
+        /// <summary>
+        /// Resume behavior for validation phase:
+        /// - if any handlers are cancelled, cancel the phase
+        /// - decrement waiting handler count (this is a way to track how many handlers are waiting)
+        /// - if still waiting on other handlers, remain in ValidatePhaseState (so that the business state don't change the current phase)
+        /// - if no more waiting handlers, determine phase result (FAILURE if any failures, CONTINUE if all succeeded)
+        /// - validation when resuming don't need to continue processing handlers, because they should be already processed in Process() (even WAITING ones)
+        ///   this is to prevent Resume() logic issues;
+        /// </summary>
+        public override PhaseState? Resume() {
+            if (IsCancelled) return Cancel();
+            _waitingHandlers--;
+            if (_waitingHandlers > 0) {
+                if (HasFailures) {
+                    PhaseResult = PhaseProcessResult.FAILURE;
+                    return null;
+                }
+                PhaseResult = PhaseProcessResult.WAITING;
+                return this; // still waiting on other handlers
+            }
+            PhaseResult = HasFailures ? PhaseProcessResult.FAILURE : PhaseProcessResult.CONTINUE;
+            return null;
+        }
+
         /// <summary>
         /// Handles cancellation requests during validation processing.
         /// 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -119,14 +120,22 @@ public partial class LSEventBusinessState {
                         case HandlerProcessResult.FAILURE:
                             continue; // continue to next handler
                         case HandlerProcessResult.WAITING://waiting halts handler processing until resumed;
+                            Console.WriteLine($"[ConfigurePhase] Handler returned WAITING, _waitingHandlers before increment: {_waitingHandlers}");
                             _waitingHandlers++;
-                            if (_waitingHandlers == 0) {
-                                // so for this particular handler we consider it has already resumed
-                                // this can cause a issue where this is not the handler that was resumed
-                                // but in practice this should not be a problem, because handler results are only used to determine the outcome of the phase
+                            Console.WriteLine($"[ConfigurePhase] _waitingHandlers after increment: {_waitingHandlers}");
+                            // Check if Resume() was called during handler execution (pseudo-sequential)
+                            // In this case, _waitingHandlers would be decremented by Resume() before we reach this check
+                            if (_waitingHandlers <= 0) {
+                                Console.WriteLine($"[ConfigurePhase] Pseudo-sequential detected, treating as SUCCESS and continuing");
+                                if (IsCancelled) return null; // if the event is already cancelled should not continue processing
+                                // Pseudo-sequential case: Resume() was called during handler execution
+                                // Treat this handler as successfully completed and continue processing
                                 _handlerResults[_currentHandler] = HandlerProcessResult.SUCCESS;
+                                // Reset counter and continue to next handler
+                                _waitingHandlers = 0;
                                 continue;
                             }
+                            Console.WriteLine($"[ConfigurePhase] Entering WAITING state");
                             PhaseResult = PhaseProcessResult.WAITING;
                             _stateContext.StateResult = StateProcessResult.WAITING;
                             return this;
@@ -135,13 +144,12 @@ public partial class LSEventBusinessState {
                     }
                 }
                 //StateResult = StateProcessResult.CONTINUE;
-                //all handlers failed, phase fails and event continues to next state
+                //all handlers failed, skip to cleanup phase
                 if (_handlerResults.Count > 0 && _handlerResults.All(x => x.Value == HandlerProcessResult.FAILURE)) {
                     PhaseResult = PhaseProcessResult.FAILURE;
-                    return null; // all handlers failed, phase fails and event continues to next state
-                } else {
-                    PhaseResult = PhaseProcessResult.CONTINUE;
+                    return _stateContext.getPhaseState<CleanupPhaseState>();
                 }
+                PhaseResult = PhaseProcessResult.CONTINUE;
             }
             return _stateContext.getPhaseState<ExecutePhaseState>();
         }
@@ -182,14 +190,42 @@ public partial class LSEventBusinessState {
         /// Result of continued processing, or this instance if still waiting
         /// </returns>
         public override PhaseState? Resume() {
+            Console.WriteLine($"[ConfigurePhase] Resume() called, _waitingHandlers before decrement: {_waitingHandlers}");
+            if (IsCancelled) return Cancel(); //if the event is already cancelled, can't resume
             _waitingHandlers--;
-            // if count is negative it means Resume was called before the handler actually went to waiting state
-            if (_waitingHandlers < 0) {
-                PhaseResult = PhaseProcessResult.WAITING;
-                //there are still handlers waiting, don't continue processing
-                return this;
+            Console.WriteLine($"[ConfigurePhase] _waitingHandlers after decrement: {_waitingHandlers}");
+            // if the counter is zero, continue processing
+            if (_waitingHandlers == 0) {
+                Console.WriteLine($"[ConfigurePhase] All handlers resumed, continuing processing");
+                // tecnically _currentHandler should never be null here, it means that the all handlers have already been processed.
+                // but even in this case we should just continue processing since having WAITING status in _handlerResults will not affect the outcome of the phase
+                if (_currentHandler != null) // since this should not be possible maybe should throw an exception instead?
+                    _handlerResults[_currentHandler!] = HandlerProcessResult.SUCCESS;
+                return Process();
             }
-            return Process();
+            Console.WriteLine($"[ConfigurePhase] Still waiting for more handlers: {_waitingHandlers}");
+            //otherwise, there are still handlers waiting
+            PhaseResult = PhaseProcessResult.WAITING;
+            //there are still handlers waiting, continue in configure phase
+            return this;
+        }
+
+        public override PhaseState? Fail() {
+            if (IsCancelled) return Cancel(); //if the event is already cancelled, can't resume
+            _waitingHandlers--;
+            // if the counter is zero, continue processing
+            if (_waitingHandlers == 0) {
+                // tecnically _currentHandler should never be null here, it means that the all handlers have already been processed.
+                // but even in this case we should just continue processing since having WAITING status in _handlerResults will not affect the outcome of the phase
+                if (_currentHandler != null) // since this should not be possible maybe should throw an exception instead?
+                    _handlerResults[_currentHandler!] = HandlerProcessResult.FAILURE;
+                return Process();
+            }
+            //otherwise, there are still handlers waiting
+            PhaseResult = PhaseProcessResult.WAITING;
+            //there are still handlers waiting, continue in configure phase
+            return this;
+
         }
 
         /// <summary>

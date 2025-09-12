@@ -52,6 +52,7 @@ namespace LSUtils.EventSystem;
 /// </summary>
 public abstract class LSEvent : ILSEvent {
     protected readonly ConcurrentDictionary<string, object> _data = new();
+    protected LSEventProcessContext? _context;
     public readonly LSDispatcher Dispatcher;
     /// <summary>
     /// List of event-scoped handlers that will be added to the processing pipeline.
@@ -231,11 +232,28 @@ public abstract class LSEvent : ILSEvent {
         if (_eventHandlers.Count > 0) handlers.AddRange(_eventHandlers);
 
         InDispatch = true;
-        var context = LSEventProcessContext.Create(Dispatcher, this, handlers);
-        _isCanceled = () => context.IsCancelled;
-        _hasFailures = () => context.HasFailures;
-        return context.processEvent();
+        _context = LSEventProcessContext.Create(Dispatcher, this, handlers);
+        _isCanceled = () => _context.IsCancelled;
+        _hasFailures = () => _context.HasFailures;
+        return _context.processEvent();
     }
+    //resume
+    public EventProcessResult Resume() {
+        if (_context == null) return EventProcessResult.UNKNOWN;
+        return _context.Resume();
+    }
+    //cancel
+    public void Cancel() {
+        if (_context == null) return;
+        _context.Cancel();
+    }
+    //fail
+    public void Fail() {
+        if (_context == null) return;
+        _context.Fail();
+    }
+
+
 
 
     /// <summary>
