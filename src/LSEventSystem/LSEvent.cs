@@ -105,11 +105,17 @@ public abstract class LSEvent : ILSEvent {
         throw new LSException("Default constructor is not allowed. Use the constructor with options parameter.");
     }
     //constructor with dispatcher
+    protected LSEvent(LSDispatcher? dispatcher) {
+        Dispatcher = dispatcher ?? LSDispatcher.Singleton;
+    }
+
+    //constructor with options
     protected LSEvent(LSEventOptions? options) {
         Dispatcher = options?.Dispatcher ?? LSDispatcher.Singleton;
         if (options == null) return;
         if (options.Entries.Count > 0) _eventHandlers.AddRange(options.Entries);
     }
+
     /// <summary>
     /// Gets or sets data associated with this event instance.
     /// Thread-safe operation using internal concurrent dictionary.

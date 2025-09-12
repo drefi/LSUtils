@@ -26,7 +26,7 @@ public static class LSSignals {
         /// Initializes a new instance of the <see cref="OnPrintEvent"/> class.
         /// </summary>
         /// <param name="message">The message to print.</param>
-        public OnPrintEvent(LSEventOptions options, string message) : base(options) {
+        internal OnPrintEvent(LSEventOptions options, string message) : base(options) {
             Message = message;
         }
     }
@@ -44,7 +44,7 @@ public static class LSSignals {
         /// Initializes a new instance of the <see cref="OnErrorEvent"/> class.
         /// </summary>
         /// <param name="message">The error message.</param>
-        public OnErrorEvent(LSEventOptions options, string message) : base(options) {
+        internal OnErrorEvent(LSEventOptions options, string message) : base(options) {
             Message = message;
         }
     }
@@ -62,7 +62,7 @@ public static class LSSignals {
         /// Initializes a new instance of the <see cref="OnWarningEvent"/> class.
         /// </summary>
         /// <param name="message">The warning message.</param>
-        public OnWarningEvent(LSEventOptions options, string message) : base(options) {
+        internal OnWarningEvent(LSEventOptions options, string message) : base(options) {
             Message = message;
         }
     }
@@ -116,7 +116,7 @@ public static class LSSignals {
         /// <summary>
         /// Initializes a new instance of the <see cref="OnConfirmationEvent"/> class with confirm and cancel buttons.
         /// </summary>
-        public OnConfirmationEvent(LSEventOptions options, ConfirmationSignal confirmationSignal) : base(options) {
+        internal OnConfirmationEvent(LSEventOptions options, ConfirmationSignal confirmationSignal) : base(options) {
             ConfirmationSignal = confirmationSignal;
         }
     }
@@ -176,7 +176,7 @@ public static class LSSignals {
         /// <param name="description">The notification description.</param>
         /// <param name="allowDismiss">Whether the notification can be dismissed.</param>
         /// <param name="notificationTimeout">Timeout in seconds.</param>
-        public OnNotifyEvent(LSEventOptions options, NotificationSignal notificationSignal) : base(options) {
+        internal OnNotifyEvent(LSEventOptions options, NotificationSignal notificationSignal) : base(options) {
             _notificationSignal = notificationSignal;
         }
     }
@@ -185,13 +185,28 @@ public static class LSSignals {
 
     #region Static Methods
 
-    public static void Error(string message, LSEventOptions? options = null) {
-        var @event = new OnErrorEvent(options ?? new LSEventOptions(), message);
+    public static void Error(string message, LSEventOptions options) {
+        var @event = new OnErrorEvent(options, message);
         @event.Dispatch();
     }
 
-    public static void Warning(string message, LSEventOptions? options = null) {
-        var @event = new OnWarningEvent(options ?? new LSEventOptions(), message);
+    public static void Error(string message, LSDispatcher? dispatcher = null) {
+        var @event = new OnErrorEvent(new LSEventOptions(dispatcher), message);
+        @event.Dispatch();
+    }
+
+    public static void Warning(string message, LSEventOptions options) {
+        var @event = new OnWarningEvent(options, message);
+        @event.Dispatch();
+    }
+
+    public static void Warning(string message, LSDispatcher? dispatcher = null) {
+        var @event = new OnWarningEvent(new LSEventOptions(dispatcher), message);
+        @event.Dispatch();
+    }
+
+    public static void Print(string message, LSEventOptions options) {
+        var @event = new OnPrintEvent(options, message);
         @event.Dispatch();
     }
 
@@ -200,25 +215,53 @@ public static class LSSignals {
         @event.Dispatch();
     }
 
-    public static void Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSEventOptions? options = null) {
-        var @event = new OnNotifyEvent(options ?? new LSEventOptions(), new NotificationSignal(message, description, allowDismiss, timeout));
-        @event.Dispatch();
-    }
-    public static void Notify(NotificationSignal notificationSignal, LSEventOptions? options = null) {
-        var @event = new OnNotifyEvent(options ?? new LSEventOptions(), notificationSignal);
+    public static void Notify(string message, string description, bool allowDismiss, double timeout, LSEventOptions options) {
+        var @event = new OnNotifyEvent(options, new NotificationSignal(message, description, allowDismiss, timeout));
         @event.Dispatch();
     }
 
-    public static void Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSEventOptions? options = null) {
-        var @event = new OnConfirmationEvent(options ?? new LSEventOptions(), new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
+    public static void Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSDispatcher? dispatcher = null) {
+        var @event = new OnNotifyEvent(new LSEventOptions(dispatcher), new NotificationSignal(message, description, allowDismiss, timeout));
         @event.Dispatch();
     }
-    public static void Confirmation(ConfirmationSignal confirmationSignal, LSEventOptions? options = null) {
-        var @event = new OnConfirmationEvent(options ?? new LSEventOptions(), confirmationSignal);
+
+    public static void Notify(NotificationSignal notificationSignal, LSEventOptions options) {
+        var @event = new OnNotifyEvent(options, notificationSignal);
         @event.Dispatch();
     }
-    public static void Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSEventOptions? options = null) {
-        var @event = new OnConfirmationEvent(options ?? new LSEventOptions(), new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
+
+    public static void Notify(NotificationSignal notificationSignal, LSDispatcher? dispatcher = null) {
+        var @event = new OnNotifyEvent(new LSEventOptions(dispatcher), notificationSignal);
+        @event.Dispatch();
+    }
+
+    public static void Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSEventOptions options) {
+        var @event = new OnConfirmationEvent(options, new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
+        @event.Dispatch();
+    }
+
+    public static void Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSDispatcher? dispatcher = null) {
+        var @event = new OnConfirmationEvent(new LSEventOptions(dispatcher), new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
+        @event.Dispatch();
+    }
+
+    public static void Confirmation(ConfirmationSignal confirmationSignal, LSEventOptions options) {
+        var @event = new OnConfirmationEvent(options, confirmationSignal);
+        @event.Dispatch();
+    }
+
+    public static void Confirmation(ConfirmationSignal confirmationSignal, LSDispatcher? dispatcher = null) {
+        var @event = new OnConfirmationEvent(new LSEventOptions(dispatcher), confirmationSignal);
+        @event.Dispatch();
+    }
+
+    public static void Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSEventOptions options) {
+        var @event = new OnConfirmationEvent(options, new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
+        @event.Dispatch();
+    }
+
+    public static void Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSDispatcher? dispatcher = null) {
+        var @event = new OnConfirmationEvent(new LSEventOptions(dispatcher), new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
         @event.Dispatch();
     }
 

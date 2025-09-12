@@ -61,14 +61,14 @@ public class LSEventOptions {
     /// Optional object that owns or is associated with events created using these options.
     /// Commonly used for component initialization and context tracking.
     /// </param>
-    public LSEventOptions(LSDispatcher? dispatcher = null, object? ownerInstance = null) {
+    public LSEventOptions(LSDispatcher? dispatcher, object? ownerInstance = null) {
         Dispatcher = dispatcher ?? LSDispatcher.Singleton;
         OwnerInstance = ownerInstance;
     }
 }
 
 public class LSEventOptions<TEvent> : LSEventOptions where TEvent : ILSEvent {
-    public LSEventOptions(LSDispatcher? dispatcher = null, object? ownerInstance = null) : base(dispatcher, ownerInstance) { }
+    public LSEventOptions(LSDispatcher? dispatcher, object? ownerInstance = null) : base(dispatcher, ownerInstance) { }
     public LSEventOptions<TEvent> WithCallback(System.Func<LSEventRegister<TEvent>, LSEventRegister<TEvent>> configureRegister) {
         var register = configureRegister(new LSEventRegister<TEvent>());
         _entries.AddRange(register.GetEntries());
