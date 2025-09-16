@@ -52,7 +52,7 @@ public class LSEventSucceedState : IEventProcessState {
     /// Reference to the event system context providing access to event data and handlers.
     /// Used for loading success handlers and accessing event processing information.
     /// </summary>
-    protected readonly LSEventProcessContext _context;
+    protected readonly LSEventProcessContext_Legacy _context;
 
     /// <summary>
     /// The result of success state processing.
@@ -95,7 +95,7 @@ public class LSEventSucceedState : IEventProcessState {
     /// 4. Conditional handlers will be evaluated during execution
     /// </summary>
     /// <param name="context">The event system context containing event and handler information</param>
-    public LSEventSucceedState(LSEventProcessContext context) {
+    public LSEventSucceedState(LSEventProcessContext_Legacy context) {
         _context = context;
         var handlers = _context.Handlers
             .OfType<LSStateHandlerEntry>()

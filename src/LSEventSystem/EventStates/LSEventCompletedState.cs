@@ -37,7 +37,7 @@ public class LSEventCompletedState : IEventProcessState {
     /// Reference to the event system context providing access to event data and handlers.
     /// Used for executing final completion handlers and accessing event information.
     /// </summary>
-    protected readonly LSEventProcessContext _context;
+    protected readonly LSEventProcessContext_Legacy _context;
 
     /// <summary>
     /// Stack of state handlers to execute during completion processing.
@@ -72,7 +72,7 @@ public class LSEventCompletedState : IEventProcessState {
     /// completion handler execution and final event processing.
     /// </summary>
     /// <param name="context">The event system context containing event and handler information</param>
-    public LSEventCompletedState(LSEventProcessContext context) {
+    public LSEventCompletedState(LSEventProcessContext_Legacy context) {
         _context = context;
         var handlers = _context.Handlers
             .OfType<LSStateHandlerEntry>()

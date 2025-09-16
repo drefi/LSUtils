@@ -48,11 +48,11 @@ namespace LSUtils.EventSystem;
 /// - State transitions are handled by the state machine implementation
 /// - Handler execution follows the phase-based sequential model
 /// 
-/// See also: <see cref="ILSEvent"/>, <see cref="LSDispatcher"/>, <see cref="LSEventProcessContext"/>
+/// See also: <see cref="ILSEvent"/>, <see cref="LSDispatcher"/>, <see cref="LSEventProcessContext_Legacy"/>
 /// </summary>
 public abstract class LSEvent : ILSEvent {
     protected readonly ConcurrentDictionary<string, object> _data = new();
-    protected LSEventProcessContext? _context;
+    protected LSEventProcessContext_Legacy? _context;
     public readonly LSDispatcher Dispatcher;
     /// <summary>
     /// List of event-scoped handlers that will be added to the processing pipeline.
@@ -232,7 +232,7 @@ public abstract class LSEvent : ILSEvent {
         if (_eventHandlers.Count > 0) handlers.AddRange(_eventHandlers);
 
         InDispatch = true;
-        _context = LSEventProcessContext.Create(Dispatcher, this, handlers);
+        _context = LSEventProcessContext_Legacy.Create(Dispatcher, this, handlers);
         _isCanceled = () => _context.IsCancelled;
         _hasFailures = () => _context.HasFailures;
         return _context.processEvent();

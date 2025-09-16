@@ -36,7 +36,7 @@ public class LSEventCancelledState : IEventProcessState {
     /// Reference to the event system context providing access to event data and handlers.
     /// Used to retrieve registered cancellation handlers and event information.
     /// </summary>
-    protected readonly LSEventProcessContext _context;
+    protected readonly LSEventProcessContext_Legacy _context;
     
     /// <summary>
     /// Stack of state handlers to execute during cancellation processing.
@@ -71,7 +71,7 @@ public class LSEventCancelledState : IEventProcessState {
     /// The context provides access to registered cancellation handlers and event data.
     /// </summary>
     /// <param name="context">The event system context containing event and handler information</param>
-    public LSEventCancelledState(LSEventProcessContext context) {
+    public LSEventCancelledState(LSEventProcessContext_Legacy context) {
         _context = context;
         var handlers = _context.Handlers
             .OfType<LSStateHandlerEntry>()

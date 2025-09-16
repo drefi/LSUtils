@@ -38,7 +38,7 @@ public partial class LSEventBusinessState : IEventProcessState {
     /// Reference to the event system context providing access to event data,
     /// dispatcher, and other processing components.
     /// </summary>
-    protected LSEventProcessContext _eventContext;
+    protected LSEventProcessContext_Legacy _eventContext;
 
     /// <summary>
     /// The currently active phase being processed.
@@ -89,7 +89,7 @@ public partial class LSEventBusinessState : IEventProcessState {
     /// based on their PhaseType property.
     /// </summary>
     /// <param name="context">The event system context containing event data and handlers</param>
-    public LSEventBusinessState(LSEventProcessContext context) {
+    public LSEventBusinessState(LSEventProcessContext_Legacy context) {
         _eventContext = context;
         //handlers are ordered and selected by type in the phase itself
         var handlers = _eventContext.Handlers.OfType<LSPhaseHandlerEntry>().ToList();

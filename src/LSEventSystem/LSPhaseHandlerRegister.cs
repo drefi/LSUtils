@@ -39,7 +39,7 @@ public class LSPhaseHandlerRegister<TEvent, TPhase> where TPhase : LSEventBusine
     /// The handler function that will execute during the phase.
     /// Takes EventSystemContext and returns HandlerProcessResult to control flow.
     /// </summary>
-    protected Func<LSEventProcessContext, HandlerProcessResult>? _handler = null;
+    protected Func<LSEventProcessContext_Legacy, HandlerProcessResult>? _handler = null;
 
     /// <summary>
     /// Priority level for handler execution within the phase.
@@ -144,7 +144,7 @@ public class LSPhaseHandlerRegister<TEvent, TPhase> where TPhase : LSEventBusine
     /// <param name="handler">Function that implements the phase-specific logic</param>
     /// <returns>This register instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when handler is null</exception>
-    public LSPhaseHandlerRegister<TEvent, TPhase> Handler(Func<LSEventProcessContext, HandlerProcessResult> handler) {
+    public LSPhaseHandlerRegister<TEvent, TPhase> Handler(Func<LSEventProcessContext_Legacy, HandlerProcessResult> handler) {
         _handler = handler;
         return this;
     }

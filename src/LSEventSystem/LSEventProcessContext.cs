@@ -32,7 +32,7 @@ namespace LSUtils.EventSystem;
 /// instantiated directly by client code. External actors can interact with
 /// waiting states through Resume(), Cancel(), and Fail() methods.
 /// </summary>
-public class LSEventProcessContext {
+public class LSEventProcessContext_Legacy {
     /// <summary>
     /// The dispatcher instance used for handler retrieval and management.
     /// Provides access to globally registered handlers for event processing.
@@ -85,7 +85,7 @@ public class LSEventProcessContext {
     /// <param name="dispatcher">The dispatcher for handler management</param>
     /// <param name="event">The event to process</param>
     /// <param name="handlers">Complete collection of handlers for this event</param>
-    protected LSEventProcessContext(LSDispatcher dispatcher, ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
+    protected LSEventProcessContext_Legacy(LSDispatcher dispatcher, ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
         Event = @event;
         Dispatcher = dispatcher;
         Handlers = handlers;
@@ -231,7 +231,7 @@ public class LSEventProcessContext {
     /// <param name="event">The event to process through the state machine</param>
     /// <param name="handlers">Complete handler collection for this event</param>
     /// <returns>A fully initialized EventSystemContext ready for processing</returns>
-    internal static LSEventProcessContext Create(LSDispatcher dispatcher, ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
-        return new LSEventProcessContext(dispatcher, @event, handlers);
+    internal static LSEventProcessContext_Legacy Create(LSDispatcher dispatcher, ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
+        return new LSEventProcessContext_Legacy(dispatcher, @event, handlers);
     }
 }

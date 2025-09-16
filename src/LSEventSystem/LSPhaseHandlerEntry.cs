@@ -66,7 +66,7 @@ public class LSPhaseHandlerEntry : IHandlerEntry {
     /// - WAITING: Pause for external input
     /// - CANCELLED: Critical failure, stop immediately
     /// </summary>
-    public Func<LSEventProcessContext, HandlerProcessResult> Handler { get; internal set; } = null!;
+    public Func<LSEventProcessContext_Legacy, HandlerProcessResult> Handler { get; internal set; } = null!;
     
     /// <summary>
     /// Condition function that determines if this handler should execute.
