@@ -12,11 +12,13 @@ public class LSEventParallelNode : ILSEventLayerNode {
 
     public string NodeID { get; }
     public LSPriority Priority { get; }
+    public int Order { get; }
     public LSEventCondition Conditions { get; }
     public int NumRequiredToSucceed { get; internal set; }
 
-    internal LSEventParallelNode(string nodeID, int numRequiredToSucceed, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    internal LSEventParallelNode(string nodeID, int order, int numRequiredToSucceed, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         NodeID = nodeID;
+        Order = order;
         Priority = priority;
         NumRequiredToSucceed = numRequiredToSucceed;
         var defaultCondition = (LSEventCondition)((ctx, node) => true);
@@ -51,7 +53,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
         return _children.Remove(label);
     }
     public ILSEventLayerNode Clone() {
-        var cloned = new LSEventParallelNode(NodeID, NumRequiredToSucceed, Priority, Conditions);
+        var cloned = new LSEventParallelNode(NodeID, Order, NumRequiredToSucceed, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -68,8 +70,10 @@ public class LSEventParallelNode : ILSEventLayerNode {
             }
         }
         if (_isProcessing == false) {
-            // Use insertion order for deterministic processing expected by tests
-            _processStack = new Stack<ILSEventNode>(_children.Values);
+            // Initialize the stack with children ordered by Priority (critical first) and Order (lowest first).
+            // since this is a stack maybe we should reverse the order, not sure...
+            // tecnically parallel nodes should not care about order, but for consistency we will use the same approach as other layer nodes
+            _processStack = new Stack<ILSEventNode>(_children.Values.OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse());
             _isProcessing = true;
             _successCount = 0;
             _isWaitingForChildren = false;
@@ -77,11 +81,12 @@ public class LSEventParallelNode : ILSEventLayerNode {
         // a stack allow to resume processing where it left off
         while (_processStack.Count > 0) {
             var child = _processStack.Pop();
-            // ensure the child has a key prior to processing so handler nodes never see null key
-            var childKeyPre = context.getNodeResultKey(child, this);
-            context.registerProcessStatus(childKeyPre, LSEventProcessStatus.UNKNOWN, out _);
+
+            // initialize the child key
+            var childKey = context.getNodeResultKey(child, this);
+            context.registerProcessStatus(childKey, LSEventProcessStatus.UNKNOWN, out _);
+            
             var childStatus = child.Process(context);
-            var childKey = context.getNodeResultKey(child);
             if (!context.registerProcessStatus(childKey, childStatus, out var updatedStatus)) {
                 // registration failed, meaning the child was not in a state that could be processed
                 // this can happen if the child was resumed/failed while processing, in this case we use the updated status
@@ -109,8 +114,8 @@ public class LSEventParallelNode : ILSEventLayerNode {
         throw new LSException("LSEventParallelNode in an invalid state after processing all children.");
     }
 
-    public static LSEventParallelNode Create(string nodeID, int numRequiredToSucceed, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
-        return new LSEventParallelNode(nodeID, numRequiredToSucceed, priority, conditions);
+    public static LSEventParallelNode Create(string nodeID, int order, int numRequiredToSucceed, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+        return new LSEventParallelNode(nodeID, order, numRequiredToSucceed, priority, conditions);
     }
 
 }

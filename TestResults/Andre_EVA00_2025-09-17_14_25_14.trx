@@ -1,0 +1,835 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="e3913542-3e8e-4bcd-bede-9063cc0fe51b" name="Andre@EVA00 2025-09-17 14:25:14" runUser="EVA00\Andre" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2025-09-17T14:25:14.1574502-03:00" queuing="2025-09-17T14:25:14.1574505-03:00" start="2025-09-17T14:25:12.9748221-03:00" finish="2025-09-17T14:25:14.2389588-03:00" />
+  <TestSettings name="default" id="bbad1ba6-520d-4a40-9666-0ac325e971db">
+    <Deployment runDeploymentRoot="Andre_EVA00_2025-09-17_14_25_14" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="ade670d0-ab2d-4aaf-9e86-aab7dfbf3405" testId="bc3e19fe-1115-8b55-6559-057d96f323b5" testName="TestUserRegistrationEvent" computerName="EVA00" duration="00:00:00.0002090" startTime="2025-09-17T14:25:14.0669374-03:00" endTime="2025-09-17T14:25:14.0671468-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ade670d0-ab2d-4aaf-9e86-aab7dfbf3405" />
+    <UnitTestResult executionId="4263b25b-561b-48f3-855b-96b619e76225" testId="8dc072b0-e1eb-b3cb-5750-66d1038684a6" testName="TestMixedGlobalAndEventScopedCancellation" computerName="EVA00" duration="00:00:00.0036570" startTime="2025-09-17T14:25:14.0547026-03:00" endTime="2025-09-17T14:25:14.0583591-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4263b25b-561b-48f3-855b-96b619e76225">
+      <Output>
+        <StdOut>Mixed global/event-scoped cancellation flow: Global-ValidatePhase → EventScoped-ConfigurePhase → EventScoped-CancelledState → Global-CancelledState → EventScoped-CompletedState → Global-CompletedState&#xD;
+Mixed global and event-scoped cancellation test completed - both handler types executed</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="f709634f-40a1-4425-b18b-c7bc7eae095f" testId="9a214682-8af3-eeab-92f0-cce86781cbc9" testName="TestBuilderBasicSelector" computerName="EVA00" duration="00:00:00.0022550" startTime="2025-09-17T14:25:14.1026559-03:00" endTime="2025-09-17T14:25:14.1049104-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f709634f-40a1-4425-b18b-c7bc7eae095f" />
+    <UnitTestResult executionId="8f1fdd4f-51e5-4d59-bfca-4a9df2684ab6" testId="456c0c5d-6ac4-1d6b-6eb9-72316753626d" testName="TestWaitingBehaviorWithCancel" computerName="EVA00" duration="00:00:00.0024840" startTime="2025-09-17T14:25:14.0832654-03:00" endTime="2025-09-17T14:25:14.0857495-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8f1fdd4f-51e5-4d59-bfca-4a9df2684ab6">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(executionOrder[0], Is.EqualTo("Handler1_Waiting"))&#xD;
+  Expected string length 16 but was 17. Strings differ at index 7.&#xD;
+  Expected: "Handler1_Waiting"&#xD;
+  But was:  "Handler2_Executed"&#xD;
+  ------------------^&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestWaitingBehaviorWithCancel() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1590&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestWaitingBehaviorWithCancel() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1590&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="1b93a4c8-caaf-4031-87ec-25ee413de3cf" testId="c15f362e-12b9-20b1-e826-6d4af9cf7b8c" testName="TestMergeWithoutCurrentNode" computerName="EVA00" duration="00:00:00.0010660" startTime="2025-09-17T14:25:14.1336055-03:00" endTime="2025-09-17T14:25:14.1346718-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1b93a4c8-caaf-4031-87ec-25ee413de3cf">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(caughtException, expression)&#xD;
+  Expected: &lt;LSUtils.LSException&gt;&#xD;
+  But was:  null&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestMergeWithoutCurrentNode() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 455&#xD;
+
+1)    at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestMergeWithoutCurrentNode() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 455&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="8adac888-4ca9-464c-a11a-ea2fc6aae55a" testId="d1f0120b-5502-9f65-49ed-f68406757428" testName="TestCleanupPhaseWaitingDoesNotAffectBusinessResult" computerName="EVA00" duration="00:00:00.0403830" startTime="2025-09-17T14:25:13.9893265-03:00" endTime="2025-09-17T14:25:14.0297087-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8adac888-4ca9-464c-a11a-ea2fc6aae55a">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(executionOrder, Is.EqualTo(new[] { "Validate_Success", "Execute_Success", "Cleanup_Waiting", "Cleanup_Success" }))&#xD;
+  Expected is &lt;System.String[4]&gt;, actual is &lt;System.Collections.Generic.List`1[System.String]&gt; with 4 elements&#xD;
+  Values differ at index [2]&#xD;
+  String lengths are both 15. Strings differ at index 8.&#xD;
+  Expected: &lt; "Validate_Success", "Execute_Success", "Cleanup_Waiting", "Cleanup_Success" &gt;&#xD;
+  But was:  &lt; "Validate_Success", "Execute_Success", "Cleanup_Success", "Cleanup_Waiting" &gt;&#xD;
+  First non-matching item at index [2]: "Cleanup_Waiting"&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestCleanupPhaseWaitingDoesNotAffectBusinessResult() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1546&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestCleanupPhaseWaitingDoesNotAffectBusinessResult() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1546&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="c1d17d1b-10f0-41ab-9608-a31448ab3854" testId="be96645d-9b41-d8c5-a5db-1a2ccfa572d3" testName="TestExecutePhaseMultipleParallelWaiting" computerName="EVA00" duration="00:00:00.0031020" startTime="2025-09-17T14:25:14.0445856-03:00" endTime="2025-09-17T14:25:14.0476881-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c1d17d1b-10f0-41ab-9608-a31448ab3854">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(executionOrder[0], Is.EqualTo("Handler1_Waiting"))&#xD;
+  String lengths are both 16. Strings differ at index 7.&#xD;
+  Expected: "Handler1_Waiting"&#xD;
+  But was:  "Handler3_Waiting"&#xD;
+  ------------------^&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestExecutePhaseMultipleParallelWaiting() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1490&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestExecutePhaseMultipleParallelWaiting() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1490&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="fa8f9bf2-3ddb-4d41-b15f-7b1b95f7d10d" testId="fbd3a990-6fa3-28ac-e959-ae600b2326f7" testName="TestExecutePhaseParallelWaiting" computerName="EVA00" duration="00:00:00.0017480" startTime="2025-09-17T14:25:14.0476992-03:00" endTime="2025-09-17T14:25:14.0494474-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fa8f9bf2-3ddb-4d41-b15f-7b1b95f7d10d">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(executionOrder, Is.EqualTo(new[] { "Handler1_Waiting", "Handler2_Executed" }))&#xD;
+  Expected is &lt;System.String[2]&gt;, actual is &lt;System.Collections.Generic.List`1[System.String]&gt; with 2 elements&#xD;
+  Values differ at index [0]&#xD;
+  Expected string length 16 but was 17. Strings differ at index 7.&#xD;
+  Expected: &lt; "Handler1_Waiting", "Handler2_Executed" &gt;&#xD;
+  But was:  &lt; "Handler2_Executed", "Handler1_Waiting" &gt;&#xD;
+  First non-matching item at index [0]: "Handler1_Waiting"&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestExecutePhaseParallelWaiting() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1435&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestExecutePhaseParallelWaiting() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1435&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="0498f247-94e6-45bb-9004-bbf0fc317a21" testId="1215759f-148f-b0ce-aa3a-7f8159689cd3" testName="TestValidatePhaseCancellationEventScoped" computerName="EVA00" duration="00:00:00.0018360" startTime="2025-09-17T14:25:14.0801899-03:00" endTime="2025-09-17T14:25:14.0820256-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0498f247-94e6-45bb-9004-bbf0fc317a21">
+      <Output>
+        <StdOut>ValidatePhase cancellation flow (event-scoped): BusinessState-Validate → CancelledState → CompletedState&#xD;
+ValidatePhase cancellation test (event-scoped) completed - direct transition to CancelledState</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="c88b450b-8b7d-420b-a657-4802e5bae877" testId="568773c1-35a4-921a-7508-a2bd76c88ad5" testName="TestStateTransitionFlow" computerName="EVA00" duration="00:00:00.0020140" startTime="2025-09-17T14:25:14.0630560-03:00" endTime="2025-09-17T14:25:14.0650703-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c88b450b-8b7d-420b-a657-4802e5bae877">
+      <Output>
+        <StdOut>BusinessState-Validate executed&#xD;
+BusinessState-Execute executed&#xD;
+SucceedState executed&#xD;
+CompletedState executed&#xD;
+Full state flow: BusinessState-Validate → BusinessState-Execute → SucceedState → CompletedState&#xD;
+BusinessState index: 0, SucceedState index: 2, CompletedState index: 3&#xD;
+State transition flow: BusinessState-Validate → BusinessState-Execute → SucceedState → CompletedState&#xD;
+State transition test completed - correct flow verified</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="45d8513d-4c14-4b38-b450-0f666b405368" testId="a41408ab-7edf-d9b7-1677-9198f172d9ef" testName="TestUserRegistrationForEventWithGlobalPhaseHandler" computerName="EVA00" duration="00:00:00.0026419" startTime="2025-09-17T14:25:14.0715859-03:00" endTime="2025-09-17T14:25:14.0742272-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="45d8513d-4c14-4b38-b450-0f666b405368">
+      <Output>
+        <StdOut>User created.&#xD;
+ValidatePhase handler executed.&#xD;
+ConfigurePhase handler executed.&#xD;
+ExecutePhase handler executed.&#xD;
+CleanupPhase handler executed.&#xD;
+User registration event dispatched.&#xD;
+ValidatePhase handler executed.&#xD;
+ConfigurePhase handler executed.&#xD;
+ExecutePhase handler executed.&#xD;
+CleanupPhase handler executed.&#xD;
+Another user registration event dispatched.&#xD;
+Test completed</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="e9e376be-fcbd-4a92-98af-20fb765e8015" testId="78eb5c3b-21b8-1075-176f-da279c6b7d47" testName="TestRemoveNonExistentNode" computerName="EVA00" duration="00:00:00.0010640" startTime="2025-09-17T14:25:14.1363069-03:00" endTime="2025-09-17T14:25:14.1373710-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e9e376be-fcbd-4a92-98af-20fb765e8015" />
+    <UnitTestResult executionId="e5a55b00-abdf-487c-9efc-66ab718a5175" testId="a4dbf1e2-be50-f782-4272-afbc0816679f" testName="TestMixedNodeTypeMerge" computerName="EVA00" duration="00:00:00.0015900" startTime="2025-09-17T14:25:14.1346934-03:00" endTime="2025-09-17T14:25:14.1362831-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e5a55b00-abdf-487c-9efc-66ab718a5175">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(container, Is.InstanceOf&lt;LSEventSelectorNode&gt;())&#xD;
+  Expected: instance of &lt;LSUtils.EventSystem.LSEventSelectorNode&gt;&#xD;
+  But was:  &lt;LSUtils.EventSystem.LSEventSequenceNode&gt;&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestMixedNodeTypeMerge() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 378&#xD;
+
+1)    at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestMixedNodeTypeMerge() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 378&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="eedc9a90-c2c8-4a45-ad45-43b06a42a2b2" testId="81a6a250-9cf2-f8fa-9aaa-63e8ddcff113" testName="TestUserCreation" computerName="EVA00" duration="00:00:00.0002440" startTime="2025-09-17T14:25:14.0659873-03:00" endTime="2025-09-17T14:25:14.0662312-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="eedc9a90-c2c8-4a45-ad45-43b06a42a2b2" />
+    <UnitTestResult executionId="ffd85a62-db54-4b46-9083-31a9a7d61867" testId="20a8d501-604a-4346-0163-a2c3d0cec3cd" testName="TestCancellationStateTransitionFlow" computerName="EVA00" duration="00:00:00.0109640" startTime="2025-09-17T14:25:13.9705033-03:00" endTime="2025-09-17T14:25:13.9814667-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ffd85a62-db54-4b46-9083-31a9a7d61867">
+      <Output>
+        <StdOut>Cancellation state flow: BusinessState-Validate → CancelledState → CompletedState&#xD;
+Cancellation state transition test completed - correct flow verified</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="72c05a34-48ac-4849-80cd-43ea446f63d7" testId="8df863f7-106e-a0cc-68d6-8c1b218672de" testName="TestMergeNullContext" computerName="EVA00" duration="00:00:00.0017460" startTime="2025-09-17T14:25:14.1318365-03:00" endTime="2025-09-17T14:25:14.1335822-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="72c05a34-48ac-4849-80cd-43ea446f63d7" />
+    <UnitTestResult executionId="65b8ef18-ffa3-4b64-ab3c-a31ba685600d" testId="450a2d8a-9137-f52c-ce1c-1c6b766575a2" testName="TestBuilderNestedStructure" computerName="EVA00" duration="00:00:00.0032150" startTime="2025-09-17T14:25:14.1200228-03:00" endTime="2025-09-17T14:25:14.1232373-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="65b8ef18-ffa3-4b64-ab3c-a31ba685600d">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(context.HasChild("childSelector"), Is.True)&#xD;
+  Expected: True&#xD;
+  But was:  False&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestBuilderNestedStructure() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 150&#xD;
+
+1)    at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestBuilderNestedStructure() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 150&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="035a7364-2160-48c9-8f7a-550622019676" testId="3bf2ba75-2137-7683-a1f6-61f019b64298" testName="TestWaitingValidateFailure" computerName="EVA00" duration="00:00:00.0023390" startTime="2025-09-17T14:25:14.0877459-03:00" endTime="2025-09-17T14:25:14.0900844-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="035a7364-2160-48c9-8f7a-550622019676">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(result, Is.EqualTo(EventProcessResult.FAILURE))&#xD;
+  Expected: FAILURE&#xD;
+  But was:  SUCCESS&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestWaitingValidateFailure() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1004&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestWaitingValidateFailure() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1004&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="01f6c679-db2b-4883-81e3-2f3c875c87cb" testId="e78bc9b7-e63f-4761-fcbd-f5cec6e2cb67" testName="TestUserRegistrationWithGlobalAndEventScopedHandlers" computerName="EVA00" duration="00:00:00.0038350" startTime="2025-09-17T14:25:14.0742813-03:00" endTime="2025-09-17T14:25:14.0781164-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="01f6c679-db2b-4883-81e3-2f3c875c87cb">
+      <Output>
+        <StdOut>User created.&#xD;
+EVENT-SCOPED ValidatePhase handler executed.&#xD;
+GLOBAL ValidatePhase handler executed.&#xD;
+EVENT-SCOPED ConfigurePhase handler executed.&#xD;
+GLOBAL ConfigurePhase handler executed.&#xD;
+EVENT-SCOPED ExecutePhase handler executed.&#xD;
+GLOBAL ExecutePhase handler executed.&#xD;
+EVENT-SCOPED CleanupPhase handler executed.&#xD;
+GLOBAL CleanupPhase handler executed.&#xD;
+User registration event with both global and event-scoped handlers dispatched.&#xD;
+Handlers executed in order: EVENT_ValidatePhase, GLOBAL_ValidatePhase, EVENT_ConfigurePhase, GLOBAL_ConfigurePhase, EVENT_ExecutePhase, GLOBAL_ExecutePhase, EVENT_CleanupPhase, GLOBAL_CleanupPhase&#xD;
+Test completed - both global and event-scoped handlers worked together</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="998887e8-6b15-4198-83f3-4e9825e56498" testId="ed3d8703-6cf5-a3e7-978b-5fd79aa4d062" testName="TestBusinessStateProcessing" computerName="EVA00" duration="00:00:00.0433650" startTime="2025-09-17T14:25:13.9256117-03:00" endTime="2025-09-17T14:25:13.9688992-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="998887e8-6b15-4198-83f3-4e9825e56498">
+      <Output>
+        <StdOut>BusinessState - ValidatePhase executed.&#xD;
+BusinessState - ConfigurePhase executed.&#xD;
+BusinessState - ExecutePhase executed.&#xD;
+BusinessState - CleanupPhase executed.&#xD;
+BusinessState test completed - all phases executed in correct order</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="adbd7f7f-430a-484f-9adf-e247b519ce1c" testId="3acc0d28-b75f-7d08-aae6-3d20d3141069" testName="TestCompletedStateHandlers" computerName="EVA00" duration="00:00:00.0015010" startTime="2025-09-17T14:25:14.0298063-03:00" endTime="2025-09-17T14:25:14.0313073-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="adbd7f7f-430a-484f-9adf-e247b519ce1c">
+      <Output>
+        <StdOut>Business phase handler executed.&#xD;
+SucceedState handler executed.&#xD;
+CompletedState handler executed.&#xD;
+CompletedState test completed - completion handlers executed as final step</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="3db3cf06-75d5-4378-ad06-0faeb2a6f33a" testId="d9fa7fdb-e6df-80fb-a520-46e9ce214564" testName="TestComplexHierarchyMerge" computerName="EVA00" duration="00:00:00.0021260" startTime="2025-09-17T14:25:14.1248421-03:00" endTime="2025-09-17T14:25:14.1269675-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3db3cf06-75d5-4378-ad06-0faeb2a6f33a">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(mainSeq.HasChild("cleanup"), Is.True)&#xD;
+  Expected: True&#xD;
+  But was:  False&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestComplexHierarchyMerge() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 422&#xD;
+
+1)    at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestComplexHierarchyMerge() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 422&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="57b68087-5009-47d9-9cb1-71de53e9056e" testId="2adc1479-a6e0-39fb-afa7-ca0a917896f9" testName="TestDeepRecursiveMerge" computerName="EVA00" duration="00:00:00.0012910" startTime="2025-09-17T14:25:14.1269863-03:00" endTime="2025-09-17T14:25:14.1282772-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="57b68087-5009-47d9-9cb1-71de53e9056e" />
+    <UnitTestResult executionId="688050bf-12be-40ca-8158-319e0e80160f" testId="25268cc4-2331-4b42-6e2e-253f1321472c" testName="TestBuilderBasicParallel" computerName="EVA00" duration="00:00:00.0099510" startTime="2025-09-17T14:25:14.0926879-03:00" endTime="2025-09-17T14:25:14.1026389-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="688050bf-12be-40ca-8158-319e0e80160f" />
+    <UnitTestResult executionId="1e2655e3-4469-45af-9a49-5832f3c58df4" testId="735b64af-ca63-0bcc-4a1e-cf249ef1718f" testName="TestCleanupPhaseCancellationEventScoped" computerName="EVA00" duration="00:00:00.0036400" startTime="2025-09-17T14:25:13.9856674-03:00" endTime="2025-09-17T14:25:13.9893068-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1e2655e3-4469-45af-9a49-5832f3c58df4">
+      <Output>
+        <StdOut>CleanupPhase cancellation flow (event-scoped): BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → BusinessState-Cleanup → SucceedState → CompletedState&#xD;
+CleanupPhase cancellation test (event-scoped) completed - core phases succeeded, cleanup cancelled but still goes to SucceedState</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="bfb6efe7-8c8d-4123-baa0-d347fd7edd2b" testId="ef645ed0-dc55-40d0-80c9-d8a473694566" testName="TestExecutePhaseParallelWaiting_PseudoSequential" computerName="EVA00" duration="00:00:00.0038710" startTime="2025-09-17T14:25:14.0494601-03:00" endTime="2025-09-17T14:25:14.0533314-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bfb6efe7-8c8d-4123-baa0-d347fd7edd2b">
+      <Output>
+        <StdOut>[BusinessState] Resume() called, _currentPhase: ExecutePhaseState&#xD;
+[BusinessState] Calling Resume() on phase: ExecutePhaseState&#xD;
+[BusinessState] Resume() returned: LSEventBusinessState, StateResult: WAITING</StdOut>
+        <ErrorInfo>
+          <Message>  Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS))&#xD;
+  Expected: SUCCESS&#xD;
+  But was:  WAITING&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestExecutePhaseParallelWaiting_PseudoSequential() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1389&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestExecutePhaseParallelWaiting_PseudoSequential() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1389&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="556461f2-726a-4854-b167-7fcc3f8c38fb" testId="cd6ad22a-ddc8-bc45-9606-3cec679a381f" testName="TestValidatePhaseCancellation" computerName="EVA00" duration="00:00:00.0020390" startTime="2025-09-17T14:25:14.0781313-03:00" endTime="2025-09-17T14:25:14.0801699-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="556461f2-726a-4854-b167-7fcc3f8c38fb">
+      <Output>
+        <StdOut>ValidatePhase cancellation flow: BusinessState-Validate → CancelledState → CompletedState&#xD;
+ValidatePhase cancellation test completed - direct transition to CancelledState</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="88cd965e-263b-47ac-9236-5bbb77a6d200" testId="dae26ae9-2d4f-e557-f9b8-a98b3e9079c3" testName="TestExecutePhaseCancellation" computerName="EVA00" duration="00:00:00.0020710" startTime="2025-09-17T14:25:14.0425049-03:00" endTime="2025-09-17T14:25:14.0445756-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="88cd965e-263b-47ac-9236-5bbb77a6d200">
+      <Output>
+        <StdOut>ExecutePhase cancellation flow: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → CancelledState → CompletedState&#xD;
+ExecutePhase cancellation test completed - direct transition to CancelledState</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="dcbdfa4b-5fb5-444c-b609-b8580c1460d2" testId="ff5e5f96-507f-039b-7f9b-cd009602695e" testName="TestCancelledStateHandlers" computerName="EVA00" duration="00:00:00.0012800" startTime="2025-09-17T14:25:13.9814986-03:00" endTime="2025-09-17T14:25:13.9827785-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="dcbdfa4b-5fb5-444c-b609-b8580c1460d2">
+      <Output>
+        <StdOut>Business phase handler - simulating cancellation.&#xD;
+CancelledState handler executed.&#xD;
+CompletedState handler executed after cancellation.&#xD;
+CancelledState test completed - cancellation flow executed correctly</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="6723a5fc-8b50-4f92-af5a-c4fd36668530" testId="4857dd68-607d-7f8e-9527-6869379fbefa" testName="TestSucceedStateHandlers" computerName="EVA00" duration="00:00:00.0008960" startTime="2025-09-17T14:25:14.0650804-03:00" endTime="2025-09-17T14:25:14.0659768-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6723a5fc-8b50-4f92-af5a-c4fd36668530">
+      <Output>
+        <StdOut>Business phase handler executed.&#xD;
+SucceedState handler executed.&#xD;
+SucceedState test completed - success handlers executed after business phases</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="0eb7b784-3861-4e0c-b82f-b360281d2001" testId="e3a074a6-0af1-e8d9-886d-5cdad1c2c783" testName="TestCleanupPhaseCancellation" computerName="EVA00" duration="00:00:00.0028660" startTime="2025-09-17T14:25:13.9827891-03:00" endTime="2025-09-17T14:25:13.9856544-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0eb7b784-3861-4e0c-b82f-b360281d2001">
+      <Output>
+        <StdOut>CleanupPhase cancellation flow: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → BusinessState-Cleanup → SucceedState → CompletedState&#xD;
+CleanupPhase cancellation test completed - core phases succeeded, cleanup cancelled but still goes to SucceedState</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="9cd5a536-e184-45f8-ba4b-ce292acaf830" testId="b804ce67-e9a3-25cc-44e4-c4a2d9f41176" testName="TestConfigurePhaseSequentialWaiting_PseudoSequential" computerName="EVA00" duration="00:00:00.0049910" startTime="2025-09-17T14:25:14.0374956-03:00" endTime="2025-09-17T14:25:14.0424861-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9cd5a536-e184-45f8-ba4b-ce292acaf830">
+      <Output>
+        <StdOut>[BusinessState] Resume() called, _currentPhase: ConfigurePhaseState&#xD;
+[BusinessState] Calling Resume() on phase: ConfigurePhaseState&#xD;
+[ConfigurePhase] Resume() called, _waitingHandlers before decrement: 0&#xD;
+[ConfigurePhase] _waitingHandlers after decrement: -1&#xD;
+[ConfigurePhase] Still waiting for more handlers: -1&#xD;
+[BusinessState] Resume() returned: LSEventBusinessState, StateResult: WAITING&#xD;
+[ConfigurePhase] Handler returned WAITING, _waitingHandlers before increment: -1&#xD;
+[ConfigurePhase] _waitingHandlers after increment: 0&#xD;
+[ConfigurePhase] Pseudo-sequential detected, treating as SUCCESS and continuing</StdOut>
+        <ErrorInfo>
+          <Message>  Assert.That(result, Is.EqualTo(EventProcessResult.SUCCESS))&#xD;
+  Expected: SUCCESS&#xD;
+  But was:  WAITING&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestConfigurePhaseSequentialWaiting_PseudoSequential() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1298&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestConfigurePhaseSequentialWaiting_PseudoSequential() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1298&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="6d65b416-2a44-45d2-948f-d3d6ecf456ab" testId="0ba7ced5-bd74-a29e-fc6b-7c8b96298ea6" testName="TestMergeNonConflictingNodes" computerName="EVA00" duration="00:00:00.0015810" startTime="2025-09-17T14:25:14.1302359-03:00" endTime="2025-09-17T14:25:14.1318166-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6d65b416-2a44-45d2-948f-d3d6ecf456ab">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(root, Is.Not.Null)&#xD;
+  Expected: not null&#xD;
+  But was:  null&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestMergeNonConflictingNodes() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 265&#xD;
+
+1)    at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestMergeNonConflictingNodes() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 265&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="5699a31e-3d9b-492a-a876-1e99794ebe59" testId="840e3fd5-73f9-fa17-34c6-710f5dcbc729" testName="TestUserInitialization" computerName="EVA00" duration="00:00:00.0006640" startTime="2025-09-17T14:25:14.0662408-03:00" endTime="2025-09-17T14:25:14.0669048-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5699a31e-3d9b-492a-a876-1e99794ebe59" />
+    <UnitTestResult executionId="fa3acbed-cda5-4530-ab8f-e26ce951a9ff" testId="76fca776-d188-5e5b-424c-b6474647944b" testName="TestMergeHandlerReplacement" computerName="EVA00" duration="00:00:00.0007230" startTime="2025-09-17T14:25:14.1294993-03:00" endTime="2025-09-17T14:25:14.1302226-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fa3acbed-cda5-4530-ab8f-e26ce951a9ff" />
+    <UnitTestResult executionId="fe3adabe-3132-4e81-93e1-bb474e5f64fa" testId="842a23f3-23fb-d065-1b19-d30b3ae23942" testName="TestBuilderMergeIntoContext" computerName="EVA00" duration="00:00:00.0117300" startTime="2025-09-17T14:25:14.1082700-03:00" endTime="2025-09-17T14:25:14.1199993-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fe3adabe-3132-4e81-93e1-bb474e5f64fa">
+      <Output>
+        <StdOut>Sub context: subContext&#xD;
+Sub context children: handler1&#xD;
+Root context before merge: root&#xD;
+Root children before: &#xD;
+Merged context: root&#xD;
+Merged children: subContext</StdOut>
+        <ErrorInfo>
+          <Message>LSUtils.LSException : NodeResultKey cannot be null when registering process status.</Message>
+          <StackTrace>   at LSUtils.EventSystem.LSEventProcessContext.registerProcessStatus(NodeResultKey nodeKey, LSEventProcessStatus status, LSEventProcessStatus&amp; oldStatus) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventProcessContext.cs:line 28&#xD;
+   at LSUtils.EventSystem.LSEventHandlerNode.LSUtils.EventSystem.ILSEventNode.Process(LSEventProcessContext context) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventHandlerNode.cs:line 57&#xD;
+   at LSUtils.EventSystem.LSEventSequenceNode.Process(LSEventProcessContext context) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSequenceNode.cs:line 80&#xD;
+   at LSUtils.EventSystem.LSEventSequenceNode.Process(LSEventProcessContext context) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSequenceNode.cs:line 80&#xD;
+   at LSUtils.EventSystem.LSEventProcessContext.Process(ILSEventNode node) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventProcessContext.cs:line 71&#xD;
+   at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestBuilderMergeIntoContext() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 241&#xD;
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="1185038c-993d-433e-ae55-2ee4b5cb8b41" testId="a0f3cbb1-e40c-a933-01bb-aaf3da9f7545" testName="TestMultipleEventsCancellationFlow" computerName="EVA00" duration="00:00:00.0046640" startTime="2025-09-17T14:25:14.0583782-03:00" endTime="2025-09-17T14:25:14.0630424-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1185038c-993d-433e-ae55-2ee4b5cb8b41">
+      <Output>
+        <StdOut>ValidatePhase cancellation: BusinessState-Validate → CancelledState → CompletedState&#xD;
+ConfigurePhase cancellation: BusinessState-Validate → BusinessState-Configure → CancelledState → CompletedState&#xD;
+ExecutePhase cancellation: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → CancelledState → CompletedState&#xD;
+CleanupPhase cancellation: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → BusinessState-Cleanup → SucceedState → CompletedState&#xD;
+Multiple events cancellation test completed:&#xD;
+  Validate: BusinessState-Validate → CancelledState → CompletedState&#xD;
+  Configure: BusinessState-Validate → BusinessState-Configure → CancelledState → CompletedState&#xD;
+  Execute: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → CancelledState → CompletedState&#xD;
+  Cleanup: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → BusinessState-Cleanup → SucceedState → CompletedState</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="52462a05-3e9c-4f53-b060-24988a54081b" testId="5b1b400f-13b7-e800-1d98-5474afcd5fdf" testName="TestFailureStateTransitionFlow" computerName="EVA00" duration="00:00:00.0013480" startTime="2025-09-17T14:25:14.0533434-03:00" endTime="2025-09-17T14:25:14.0546914-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="52462a05-3e9c-4f53-b060-24988a54081b">
+      <Output>
+        <StdOut>Failure state flow: BusinessState-Validate → CompletedState&#xD;
+Failure state transition test completed - ValidatePhase failure skips all remaining phases</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="2ca9cc28-8797-4455-a170-ea180bbb1e3d" testId="0884c81d-70a4-0702-1114-6a3eca2c2e7d" testName="TestValidatePhaseWaitingCausesFailure" computerName="EVA00" duration="00:00:00.0012190" startTime="2025-09-17T14:25:14.0820349-03:00" endTime="2025-09-17T14:25:14.0832537-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2ca9cc28-8797-4455-a170-ea180bbb1e3d">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(result, Is.EqualTo(EventProcessResult.FAILURE))&#xD;
+  Expected: FAILURE&#xD;
+  But was:  SUCCESS&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestValidatePhaseWaitingCausesFailure() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1258&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestValidatePhaseWaitingCausesFailure() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1258&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="1c4136ac-8af1-4fec-b4dd-d068514ec882" testId="31e0ae49-8bf7-1f42-0ff2-e269177abd3f" testName="TestUserRegistrationForEventWithEventScopedHandler" computerName="EVA00" duration="00:00:00.0044100" startTime="2025-09-17T14:25:14.0671591-03:00" endTime="2025-09-17T14:25:14.0715686-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1c4136ac-8af1-4fec-b4dd-d068514ec882">
+      <Output>
+        <StdOut>ValidatePhase handler executed.&#xD;
+ConfigurePhase handler executed.&#xD;
+ExecutePhase handler executed.&#xD;
+CleanupPhase handler executed.&#xD;
+Test completed</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="84a60fcc-e0a8-46be-94bf-3563b1fc4f8b" testId="5f51b311-9af7-a8e2-3164-d3c1c249f2f7" testName="TestConfigurePhaseSequentialWaiting" computerName="EVA00" duration="00:00:00.0039710" startTime="2025-09-17T14:25:14.0335095-03:00" endTime="2025-09-17T14:25:14.0374804-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="84a60fcc-e0a8-46be-94bf-3563b1fc4f8b">
+      <Output>
+        <StdOut>[ConfigurePhase] Handler returned WAITING, _waitingHandlers before increment: 0&#xD;
+[ConfigurePhase] _waitingHandlers after increment: 1&#xD;
+[ConfigurePhase] Entering WAITING state</StdOut>
+        <ErrorInfo>
+          <Message>  Assert.That(executionOrder.Count, Is.EqualTo(1))&#xD;
+  Expected: 1&#xD;
+  But was:  2&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestConfigurePhaseSequentialWaiting() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1339&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestConfigurePhaseSequentialWaiting() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1339&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="83ff94e7-1246-4429-be6c-ea5854ec4786" testId="0b201a28-da98-8e84-96e4-b084fc20b739" testName="TestEventCreation" computerName="EVA00" duration="00:00:00.0011830" startTime="2025-09-17T14:25:14.1283005-03:00" endTime="2025-09-17T14:25:14.1294832-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="83ff94e7-1246-4429-be6c-ea5854ec4786" />
+    <UnitTestResult executionId="ac32b409-a751-404a-b71c-57b8316a89e5" testId="d1c3599f-a00b-2ee4-a24b-9b1b1abcec53" testName="TestWaitingBehaviorWithFail" computerName="EVA00" duration="00:00:00.0019740" startTime="2025-09-17T14:25:14.0857613-03:00" endTime="2025-09-17T14:25:14.0877353-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ac32b409-a751-404a-b71c-57b8316a89e5">
+      <Output>
+        <ErrorInfo>
+          <Message>  Assert.That(executionOrder[0], Is.EqualTo("Handler1_Waiting"))&#xD;
+  Expected string length 16 but was 17. Strings differ at index 7.&#xD;
+  Expected: "Handler1_Waiting"&#xD;
+  But was:  "Handler2_Executed"&#xD;
+  ------------------^&#xD;
+</Message>
+          <StackTrace>   at LSUtils.EventSystem.Tests.LSEventSystemTests.TestWaitingBehaviorWithFail() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1647&#xD;
+
+1)    at LSUtils.EventSystem.Tests.LSEventSystemTests.TestWaitingBehaviorWithFail() in D:\Projetos\LSUtils\src\LSEventSystem\LSEventSystemTests.cs:line 1647&#xD;
+
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="6f9a4e5e-54c5-49e3-baf6-dd5656925030" testId="153986f3-0ca3-73e8-62d7-f701648188ef" testName="TestConfigurePhaseCancellation" computerName="EVA00" duration="00:00:00.0021750" startTime="2025-09-17T14:25:14.0313182-03:00" endTime="2025-09-17T14:25:14.0334935-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6f9a4e5e-54c5-49e3-baf6-dd5656925030">
+      <Output>
+        <StdOut>ConfigurePhase cancellation flow: BusinessState-Validate → BusinessState-Configure → CancelledState → CompletedState&#xD;
+ConfigurePhase cancellation test completed - direct transition to CancelledState</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="2ffd022a-ebb7-4e82-938a-3ccea103d7c0" testId="8c9812ca-7a53-2e36-f657-c2d157592732" testName="TestBuilderWithContext" computerName="EVA00" duration="00:00:00.0015250" startTime="2025-09-17T14:25:14.1233013-03:00" endTime="2025-09-17T14:25:14.1248269-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2ffd022a-ebb7-4e82-938a-3ccea103d7c0">
+      <Output>
+        <ErrorInfo>
+          <Message>LSUtils.LSException : NodeResultKey cannot be null when registering process status.</Message>
+          <StackTrace>   at LSUtils.EventSystem.LSEventProcessContext.registerProcessStatus(NodeResultKey nodeKey, LSEventProcessStatus status, LSEventProcessStatus&amp; oldStatus) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventProcessContext.cs:line 28&#xD;
+   at LSUtils.EventSystem.LSEventHandlerNode.LSUtils.EventSystem.ILSEventNode.Process(LSEventProcessContext context) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventHandlerNode.cs:line 57&#xD;
+   at LSUtils.EventSystem.LSEventSequenceNode.Process(LSEventProcessContext context) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSequenceNode.cs:line 80&#xD;
+   at LSUtils.EventSystem.LSEventSequenceNode.Process(LSEventProcessContext context) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSequenceNode.cs:line 80&#xD;
+   at LSUtils.EventSystem.LSEventProcessContext.Process(ILSEventNode node) in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventProcessContext.cs:line 71&#xD;
+   at LSUtils.EventSystem.TestV5.LSEventSystemTestsV5.TestBuilderWithContext() in D:\Projetos\LSUtils\src\LSEventSystem\v5\LSEventSystem_v5_tests.cs:line 198&#xD;
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)&#xD;
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="fa04604b-a47b-49e6-86f4-0275f89ff13d" testId="c755e6e7-7466-5864-0d02-717f21c7f519" testName="TestBuilderBasicSequence" computerName="EVA00" duration="00:00:00.0033160" startTime="2025-09-17T14:25:14.1049327-03:00" endTime="2025-09-17T14:25:14.1082483-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fa04604b-a47b-49e6-86f4-0275f89ff13d" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TestConfigurePhaseSequentialWaiting" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="5f51b311-9af7-a8e2-3164-d3c1c249f2f7">
+      <Execution id="84a60fcc-e0a8-46be-94bf-3563b1fc4f8b" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestConfigurePhaseSequentialWaiting" />
+    </UnitTest>
+    <UnitTest name="TestMergeHandlerReplacement" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="76fca776-d188-5e5b-424c-b6474647944b">
+      <Execution id="fa3acbed-cda5-4530-ab8f-e26ce951a9ff" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestMergeHandlerReplacement" />
+    </UnitTest>
+    <UnitTest name="TestCleanupPhaseWaitingDoesNotAffectBusinessResult" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="d1f0120b-5502-9f65-49ed-f68406757428">
+      <Execution id="8adac888-4ca9-464c-a11a-ea2fc6aae55a" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestCleanupPhaseWaitingDoesNotAffectBusinessResult" />
+    </UnitTest>
+    <UnitTest name="TestMergeWithoutCurrentNode" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="c15f362e-12b9-20b1-e826-6d4af9cf7b8c">
+      <Execution id="1b93a4c8-caaf-4031-87ec-25ee413de3cf" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestMergeWithoutCurrentNode" />
+    </UnitTest>
+    <UnitTest name="TestBuilderBasicSelector" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="9a214682-8af3-eeab-92f0-cce86781cbc9">
+      <Execution id="f709634f-40a1-4425-b18b-c7bc7eae095f" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestBuilderBasicSelector" />
+    </UnitTest>
+    <UnitTest name="TestMergeNonConflictingNodes" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="0ba7ced5-bd74-a29e-fc6b-7c8b96298ea6">
+      <Execution id="6d65b416-2a44-45d2-948f-d3d6ecf456ab" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestMergeNonConflictingNodes" />
+    </UnitTest>
+    <UnitTest name="TestExecutePhaseParallelWaiting" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="fbd3a990-6fa3-28ac-e959-ae600b2326f7">
+      <Execution id="fa8f9bf2-3ddb-4d41-b15f-7b1b95f7d10d" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestExecutePhaseParallelWaiting" />
+    </UnitTest>
+    <UnitTest name="TestUserRegistrationForEventWithEventScopedHandler" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="31e0ae49-8bf7-1f42-0ff2-e269177abd3f">
+      <Execution id="1c4136ac-8af1-4fec-b4dd-d068514ec882" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestUserRegistrationForEventWithEventScopedHandler" />
+    </UnitTest>
+    <UnitTest name="TestUserRegistrationEvent" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="bc3e19fe-1115-8b55-6559-057d96f323b5">
+      <Execution id="ade670d0-ab2d-4aaf-9e86-aab7dfbf3405" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestUserRegistrationEvent" />
+    </UnitTest>
+    <UnitTest name="TestWaitingBehaviorWithCancel" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="456c0c5d-6ac4-1d6b-6eb9-72316753626d">
+      <Execution id="8f1fdd4f-51e5-4d59-bfca-4a9df2684ab6" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestWaitingBehaviorWithCancel" />
+    </UnitTest>
+    <UnitTest name="TestCompletedStateHandlers" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="3acc0d28-b75f-7d08-aae6-3d20d3141069">
+      <Execution id="adbd7f7f-430a-484f-9adf-e247b519ce1c" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestCompletedStateHandlers" />
+    </UnitTest>
+    <UnitTest name="TestValidatePhaseCancellation" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="cd6ad22a-ddc8-bc45-9606-3cec679a381f">
+      <Execution id="556461f2-726a-4854-b167-7fcc3f8c38fb" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestValidatePhaseCancellation" />
+    </UnitTest>
+    <UnitTest name="TestBuilderBasicParallel" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="25268cc4-2331-4b42-6e2e-253f1321472c">
+      <Execution id="688050bf-12be-40ca-8158-319e0e80160f" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestBuilderBasicParallel" />
+    </UnitTest>
+    <UnitTest name="TestConfigurePhaseSequentialWaiting_PseudoSequential" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="b804ce67-e9a3-25cc-44e4-c4a2d9f41176">
+      <Execution id="9cd5a536-e184-45f8-ba4b-ce292acaf830" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestConfigurePhaseSequentialWaiting_PseudoSequential" />
+    </UnitTest>
+    <UnitTest name="TestCancelledStateHandlers" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="ff5e5f96-507f-039b-7f9b-cd009602695e">
+      <Execution id="dcbdfa4b-5fb5-444c-b609-b8580c1460d2" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestCancelledStateHandlers" />
+    </UnitTest>
+    <UnitTest name="TestUserRegistrationWithGlobalAndEventScopedHandlers" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="e78bc9b7-e63f-4761-fcbd-f5cec6e2cb67">
+      <Execution id="01f6c679-db2b-4883-81e3-2f3c875c87cb" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestUserRegistrationWithGlobalAndEventScopedHandlers" />
+    </UnitTest>
+    <UnitTest name="TestDeepRecursiveMerge" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="2adc1479-a6e0-39fb-afa7-ca0a917896f9">
+      <Execution id="57b68087-5009-47d9-9cb1-71de53e9056e" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestDeepRecursiveMerge" />
+    </UnitTest>
+    <UnitTest name="TestExecutePhaseMultipleParallelWaiting" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="be96645d-9b41-d8c5-a5db-1a2ccfa572d3">
+      <Execution id="c1d17d1b-10f0-41ab-9608-a31448ab3854" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestExecutePhaseMultipleParallelWaiting" />
+    </UnitTest>
+    <UnitTest name="TestValidatePhaseWaitingCausesFailure" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="0884c81d-70a4-0702-1114-6a3eca2c2e7d">
+      <Execution id="2ca9cc28-8797-4455-a170-ea180bbb1e3d" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestValidatePhaseWaitingCausesFailure" />
+    </UnitTest>
+    <UnitTest name="TestExecutePhaseParallelWaiting_PseudoSequential" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="ef645ed0-dc55-40d0-80c9-d8a473694566">
+      <Execution id="bfb6efe7-8c8d-4123-baa0-d347fd7edd2b" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestExecutePhaseParallelWaiting_PseudoSequential" />
+    </UnitTest>
+    <UnitTest name="TestFailureStateTransitionFlow" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="5b1b400f-13b7-e800-1d98-5474afcd5fdf">
+      <Execution id="52462a05-3e9c-4f53-b060-24988a54081b" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestFailureStateTransitionFlow" />
+    </UnitTest>
+    <UnitTest name="TestEventCreation" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="0b201a28-da98-8e84-96e4-b084fc20b739">
+      <Execution id="83ff94e7-1246-4429-be6c-ea5854ec4786" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestEventCreation" />
+    </UnitTest>
+    <UnitTest name="TestMultipleEventsCancellationFlow" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="a0f3cbb1-e40c-a933-01bb-aaf3da9f7545">
+      <Execution id="1185038c-993d-433e-ae55-2ee4b5cb8b41" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestMultipleEventsCancellationFlow" />
+    </UnitTest>
+    <UnitTest name="TestBuilderMergeIntoContext" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="842a23f3-23fb-d065-1b19-d30b3ae23942">
+      <Execution id="fe3adabe-3132-4e81-93e1-bb474e5f64fa" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestBuilderMergeIntoContext" />
+    </UnitTest>
+    <UnitTest name="TestConfigurePhaseCancellation" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="153986f3-0ca3-73e8-62d7-f701648188ef">
+      <Execution id="6f9a4e5e-54c5-49e3-baf6-dd5656925030" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestConfigurePhaseCancellation" />
+    </UnitTest>
+    <UnitTest name="TestComplexHierarchyMerge" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="d9fa7fdb-e6df-80fb-a520-46e9ce214564">
+      <Execution id="3db3cf06-75d5-4378-ad06-0faeb2a6f33a" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestComplexHierarchyMerge" />
+    </UnitTest>
+    <UnitTest name="TestBuilderNestedStructure" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="450a2d8a-9137-f52c-ce1c-1c6b766575a2">
+      <Execution id="65b8ef18-ffa3-4b64-ab3c-a31ba685600d" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestBuilderNestedStructure" />
+    </UnitTest>
+    <UnitTest name="TestWaitingValidateFailure" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="3bf2ba75-2137-7683-a1f6-61f019b64298">
+      <Execution id="035a7364-2160-48c9-8f7a-550622019676" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestWaitingValidateFailure" />
+    </UnitTest>
+    <UnitTest name="TestCleanupPhaseCancellationEventScoped" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="735b64af-ca63-0bcc-4a1e-cf249ef1718f">
+      <Execution id="1e2655e3-4469-45af-9a49-5832f3c58df4" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestCleanupPhaseCancellationEventScoped" />
+    </UnitTest>
+    <UnitTest name="TestMergeNullContext" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="8df863f7-106e-a0cc-68d6-8c1b218672de">
+      <Execution id="72c05a34-48ac-4849-80cd-43ea446f63d7" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestMergeNullContext" />
+    </UnitTest>
+    <UnitTest name="TestWaitingBehaviorWithFail" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="d1c3599f-a00b-2ee4-a24b-9b1b1abcec53">
+      <Execution id="ac32b409-a751-404a-b71c-57b8316a89e5" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestWaitingBehaviorWithFail" />
+    </UnitTest>
+    <UnitTest name="TestStateTransitionFlow" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="568773c1-35a4-921a-7508-a2bd76c88ad5">
+      <Execution id="c88b450b-8b7d-420b-a657-4802e5bae877" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestStateTransitionFlow" />
+    </UnitTest>
+    <UnitTest name="TestBusinessStateProcessing" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="ed3d8703-6cf5-a3e7-978b-5fd79aa4d062">
+      <Execution id="998887e8-6b15-4198-83f3-4e9825e56498" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestBusinessStateProcessing" />
+    </UnitTest>
+    <UnitTest name="TestBuilderWithContext" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="8c9812ca-7a53-2e36-f657-c2d157592732">
+      <Execution id="2ffd022a-ebb7-4e82-938a-3ccea103d7c0" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestBuilderWithContext" />
+    </UnitTest>
+    <UnitTest name="TestRemoveNonExistentNode" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="78eb5c3b-21b8-1075-176f-da279c6b7d47">
+      <Execution id="e9e376be-fcbd-4a92-98af-20fb765e8015" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestRemoveNonExistentNode" />
+    </UnitTest>
+    <UnitTest name="TestUserCreation" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="81a6a250-9cf2-f8fa-9aaa-63e8ddcff113">
+      <Execution id="eedc9a90-c2c8-4a45-ad45-43b06a42a2b2" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestUserCreation" />
+    </UnitTest>
+    <UnitTest name="TestMixedGlobalAndEventScopedCancellation" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="8dc072b0-e1eb-b3cb-5750-66d1038684a6">
+      <Execution id="4263b25b-561b-48f3-855b-96b619e76225" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestMixedGlobalAndEventScopedCancellation" />
+    </UnitTest>
+    <UnitTest name="TestCleanupPhaseCancellation" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="e3a074a6-0af1-e8d9-886d-5cdad1c2c783">
+      <Execution id="0eb7b784-3861-4e0c-b82f-b360281d2001" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestCleanupPhaseCancellation" />
+    </UnitTest>
+    <UnitTest name="TestExecutePhaseCancellation" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="dae26ae9-2d4f-e557-f9b8-a98b3e9079c3">
+      <Execution id="88cd965e-263b-47ac-9236-5bbb77a6d200" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestExecutePhaseCancellation" />
+    </UnitTest>
+    <UnitTest name="TestValidatePhaseCancellationEventScoped" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="1215759f-148f-b0ce-aa3a-7f8159689cd3">
+      <Execution id="0498f247-94e6-45bb-9004-bbf0fc317a21" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestValidatePhaseCancellationEventScoped" />
+    </UnitTest>
+    <UnitTest name="TestCancellationStateTransitionFlow" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="20a8d501-604a-4346-0163-a2c3d0cec3cd">
+      <Execution id="ffd85a62-db54-4b46-9083-31a9a7d61867" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestCancellationStateTransitionFlow" />
+    </UnitTest>
+    <UnitTest name="TestSucceedStateHandlers" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="4857dd68-607d-7f8e-9527-6869379fbefa">
+      <Execution id="6723a5fc-8b50-4f92-af5a-c4fd36668530" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestSucceedStateHandlers" />
+    </UnitTest>
+    <UnitTest name="TestBuilderBasicSequence" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="c755e6e7-7466-5864-0d02-717f21c7f519">
+      <Execution id="fa04604b-a47b-49e6-86f4-0275f89ff13d" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestBuilderBasicSequence" />
+    </UnitTest>
+    <UnitTest name="TestUserInitialization" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="840e3fd5-73f9-fa17-34c6-710f5dcbc729">
+      <Execution id="5699a31e-3d9b-492a-a876-1e99794ebe59" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestUserInitialization" />
+    </UnitTest>
+    <UnitTest name="TestUserRegistrationForEventWithGlobalPhaseHandler" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="a41408ab-7edf-d9b7-1677-9198f172d9ef">
+      <Execution id="45d8513d-4c14-4b38-b450-0f666b405368" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.Tests.LSEventSystemTests" name="TestUserRegistrationForEventWithGlobalPhaseHandler" />
+    </UnitTest>
+    <UnitTest name="TestMixedNodeTypeMerge" storage="d:\projetos\lsutils\bin\debug\net8.0\lsutils.dll" id="a4dbf1e2-be50-f782-4272-afbc0816679f">
+      <Execution id="e5a55b00-abdf-487c-9efc-66ab718a5175" />
+      <TestMethod codeBase="D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll" adapterTypeName="executor://nunit3testexecutor/" className="LSUtils.EventSystem.TestV5.LSEventSystemTestsV5" name="TestMixedNodeTypeMerge" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="bc3e19fe-1115-8b55-6559-057d96f323b5" executionId="ade670d0-ab2d-4aaf-9e86-aab7dfbf3405" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8dc072b0-e1eb-b3cb-5750-66d1038684a6" executionId="4263b25b-561b-48f3-855b-96b619e76225" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9a214682-8af3-eeab-92f0-cce86781cbc9" executionId="f709634f-40a1-4425-b18b-c7bc7eae095f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="456c0c5d-6ac4-1d6b-6eb9-72316753626d" executionId="8f1fdd4f-51e5-4d59-bfca-4a9df2684ab6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c15f362e-12b9-20b1-e826-6d4af9cf7b8c" executionId="1b93a4c8-caaf-4031-87ec-25ee413de3cf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d1f0120b-5502-9f65-49ed-f68406757428" executionId="8adac888-4ca9-464c-a11a-ea2fc6aae55a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="be96645d-9b41-d8c5-a5db-1a2ccfa572d3" executionId="c1d17d1b-10f0-41ab-9608-a31448ab3854" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="fbd3a990-6fa3-28ac-e959-ae600b2326f7" executionId="fa8f9bf2-3ddb-4d41-b15f-7b1b95f7d10d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1215759f-148f-b0ce-aa3a-7f8159689cd3" executionId="0498f247-94e6-45bb-9004-bbf0fc317a21" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="568773c1-35a4-921a-7508-a2bd76c88ad5" executionId="c88b450b-8b7d-420b-a657-4802e5bae877" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a41408ab-7edf-d9b7-1677-9198f172d9ef" executionId="45d8513d-4c14-4b38-b450-0f666b405368" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="78eb5c3b-21b8-1075-176f-da279c6b7d47" executionId="e9e376be-fcbd-4a92-98af-20fb765e8015" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a4dbf1e2-be50-f782-4272-afbc0816679f" executionId="e5a55b00-abdf-487c-9efc-66ab718a5175" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="81a6a250-9cf2-f8fa-9aaa-63e8ddcff113" executionId="eedc9a90-c2c8-4a45-ad45-43b06a42a2b2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="20a8d501-604a-4346-0163-a2c3d0cec3cd" executionId="ffd85a62-db54-4b46-9083-31a9a7d61867" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8df863f7-106e-a0cc-68d6-8c1b218672de" executionId="72c05a34-48ac-4849-80cd-43ea446f63d7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="450a2d8a-9137-f52c-ce1c-1c6b766575a2" executionId="65b8ef18-ffa3-4b64-ab3c-a31ba685600d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3bf2ba75-2137-7683-a1f6-61f019b64298" executionId="035a7364-2160-48c9-8f7a-550622019676" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e78bc9b7-e63f-4761-fcbd-f5cec6e2cb67" executionId="01f6c679-db2b-4883-81e3-2f3c875c87cb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ed3d8703-6cf5-a3e7-978b-5fd79aa4d062" executionId="998887e8-6b15-4198-83f3-4e9825e56498" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3acc0d28-b75f-7d08-aae6-3d20d3141069" executionId="adbd7f7f-430a-484f-9adf-e247b519ce1c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d9fa7fdb-e6df-80fb-a520-46e9ce214564" executionId="3db3cf06-75d5-4378-ad06-0faeb2a6f33a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2adc1479-a6e0-39fb-afa7-ca0a917896f9" executionId="57b68087-5009-47d9-9cb1-71de53e9056e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="25268cc4-2331-4b42-6e2e-253f1321472c" executionId="688050bf-12be-40ca-8158-319e0e80160f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="735b64af-ca63-0bcc-4a1e-cf249ef1718f" executionId="1e2655e3-4469-45af-9a49-5832f3c58df4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ef645ed0-dc55-40d0-80c9-d8a473694566" executionId="bfb6efe7-8c8d-4123-baa0-d347fd7edd2b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cd6ad22a-ddc8-bc45-9606-3cec679a381f" executionId="556461f2-726a-4854-b167-7fcc3f8c38fb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dae26ae9-2d4f-e557-f9b8-a98b3e9079c3" executionId="88cd965e-263b-47ac-9236-5bbb77a6d200" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ff5e5f96-507f-039b-7f9b-cd009602695e" executionId="dcbdfa4b-5fb5-444c-b609-b8580c1460d2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4857dd68-607d-7f8e-9527-6869379fbefa" executionId="6723a5fc-8b50-4f92-af5a-c4fd36668530" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e3a074a6-0af1-e8d9-886d-5cdad1c2c783" executionId="0eb7b784-3861-4e0c-b82f-b360281d2001" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b804ce67-e9a3-25cc-44e4-c4a2d9f41176" executionId="9cd5a536-e184-45f8-ba4b-ce292acaf830" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0ba7ced5-bd74-a29e-fc6b-7c8b96298ea6" executionId="6d65b416-2a44-45d2-948f-d3d6ecf456ab" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="840e3fd5-73f9-fa17-34c6-710f5dcbc729" executionId="5699a31e-3d9b-492a-a876-1e99794ebe59" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="76fca776-d188-5e5b-424c-b6474647944b" executionId="fa3acbed-cda5-4530-ab8f-e26ce951a9ff" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="842a23f3-23fb-d065-1b19-d30b3ae23942" executionId="fe3adabe-3132-4e81-93e1-bb474e5f64fa" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a0f3cbb1-e40c-a933-01bb-aaf3da9f7545" executionId="1185038c-993d-433e-ae55-2ee4b5cb8b41" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5b1b400f-13b7-e800-1d98-5474afcd5fdf" executionId="52462a05-3e9c-4f53-b060-24988a54081b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0884c81d-70a4-0702-1114-6a3eca2c2e7d" executionId="2ca9cc28-8797-4455-a170-ea180bbb1e3d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="31e0ae49-8bf7-1f42-0ff2-e269177abd3f" executionId="1c4136ac-8af1-4fec-b4dd-d068514ec882" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5f51b311-9af7-a8e2-3164-d3c1c249f2f7" executionId="84a60fcc-e0a8-46be-94bf-3563b1fc4f8b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0b201a28-da98-8e84-96e4-b084fc20b739" executionId="83ff94e7-1246-4429-be6c-ea5854ec4786" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d1c3599f-a00b-2ee4-a24b-9b1b1abcec53" executionId="ac32b409-a751-404a-b71c-57b8316a89e5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="153986f3-0ca3-73e8-62d7-f701648188ef" executionId="6f9a4e5e-54c5-49e3-baf6-dd5656925030" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8c9812ca-7a53-2e36-f657-c2d157592732" executionId="2ffd022a-ebb7-4e82-938a-3ccea103d7c0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c755e6e7-7466-5864-0d02-717f21c7f519" executionId="fa04604b-a47b-49e6-86f4-0275f89ff13d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Resultados que não estão em uma lista" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="Todos os resultados carregados" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="46" executed="46" passed="29" failed="17" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>NUnit Adapter 5.1.0.0: Test execution started&#xD;
+Running all tests in D:\Projetos\LSUtils\bin\Debug\net8.0\LSUtils.dll&#xD;
+   NUnit3TestExecutor discovered 46 of 46 NUnit test cases using Current Discovery mode, Non-Explicit run&#xD;
+BusinessState - ValidatePhase executed.&#xD;
+BusinessState - ConfigurePhase executed.&#xD;
+BusinessState - ExecutePhase executed.&#xD;
+BusinessState - CleanupPhase executed.&#xD;
+BusinessState test completed - all phases executed in correct order&#xD;
+&#xD;
+Cancellation state flow: BusinessState-Validate → CancelledState → CompletedState&#xD;
+Cancellation state transition test completed - correct flow verified&#xD;
+&#xD;
+Business phase handler - simulating cancellation.&#xD;
+CancelledState handler executed.&#xD;
+CompletedState handler executed after cancellation.&#xD;
+CancelledState test completed - cancellation flow executed correctly&#xD;
+&#xD;
+CleanupPhase cancellation flow: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → BusinessState-Cleanup → SucceedState → CompletedState&#xD;
+CleanupPhase cancellation test completed - core phases succeeded, cleanup cancelled but still goes to SucceedState&#xD;
+&#xD;
+CleanupPhase cancellation flow (event-scoped): BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → BusinessState-Cleanup → SucceedState → CompletedState&#xD;
+CleanupPhase cancellation test (event-scoped) completed - core phases succeeded, cleanup cancelled but still goes to SucceedState&#xD;
+&#xD;
+Business phase handler executed.&#xD;
+SucceedState handler executed.&#xD;
+CompletedState handler executed.&#xD;
+CompletedState test completed - completion handlers executed as final step&#xD;
+&#xD;
+ConfigurePhase cancellation flow: BusinessState-Validate → BusinessState-Configure → CancelledState → CompletedState&#xD;
+ConfigurePhase cancellation test completed - direct transition to CancelledState&#xD;
+&#xD;
+[ConfigurePhase] Handler returned WAITING, _waitingHandlers before increment: 0&#xD;
+[ConfigurePhase] _waitingHandlers after increment: 1&#xD;
+[ConfigurePhase] Entering WAITING state&#xD;
+&#xD;
+[BusinessState] Resume() called, _currentPhase: ConfigurePhaseState&#xD;
+[BusinessState] Calling Resume() on phase: ConfigurePhaseState&#xD;
+[ConfigurePhase] Resume() called, _waitingHandlers before decrement: 0&#xD;
+[ConfigurePhase] _waitingHandlers after decrement: -1&#xD;
+[ConfigurePhase] Still waiting for more handlers: -1&#xD;
+[BusinessState] Resume() returned: LSEventBusinessState, StateResult: WAITING&#xD;
+[ConfigurePhase] Handler returned WAITING, _waitingHandlers before increment: -1&#xD;
+[ConfigurePhase] _waitingHandlers after increment: 0&#xD;
+[ConfigurePhase] Pseudo-sequential detected, treating as SUCCESS and continuing&#xD;
+&#xD;
+ExecutePhase cancellation flow: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → CancelledState → CompletedState&#xD;
+ExecutePhase cancellation test completed - direct transition to CancelledState&#xD;
+&#xD;
+[BusinessState] Resume() called, _currentPhase: ExecutePhaseState&#xD;
+[BusinessState] Calling Resume() on phase: ExecutePhaseState&#xD;
+[BusinessState] Resume() returned: LSEventBusinessState, StateResult: WAITING&#xD;
+&#xD;
+Failure state flow: BusinessState-Validate → CompletedState&#xD;
+Failure state transition test completed - ValidatePhase failure skips all remaining phases&#xD;
+&#xD;
+Mixed global/event-scoped cancellation flow: Global-ValidatePhase → EventScoped-ConfigurePhase → EventScoped-CancelledState → Global-CancelledState → EventScoped-CompletedState → Global-CompletedState&#xD;
+Mixed global and event-scoped cancellation test completed - both handler types executed&#xD;
+&#xD;
+ValidatePhase cancellation: BusinessState-Validate → CancelledState → CompletedState&#xD;
+ConfigurePhase cancellation: BusinessState-Validate → BusinessState-Configure → CancelledState → CompletedState&#xD;
+ExecutePhase cancellation: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → CancelledState → CompletedState&#xD;
+CleanupPhase cancellation: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → BusinessState-Cleanup → SucceedState → CompletedState&#xD;
+Multiple events cancellation test completed:&#xD;
+  Validate: BusinessState-Validate → CancelledState → CompletedState&#xD;
+  Configure: BusinessState-Validate → BusinessState-Configure → CancelledState → CompletedState&#xD;
+  Execute: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → CancelledState → CompletedState&#xD;
+  Cleanup: BusinessState-Validate → BusinessState-Configure → BusinessState-Execute → BusinessState-Cleanup → SucceedState → CompletedState&#xD;
+&#xD;
+BusinessState-Validate executed&#xD;
+BusinessState-Execute executed&#xD;
+SucceedState executed&#xD;
+CompletedState executed&#xD;
+Full state flow: BusinessState-Validate → BusinessState-Execute → SucceedState → CompletedState&#xD;
+BusinessState index: 0, SucceedState index: 2, CompletedState index: 3&#xD;
+State transition flow: BusinessState-Validate → BusinessState-Execute → SucceedState → CompletedState&#xD;
+State transition test completed - correct flow verified&#xD;
+&#xD;
+Business phase handler executed.&#xD;
+SucceedState handler executed.&#xD;
+SucceedState test completed - success handlers executed after business phases&#xD;
+&#xD;
+ValidatePhase handler executed.&#xD;
+ConfigurePhase handler executed.&#xD;
+ExecutePhase handler executed.&#xD;
+CleanupPhase handler executed.&#xD;
+Test completed&#xD;
+&#xD;
+User created.&#xD;
+ValidatePhase handler executed.&#xD;
+ConfigurePhase handler executed.&#xD;
+ExecutePhase handler executed.&#xD;
+CleanupPhase handler executed.&#xD;
+User registration event dispatched.&#xD;
+ValidatePhase handler executed.&#xD;
+ConfigurePhase handler executed.&#xD;
+ExecutePhase handler executed.&#xD;
+CleanupPhase handler executed.&#xD;
+Another user registration event dispatched.&#xD;
+Test completed&#xD;
+&#xD;
+User created.&#xD;
+EVENT-SCOPED ValidatePhase handler executed.&#xD;
+GLOBAL ValidatePhase handler executed.&#xD;
+EVENT-SCOPED ConfigurePhase handler executed.&#xD;
+GLOBAL ConfigurePhase handler executed.&#xD;
+EVENT-SCOPED ExecutePhase handler executed.&#xD;
+GLOBAL ExecutePhase handler executed.&#xD;
+EVENT-SCOPED CleanupPhase handler executed.&#xD;
+GLOBAL CleanupPhase handler executed.&#xD;
+User registration event with both global and event-scoped handlers dispatched.&#xD;
+Handlers executed in order: EVENT_ValidatePhase, GLOBAL_ValidatePhase, EVENT_ConfigurePhase, GLOBAL_ConfigurePhase, EVENT_ExecutePhase, GLOBAL_ExecutePhase, EVENT_CleanupPhase, GLOBAL_CleanupPhase&#xD;
+Test completed - both global and event-scoped handlers worked together&#xD;
+&#xD;
+ValidatePhase cancellation flow: BusinessState-Validate → CancelledState → CompletedState&#xD;
+ValidatePhase cancellation test completed - direct transition to CancelledState&#xD;
+&#xD;
+ValidatePhase cancellation flow (event-scoped): BusinessState-Validate → CancelledState → CompletedState&#xD;
+ValidatePhase cancellation test (event-scoped) completed - direct transition to CancelledState&#xD;
+&#xD;
+Sub context: subContext&#xD;
+Sub context children: handler1&#xD;
+Root context before merge: root&#xD;
+Root children before: &#xD;
+Merged context: root&#xD;
+Merged children: subContext&#xD;
+&#xD;
+NUnit Adapter 5.1.0.0: Test execution complete&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

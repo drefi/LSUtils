@@ -12,10 +12,12 @@ public class LSEventSelectorNode : ILSEventLayerNode {
 
     public string NodeID { get; }
     public LSPriority Priority { get; }
+    public int Order { get; }
     public LSEventCondition Conditions { get; }
 
-    protected LSEventSelectorNode(string nodeId, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    protected LSEventSelectorNode(string nodeId, int order, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         NodeID = nodeId;
+        Order = order;
         Priority = priority;
         var defaultCondition = (LSEventCondition)((ctx, node) => true);
         if (conditions == null || conditions.Length == 0) {
@@ -48,7 +50,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     public ILSEventNode[] GetChildren() => _children.Values.ToArray();
 
     public ILSEventLayerNode Clone() {
-        var cloned = new LSEventSelectorNode(NodeID, Priority, Conditions);
+        var cloned = new LSEventSelectorNode(NodeID, Order, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -65,17 +67,30 @@ public class LSEventSelectorNode : ILSEventLayerNode {
             }
         }
         if (_isProcessing == false) {
-            // Use insertion order for deterministic processing expected by tests
-            _processStack = new Stack<ILSEventNode>(_children.Values);
+            // Initialize the stack with children ordered by Priority (critical first) and Order (lowest first).
+            // since this is a stack maybe we should reverse the order, not sure...
+            _processStack = new Stack<ILSEventNode>(_children.Values.OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse());
             _isProcessing = true;
         }
         while (_processStack.Count > 0) {
             var child = _processStack.Pop();
-            // ensure the child has a key prior to processing so handler nodes never see null key
-            var childKeyPre = context.getNodeResultKey(child, this);
-            context.registerProcessStatus(childKeyPre, LSEventProcessStatus.UNKNOWN, out _);
+            //child condition check
+            bool shouldSkip = false;
+            foreach (LSEventCondition condition in child.Conditions.GetInvocationList()) {
+                // skip if any conditions are not met
+                if (!condition(context.Event, child)) {
+                    shouldSkip = true;
+                    break;
+                }
+            }
+            if (shouldSkip) {
+                continue; // skip to next child
+            }
+            // initialize the child key
+            var childKey = context.getNodeResultKey(child, this);
+            context.registerProcessStatus(childKey, LSEventProcessStatus.UNKNOWN, out _);
+
             var childStatus = child.Process(context);
-            var childKey = context.getNodeResultKey(child);
             if (!context.registerProcessStatus(childKey, childStatus, out var updatedStatus)) {
                 // registration failed, meaning the child was not in a state that could be processed
                 // this can happen if the child was resumed/failed while processing, in this case we use the updated status
@@ -87,18 +102,19 @@ public class LSEventSelectorNode : ILSEventLayerNode {
                 return LSEventProcessStatus.CANCELLED;
             }
             if (childStatus == LSEventProcessStatus.SUCCESS) {
-                // to prevent unexpected behavior, we clear the stack but don't reset _isProcessing
+                // Clear the stack but keep _isProcessing to prevent reinitialization
                 _processStack.Clear();
                 return LSEventProcessStatus.SUCCESS; // Stop processing and return success
             } else if (childStatus == LSEventProcessStatus.WAITING) {
                 return LSEventProcessStatus.WAITING; // Bubble up waiting
             }
         }
-        // if reach this mean all children failed
-        return LSEventProcessStatus.FAILURE;
+        // if reach this mean all children failed, or no children exist
+        // if no children, return success (empty selector should succeed)
+        return _children.Count == 0 ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE;
     }
 
-    public static LSEventSelectorNode Create(string nodeID, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
-        return new LSEventSelectorNode(nodeID, priority, conditions);
+    public static LSEventSelectorNode Create(string nodeID, int order, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+        return new LSEventSelectorNode(nodeID, order, priority, conditions);
     }
 }

@@ -17,13 +17,15 @@ public class LSEventHandlerNode : ILSEventNode {
             }
         }
     }
-
+    // Order is set during registration in the event system, starts at 0 and increases with each new node registered
+    public int Order { get; }
     protected LSEventHandlerNode(string nodeID, LSEventHandler handler,
-                      LSPriority priority = LSPriority.NORMAL, LSEventHandlerNode? baseNode = null, params LSEventCondition?[] conditions) {
+                      int order, LSPriority priority = LSPriority.NORMAL, LSEventHandlerNode? baseNode = null, params LSEventCondition?[] conditions) {
         _baseNode = baseNode;
         NodeID = nodeID;
         Priority = priority;
         _handler = handler;
+        Order = order;
         var defaultCondition = (LSEventCondition)((ctx, node) => true);
         if (conditions == null || conditions.Length == 0) {
             Conditions = defaultCondition;
@@ -49,9 +51,15 @@ public class LSEventHandlerNode : ILSEventNode {
         //         return LSEventProcessStatus.SUCCESS; // skip if any conditions are not met
         //     }
         // }
+        foreach (LSEventCondition condition in Conditions.GetInvocationList()) {
+            if (!condition(context.Event, this)) {
+                return LSEventProcessStatus.SUCCESS; // skip if any conditions are not met
+            }
+        }
         // increment execution count indicating the handler was actually executed, doesn't matter the result, it always is recorded.
         // ExecutionCount uses _baseNode if available so the count is "shared" between clones
         ExecutionCount++;
+
         var result = _handler(context.Event, this);
         var key = context.getNodeResultKey(this);
         if (!context.registerProcessStatus(key, result, out var updatedStatus)) {
@@ -65,11 +73,11 @@ public class LSEventHandlerNode : ILSEventNode {
     }
 
     public ILSEventNode Clone() {
-        return new LSEventHandlerNode(NodeID, _handler, Priority, this, Conditions);
+        return new LSEventHandlerNode(NodeID, _handler, Order, Priority, this, Conditions);
     }
 
     public static LSEventHandlerNode Create(string nodeID, LSEventHandler handler,
-                      LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
-        return new LSEventHandlerNode(nodeID, handler, priority, null, conditions);
+                      int order, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+        return new LSEventHandlerNode(nodeID, handler, order, priority, null, conditions);
     }
 }
