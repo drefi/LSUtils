@@ -108,6 +108,10 @@ public class LSEventSequenceNode : ILSEventLayerNode {
                 // Clear the stack but keep _isProcessing to prevent reinitialization
                 _processStack.Clear();
                 return LSEventProcessStatus.FAILURE; // Stop processing and return failure
+            } else if (childStatus == LSEventProcessStatus.CANCELLED) {
+                // Clear the stack and return cancelled if child was cancelled
+                _processStack.Clear();
+                return LSEventProcessStatus.CANCELLED; // Stop processing and return cancelled
             } else if (childStatus == LSEventProcessStatus.WAITING) {
                 return LSEventProcessStatus.WAITING; // Bubble up waiting
             }

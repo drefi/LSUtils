@@ -96,11 +96,9 @@ public class LSEventProcessContext {
             } else {
                 throw new LSException($"Cannot resume node {node.NodeID} in state {existingStatus}.");
             }
-        } else {
-            // not registered, set to SUCCESS
-            registerProcessStatus(key, LSEventProcessStatus.SUCCESS, out _);
-            return LSEventProcessStatus.SUCCESS;
         }
+        // not registered, throw exception
+        throw new LSException($"Cannot resume node {node.NodeID} that was not registered.");
     }
 
     public LSEventProcessStatus Fail(LSEventHandlerNode node) {
@@ -123,11 +121,9 @@ public class LSEventProcessContext {
             } else {
                 throw new LSException($"Cannot fail node {node.NodeID} in state {existingStatus}.");
             }
-        } else {
-            // not registered, set to FAILURE
-            registerProcessStatus(key, LSEventProcessStatus.FAILURE, out _);
-            return LSEventProcessStatus.FAILURE;
         }
+        // not registered, throw exception
+        throw new LSException($"Cannot resume node {node.NodeID} that was not registered.");
     }
     public void Cancel() {
         if (IsCancelled) return; //assume that cancelled already happen (this only happens if the Cancel was actually called after the node was processed)

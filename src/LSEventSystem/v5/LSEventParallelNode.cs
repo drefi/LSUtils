@@ -99,6 +99,11 @@ public class LSEventParallelNode : ILSEventLayerNode {
             }
             if (childStatus == LSEventProcessStatus.SUCCESS) _successCount++;
             if (childStatus == LSEventProcessStatus.WAITING) _isWaitingForChildren = true;
+            if (childStatus == LSEventProcessStatus.CANCELLED) {
+                // If any child is cancelled, the whole parallel node is cancelled
+                _processStack.Clear();
+                return LSEventProcessStatus.CANCELLED;
+            }
         }
         if (_isWaitingForChildren) {
             // if any child is still waiting, the whole node must wait

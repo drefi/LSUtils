@@ -43,14 +43,17 @@ public class LSEventHandlerNode : ILSEventNode {
 
     LSEventProcessStatus ILSEventNode.Process(LSEventProcessContext context) {
 
-        // we don't need to check for cancellation here because ProcessContext already does it
-        // and it won't call this method if the context is cancelled.
-        // if (context.IsCancelled) return LSEventProcessStatus.CANCELLED;
-        // foreach (LSEventCondition condition in Conditions.GetInvocationList()) {
-        //     if (!condition(context.Event, this)) {
-        //         return LSEventProcessStatus.SUCCESS; // skip if any conditions are not met
-        //     }
-        // }
+        // Check if this handler was already processed (e.g., by Resume/Fail)
+        var key = context.getNodeResultKey(this);
+        if (key != null) {
+            // Try to register UNKNOWN to check if there's already a status
+            var registrationResult = context.registerProcessStatus(key, LSEventProcessStatus.UNKNOWN, out var existingStatus);
+            if (!registrationResult && existingStatus != LSEventProcessStatus.UNKNOWN) {
+                // Handler was already processed with a final status, return it
+                return existingStatus;
+            }
+        }
+
         foreach (LSEventCondition condition in Conditions.GetInvocationList()) {
             if (!condition(context.Event, this)) {
                 return LSEventProcessStatus.SUCCESS; // skip if any conditions are not met
@@ -61,7 +64,6 @@ public class LSEventHandlerNode : ILSEventNode {
         ExecutionCount++;
 
         var result = _handler(context.Event, this);
-        var key = context.getNodeResultKey(this);
         if (!context.registerProcessStatus(key, result, out var updatedStatus)) {
             // if registration failed it means the result was was already in a final state (SUCCESS, FAILURE or CANCELLED) and cannot be updated
             // meaning it was updated by the Resume/Fail logic before we could register the result
