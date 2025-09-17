@@ -7,7 +7,6 @@ internal record NodeResultKey(ILSEventNode? parent, ILSEventNode node);
 
 public class LSEventProcessContext {
 
-    protected LSEventProcessContext? _baseContext;
     public LSEvent Event { get; }
     private readonly Dictionary<NodeResultKey, LSEventProcessStatus> _handlerNodeResults = new();
     private readonly List<LSAction<LSEventProcessContext>> _onSuccessCallbacks = new();
@@ -16,9 +15,8 @@ public class LSEventProcessContext {
     private volatile bool _isCancelled = false;
 
     public bool IsCancelled => _isCancelled;
-    internal LSEventProcessContext(LSEvent @event, LSEventProcessContext? baseContext = null) {
+    internal LSEventProcessContext(LSEvent @event) {
         Event = @event;
-        _baseContext = baseContext;
     }
 
     /// <summary>

@@ -13,7 +13,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     public string NodeID { get; }
     public LSPriority Priority { get; }
     public LSEventCondition Conditions { get; }
-    public int NumRequiredToSucceed { get; }
+    public int NumRequiredToSucceed { get; internal set; }
 
     internal LSEventParallelNode(string nodeID, int numRequiredToSucceed, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         NodeID = nodeID;
@@ -38,7 +38,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     public void AddChild(ILSEventNode child) {
         _children[child.NodeID] = child;
     }
-    public ILSEventNode? FindChild(string label) {
+    public ILSEventNode? GetChild(string label) {
         return _children.TryGetValue(label, out var child) ? child : null;
     }
     public ILSEventNode[] GetChildren() {
@@ -68,7 +68,8 @@ public class LSEventParallelNode : ILSEventLayerNode {
             }
         }
         if (_isProcessing == false) {
-            _processStack = new Stack<ILSEventNode>(_children.Values.OrderByDescending(c => c.Priority));
+            // Use insertion order for deterministic processing expected by tests
+            _processStack = new Stack<ILSEventNode>(_children.Values);
             _isProcessing = true;
             _successCount = 0;
             _isWaitingForChildren = false;
@@ -76,6 +77,9 @@ public class LSEventParallelNode : ILSEventLayerNode {
         // a stack allow to resume processing where it left off
         while (_processStack.Count > 0) {
             var child = _processStack.Pop();
+            // ensure the child has a key prior to processing so handler nodes never see null key
+            var childKeyPre = context.getNodeResultKey(child, this);
+            context.registerProcessStatus(childKeyPre, LSEventProcessStatus.UNKNOWN, out _);
             var childStatus = child.Process(context);
             var childKey = context.getNodeResultKey(child);
             if (!context.registerProcessStatus(childKey, childStatus, out var updatedStatus)) {

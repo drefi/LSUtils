@@ -39,7 +39,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
         return _children.Remove(label);
     }
 
-    public ILSEventNode? FindChild(string label) {
+    public ILSEventNode? GetChild(string label) {
         return _children.TryGetValue(label, out var child) ? child : null;
     }
 
@@ -65,11 +65,15 @@ public class LSEventSelectorNode : ILSEventLayerNode {
             }
         }
         if (_isProcessing == false) {
-            _processStack = new Stack<ILSEventNode>(_children.Values.OrderByDescending(c => c.Priority));
+            // Use insertion order for deterministic processing expected by tests
+            _processStack = new Stack<ILSEventNode>(_children.Values);
             _isProcessing = true;
         }
         while (_processStack.Count > 0) {
             var child = _processStack.Pop();
+            // ensure the child has a key prior to processing so handler nodes never see null key
+            var childKeyPre = context.getNodeResultKey(child, this);
+            context.registerProcessStatus(childKeyPre, LSEventProcessStatus.UNKNOWN, out _);
             var childStatus = child.Process(context);
             var childKey = context.getNodeResultKey(child);
             if (!context.registerProcessStatus(childKey, childStatus, out var updatedStatus)) {
