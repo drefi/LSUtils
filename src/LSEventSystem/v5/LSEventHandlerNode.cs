@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace LSUtils.EventSystem;
 
 public class LSEventHandlerNode : ILSEventNode {
@@ -41,37 +43,74 @@ public class LSEventHandlerNode : ILSEventNode {
         }
     }
 
-    LSEventProcessStatus ILSEventNode.Process(LSEventProcessContext context) {
+    public LSEventProcessStatus GetNodeStatus() {
+        return _nodeStatus;
+    }
+    LSEventProcessStatus _nodeStatus = LSEventProcessStatus.UNKNOWN;
 
-        // Check if this handler was already processed (e.g., by Resume/Fail)
-        var key = context.getNodeResultKey(this);
-        if (key != null) {
-            // Try to register UNKNOWN to check if there's already a status
-            var registrationResult = context.registerProcessStatus(key, LSEventProcessStatus.UNKNOWN, out var existingStatus);
-            if (!registrationResult && existingStatus != LSEventProcessStatus.UNKNOWN) {
-                // Handler was already processed with a final status, return it
-                return existingStatus;
-            }
+    protected bool updateNodeStatus(LSEventProcessStatus status, out LSEventProcessStatus previousStatus) {
+        System.Console.WriteLine($"[LSEventHandlerNode] Updating node {NodeID} status from [{_nodeStatus}] to [{status}].");
+        previousStatus = _nodeStatus;
+        if (status == LSEventProcessStatus.UNKNOWN) {
+            System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler attempted to update status to UNKNOWN.");
+            return false; // never update to UNKNOWN
+        }
+        if (previousStatus == LSEventProcessStatus.UNKNOWN || previousStatus == LSEventProcessStatus.WAITING) {
+            _nodeStatus = status;
+            System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler was updated successfully to {status}.");
+            return true;
+        }
+        return false;
+    }
+
+    LSEventProcessStatus ILSEventNode.Process(LSEventProcessContext context, params string[]? nodes) {
+        // we should not need to check for the condition because only handler nodes that meet the condition are processed
+
+        // node handler exit condition (because when WAITING we keep processing it)
+        if (_nodeStatus != LSEventProcessStatus.UNKNOWN && _nodeStatus != LSEventProcessStatus.WAITING) {
+            System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler already has final status {_nodeStatus}");
+            return _nodeStatus; // already completed
         }
 
-        foreach (LSEventCondition condition in Conditions.GetInvocationList()) {
-            if (!condition(context.Event, this)) {
-                return LSEventProcessStatus.SUCCESS; // skip if any conditions are not met
-            }
-        }
         // increment execution count indicating the handler was actually executed, doesn't matter the result, it always is recorded.
         // ExecutionCount uses _baseNode if available so the count is "shared" between clones
-        ExecutionCount++;
+        // this may change in the future
 
-        var result = _handler(context.Event, this);
-        if (!context.registerProcessStatus(key, result, out var updatedStatus)) {
-            // if registration failed it means the result was was already in a final state (SUCCESS, FAILURE or CANCELLED) and cannot be updated
-            // meaning it was updated by the Resume/Fail logic before we could register the result
-            // in this case we return the updated status.
-            return updatedStatus;
+        var nodeStatus = _handler(context.Event, this);
+        ExecutionCount++;
+        // we only update the node status if it was UNKNOWN, when _nodeStatus is not UNKNOWN it means Resume/Fail was already called
+        _nodeStatus = (_nodeStatus == LSEventProcessStatus.UNKNOWN) ? nodeStatus : _nodeStatus;
+        System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler executed with result [{nodeStatus}], _nodeStatus: {_nodeStatus}. Execution count is now {ExecutionCount}.");
+
+        return _nodeStatus;
+    }
+    LSEventProcessStatus ILSEventNode.Resume(LSEventProcessContext context, params string[]? nodes) {
+
+        if (updateNodeStatus(LSEventProcessStatus.SUCCESS, out var previousStatus)) {
+            if (previousStatus != LSEventProcessStatus.WAITING) {
+                System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler resume called but previous status was [{previousStatus}], expected WAITING.");
+                return _nodeStatus; // resume only works if previous status was WAITING, the original context.Process caller will probably handle this
+            }
+            System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler was resumed from [{previousStatus}] to [{LSEventProcessStatus.SUCCESS}].");
+            // we have to make sure we are continuing the context process.
+            return context.Process();
         }
-        // this means the result was successfully registered and we return the result of the handler
-        return result;
+        System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler resume had no effect, current status is [{_nodeStatus}]. nodes: {string.Join(", ", nodes ?? System.Array.Empty<string>())}");
+        // if resume had no effect, return current status
+        return _nodeStatus;
+    }
+    LSEventProcessStatus ILSEventNode.Fail(LSEventProcessContext context, params string[]? nodes) {
+        if (updateNodeStatus(LSEventProcessStatus.FAILURE, out var previousStatus)) {
+            System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler was failed from [{previousStatus}] to [{LSEventProcessStatus.FAILURE}].");
+            return context.Process();
+        }
+        System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler fail had no effect, current status is [{_nodeStatus}]. nodes: {string.Join(", ", nodes ?? System.Array.Empty<string>())}");
+
+        return _nodeStatus;
+    }
+    void ILSEventNode.Cancel(LSEventProcessContext context) {
+        System.Console.WriteLine($"[LSEventHandlerNode] Cancelling node {NodeID}.");
+        _nodeStatus = LSEventProcessStatus.CANCELLED;
     }
 
     public ILSEventNode Clone() {

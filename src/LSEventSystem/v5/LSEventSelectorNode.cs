@@ -6,7 +6,9 @@ namespace LSUtils.EventSystem;
 /// </summary>
 public class LSEventSelectorNode : ILSEventLayerNode {
     protected Dictionary<string, ILSEventNode> _children = new();
+    ILSEventNode? _currentChild;
     protected Stack<ILSEventNode> _processStack = new();
+    List<ILSEventNode> _availableChildren = new();
     protected bool _isProcessing = false;
     int ILSEventNode.ExecutionCount => throw new System.NotImplementedException("ExecutionCount is tracked only in handler node.");
 
@@ -58,124 +60,118 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     }
     ILSEventNode ILSEventNode.Clone() => Clone();
 
-    public LSEventProcessStatus Process(LSEventProcessContext context) {
-        System.Console.WriteLine($"[LSEventSelectorNode] Processing selector node {NodeID} with {_children.Count} children.");
-        // check if the context is not cancelled, this also should not be needed but just to prevent weird behaviour
-        if (context.IsCancelled) return LSEventProcessStatus.CANCELLED;
+    public LSEventProcessStatus GetNodeStatus() {
+        // Selector node status logic:
+        // - If any child is in SUCCESS, the selector is in SUCCESS.
+        // - If all children are in FAILURE, the selector is in FAILURE.
+        // - If any child is in WAITING, the selector is in WAITING.
+        // - If any child is in CANCELLED, the selector is in CANCELLED.
+        // - if there are no children, the selector is in SUCCESS.
+        if (_children.Count == 0) return LSEventProcessStatus.SUCCESS;
 
-        // dont check node conditions, if the condition was suposed to not be met, the parent node should have skipped this node already
-        // foreach (LSEventCondition condition in Conditions.GetInvocationList()) { //keeping this commented for clarity
-        //     if (!condition(context.Event, this)) {
-        //         return LSEventProcessStatus.SUCCESS; // skip if any conditions are not met
-        //     }
-        // }
+        // check for CANCELLED has the highest priority
+        if (_availableChildren.Any(c => c.GetNodeStatus() == LSEventProcessStatus.CANCELLED)) {
+            return LSEventProcessStatus.CANCELLED; // we have nothing to process anymore
+        }
+        // check for SUCCESS has the second highest priority
+        if (_availableChildren.Any(c => c.GetNodeStatus() == LSEventProcessStatus.SUCCESS)) {
+            return LSEventProcessStatus.SUCCESS; // we found a successful child
+        }
+        // check for WAITING has the third highest priority
+        if (_availableChildren.Any(c => c.GetNodeStatus() == LSEventProcessStatus.WAITING)) {
+            return LSEventProcessStatus.WAITING; // we have at least one child that is still waiting
+        }
+        // check if all children have failed, if so the selector is FAILURE, otherwise cannot be determined
+        return _availableChildren.Count == _availableChildren.Count(c => c.GetNodeStatus() == LSEventProcessStatus.FAILURE) ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.UNKNOWN;
+    }
+    public LSEventProcessStatus Fail(LSEventProcessContext context, params string[]? nodes) {
+        // selector can only fail one node at a time so we don't need to care about nodes we just fail the first 
 
-        // create a stack to process children in order, this stack cannot be re-created if already processing
-        // if for some reason this selector is called again and it should not been processed yet this means that the parent node should have cloned this node.
+        var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSEventProcessStatus.WAITING).ToList().FirstOrDefault();
+        if (waitingChild != null) {
+            System.Console.WriteLine($"[LSEventSelectorNode] Failing waiting child node {waitingChild.NodeID}.");
+            return waitingChild.Fail(context, nodes); //we propagate the fail to the waiting child
+        }
+        System.Console.WriteLine($"[LSEventSelectorNode] No child node is in WAITING state, cannot fail selector node {NodeID}.");
+
+        return GetNodeStatus(); // we return the current selector status.
+    }
+    public LSEventProcessStatus Resume(LSEventProcessContext context, params string[]? nodes) {
+        // selector can only resume one node at a time so we don't need to care about nodes we just resume the first 
+
+        var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSEventProcessStatus.WAITING).ToList().FirstOrDefault();
+        if (waitingChild != null) {
+            System.Console.WriteLine($"[LSEventSelectorNode] Resuming waiting child node {waitingChild.NodeID}.");
+            return waitingChild.Resume(context, nodes); //we propagate the resume to the waiting child
+        }
+        System.Console.WriteLine($"[LSEventSelectorNode] No child node is in WAITING state, cannot resume selector node {NodeID}.");
+        return GetNodeStatus(); //we return the current selector status, it may be SUCCESS if any child succeeded
+    }
+    public void Cancel(LSEventProcessContext context) {
+        _currentChild?.Cancel(context);
+    }
+
+
+    public LSEventProcessStatus Process(LSEventProcessContext context, params string[]? nodes) {
+        if (LSEventConditions.IsMet(context.Event, this)) return LSEventProcessStatus.SUCCESS;
+
+        var selectorStatus = GetNodeStatus();
+
+        System.Console.WriteLine($"[LSEventSelectorNode] Processing selector node {NodeID} with {_children.Count} children. Current status: [{selectorStatus}]");
+
+        // we should not need to check for CANCELLED. this is handled when calling the child.Process
+
+        // create a stack to process children in order, this stack cannot be re-created after the node is processed.
+        // so _isProcessing can never be set to false again after the first initialization
         if (_isProcessing == false) {
-            // Initialize the stack with children ordered by Priority (critical first) and Order (lowest first)
-            _processStack = new Stack<ILSEventNode>(_children.Values.OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse());
+            // will only process children that meet conditions
+            // children ordered by Priority (critical first) and Order (lowest first)
+            _availableChildren = _children.Values.Where(c => LSEventConditions.IsMet(context.Event, c)).OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
+            // Initialize the stack 
+            _processStack = new Stack<ILSEventNode>(_availableChildren);
             _isProcessing = true;
-            System.Console.WriteLine($"[LSEventSelectorNode] Initialized processing stack for node {NodeID}.");
-        } else {
-            System.Console.WriteLine($"[LSEventSelectorNode] Resuming processing stack for node {NodeID}.");
-            // we do need to re-check if any child was set to SUCCESS while we were waiting
-            if (_children.Values.Any(c => {
-                var childKey = context.getNodeResultKey(c, this);
-                context.registerProcessStatus(childKey, LSEventProcessStatus.UNKNOWN, out var existingStatus);
-                return existingStatus == LSEventProcessStatus.SUCCESS;
-            })) {
-                System.Console.WriteLine($"[LSEventSelectorNode] A child node was already set to SUCCESS while waiting, selector node {NodeID} returning SUCCESS.");
-                _processStack.Clear();
-                return LSEventProcessStatus.SUCCESS;
-            }
+            if (_processStack.Count > 0) _currentChild = _processStack.Pop(); // set the current node to the first child
+            System.Console.WriteLine($"[LSEventSelectorNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()}.");
+        }
+        // success condition: any child has succeeded or no children to process
+        if (_currentChild == null || _processStack.Count == 0) {
+            // no children to process, we are done
+            System.Console.WriteLine($"[LSEventSelectorNode] No children to process for node {NodeID}, checking final status. selectorStatus {selectorStatus}");
+            return selectorStatus; // return selector status
         }
 
-        // while there are children in the stack
-        while (_processStack.Count > 0) {
-            // this whole test should not be needed
-            // Resume can only be called during child.Process(context) or after it finishes (and the whole context.Process already is in a "waiting" status)
-            // this means that no child should need to re-check if other child has SUCCESS status
-            // 
-            // foreach (var childNode in _children.Values.OrderByDescending(c => c.Priority).ThenBy(c => c.Order)) {
-            //     var childNodeKey = context.getNodeResultKey(childNode, this);
-            //     if (context.registerProcessStatus(childNodeKey, LSEventProcessStatus.UNKNOWN, out var existingStatus)) {
-            //         // registrationResult true means status was updated, shouldn't happen with UNKNOWN
-            //         continue;
-            //     } else if (existingStatus == LSEventProcessStatus.SUCCESS) {
-            //         // Child was resumed and is now SUCCESS, selector should succeed
-            //         _processStack.Clear();
-            //         return LSEventProcessStatus.SUCCESS;
-            //     } else if (existingStatus == LSEventProcessStatus.CANCELLED) {
-            //         // Child was cancelled
-            //         _processStack.Clear();
-            //         return LSEventProcessStatus.CANCELLED;
-            //     }
-            // }
-
-            var child = _processStack.Pop();
-            System.Console.WriteLine($"[LSEventSelectorNode] Processing child node {child.NodeID}.");
-
-            // check child condition, if one is not met skip this child (all must be true)
-            bool shouldSkip = false;
-            foreach (LSEventCondition condition in child.Conditions.GetInvocationList()) {
-                if (!condition(context.Event, child)) {
-                    shouldSkip = true;
-                    break;
-                }
-            }
-            if (shouldSkip) {
-                continue; // skip to next child
-            }
-
-            // create child NodeResultKey and save in the context (should not exist yet) with LSEventProcessStatus.UNKNOWN status
-            var childKey = context.getNodeResultKey(child, this);
-            if (context.registerProcessStatus(childKey, LSEventProcessStatus.UNKNOWN, out var childStatusExists) == false) {
-                System.Console.WriteLine($"[LSEventSelectorNode] Child node {child.NodeID} status: {childStatusExists}.");
-                if (childStatusExists != LSEventProcessStatus.UNKNOWN) return childStatusExists;
-            }
+        do {
+            System.Console.WriteLine($"[LSEventSelectorNode] Processing child node {_currentChild.NodeID}.");
+            // no more need to check for condition, we already filtered children that meet conditions during stack initialization
 
             // process the child
-            var childStatus = child.Process(context);
-            System.Console.WriteLine($"[LSEventSelectorNode] Child node {child.NodeID} processed with status {childStatus}.");
-
-            // check the context LSEventProcessStatus for this child:
-            // if context result is different from UNKNOWN, return with the context result (early exit) 
-            // **this means Resume/Fail was called while processing**
-            if (context.registerProcessStatus(childKey, childStatus, out var updatedStatus)) {
-                System.Console.WriteLine($"[LSEventSelectorNode] Child node {child.NodeID} status updated to {updatedStatus} by Resume/Fail.");
-                // update context results failed, meaning the child was resumed/failed during the process (and before the return childStatus)
-                // in this case we use the updated status from the context results
-                childStatus = updatedStatus;
-                // can only be SUCCESS or FAILURE here
-                if (childStatus != LSEventProcessStatus.SUCCESS && childStatus != LSEventProcessStatus.FAILURE) {
-                    System.Console.WriteLine($"[LSEventSelectorNode] Warning: Child node {child.NodeID} in unexpected state {childStatus} after resume/fail.");
-                }
+            var currentChildStatus = _currentChild.Process(context, _currentChild.NodeID); //child status will only be used to update the selector state
+            selectorStatus = GetNodeStatus();
+            if (currentChildStatus == LSEventProcessStatus.WAITING) return LSEventProcessStatus.WAITING;
+            if (selectorStatus == LSEventProcessStatus.WAITING) {
+                // this should never happen because childStatus is WAITING should have been caught above
+                System.Console.WriteLine($"[LSEventSelectorNode] Warning: Selector node {NodeID} is in WAITING state but child {_currentChild.NodeID} is not WAITING.");
+                return LSEventProcessStatus.WAITING;
+            }
+            if (currentChildStatus == LSEventProcessStatus.SUCCESS || selectorStatus == LSEventProcessStatus.CANCELLED) {
+                // exit condition: child succeeded (selector success) or cancelled
+                _processStack.Clear();
+                _currentChild = null;
+                return selectorStatus; // propagate the selector status
             }
 
-            if (context.IsCancelled) {
-                // If cancelled during processing, stop and return CANCELLED
-                _processStack.Clear();
-                return LSEventProcessStatus.CANCELLED;
+            System.Console.WriteLine($"[LSEventSelectorNode] Child node {_currentChild.NodeID} processed with status {currentChildStatus} selectorStatus: {selectorStatus}.");
+            // get the next node if child failed (continue trying other children)
+            if (_processStack.Count > 0) {
+                _currentChild = _processStack.Pop();
+            } else {
+                _currentChild = null; // no more children
             }
-            System.Console.WriteLine($"[LSEventSelectorNode] Child node {child.NodeID} final status {childStatus}.");
-            // if child result returns SUCCESS, WAITING, CANCELLED, return the child result
-            if (childStatus == LSEventProcessStatus.SUCCESS) {
-                // Clear the stack but keep _isProcessing to prevent reinitialization
-                _processStack.Clear();
-                return LSEventProcessStatus.SUCCESS; // Stop processing and return success
-            } else if (childStatus == LSEventProcessStatus.WAITING) {
-                return LSEventProcessStatus.WAITING; // Bubble up waiting
-            } else if (childStatus == LSEventProcessStatus.CANCELLED) {
-                // Clear the stack and return cancelled if child was cancelled
-                _processStack.Clear();
-                return LSEventProcessStatus.CANCELLED; // Stop processing and return cancelled
-            }
-            // if child result returns FAILURE, continue to next child
-        }
+        } while (_currentChild != null);
 
-        // If all children are processed without success, return FAILURE or if is empty return SUCCESS
-        return _children.Count == 0 ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE;
+        // reach this point means that all children failed
+        System.Console.WriteLine($"[LSEventSelectorNode] Selector node {NodeID} finished processing all children. All failed, marking as FAILURE.");
+        return LSEventProcessStatus.FAILURE; // all children failed, selector fails
     }
 
     public static LSEventSelectorNode Create(string nodeID, int order, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
