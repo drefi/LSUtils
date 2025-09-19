@@ -2,32 +2,125 @@ using System.Collections.Generic;
 
 namespace LSUtils.EventSystem;
 
+/// <summary>
+/// Provides a fluent API for building event processing hierarchies using the builder pattern.
+/// </summary>
+/// <remarks>
+/// <para><strong>Builder Pattern Implementation:</strong></para>
+/// <list type="bullet">
+/// <item><description><strong>Fluent Interface</strong>: Method chaining enables intuitive hierarchy construction</description></item>
+/// <item><description><strong>Context Management</strong>: Tracks current position in the hierarchy for nested operations</description></item>
+/// <item><description><strong>Safe Navigation</strong>: Prevents invalid operations through state validation</description></item>
+/// <item><description><strong>Immutable Product</strong>: Build() produces independent hierarchy copies</description></item>
+/// </list>
+/// 
+/// <para><strong>Dual Construction Modes:</strong></para>
+/// <list type="bullet">
+/// <item><description><strong>Global Mode</strong>: Starts with no root context, first layer node becomes root</description></item>
+/// <item><description><strong>Event Mode</strong>: Initialized with existing root node, operates on cloned copy</description></item>
+/// <item><description><strong>Mode Detection</strong>: Automatically determined by constructor parameters</description></item>
+/// <item><description><strong>Context Isolation</strong>: Event mode ensures original hierarchy remains unchanged</description></item>
+/// </list>
+/// 
+/// <para><strong>Hierarchy Construction Features:</strong></para>
+/// <list type="bullet">
+/// <item><description><strong>Layer Nodes</strong>: Supports creation of Sequence, Selector, and Parallel nodes</description></item>
+/// <item><description><strong>Handler Nodes</strong>: Execute() method adds leaf handler nodes with associated delegates</description></item>
+/// <item><description><strong>Sub-Context Navigation</strong>: Enter() and End() methods for nested hierarchy construction</description></item>
+/// <item><description><strong>Node Replacement</strong>: Automatic replacement of existing nodes with same ID</description></item>
+/// </list>
+/// 
+/// <para><strong>Fluent API Design:</strong></para>
+/// <list type="bullet">
+/// <item><description><strong>Method Chaining</strong>: All methods return LSEventContextBuilder for continuous fluent operation</description></item>
+/// <item><description><strong>Contextual Operations</strong>: Operations apply to current node in the hierarchy navigation</description></item>
+/// <item><description><strong>Validation</strong>: Runtime checks prevent invalid operations like adding handlers without layer context</description></item>
+/// <item><description><strong>Order Management</strong>: Automatic order assignment based on child addition sequence</description></item>
+/// </list>
+/// 
+/// <para><strong>Use Cases:</strong></para>
+/// <list type="bullet">
+/// <item><description><strong>Dynamic Hierarchy Creation</strong>: Runtime construction of event processing trees</description></item>
+/// <item><description><strong>Configuration-Based Setup</strong>: Building hierarchies from external configuration data</description></item>
+/// <item><description><strong>Template Expansion</strong>: Creating variations of base hierarchies for different events</description></item>
+/// <item><description><strong>Testing Support</strong>: Simplified hierarchy creation for unit tests</description></item>
+/// </list>
+/// </remarks>
 public class LSEventContextBuilder {
+    /// <summary>
+    /// The current node context for hierarchy operations. Null when in global mode before first layer node creation.
+    /// </summary>
     private ILSEventLayerNode? _currentNode;
+    
+    /// <summary>
+    /// The root node of the hierarchy being built. Used to return the complete hierarchy from Build().
+    /// </summary>
     private ILSEventLayerNode? _rootNode; // Tracks the root node to return on Build()
 
-    // Constructor for global mode
+    /// <summary>
+    /// Initializes a new builder in global mode with no existing hierarchy.
+    /// </summary>
+    /// <remarks>
+    /// <para><strong>Global Mode Construction:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>No Root Context</strong>: Starts with null current and root nodes</description></item>
+    /// <item><description><strong>First Layer Node</strong>: The first Sequence/Selector/Parallel call establishes the root</description></item>
+    /// <item><description><strong>Clean Slate</strong>: Provides completely fresh hierarchy construction</description></item>
+    /// </list>
+    /// </remarks>
     internal LSEventContextBuilder() {
         //when creating a "global" context we start with no root context
     }
 
-    // Constructor for event mode
+    /// <summary>
+    /// Initializes a new builder in event mode with an existing root node hierarchy.
+    /// </summary>
+    /// <param name="rootNode">The existing root node to use as the base for building. Will be cloned to preserve original.</param>
+    /// <remarks>
+    /// <para><strong>Event Mode Construction:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Cloned Base</strong>: Creates independent copy of provided root node hierarchy</description></item>
+    /// <item><description><strong>Current Context</strong>: Sets both current and root to the cloned hierarchy</description></item>
+    /// <item><description><strong>Isolation</strong>: Original hierarchy remains unchanged during building operations</description></item>
+    /// <item><description><strong>Extension Ready</strong>: Ready to add children or navigate into existing structure</description></item>
+    /// </list>
+    /// </remarks>
     internal LSEventContextBuilder(ILSEventLayerNode rootNode) {
         _currentNode = _rootNode = rootNode.Clone();
     }
 
     /// <summary>
-    /// Create a handler node in the current context.
-    /// If no layer node is active, an exception will be thrown.
-    /// If a node with the same ID already exists in the current context and override is set to true, it will replace the existing node.
-    /// If the removed node is not a handler node, an exception will be thrown.
+    /// Creates a handler node in the current layer context for executing event processing logic.
     /// </summary>
-    /// <param name="nodeID">The ID of the node to remove.</param>
-    /// <param name="handler">The event handler to associate with the node.</param>
-    /// <param name="priority">The priority of the event handler.</param>
-    /// <param name="conditions">The conditions under which the event handler will be executed.</param>
-    /// <returns> The current instance of the context builder.</returns>
-    /// <exception cref="LSException"></exception>
+    /// <param name="nodeID">Unique identifier for the handler node within the current layer.</param>
+    /// <param name="handler">The event handler delegate to execute when this node processes.</param>
+    /// <param name="priority">Processing priority level (default: NORMAL).</param>
+    /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
+    /// <returns>The current builder instance for method chaining.</returns>
+    /// <exception cref="LSException">Thrown when no layer context exists or attempting to override non-handler node.</exception>
+    /// <remarks>
+    /// <para><strong>Handler Node Creation:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Context Requirement</strong>: Must have active layer node (Sequence/Selector/Parallel) context</description></item>
+    /// <item><description><strong>Automatic Ordering</strong>: Order assigned based on current number of children in the layer</description></item>
+    /// <item><description><strong>Node Replacement</strong>: Existing handler nodes with same ID are automatically replaced</description></item>
+    /// <item><description><strong>Type Safety</strong>: Cannot override non-handler nodes to maintain hierarchy integrity</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Fluent API Integration:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Method Chaining</strong>: Returns builder instance for continued fluent operations</description></item>
+    /// <item><description><strong>Context Preservation</strong>: Current layer context remains unchanged after handler addition</description></item>
+    /// <item><description><strong>Validation</strong>: Immediate validation prevents invalid hierarchy construction</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Handler Configuration:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Delegate Association</strong>: Links specific event handler delegate to the node</description></item>
+    /// <item><description><strong>Priority Assignment</strong>: Controls execution order within parent layer node</description></item>
+    /// <item><description><strong>Condition Attachment</strong>: Optional conditions control when handler executes</description></item>
+    /// </list>
+    /// </remarks>
     public LSEventContextBuilder Execute(string nodeID, LSEventHandler handler, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         if (_currentNode == null) throw new LSException("No current context to add the handler. Make sure to start with a layer node (Sequence, Selector, Parallel).");
         // Check if a node with the same ID already exists
@@ -45,6 +138,20 @@ public class LSEventContextBuilder {
         return this;
     }
 
+    /// <summary>
+    /// Removes a child node from the current layer context by its identifier.
+    /// </summary>
+    /// <param name="nodeID">The identifier of the child node to remove.</param>
+    /// <returns>The current builder instance for method chaining.</returns>
+    /// <exception cref="LSException">Thrown when no layer context exists for the removal operation.</exception>
+    /// <remarks>
+    /// <para><strong>Safe Removal Logic:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>No-Op for Missing Nodes</strong>: Attempting to remove non-existent nodes does not throw exceptions</description></item>
+    /// <item><description><strong>Context Requirement</strong>: Must have active layer node context to perform removal</description></item>
+    /// <item><description><strong>Fluent Continuation</strong>: Returns builder for continued method chaining</description></item>
+    /// </list>
+    /// </remarks>
     public LSEventContextBuilder RemoveChild(string nodeID) {
         if (_currentNode == null) throw new LSException("No current context to remove the node from. Make sure to start with a layer node (Sequence, Selector, Parallel).");
         // Removing a non-existent node should be a no-op (no exception)
