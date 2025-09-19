@@ -73,7 +73,7 @@ public class LSPhaseHandlerEntry : IHandlerEntry {
     /// Evaluated at runtime before handler execution. If false, handler is skipped.
     /// Defaults to always true if not specified during registration.
     /// </summary>
-    public Func<ILSEvent, IHandlerEntry, bool> Condition { get; internal set; } = (evt, entry) => true;
+    public Func<ILSEvent_obsolete, IHandlerEntry, bool> Condition { get; internal set; } = (evt, entry) => true;
     
     /// <summary>
     /// Optional human-readable description of what this handler does.

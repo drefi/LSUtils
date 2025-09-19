@@ -31,8 +31,8 @@ public class LSEventProcessContext {
     /// The event being processed by this context.
     /// Contains all event data and metadata needed for processing decisions.
     /// </summary>
-    /// <value>The LSEvent instance being processed. This property is read-only after construction.</value>
-    public LSEvent Event { get; }
+    /// <value>The ILSEvent instance being processed. This property is read-only after construction.</value>
+    public ILSEvent Event { get; }
 
     // NOTE: giving the capability to create a complex node structure, the system won't need to have callbacks;
     // any sort desired behaviour should be possible using nodes only.
@@ -74,7 +74,7 @@ public class LSEventProcessContext {
     /// This constructor is internal as contexts are typically created by the event system infrastructure
     /// rather than directly by user code. The context starts in a non-cancelled state.
     /// </remarks>
-    internal LSEventProcessContext(LSEvent @event, ILSEventNode rootNode) {
+    internal LSEventProcessContext(ILSEvent @event, ILSEventNode rootNode) {
         Event = @event;
         _rootNode = rootNode;
     }

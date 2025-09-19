@@ -67,7 +67,7 @@ public class LSEventOptions {
     }
 }
 
-public class LSEventOptions<TEvent> : LSEventOptions where TEvent : ILSEvent {
+public class LSEventOptions<TEvent> : LSEventOptions where TEvent : ILSEvent_obsolete {
     public LSEventOptions(LSDispatcher? dispatcher, object? ownerInstance = null) : base(dispatcher, ownerInstance) { }
     public LSEventOptions<TEvent> WithCallback(System.Func<LSEventRegister<TEvent>, LSEventRegister<TEvent>> configureRegister) {
         var register = configureRegister(new LSEventRegister<TEvent>());

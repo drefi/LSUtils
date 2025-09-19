@@ -27,7 +27,7 @@ namespace LSUtils.EventSystem;
 /// - Registration operations are thread-safe via dispatcher
 /// </summary>
 /// <typeparam name="TPhase">The specific phase state type this handler will execute in</typeparam>
-public class LSPhaseHandlerRegister<TEvent, TPhase> where TPhase : LSEventBusinessState.PhaseState where TEvent : ILSEvent {
+public class LSPhaseHandlerRegister<TEvent, TPhase> where TPhase : LSEventBusinessState.PhaseState where TEvent : ILSEvent_obsolete {
 
     /// <summary>
     /// The type of phase this handler will execute in.
@@ -51,7 +51,7 @@ public class LSPhaseHandlerRegister<TEvent, TPhase> where TPhase : LSEventBusine
     /// Condition function determining if the handler should execute.
     /// Evaluated at runtime based on event state and handler configuration.
     /// </summary>
-    protected Func<ILSEvent, IHandlerEntry, bool> _condition = (evt, entry) => true;
+    protected Func<ILSEvent_obsolete, IHandlerEntry, bool> _condition = (evt, entry) => true;
 
     /// <summary>
     /// Indicates whether this builder has already been used to create a handler entry.
@@ -112,7 +112,7 @@ public class LSPhaseHandlerRegister<TEvent, TPhase> where TPhase : LSEventBusine
     /// <exception cref="LSArgumentNullException">Thrown when condition is null</exception>
     public LSPhaseHandlerRegister<TEvent, TPhase> When(Func<TEvent, IHandlerEntry, bool> condition) {
         if (condition == null) throw new LSArgumentNullException(nameof(condition));
-        _condition += new Func<ILSEvent, IHandlerEntry, bool>((evt, entry) => condition((TEvent)evt, entry));
+        _condition += new Func<ILSEvent_obsolete, IHandlerEntry, bool>((evt, entry) => condition((TEvent)evt, entry));
         return this;
     }
 
@@ -194,7 +194,7 @@ public class LSPhaseHandlerRegister<TEvent, TPhase> where TPhase : LSEventBusine
     /// </summary>
     public LSPhaseHandlerRegister<TEvent, TPhase> CancelIf(Func<TEvent, IHandlerEntry, bool> condition) {
         if (condition == null) throw new LSArgumentNullException(nameof(condition));
-        _condition = new Func<ILSEvent, IHandlerEntry, bool>((evt, entry) => condition((TEvent)evt, entry));
+        _condition = new Func<ILSEvent_obsolete, IHandlerEntry, bool>((evt, entry) => condition((TEvent)evt, entry));
         return Handler((ctx) => HandlerProcessResult.CANCELLED).WithPriority(LSPriority.CRITICAL);
     }
 

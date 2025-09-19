@@ -73,7 +73,7 @@ public interface IHandlerEntry {
     /// Performance: Should be lightweight as evaluated for every handler.
     /// Default: Returns true (always execute) if not specified.
     /// </summary>
-    Func<ILSEvent, IHandlerEntry, bool> Condition { get; }
+    Func<ILSEvent_obsolete, IHandlerEntry, bool> Condition { get; }
     
     /// <summary>
     /// Number of times this handler has been executed.

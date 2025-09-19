@@ -50,7 +50,7 @@ public class LSEventProcessContext_Legacy {
     /// The event being processed through the state machine.
     /// Contains all event data and provides access to event metadata.
     /// </summary>
-    public ILSEvent Event { get; internal set; }
+    public ILSEvent_obsolete Event { get; internal set; }
 
     /// <summary>
     /// Read-only collection of all handlers available for this event.
@@ -85,7 +85,7 @@ public class LSEventProcessContext_Legacy {
     /// <param name="dispatcher">The dispatcher for handler management</param>
     /// <param name="event">The event to process</param>
     /// <param name="handlers">Complete collection of handlers for this event</param>
-    protected LSEventProcessContext_Legacy(LSDispatcher dispatcher, ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
+    protected LSEventProcessContext_Legacy(LSDispatcher dispatcher, ILSEvent_obsolete @event, IReadOnlyList<IHandlerEntry> handlers) {
         Event = @event;
         Dispatcher = dispatcher;
         Handlers = handlers;
@@ -231,7 +231,7 @@ public class LSEventProcessContext_Legacy {
     /// <param name="event">The event to process through the state machine</param>
     /// <param name="handlers">Complete handler collection for this event</param>
     /// <returns>A fully initialized EventSystemContext ready for processing</returns>
-    internal static LSEventProcessContext_Legacy Create(LSDispatcher dispatcher, ILSEvent @event, IReadOnlyList<IHandlerEntry> handlers) {
+    internal static LSEventProcessContext_Legacy Create(LSDispatcher dispatcher, ILSEvent_obsolete @event, IReadOnlyList<IHandlerEntry> handlers) {
         return new LSEventProcessContext_Legacy(dispatcher, @event, handlers);
     }
 }

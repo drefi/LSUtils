@@ -131,7 +131,9 @@ public class LSEventContextBuilder {
     /// </list>
     /// </remarks>
     public LSEventContextBuilder Execute(string nodeID, LSEventHandler handler, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
-        if (_currentNode == null) throw new LSException("No current context to add the handler. Make sure to start with a layer node (Sequence, Selector, Parallel).");
+        if (_currentNode == null) {
+            _currentNode = LSEventSequenceNode.Create("base", 0); // create a root sequence node if none exists
+        }
         // Check if a node with the same ID already exists
         if (tryGetContextChild(nodeID, out var existingNode)) {
             // Node with same ID already exists
@@ -170,28 +172,6 @@ public class LSEventContextBuilder {
     }
     
     /// <summary>
-    /// Delegate type for sub-context building operations that allow nested hierarchy construction.
-    /// </summary>
-    /// <param name="subBuilder">A builder instance initialized with the parent node for nested operations.</param>
-    /// <returns>The builder instance after performing nested operations for method chaining.</returns>
-    /// <remarks>
-    /// <para><strong>Sub-Context Pattern:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Isolated Building</strong>: The subBuilder operates on a cloned copy of the parent node</description></item>
-    /// <item><description><strong>Fluent Operations</strong>: Allows method chaining within the sub-context scope</description></item>
-    /// <item><description><strong>Automatic Integration</strong>: Results are automatically merged back into the parent hierarchy</description></item>
-    /// <item><description><strong>Type Safety</strong>: Ensures consistent builder pattern throughout nested operations</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Usage Example:</strong></para>
-    /// <code>
-    /// builder.Sequence("parentSeq", sub => sub
-    ///     .Execute("handler1", handler1)
-    ///     .Execute("handler2", handler2))
-    /// </code>
-    /// </remarks>
-    public delegate LSEventContextBuilder SubContextBuilder(LSEventContextBuilder subBuilder);
-    /// <summary>
     /// Creates or navigates to a sequence node in the current context with support for nested hierarchy construction.
     /// </summary>
     /// <param name="nodeID">Unique identifier for the sequence node within the current context.</param>
@@ -225,7 +205,7 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Sibling Support</strong>: Enables creation of sibling nodes when using sub-context pattern</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Sequence(string nodeID, SubContextBuilder? subContextBuilder = null, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Sequence(string nodeID, LSEventSubContextBuilder? subContextBuilder = null, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -284,7 +264,7 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Sibling Support</strong>: Enables creation of sibling nodes when using sub-context pattern</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Selector(string nodeID, SubContextBuilder? subContextBuilder = null, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Selector(string nodeID, LSEventSubContextBuilder? subContextBuilder = null, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -353,7 +333,7 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Order Preservation</strong>: Maintains original order when replacing existing nodes</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Parallel(string nodeID, SubContextBuilder? subContextBuilder = null, int? numRequiredToSucceed = 0, int? numRequiredToFailure = 0, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Parallel(string nodeID, LSEventSubContextBuilder? subContextBuilder = null, int? numRequiredToSucceed = 0, int? numRequiredToFailure = 0, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -420,7 +400,7 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Seamless Integration</strong>: Built result is integrated using standard merge logic</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Merge(ILSEventLayerNode subLayer, SubContextBuilder? subContextBuilder = null) {
+    public LSEventContextBuilder Merge(ILSEventLayerNode subLayer, LSEventSubContextBuilder? subContextBuilder = null) {
         if (subLayer == null) throw new LSArgumentNullException(nameof(subLayer), "Sub-layer node cannot be null.");
         // If there is no current context, allow seeding with a non-empty sub-layer
         if (_currentNode == null) {

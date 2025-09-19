@@ -39,7 +39,7 @@ namespace LSUtils.EventSystem;
 /// - Registration operations are thread-safe via dispatcher
 /// </summary>
 /// <typeparam name="TEvent">The specific event type this register configures handlers for</typeparam>
-public class LSEventRegister<TEvent> where TEvent : ILSEvent {
+public class LSEventRegister<TEvent> where TEvent : ILSEvent_obsolete {
     /// <summary>
     /// Collection of handler entries configured through the fluent API.
     /// Accumulates both phase and state handlers for batch registration.

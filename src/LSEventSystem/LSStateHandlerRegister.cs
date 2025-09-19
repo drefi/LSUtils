@@ -41,7 +41,7 @@ namespace LSUtils.EventSystem;
 /// - Registration operations are thread-safe via dispatcher
 /// </summary>
 /// <typeparam name="TState">The specific state type this handler will execute in</typeparam>
-public class LSStateHandlerRegister<TEvent, TState> where TState : IEventProcessState where TEvent : ILSEvent {
+public class LSStateHandlerRegister<TEvent, TState> where TState : IEventProcessState where TEvent : ILSEvent_obsolete {
 
     /// <summary>
     /// Priority level for handler execution within the state.
@@ -59,14 +59,14 @@ public class LSStateHandlerRegister<TEvent, TState> where TState : IEventProcess
     /// The handler action that will execute when the event enters this state.
     /// Takes the event as parameter for state-specific processing.
     /// </summary>
-    protected LSAction<ILSEvent>? _handler = null;
+    protected LSAction<ILSEvent_obsolete>? _handler = null;
 
     /// <summary>
     /// Condition function determining if the handler should execute.
     /// Evaluated at runtime based on event state and handler configuration.
     /// Defaults to always true so that handlers are executed unless explicitly skipped.
     /// </summary>
-    protected Func<ILSEvent, IHandlerEntry, bool> _condition = (evt, entry) => true;
+    protected Func<ILSEvent_obsolete, IHandlerEntry, bool> _condition = (evt, entry) => true;
 
     /// <summary>
     /// Indicates whether this builder has already been used to create a handler entry.
@@ -122,7 +122,7 @@ public class LSStateHandlerRegister<TEvent, TState> where TState : IEventProcess
     /// <exception cref="LSArgumentNullException">Thrown when condition is null</exception>
     public LSStateHandlerRegister<TEvent, TState> When(Func<TEvent, IHandlerEntry, bool> condition) {
         if (condition == null) throw new LSArgumentNullException(nameof(condition));
-        _condition += new Func<ILSEvent, IHandlerEntry, bool>((evt, entry) => condition((TEvent)evt, entry));
+        _condition += new Func<ILSEvent_obsolete, IHandlerEntry, bool>((evt, entry) => condition((TEvent)evt, entry));
         return this;
     }
 
@@ -153,7 +153,7 @@ public class LSStateHandlerRegister<TEvent, TState> where TState : IEventProcess
     /// <param name="handler">Action that implements the state-specific logic</param>
     /// <returns>This register instance for method chaining</returns>
     public LSStateHandlerRegister<TEvent, TState> Handler(LSAction<TEvent> handler) {
-        _handler = new LSAction<ILSEvent>((evt) => handler((TEvent)(object)evt));
+        _handler = new LSAction<ILSEvent_obsolete>((evt) => handler((TEvent)(object)evt));
         return this;
     }
     /// <summary>

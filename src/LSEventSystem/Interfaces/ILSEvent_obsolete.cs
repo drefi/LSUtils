@@ -12,7 +12,7 @@ namespace LSUtils.EventSystem;
 /// multiple phases without requiring external state management. All state properties are 
 /// read-only from the handler perspective to ensure immutability.
 /// </summary>
-public interface ILSEvent {
+public interface ILSEvent_obsolete {
     /// <summary>
     /// Unique identifier for this event instance.
     /// Generated automatically when the event is created and remains constant throughout
@@ -126,7 +126,7 @@ public interface ILSEvent {
     /// LSStateHandlerRegister and should return the configured register.
     /// </param>
     /// <returns>This event instance for method chaining</returns>
-    TEvent WithStateCallbacks<TEvent, TState>(params System.Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>>[] configure) where TState : IEventProcessState where TEvent : ILSEvent;
+    TEvent WithStateCallbacks<TEvent, TState>(params System.Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>>[] configure) where TState : IEventProcessState where TEvent : ILSEvent_obsolete;
 
     /// <summary>
     /// Adds event-scoped phase handlers that execute during specific business processing phases.
@@ -146,7 +146,7 @@ public interface ILSEvent {
     /// LSPhaseHandlerRegister and should return the configured register.
     /// </param>
     /// <returns>This event instance for method chaining</returns>
-    TEvent WithPhaseCallbacks<TEvent, TPhase>(params System.Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>>[] configure) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState;
+    TEvent WithPhaseCallbacks<TEvent, TPhase>(params System.Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>>[] configure) where TEvent : ILSEvent_obsolete where TPhase : LSEventBusinessState.PhaseState;
 
     /// <summary>
     /// Adds event-scoped handlers using the comprehensive event register configuration system.
@@ -172,7 +172,7 @@ public interface ILSEvent {
     /// and should return the configured register with all desired handlers.
     /// </param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    TEvent WithCallback<TEvent>(System.Func<LSEventRegister<TEvent>, LSEventRegister<TEvent>> configRegister) where TEvent : ILSEvent;
+    TEvent WithCallback<TEvent>(System.Func<LSEventRegister<TEvent>, LSEventRegister<TEvent>> configRegister) where TEvent : ILSEvent_obsolete;
     
     /// <summary>
     /// Adds a simple handler that executes when the event completes successfully.
@@ -192,7 +192,7 @@ public interface ILSEvent {
     /// for access to event data and processing information.
     /// </param>
     /// <returns>This event instance for method chaining</returns>
-    ILSEvent OnSucceed(LSAction<ILSEvent> handler);
+    ILSEvent_obsolete OnSucceed(LSAction<ILSEvent_obsolete> handler);
     
     /// <summary>
     /// Adds a strongly-typed handler that executes when the event completes successfully.
@@ -207,7 +207,7 @@ public interface ILSEvent {
     /// for type-safe access to event data and event-specific operations.
     /// </param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    TEvent OnSucceed<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent;
+    TEvent OnSucceed<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent_obsolete;
     
     /// <summary>
     /// Adds a simple handler that executes when the event is cancelled.
@@ -227,7 +227,7 @@ public interface ILSEvent {
     /// for access to event data and cancellation information.
     /// </param>
     /// <returns>This event instance for method chaining</returns>
-    ILSEvent OnCancelled(LSAction<ILSEvent> handler);
+    ILSEvent_obsolete OnCancelled(LSAction<ILSEvent_obsolete> handler);
     
     /// <summary>
     /// Adds a strongly-typed handler that executes when the event is cancelled.
@@ -242,7 +242,7 @@ public interface ILSEvent {
     /// for type-safe access to event data and event-specific cancellation handling.
     /// </param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    TEvent OnCancelled<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent;
+    TEvent OnCancelled<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent_obsolete;
     
     /// <summary>
     /// Adds a simple handler that executes when the event processing finishes.
@@ -270,7 +270,7 @@ public interface ILSEvent {
     /// for access to final event data and processing results.
     /// </param>
     /// <returns>This event instance for method chaining</returns>
-    ILSEvent OnCompleted(LSAction<ILSEvent> handler);
+    ILSEvent_obsolete OnCompleted(LSAction<ILSEvent_obsolete> handler);
     
     /// <summary>
     /// Adds a strongly-typed handler that executes when the event processing finishes.
@@ -285,7 +285,7 @@ public interface ILSEvent {
     /// for type-safe access to final event data and event-specific completion handling.
     /// </param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    TEvent OnCompleted<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent;
+    TEvent OnCompleted<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent_obsolete;
     
     /// <summary>
     /// Adds a conditional cancellation rule for a specific business processing phase.
@@ -307,7 +307,7 @@ public interface ILSEvent {
     /// handler entry for context. Returns true to cancel, false to proceed.
     /// </param>
     /// <returns>This event instance for method chaining</returns>
-    ILSEvent CancelPhaseIf<TPhase>(System.Func<ILSEvent, IHandlerEntry, bool> condition) where TPhase : LSEventBusinessState.PhaseState;
+    ILSEvent_obsolete CancelPhaseIf<TPhase>(System.Func<ILSEvent_obsolete, IHandlerEntry, bool> condition) where TPhase : LSEventBusinessState.PhaseState;
     
     /// <summary>
     /// Adds a strongly-typed conditional cancellation rule for a specific business processing phase.
@@ -323,5 +323,5 @@ public interface ILSEvent {
     /// handler entry for context. Returns true to cancel, false to proceed.
     /// </param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    TEvent CancelPhaseIf<TEvent, TPhase>(System.Func<TEvent, IHandlerEntry, bool> condition) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState;
+    TEvent CancelPhaseIf<TEvent, TPhase>(System.Func<TEvent, IHandlerEntry, bool> condition) where TEvent : ILSEvent_obsolete where TPhase : LSEventBusinessState.PhaseState;
 }

@@ -31,7 +31,7 @@ namespace LSUtils.EventSystem;
 /// <para>If no conditions are specified, nodes use a default condition that always returns true,</para>
 /// <para>making them eligible for processing in all scenarios.</para>
 /// </remarks>
-public delegate bool LSEventCondition(LSEvent @event, ILSEventNode node);
+public delegate bool LSEventCondition(ILSEvent @event, ILSEventNode node);
 
 /// <summary>
 /// Utility class providing helper methods for working with LSEventCondition delegates.
@@ -61,7 +61,7 @@ public static class LSEventConditions {
     /// <para>If a condition throws an exception, it is treated as a failed condition (returns false).</para>
     /// <para>This prevents individual condition failures from crashing the entire processing pipeline.</para>
     /// </remarks>
-    public static bool IsMet(LSEvent @event, ILSEventNode node) {
+    public static bool IsMet(ILSEvent @event, ILSEventNode node) {
         foreach (LSEventCondition c in node.Conditions.GetInvocationList()) {
             if (!c(@event, node)) return false;
         }

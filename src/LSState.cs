@@ -107,7 +107,7 @@ public abstract class LSState<TState, TContext> : ILSState, ILSEventable
     /// <summary>
     /// Event triggered when a state is being initialized.
     /// </summary>
-    public class OnInitializeEvent : LSEvent {
+    public class OnInitializeEvent : LSEvent_obsolete {
         public TState State { get; protected set; }
         public OnInitializeEvent(TState state, LSEventOptions options) : base(options) {
             State = state;
@@ -117,7 +117,7 @@ public abstract class LSState<TState, TContext> : ILSState, ILSEventable
     /// <summary>
     /// Event triggered when a state is being entered.
     /// </summary>
-    public class OnEnterEvent : LSEvent {
+    public class OnEnterEvent : LSEvent_obsolete {
         public TState State { get; protected set; }
         public OnEnterEvent(LSEventOptions options, TState state) : base(options) {
             State = state;
@@ -127,7 +127,7 @@ public abstract class LSState<TState, TContext> : ILSState, ILSEventable
     /// <summary>
     /// Event triggered when a state is being exited.
     /// </summary>
-    public class OnExitEvent : LSEvent {
+    public class OnExitEvent : LSEvent_obsolete {
         public TState State { get; protected set; }
         public OnExitEvent(LSEventOptions options, TState state) : base(options) {
             State = state;

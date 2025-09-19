@@ -64,14 +64,14 @@ public class LSStateHandlerEntry : IHandlerEntry {
     /// State handlers are "fire and forget" - they don't return results
     /// or affect state transitions. Exceptions are logged but don't stop processing.
     /// </summary>
-    public LSAction<ILSEvent> Handler { get; internal set; } = null!;
+    public LSAction<ILSEvent_obsolete> Handler { get; internal set; } = null!;
     
     /// <summary>
     /// Condition function that determines if this handler should execute.
     /// Evaluated at runtime before handler execution. If false, handler is skipped.
     /// Defaults to always true if not specified during registration.
     /// </summary>
-    public Func<ILSEvent, IHandlerEntry, bool> Condition { get; internal set; } = (evt, entry) => true;
+    public Func<ILSEvent_obsolete, IHandlerEntry, bool> Condition { get; internal set; } = (evt, entry) => true;
     
     /// <summary>
     /// Number of times this handler has been executed.

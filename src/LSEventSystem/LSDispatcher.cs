@@ -74,7 +74,7 @@ public class LSDispatcher {
     /// Empty array if registration failed or no handlers were configured.
     /// </returns>
 
-    public System.Guid[] ForEvent<TEvent>(params Func<LSEventRegister<TEvent>, LSEventRegister<TEvent>>[] configureRegisters) where TEvent : ILSEvent {
+    public System.Guid[] ForEvent<TEvent>(params Func<LSEventRegister<TEvent>, LSEventRegister<TEvent>>[] configureRegisters) where TEvent : ILSEvent_obsolete {
         try {
             var entries = configureRegisters.Select(f => f(new LSEventRegister<TEvent>())).ToArray();
             return entries.SelectMany(e => e.register(this)).ToArray();
@@ -98,7 +98,7 @@ public class LSDispatcher {
     /// <returns>
     /// The unique ID of the registered handler, or Guid.Empty if registration failed.
     /// </returns>
-    public System.Guid ForEventPhase<TEvent, TPhase>(Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>> configurePhaseHandler) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState {
+    public System.Guid ForEventPhase<TEvent, TPhase>(Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>> configurePhaseHandler) where TEvent : ILSEvent_obsolete where TPhase : LSEventBusinessState.PhaseState {
         try {
             var register = configurePhaseHandler(new LSPhaseHandlerRegister<TEvent, TPhase>());
             var entry = register.Build();
@@ -135,7 +135,7 @@ public class LSDispatcher {
     /// <returns>
     /// The unique ID of the registered handler, or Guid.Empty if registration failed.
     /// </returns>
-    public System.Guid ForEventState<TEvent, TState>(Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>> configureStateHandler) where TEvent : ILSEvent where TState : IEventProcessState {
+    public System.Guid ForEventState<TEvent, TState>(Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>> configureStateHandler) where TEvent : ILSEvent_obsolete where TState : IEventProcessState {
         try {
             var register = configureStateHandler(new LSStateHandlerRegister<TEvent, TState>());
             var entry = register.Build();

@@ -48,9 +48,9 @@ namespace LSUtils.EventSystem;
 /// - State transitions are handled by the state machine implementation
 /// - Handler execution follows the phase-based sequential model
 /// 
-/// See also: <see cref="ILSEvent"/>, <see cref="LSDispatcher"/>, <see cref="LSEventProcessContext_Legacy"/>
+/// See also: <see cref="ILSEvent_obsolete"/>, <see cref="LSDispatcher"/>, <see cref="LSEventProcessContext_Legacy"/>
 /// </summary>
-public abstract class LSEvent : ILSEvent {
+public abstract class LSEvent_obsolete : ILSEvent_obsolete {
     protected readonly ConcurrentDictionary<string, object> _data = new();
     protected LSEventProcessContext_Legacy? _context;
     public readonly LSDispatcher Dispatcher;
@@ -102,16 +102,16 @@ public abstract class LSEvent : ILSEvent {
     /// </summary>
     public IReadOnlyDictionary<string, object> Data => _data;
 
-    private LSEvent() {
+    private LSEvent_obsolete() {
         throw new LSException("Default constructor is not allowed. Use the constructor with options parameter.");
     }
     //constructor with dispatcher
-    protected LSEvent(LSDispatcher? dispatcher) {
+    protected LSEvent_obsolete(LSDispatcher? dispatcher) {
         Dispatcher = dispatcher ?? LSDispatcher.Singleton;
     }
 
     //constructor with options
-    protected LSEvent(LSEventOptions? options) {
+    protected LSEvent_obsolete(LSEventOptions? options) {
         Dispatcher = options?.Dispatcher ?? LSDispatcher.Singleton;
         if (options == null) return;
         if (options.Entries.Count > 0) _eventHandlers.AddRange(options.Entries);
@@ -297,8 +297,8 @@ public abstract class LSEvent : ILSEvent {
     /// var result = event.Dispatch();
     /// </code>
     /// </example>
-    public ILSEvent WithPhaseCallbacks<TPhase>(params System.Func<LSPhaseHandlerRegister<ILSEvent, TPhase>, LSPhaseHandlerRegister<ILSEvent, TPhase>>[] configure) where TPhase : LSEventBusinessState.PhaseState {
-        return WithPhaseCallbacks<ILSEvent, TPhase>(configure);
+    public ILSEvent_obsolete WithPhaseCallbacks<TPhase>(params System.Func<LSPhaseHandlerRegister<ILSEvent_obsolete, TPhase>, LSPhaseHandlerRegister<ILSEvent_obsolete, TPhase>>[] configure) where TPhase : LSEventBusinessState.PhaseState {
+        return WithPhaseCallbacks<ILSEvent_obsolete, TPhase>(configure);
     }
 
     /// <summary>
@@ -312,7 +312,7 @@ public abstract class LSEvent : ILSEvent {
     /// <typeparam name="TPhase">The specific phase state type (ValidatePhaseState, ConfigurePhaseState, etc.)</typeparam>
     /// <param name="configure">Array of configuration functions that create phase handler entries</param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    public TEvent WithPhaseCallbacks<TEvent, TPhase>(params System.Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>>[] configure) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState {
+    public TEvent WithPhaseCallbacks<TEvent, TPhase>(params System.Func<LSPhaseHandlerRegister<TEvent, TPhase>, LSPhaseHandlerRegister<TEvent, TPhase>>[] configure) where TEvent : ILSEvent_obsolete where TPhase : LSEventBusinessState.PhaseState {
         if (configure == null || configure.Length == 0) return (TEvent)(object)this;
         foreach (var config in configure) {
             var register = config(new LSPhaseHandlerRegister<TEvent, TPhase>());
@@ -345,8 +345,8 @@ public abstract class LSEvent : ILSEvent {
     /// <param name="configure">Array of configuration functions that create state handler entries</param>
     /// <returns>This event instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when any configuration function or resulting entry is null</exception>
-    public ILSEvent WithStateCallbacks<TState>(params System.Func<LSStateHandlerRegister<ILSEvent, TState>, LSStateHandlerRegister<ILSEvent, TState>>[] configure) where TState : IEventProcessState {
-        return WithStateCallbacks<ILSEvent, TState>(configure);
+    public ILSEvent_obsolete WithStateCallbacks<TState>(params System.Func<LSStateHandlerRegister<ILSEvent_obsolete, TState>, LSStateHandlerRegister<ILSEvent_obsolete, TState>>[] configure) where TState : IEventProcessState {
+        return WithStateCallbacks<ILSEvent_obsolete, TState>(configure);
     }
 
     /// <summary>
@@ -360,7 +360,7 @@ public abstract class LSEvent : ILSEvent {
     /// <typeparam name="TState">The specific state type (LSEventSucceedState, LSEventCancelledState, LSEventCompletedState)</typeparam>
     /// <param name="configure">Array of configuration functions that create state handler entries</param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    public TEvent WithStateCallbacks<TEvent, TState>(params System.Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>>[] configure) where TState : IEventProcessState where TEvent : ILSEvent {
+    public TEvent WithStateCallbacks<TEvent, TState>(params System.Func<LSStateHandlerRegister<TEvent, TState>, LSStateHandlerRegister<TEvent, TState>>[] configure) where TState : IEventProcessState where TEvent : ILSEvent_obsolete {
         if (configure == null || configure.Length == 0) return (TEvent)(object)this;
         foreach (var config in configure) {
             var register = config(new LSStateHandlerRegister<TEvent, TState>());
@@ -388,7 +388,7 @@ public abstract class LSEvent : ILSEvent {
     /// </param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when handler is null</exception>
-    public TEvent OnSucceed<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent {
+    public TEvent OnSucceed<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent_obsolete {
         if (handler == null) throw new LSArgumentNullException(nameof(handler));
         return (TEvent)WithStateCallbacks<LSEventSucceedState>(register => register.Handler((evt) => handler((TEvent)(object)this)));
     }
@@ -406,7 +406,7 @@ public abstract class LSEvent : ILSEvent {
     /// </param>
     /// <returns>This event instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when handler is null</exception>
-    public ILSEvent OnSucceed(LSAction<ILSEvent> handler) {
+    public ILSEvent_obsolete OnSucceed(LSAction<ILSEvent_obsolete> handler) {
         if (handler == null) throw new LSArgumentNullException(nameof(handler));
         return WithStateCallbacks<LSEventSucceedState>(register => register.Handler(handler));
     }
@@ -424,7 +424,7 @@ public abstract class LSEvent : ILSEvent {
     /// </param>
     /// <returns>This event instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when handler is null</exception>
-    public ILSEvent OnCancelled(LSAction<ILSEvent> handler) {
+    public ILSEvent_obsolete OnCancelled(LSAction<ILSEvent_obsolete> handler) {
         if (handler == null) throw new LSArgumentNullException(nameof(handler));
         return WithStateCallbacks<LSEventCancelledState>(register => register.Handler(handler));
     }
@@ -446,7 +446,7 @@ public abstract class LSEvent : ILSEvent {
     /// </param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when handler is null</exception>
-    public TEvent OnCancelled<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent {
+    public TEvent OnCancelled<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent_obsolete {
         if (handler == null) throw new LSArgumentNullException(nameof(handler));
         return (TEvent)WithStateCallbacks<LSEventCancelledState>(register => register.Handler((evt) => handler((TEvent)(object)this)));
     }
@@ -465,7 +465,7 @@ public abstract class LSEvent : ILSEvent {
     /// </param>
     /// <returns>This event instance for method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when handler is null</exception>
-    public ILSEvent OnCompleted(LSAction<ILSEvent> handler) {
+    public ILSEvent_obsolete OnCompleted(LSAction<ILSEvent_obsolete> handler) {
         if (handler == null) throw new LSArgumentNullException(nameof(handler));
         return WithStateCallbacks<LSEventCompletedState>(register => register.Handler(handler));
     }
@@ -488,7 +488,7 @@ public abstract class LSEvent : ILSEvent {
     /// </param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when handler is null</exception>
-    public TEvent OnCompleted<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent {
+    public TEvent OnCompleted<TEvent>(LSAction<TEvent> handler) where TEvent : ILSEvent_obsolete {
         if (handler == null) throw new LSArgumentNullException(nameof(handler));
         return (TEvent)WithStateCallbacks<LSEventCompletedState>(register => register.Handler((evt) => handler((TEvent)(object)this)));
     }
@@ -525,7 +525,7 @@ public abstract class LSEvent : ILSEvent {
     /// handler entry for context. Returns true to cancel, false to proceed.
     /// </param>
     /// <returns>This event instance for method chaining</returns>
-    public ILSEvent CancelPhaseIf<TPhase>(System.Func<ILSEvent, IHandlerEntry, bool> condition) where TPhase : LSEventBusinessState.PhaseState {
+    public ILSEvent_obsolete CancelPhaseIf<TPhase>(System.Func<ILSEvent_obsolete, IHandlerEntry, bool> condition) where TPhase : LSEventBusinessState.PhaseState {
         return WithPhaseCallbacks<TPhase>(register => register.CancelIf(condition));
     }
 
@@ -546,7 +546,7 @@ public abstract class LSEvent : ILSEvent {
     /// handler entry for context. Returns true to cancel, false to proceed.
     /// </param>
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
-    public TEvent CancelPhaseIf<TEvent, TPhase>(System.Func<TEvent, IHandlerEntry, bool> condition) where TEvent : ILSEvent where TPhase : LSEventBusinessState.PhaseState {
+    public TEvent CancelPhaseIf<TEvent, TPhase>(System.Func<TEvent, IHandlerEntry, bool> condition) where TEvent : ILSEvent_obsolete where TPhase : LSEventBusinessState.PhaseState {
         return (TEvent)CancelPhaseIf<TPhase>((evt, entry) => condition((TEvent)(object)this, entry));
     }
 
@@ -580,7 +580,7 @@ public abstract class LSEvent : ILSEvent {
     /// <returns>This event instance cast to TEvent for continued method chaining</returns>
     /// <exception cref="LSArgumentNullException">Thrown when configRegister, returned register, or any handler entry is null</exception>
     /// <exception cref="LSException">Thrown when the event cannot be cast to the specified TEvent type</exception>
-    public TEvent WithCallback<TEvent>(System.Func<LSEventRegister<TEvent>, LSEventRegister<TEvent>> configRegister) where TEvent : ILSEvent {
+    public TEvent WithCallback<TEvent>(System.Func<LSEventRegister<TEvent>, LSEventRegister<TEvent>> configRegister) where TEvent : ILSEvent_obsolete {
         var register = configRegister(new LSEventRegister<TEvent>());
         if (register == null) throw new LSArgumentNullException(nameof(register));
         var entries = register.GetEntries();
@@ -620,7 +620,7 @@ public abstract class LSEvent : ILSEvent {
 /// - Safe for concurrent access to Instance property
 /// </summary>
 /// <typeparam name="TInstance">The type of eventable instance this event is associated with</typeparam>
-public abstract class LSEvent<TInstance> : LSEvent where TInstance : ILSEventable {
+public abstract class LSEvent<TInstance> : LSEvent_obsolete where TInstance : ILSEventable {
     /// <summary>
     /// Initializes a new instance of the generic event with an associated eventable instance.
     /// 

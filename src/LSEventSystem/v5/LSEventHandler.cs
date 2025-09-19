@@ -32,4 +32,4 @@ namespace LSUtils.EventSystem;
 /// <item><description>Execution statistics through node.ExecutionCount (shared across clones)</description></item>
 /// </list>
 /// </remarks>
-public delegate LSEventProcessStatus LSEventHandler(LSEvent @event, ILSEventNode node);
+public delegate LSEventProcessStatus LSEventHandler(ILSEvent @event, ILSEventNode node);

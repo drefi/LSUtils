@@ -16,7 +16,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for print messages.
     /// </summary>
-    public class OnPrintEvent : LSEvent {
+    public class OnPrintEvent : LSEvent_obsolete {
         /// <summary>
         /// The print message.
         /// </summary>
@@ -34,7 +34,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for error messages.
     /// </summary>
-    public class OnErrorEvent : LSEvent {
+    public class OnErrorEvent : LSEvent_obsolete {
         /// <summary>
         /// The error message.
         /// </summary>
@@ -52,7 +52,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for warning messages.
     /// </summary>
-    public class OnWarningEvent : LSEvent {
+    public class OnWarningEvent : LSEvent_obsolete {
         /// <summary>
         /// The warning message.
         /// </summary>
@@ -111,7 +111,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for confirmation messages.
     /// </summary>
-    public class OnConfirmationEvent : LSEvent {
+    public class OnConfirmationEvent : LSEvent_obsolete {
         public ConfirmationSignal ConfirmationSignal { get; protected set; }
         /// <summary>
         /// Initializes a new instance of the <see cref="OnConfirmationEvent"/> class with confirm and cancel buttons.
@@ -150,7 +150,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for general notifications.
     /// </summary>
-    public class OnNotifyEvent : LSEvent {
+    public class OnNotifyEvent : LSEvent_obsolete {
         protected NotificationSignal _notificationSignal;
         /// <summary>
         /// The notification message.

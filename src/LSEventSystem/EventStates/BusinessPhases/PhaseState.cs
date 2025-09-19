@@ -196,7 +196,7 @@ public partial class LSEventBusinessState {
 
             // get condition list, all must be true to execute handler, since the default Condition is true if at least one is false skip handler execution
             foreach (var condition in handlerEntry.Condition.GetInvocationList()) {
-                var conditionFunc = condition as System.Func<ILSEvent, IHandlerEntry, bool>;
+                var conditionFunc = condition as System.Func<ILSEvent_obsolete, IHandlerEntry, bool>;
                 // if one condition returns false skip handler execution
                 if (conditionFunc != null && !conditionFunc(context.Event, handlerEntry))
                     return HandlerProcessResult.SUCCESS; // Since the condition was not met we consider the handler successfully processed.
