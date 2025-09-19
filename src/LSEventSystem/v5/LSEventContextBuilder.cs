@@ -124,6 +124,10 @@ public class LSEventContextBuilder {
 
     /// <summary>
     /// Create or navigate to a parallel node in the current context.
+    /// Parallel nodes have some quirks in terms of waiting behaviour:
+    /// 1. If a parallel node is waiting, it can be resumed individually.
+    /// 2. The overall success or failure of the parallel node depends on its children.
+    /// 3. 
     /// </summary>
     /// <param name="nodeID">The ID of the parallel node.</param>
     /// <param name="numRequiredToSucceed">The number of child nodes that must succeed.</param>
@@ -131,7 +135,7 @@ public class LSEventContextBuilder {
     /// <param name="conditions">The conditions for the parallel node process.</param>
     /// <returns> The current instance of the context builder.</returns>
     /// <exception cref="LSException"></exception>
-    public LSEventContextBuilder Parallel(string nodeID, SubContextBuilder? subContextBuilder = null, int? numRequiredToSucceed = 0, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Parallel(string nodeID, SubContextBuilder? subContextBuilder = null, int? numRequiredToSucceed = 0, int? numRequiredToFailure = 0, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -139,7 +143,7 @@ public class LSEventContextBuilder {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not parallel
-            parallelNode = LSEventParallelNode.Create(nodeID, order, numRequiredToSucceed == null ? 0 : numRequiredToSucceed.Value, priority, conditions);
+            parallelNode = LSEventParallelNode.Create(nodeID, order, numRequiredToSucceed == null ? 0 : numRequiredToSucceed.Value, numRequiredToFailure == null ? 0 : numRequiredToFailure.Value, priority, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventParallelNode we should throw an exception.
             //if existingNode is not null here is means is not a parallel node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a parallel node.");

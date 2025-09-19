@@ -67,7 +67,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
         // - If any child is in WAITING, the selector is in WAITING.
         // - If any child is in CANCELLED, the selector is in CANCELLED.
         // - if there are no children, the selector is in SUCCESS.
-        if (_children.Count == 0) return LSEventProcessStatus.SUCCESS;
+        if (_availableChildren.Count == 0) return LSEventProcessStatus.SUCCESS;
 
         // check for CANCELLED has the highest priority
         if (_availableChildren.Any(c => c.GetNodeStatus() == LSEventProcessStatus.CANCELLED)) {
@@ -107,17 +107,16 @@ public class LSEventSelectorNode : ILSEventLayerNode {
         System.Console.WriteLine($"[LSEventSelectorNode] No child node is in WAITING state, cannot resume selector node {NodeID}.");
         return GetNodeStatus(); //we return the current selector status, it may be SUCCESS if any child succeeded
     }
-    public void Cancel(LSEventProcessContext context) {
-        _currentChild?.Cancel(context);
+    LSEventProcessStatus ILSEventNode.Cancel(LSEventProcessContext context) {
+        return _currentChild?.Cancel(context) ?? LSEventProcessStatus.CANCELLED;
     }
 
 
-    public LSEventProcessStatus Process(LSEventProcessContext context, params string[]? nodes) {
-        if (LSEventConditions.IsMet(context.Event, this)) return LSEventProcessStatus.SUCCESS;
-
+    public LSEventProcessStatus Process(LSEventProcessContext context) {
         var selectorStatus = GetNodeStatus();
+        System.Console.WriteLine($"[LSEventSelectorNode] Processing selector node [{NodeID}] selectorStatus: <{selectorStatus}>");
+        if (!LSEventConditions.IsMet(context.Event, this)) return LSEventProcessStatus.SUCCESS;
 
-        System.Console.WriteLine($"[LSEventSelectorNode] Processing selector node {NodeID} with {_children.Count} children. Current status: [{selectorStatus}]");
 
         // we should not need to check for CANCELLED. this is handled when calling the child.Process
 
@@ -131,36 +130,37 @@ public class LSEventSelectorNode : ILSEventLayerNode {
             _processStack = new Stack<ILSEventNode>(_availableChildren);
             _isProcessing = true;
             if (_processStack.Count > 0) _currentChild = _processStack.Pop(); // set the current node to the first child
-            System.Console.WriteLine($"[LSEventSelectorNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()}.");
+            System.Console.WriteLine($"[LSEventSelectorNode] Initialized processing for node [{NodeID}], children: {_availableChildren.Count()} _currentChild: {_currentChild?.NodeID}.");
         }
         // success condition: any child has succeeded or no children to process
-        if (_currentChild == null || _processStack.Count == 0) {
+        if (_currentChild == null) {
             // no children to process, we are done
-            System.Console.WriteLine($"[LSEventSelectorNode] No children to process for node {NodeID}, checking final status. selectorStatus {selectorStatus}");
+            System.Console.WriteLine($"[LSEventSelectorNode] No children to process for node [{NodeID}], checking final status. selectorStatus {selectorStatus}");
             return selectorStatus; // return selector status
         }
 
         do {
-            System.Console.WriteLine($"[LSEventSelectorNode] Processing child node {_currentChild.NodeID}.");
+            System.Console.WriteLine($"[LSEventSelectorNode] Processing child node [{_currentChild.NodeID}].");
             // no more need to check for condition, we already filtered children that meet conditions during stack initialization
 
             // process the child
-            var currentChildStatus = _currentChild.Process(context, _currentChild.NodeID); //child status will only be used to update the selector state
+            var currentChildStatus = _currentChild.Process(context); //child status will only be used to update the selector state
             selectorStatus = GetNodeStatus();
+            System.Console.WriteLine($"[LSEventSelectorNode] Child node [{_currentChild.NodeID}] processed with status <{currentChildStatus}> selectorStatus: <{selectorStatus}>.");
             if (currentChildStatus == LSEventProcessStatus.WAITING) return LSEventProcessStatus.WAITING;
             if (selectorStatus == LSEventProcessStatus.WAITING) {
                 // this should never happen because childStatus is WAITING should have been caught above
-                System.Console.WriteLine($"[LSEventSelectorNode] Warning: Selector node {NodeID} is in WAITING state but child {_currentChild.NodeID} is not WAITING.");
+                System.Console.WriteLine($"[LSEventSelectorNode] Warning: Selector node [{NodeID}] is in WAITING state but child [{_currentChild.NodeID}] is not WAITING.");
                 return LSEventProcessStatus.WAITING;
             }
             if (currentChildStatus == LSEventProcessStatus.SUCCESS || selectorStatus == LSEventProcessStatus.CANCELLED) {
                 // exit condition: child succeeded (selector success) or cancelled
+                System.Console.WriteLine($"[LSEventSelectorNode] Selector node [{NodeID}] finished processing because child [{_currentChild.NodeID}] returned {currentChildStatus}.");
                 _processStack.Clear();
                 _currentChild = null;
                 return selectorStatus; // propagate the selector status
             }
 
-            System.Console.WriteLine($"[LSEventSelectorNode] Child node {_currentChild.NodeID} processed with status {currentChildStatus} selectorStatus: {selectorStatus}.");
             // get the next node if child failed (continue trying other children)
             if (_processStack.Count > 0) {
                 _currentChild = _processStack.Pop();
@@ -170,7 +170,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
         } while (_currentChild != null);
 
         // reach this point means that all children failed
-        System.Console.WriteLine($"[LSEventSelectorNode] Selector node {NodeID} finished processing all children. All failed, marking as FAILURE.");
+        System.Console.WriteLine($"[LSEventSelectorNode] Selector node [{NodeID}] finished processing all children. All failed, marking as FAILURE.");
         return LSEventProcessStatus.FAILURE; // all children failed, selector fails
     }
 

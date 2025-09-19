@@ -80,7 +80,21 @@ public class LSEventSystemTestsV5 {
     #region Basic Builder Tests
 
     [Test]
-    public void TestBuilderBasicSequence() {
+    public void TestBuilderBasicSequenceEmpty() {
+        var context = new LSEventContextBuilder()
+            .Sequence("root")
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+    }
+    [Test]
+    public void TestBuilderBasicSequenceSuccess() {
         var context = new LSEventContextBuilder()
             .Sequence("root", subBuilder => subBuilder
                 .Execute("handler1", _mockHandler1))
@@ -92,12 +106,123 @@ public class LSEventSystemTestsV5 {
         // Test execution
         var mockEvent = new MockEvent(_mockDispatcher);
         var processContext = new LSEventProcessContext(mockEvent, context);
-        // TODO: Fix API usage - var result = processContext.Process();
-        // Assert.That(_handler1CallCount, Is.EqualTo(1));
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(_handler1CallCount, Is.EqualTo(1));
     }
+    [Test]
+    public void TestBuilderBasicSequenceFailure() {
+        var context = new LSEventContextBuilder()
+            .Sequence("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Failure))
+            .Build();
 
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+    }
+    [Test]
+    public void TestBuilderBasicSequenceCancel() {
+        var context = new LSEventContextBuilder()
+            .Sequence("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Cancel))
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.CANCELLED));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+    }
+    [Test]
+    public void TestBuilderBasicSequenceExecuteWaitingResume() {
+        var context = new LSEventContextBuilder()
+            .Sequence("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Waiting))
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+        // Simulate external resume
+        var resumeResult = processContext.Resume("handler1");
+        Assert.That(resumeResult, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderBasicSequenceExecuteWaitingFailure() {
+        var context = new LSEventContextBuilder()
+            .Sequence("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Waiting))
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+        // Simulate external resume
+        var resumeResult = processContext.Fail("handler1");
+        Assert.That(resumeResult, Is.EqualTo(LSEventProcessStatus.FAILURE));
+        Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderBasicSequenceExecuteWaitingCancel() {
+        var context = new LSEventContextBuilder()
+            .Sequence("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Waiting))
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+        // Simulate external resume
+        processContext.Cancel();
+        Assert.That(processContext.IsCancelled, Is.True);
+        Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
+    }
     [Test]
     public void TestBuilderBasicSelector() {
+        var context = new LSEventContextBuilder()
+            .Selector("root")
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+    }
+    [Test]
+    public void TestBuilderBasicSelectorExecuteSuccess() {
         var context = new LSEventContextBuilder()
             .Selector("root", (subBuilder) => subBuilder
                 .Execute("handler1", _mockHandler1))
@@ -109,12 +234,106 @@ public class LSEventSystemTestsV5 {
         // Test execution
         var mockEvent = new MockEvent(_mockDispatcher);
         var processContext = new LSEventProcessContext(mockEvent, context);
-        // TODO: Fix API usage - var result = processContext.Process();
-        // Assert.That(_handler1CallCount, Is.EqualTo(1));
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(_handler1CallCount, Is.EqualTo(1));
     }
+    [Test]
+    public void TestBuilderBasicSelectorExecuteFailure() {
+        var context = new LSEventContextBuilder()
+            .Selector("root", (subBuilder) => subBuilder
+                .Execute("handler1", _mockHandler3Failure))
+            .Build();
 
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+    }
+    [Test]
+    public void TestBuilderBasicSelectorExecuteWaitingResume() {
+        var context = new LSEventContextBuilder()
+            .Selector("root", (subBuilder) => subBuilder
+                .Execute("handler1", _mockHandler3Waiting))
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+        // Simulate external resume
+        var resumeResult = processContext.Resume("handler1");
+        Assert.That(resumeResult, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderBasicSelectorExecuteWaitingFail() {
+        var context = new LSEventContextBuilder()
+            .Selector("root", (subBuilder) => subBuilder
+                .Execute("handler1", _mockHandler3Waiting))
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+        // Simulate external resume
+        var resumeResult = processContext.Fail("handler1");
+        Assert.That(resumeResult, Is.EqualTo(LSEventProcessStatus.FAILURE));
+        Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderBasicSelectorExecuteWaitingCancel() {
+        var context = new LSEventContextBuilder()
+            .Selector("root", (subBuilder) => subBuilder
+                .Execute("handler1", _mockHandler3Waiting))
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+        // Simulate external resume
+        processContext.Cancel();
+        Assert.That(processContext.IsCancelled, Is.True);
+        Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
+    }
     [Test]
     public void TestBuilderBasicParallel() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root")
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+    }
+    [Test]
+    public void TestBuilderParallelSuccess() {
         var context = new LSEventContextBuilder()
             .Parallel("root", subBuilder => subBuilder
                 .Execute("handler1", _mockHandler1), 1) // require 1 to succeed
@@ -126,12 +345,292 @@ public class LSEventSystemTestsV5 {
         // Test execution
         var mockEvent = new MockEvent(_mockDispatcher);
         var processContext = new LSEventProcessContext(mockEvent, context);
-        // TODO: Fix API usage - var result = processContext.Process();
-        // Assert.That(_handler1CallCount, Is.EqualTo(1));
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(_handler1CallCount, Is.EqualTo(1));
+    }
+    [Test]
+    public void TestBuilderParallelSuccess2() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler1)
+                .Execute("handler2", _mockHandler2), 2) // require 2 to succeed
+            .Build();
 
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        Assert.That(context.HasChild("handler2"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(_handler1CallCount, Is.EqualTo(1));
+        Assert.That(_handler2CallCount, Is.EqualTo(1));
     }
 
-    /* TODO: Fix all these tests for new API
+    [Test]
+    public void TestBuilderParallelSuccess3() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler1)
+                .Execute("handler2", _mockHandler3Failure), 1) // require 1 to succeed
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        Assert.That(context.HasChild("handler2"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(_handler1CallCount, Is.EqualTo(1));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+    }
+    [Test]
+    public void TestBuilderParallelFailure() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Failure), 1)
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+    }
+    [Test]
+    public void TestBuilderParallelFailure2() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler1)
+                .Execute("handler2", _mockHandler3Failure), 2) // require 2 to succeed
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE));
+        Assert.That(_handler1CallCount, Is.EqualTo(1));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+    }
+    [Test]
+    public void TestBuilderParallelWaitingSuccessWithResume() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Waiting), 1)
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+        // Simulate external resume
+        var resumeResult = processContext.Resume("handler1");
+        Assert.That(resumeResult, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderParallelWaitingSuccessWithFail() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler1)
+                .Execute("handler2", _mockHandler3Waiting), 1)
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        Assert.That(context.HasChild("handler2"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        System.Console.WriteLine("[TestBuilderParallelWaitingSuccessWithFail] Processing event...");
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // handler1 should succeed immediately
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+        // Simulate external resume
+        System.Console.WriteLine("[TestBuilderParallelWaitingSuccessWithFail] Failing handler1...");
+        var resumeResult = processContext.Fail("handler1");
+        Assert.That(resumeResult, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // handler1 has already succeeded, this should not change anything
+        Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderParallelWaitingSuccessWithFailAndResume() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler1)
+                .Execute("handler2", _mockHandler3Waiting)
+                .Execute("handler3", _mockHandler3Waiting), 2)
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        Assert.That(context.HasChild("handler2"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler1CallCount, Is.EqualTo(1));
+        Assert.That(_handler3CallCount, Is.EqualTo(2));
+        // Simulate external resume
+        var resumeResult = processContext.Fail("handler1");
+        Assert.That(resumeResult, Is.EqualTo(LSEventProcessStatus.WAITING)); // we have 1 success, 1 failure and 1 waiting
+        Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
+        var resumeResult2 = processContext.Resume("handler2");
+        Assert.That(resumeResult2, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // now we have 2 successes
+        Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderParallelWaitingFailureWithFail() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Waiting), 1)
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(1));
+        // Simulate external resume
+        var resumeResult = processContext.Fail("handler1");
+        Assert.That(resumeResult, Is.EqualTo(LSEventProcessStatus.FAILURE));
+        Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderBasicParallelMultipleWaitingFailureWithResume() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Failure)
+                .Execute("handler2", _mockHandler3Waiting), 2)
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        Assert.That(context.HasChild("handler2"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(2));
+        // Simulate external resume
+        var resumeResult1 = processContext.Resume("handler2");
+        Assert.That(resumeResult1, Is.EqualTo(LSEventProcessStatus.FAILURE)); // handler2 has failed but
+        Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderBasicParallelMultipleWaitingSuccessResume() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Waiting)
+                .Execute("handler2", _mockHandler3Waiting)
+                .Execute("handler3", _mockHandler3Waiting), 2)
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        Assert.That(context.HasChild("handler2"), Is.True);
+        Assert.That(context.HasChild("handler3"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        System.Console.WriteLine("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Process result: " + result);
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(3));
+        // Simulate external resume
+        var resumeResult1 = processContext.Resume("handler1");
+        System.Console.WriteLine("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Resume handler1 result: " + resumeResult1);
+        Assert.That(resumeResult1, Is.EqualTo(LSEventProcessStatus.WAITING)); // the context is still waiting on handler2
+        Assert.That(_handler3CallCount, Is.EqualTo(3)); //should not call handler again
+        var resumeResult2 = processContext.Resume("handler2");
+        System.Console.WriteLine("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Resume handler2 result: " + resumeResult2);
+        Assert.That(resumeResult2, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // now two have resumed, which meets the requirement of 2
+        Assert.That(_handler3CallCount, Is.EqualTo(3)); //should not call handler again
+                                                        // handler3 is still waiting, but the parallel node has already succeeded
+        var resumeResult3 = processContext.Resume("handler3");
+        Assert.That(resumeResult3, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // handler3 should return SUCCESS as the parallel node has already succeeded
+    }
+    [Test]
+    public void TestBuilderBasicParallelMultipleWaitingFail() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Waiting)
+                .Execute("handler2", _mockHandler3Waiting), 2)
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        Assert.That(context.HasChild("handler2"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(2));
+        // Simulate external resume
+        var resumeResult1 = processContext.Fail("handler1");
+        Assert.That(resumeResult1, Is.EqualTo(LSEventProcessStatus.WAITING)); // the context is still waiting on handler2
+        Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
+        var resumeResult2 = processContext.Fail("handler2");
+        Assert.That(resumeResult2, Is.EqualTo(LSEventProcessStatus.FAILURE)); // now both have failed
+        Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
+    }
+    [Test]
+    public void TestBuilderBasicParallelMultipleWaitingFail2() {
+        var context = new LSEventContextBuilder()
+            .Parallel("root", subBuilder => subBuilder
+                .Execute("handler1", _mockHandler3Waiting)
+                .Execute("handler2", _mockHandler3Waiting), 1)
+            .Build();
+
+        Assert.That(context, Is.Not.Null);
+        Assert.That(context.NodeID, Is.EqualTo("root"));
+        Assert.That(context.HasChild("handler1"), Is.True);
+        Assert.That(context.HasChild("handler2"), Is.True);
+        // Test execution
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, context);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
+        Assert.That(_handler3CallCount, Is.EqualTo(2));
+        // Simulate external resume
+        var resumeResult1 = processContext.Fail("handler1");
+        Assert.That(resumeResult1, Is.EqualTo(LSEventProcessStatus.WAITING)); // the context is still waiting on handler2
+        Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
+        var resumeResult2 = processContext.Fail("handler2");
+        Assert.That(resumeResult2, Is.EqualTo(LSEventProcessStatus.FAILURE)); // now both have failed
+        Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
+    }
+
     [Test]
     public void TestBuilderNestedStructure() {
         var context = new LSEventContextBuilder()
@@ -142,7 +641,7 @@ public class LSEventSystemTestsV5 {
                     .Execute("handler2", _mockHandler2))
                 .Parallel("childParallel", parBuilder => parBuilder
                     .Execute("handler1B", _mockHandler1)
-                    .Execute("handler2B", _mockHandler2))
+                    .Execute("handler2B", _mockHandler2), 2)
                 )
             .Build();
 
@@ -167,10 +666,10 @@ public class LSEventSystemTestsV5 {
         // Test execution of the entire structure
         var mockEvent = new MockEvent(_mockDispatcher);
         var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(2)); // handler1 and handler1B
         Assert.That(_handler2CallCount, Is.EqualTo(2)); // handler2 and handler2B
-        Assert.That(_handler3CallCount, Is.EqualTo(0)); // handler3 should not be called
     }
 
     [Test]
@@ -196,16 +695,14 @@ public class LSEventSystemTestsV5 {
         // Test execution of the entire structure
         var mockEvent = new MockEvent(_mockDispatcher);
         var processContext = new LSEventProcessContext(mockEvent, newContext);
-        var result = var result = processContext.Process();
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1)); // handler1
         Assert.That(_handler2CallCount, Is.EqualTo(1)); // handler2
-        Assert.That(_handler3CallCount, Is.EqualTo(0)); // handler3 should not be called
     }
-    */
 
     #endregion
 
-    /* TODO: Fix all remaining tests for new API
     #region Basic Merge Tests
 
     [Test]
@@ -214,20 +711,19 @@ public class LSEventSystemTestsV5 {
             .Sequence("root", seqBuilder => seqBuilder)
             .Build();
 
+        Console.WriteLine($"Root context before merge: {rootContext.NodeID}");
+        Console.WriteLine($"Root children before: {string.Join(", ", Array.ConvertAll(rootContext.GetChildren(), c => c.NodeID))}");
+
         var subContext = new LSEventContextBuilder()
             .Sequence("subContext", seqBuilder => seqBuilder
                 .Execute("handler1", _mockHandler1))
             .Build();
 
-
         Console.WriteLine($"Sub context: {subContext.NodeID}");
         Console.WriteLine($"Sub context children: {string.Join(", ", Array.ConvertAll(subContext.GetChildren(), c => c.NodeID))}");
 
-        Console.WriteLine($"Root context before merge: {rootContext.NodeID}");
-        Console.WriteLine($"Root children before: {string.Join(", ", Array.ConvertAll(rootContext.GetChildren(), c => c.NodeID))}");
-
         var mergedContext = new LSEventContextBuilder(rootContext)
-            .Merge(subContext, merBuilder => merBuilder)
+            .Merge(subContext)
             .Build();
         Console.WriteLine($"Merged context: {mergedContext.NodeID}");
         Console.WriteLine($"Merged children: {string.Join(", ", Array.ConvertAll(mergedContext.GetChildren(), c => c.NodeID))}");
@@ -242,6 +738,7 @@ public class LSEventSystemTestsV5 {
         var mockEvent = new MockEvent(_mockDispatcher);
         var processContext = new LSEventProcessContext(mockEvent, mergedContext);
         var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1)); // handler1 should be called once
 
     }
@@ -258,13 +755,13 @@ public class LSEventSystemTestsV5 {
                 .Execute("handlerB", _mockHandler2))
             .Build();
 
-        var mergedContext = new LSEventContextBuilder()
+        var root = new LSEventContextBuilder()
             .Sequence("root", rootBuilder => rootBuilder
                 .Merge(contextA, mABuilder => mABuilder)
                 .Merge(contextB, mBBuilder => mBBuilder))
             .Build();
 
-        var root = mergedContext;
+
         Assert.That(root, Is.Not.Null);
         Assert.That(root.HasChild("sequenceA"), Is.True);
         Assert.That(root.HasChild("sequenceB"), Is.True);
@@ -275,8 +772,9 @@ public class LSEventSystemTestsV5 {
         Assert.That(seqB?.HasChild("handlerB"), Is.True);
 
         var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, mergedContext);
+        var processContext = new LSEventProcessContext(mockEvent, root);
         var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1)); // handlerA should be called once
         Assert.That(_handler2CallCount, Is.EqualTo(1)); // handlerB should be called once
 
@@ -294,17 +792,22 @@ public class LSEventSystemTestsV5 {
                 .Execute("handler", _mockHandler2))
             .Build();
 
-        var mergedContext = new LSEventContextBuilder()
+        var sequence = new LSEventContextBuilder()
             .Merge(contextA, mA => mA)
             .Merge(contextB, mB => mB)
             .Build();
 
-        var sequence = mergedContext;
         Assert.That(sequence, Is.Not.Null);
 
         Assert.That(sequence.HasChild("handler"), Is.True);
         Assert.That(sequence.GetChildren().Length, Is.EqualTo(1));
 
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, sequence);
+        var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(_handler1CallCount, Is.EqualTo(0)); // First handler should be replaced
+        Assert.That(_handler2CallCount, Is.EqualTo(1)); // Second handler should be called
     }
 
     #endregion
@@ -333,7 +836,7 @@ public class LSEventSystemTestsV5 {
             )
             .Build();
 
-        var mergedContext = new LSEventContextBuilder()
+        var root = new LSEventContextBuilder()
             .Sequence("root", root => root
                 .Merge(contextA)
                 .Merge(contextB)
@@ -341,7 +844,7 @@ public class LSEventSystemTestsV5 {
             .Build();
 
         // Navigate to the deep level and verify both handlers exist
-        var level1 = mergedContext.GetChild("level1") as ILSEventLayerNode;
+        var level1 = root.GetChild("level1") as ILSEventLayerNode;
         Assert.That(level1, Is.Not.Null);
         var level2 = level1?.GetChild("level2") as ILSEventLayerNode;
         Assert.That(level2, Is.Not.Null);
@@ -447,6 +950,7 @@ public class LSEventSystemTestsV5 {
         Assert.Throws<LSArgumentNullException>(() => builder.Merge(null!));
     }
 
+    //TODO: this test is a little wierd, maybe we need to check if this is the intended behavior
     [Test]
     public void TestMergeWithoutCurrentNode() {
         var sourceContext = new LSEventContextBuilder()
@@ -512,13 +1016,13 @@ public class LSEventSystemTestsV5 {
             .Merge(contextB)
             .Build();
 
-        var sequence = mergedContext;
-        Assert.That(sequence.HasChild("handler"), Is.True);
+        Assert.That(mergedContext.HasChild("handler"), Is.True);
 
         // Since override is always allowed, the second handler should replace the first
         var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
+        var processContext = new LSEventProcessContext(mockEvent, mergedContext);
         var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(0)); // First handler should be replaced
         Assert.That(_handler2CallCount, Is.EqualTo(1)); // Second handler should be called
     }
@@ -543,89 +1047,40 @@ public class LSEventSystemTestsV5 {
     }
 
     [Test]
-    public void TestHandlerWithConditions() {
-        bool conditionMet = false;
-        LSEventCondition condition = (evt, node) => conditionMet;
-
+    public void TestHandlerWithConditionsFalse() {
         var context = new LSEventContextBuilder()
             .Sequence("root", seq => seq
                 .Execute("conditionalHandler", (ctx, node) => {
                     _handler1CallCount++;
                     return LSEventProcessStatus.FAILURE;
-                }, LSPriority.NORMAL, condition))
+                }, LSPriority.NORMAL, (evt, node) => false)) // skip the handler
             .Build();
 
         var mockEvent = new MockEvent(_mockDispatcher);
         var processContext = new LSEventProcessContext(mockEvent, context);
 
-        var result = var result = processContext.Process();
+        var result = processContext.Process();
         Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // since we skipped the handler that would return FAILURE the result is SUCCESS
         Assert.That(_handler1CallCount, Is.EqualTo(0)); // handler should not be called because conditionMet == false
 
-        // Condition met - handler should run
-        conditionMet = true;
-        // Create a fresh context for the second test since nodes maintain state after processing
-        var context2 = new LSEventContextBuilder()
-            .Sequence("root", seq => seq
-                .Execute("conditionalHandler", (ctx, node) => {
-                    _handler1CallCount++;
-                    return LSEventProcessStatus.FAILURE;
-                }, LSPriority.NORMAL, condition))
-            .Build();
-        var newProcessContext = new LSEventProcessContext(mockEvent, context); // process context cannot be reused
-        result = newvar result = processContext.Process();
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE)); // since we now run the handler that returns FAILURE as the handler returns FAILURE
-        Assert.That(_handler1CallCount, Is.EqualTo(1)); // Handler should be called
     }
-
     [Test]
-    public void TestParallelPartialResult() {
+    public void TestHandlerWithConditionsTrue() {
         var context = new LSEventContextBuilder()
-            .Parallel("root", par => par
-                .Execute("successHandler", _mockHandler1)
-                .Execute("failureHandler", _mockHandler3Failure)
-                .Execute("anotherFailure", _mockHandler3Failure), 1)
-            .Build();
+                    .Sequence("root", seq => seq
+                        .Execute("conditionalHandler", (ctx, node) => {
+                            _handler1CallCount++;
+                            return LSEventProcessStatus.FAILURE;
+                        }, LSPriority.NORMAL, (evt, node) => true)) // condition met
+                    .Build();
 
         var mockEvent = new MockEvent(_mockDispatcher);
         var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
 
-        Console.WriteLine($"After first parallel: result={result}, handler1={_handler1CallCount}, handler3={_handler3CallCount}");
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // since _mockHandler1 should succeed the result must be SUCCESS because the parallel requires only 1 success
-        Assert.That(_handler1CallCount, Is.EqualTo(1));
-        Assert.That(_handler3CallCount, Is.EqualTo(2)); // handlers are called, the result that has failed
-
-        // success threshold higher than available successes
-        var newContext = new LSEventContextBuilder()
-            .Parallel("root", par => par
-                .Execute("successHandler", _mockHandler1)
-                .Execute("failureHandler", _mockHandler3Failure)
-                .Execute("anotherFailure", _mockHandler3Failure), 2)
-            .Build();
-        var newProcessContext = new LSEventProcessContext(mockEvent, context); // process context cannot be reused
-        result = newvar result = processContext.Process();
-
-        Console.WriteLine($"After second parallel: result={result}, handler1={_handler1CallCount}, handler3={_handler3CallCount}");
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE)); // since we need 2 successes and only 1 is available
-        Assert.That(_handler1CallCount, Is.EqualTo(2)); // handler1 called in both contexts (first + second)
-        Assert.That(_handler3CallCount, Is.EqualTo(4)); // handler3 called 4 times: 2 in first context + 2 in second context
-    }
-
-    [Test]
-    public void TestSelectorShortCircuit() {
-        var context = new LSEventContextBuilder()
-            .Selector("root", sel => sel
-                .Execute("firstHandler", _mockHandler1) // Success
-                .Execute("secondHandler", _mockHandler2)) // Should not be called
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
         var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE)); // since the handler returns FAILURE the result is FAILURE
+        Assert.That(_handler1CallCount, Is.EqualTo(1)); // handler should be called because handler condition is true
 
-        Assert.That(_handler1CallCount, Is.EqualTo(1));
-        Assert.That(_handler2CallCount, Is.EqualTo(0));
     }
 
     [Test]
@@ -650,7 +1105,7 @@ public class LSEventSystemTestsV5 {
     }
 
     [Test]
-    public void TestExecutionOrderAfterMerge() {
+    public void TestExecutionPreserveOrderAfterMerge() {
         List<string> executionOrder = new List<string>();
         var contextA = new LSEventContextBuilder()
             .Sequence("seqA", seq => seq
@@ -675,17 +1130,19 @@ public class LSEventSystemTestsV5 {
             .Build();
 
         var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
+        var processContext = new LSEventProcessContext(mockEvent, mergedContext);
         var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
 
         // in the same priority order should be preserved
         Assert.That(executionOrder, Is.EqualTo(new List<string> { "A", "B" }));
 
-        // Now test with different priorities
-        executionOrder.Clear();
+    }
 
+    public void TestExecutionPriorityOrderAfterMerge() {
+        List<string> executionOrder = new List<string>();
         // Create fresh contexts for the second test
-        var contextA2 = new LSEventContextBuilder()
+        var contextA = new LSEventContextBuilder()
             .Sequence("seqA", seq => seq
                 .Execute("handlerA", (evt, node) => {
                     executionOrder.Add("A");
@@ -693,7 +1150,7 @@ public class LSEventSystemTestsV5 {
                 }))
             .Build();
 
-        var contextB2 = new LSEventContextBuilder()
+        var contextB = new LSEventContextBuilder()
             .Sequence("seqB", seq => seq
                 .Execute("handlerB", (evt, node) => {
                     executionOrder.Add("B");
@@ -710,362 +1167,20 @@ public class LSEventSystemTestsV5 {
             .Build();
         var mergedContextWithPriority = new LSEventContextBuilder()
             .Sequence("root", root => root
-                .Merge(contextA2)
+                .Merge(contextA)
                 .Merge(contextC) // C has higher priority
-                .Merge(contextB2))
+                .Merge(contextB))
             .Build();
 
-        mockEvent = new MockEvent(_mockDispatcher);
-        processContext = new LSEventProcessContext(mockEvent, context);
+        var mockEvent = new MockEvent(_mockDispatcher);
+        var processContext = new LSEventProcessContext(mockEvent, mergedContextWithPriority);
         var result = processContext.Process();
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
 
         Assert.That(executionOrder, Is.EqualTo(new List<string> { "C", "A", "B" }));
     }
 
     #endregion
-
-    #region LSEventProcessContext Tests
-
-    [Test]
-    public void TestProcessContextSuccess() {
-        //sequence success
-        var context = new LSEventContextBuilder()
-            .Sequence("root")
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
-
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
-        //selector success
-        context = new LSEventContextBuilder()
-            .Selector("root")
-            .Build();
-        result = var result = processContext.Process();
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
-        //parallel success
-        context = new LSEventContextBuilder()
-            .Parallel("root")
-            .Build();
-
-        result = var result = processContext.Process();
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
-    }
-
-    [Test]
-    public void TestProcessContextFailure() {
-        // sequence failure
-        var context = new LSEventContextBuilder()
-            .Sequence("root", seq => seq
-                .Execute("failureHandler", _mockHandler3Failure))
-            .Build();
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE));
-
-        // selector failure
-        context = new LSEventContextBuilder()
-            .Selector("root", sel => sel
-                .Execute("failureHandler", _mockHandler3Failure))
-            .Build();
-        processContext = new LSEventProcessContext(mockEvent, context);
-        result = var result = processContext.Process();
-        Console.WriteLine($"Selector result: {result}, handler3CallCount: {_handler3CallCount}");
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE));
-
-        // parallel failure
-        context = new LSEventContextBuilder()
-            .Parallel("root", par => par
-                .Execute("failureHandler", _mockHandler3Failure), 1) // require 1 success, but will get 0
-            .Build();
-        processContext = new LSEventProcessContext(mockEvent, context);
-        result = var result = processContext.Process();
-        Console.WriteLine($"Parallel result: {result}, handler3CallCount: {_handler3CallCount}");
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE));
-    }
-
-    [Test]
-    public void TestProcessContextCancel() {
-        // sequence cancel
-        var context = new LSEventContextBuilder()
-            .Sequence("root", seq => seq
-                .Execute("cancelHandler", _mockHandler3Cancel))
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
-        Console.WriteLine($"Sequence cancel result: {result}, handler3CallCount: {_handler3CallCount}");
-
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.CANCELLED));
-
-        // selector cancel
-        context = new LSEventContextBuilder()
-            .Selector("root", sel => sel
-                .Execute("cancelHandler", _mockHandler3Cancel))
-            .Build();
-        processContext = new LSEventProcessContext(mockEvent, context);
-        result = var result = processContext.Process();
-        Console.WriteLine($"Selector cancel result: {result}, handler3CallCount: {_handler3CallCount}");
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.CANCELLED));
-
-        // parallel cancel
-        context = new LSEventContextBuilder()
-            .Parallel("root", par => par
-                .Execute("cancelHandler", _mockHandler3Cancel), 1) // require 1 success
-            .Build();
-        processContext = new LSEventProcessContext(mockEvent, context);
-        result = var result = processContext.Process();
-        Console.WriteLine($"Parallel cancel result: {result}, handler3CallCount: {_handler3CallCount}");
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.CANCELLED));
-    }
-
-    [Test]
-    public void TestProcessSequenceWaitingAndResume() {
-        int handlerExecuted = 0;
-        LSEventHandlerNode? waitingNode1 = null;
-        LSEventHandlerNode? waitingNode2 = null;
-        var context = new LSEventContextBuilder()
-            .Sequence("root", seq => seq
-                .Execute("waitingHandler1", (evt, node) => {
-                    waitingNode1 = node as LSEventHandlerNode;
-                    Console.WriteLine($"Executing waiting handler 1, returning WAITING: {node.NodeID}");
-                    handlerExecuted++;
-                    return LSEventProcessStatus.WAITING;
-                })
-                .Execute("waitingHandler2", (evt, node) => {
-                    waitingNode2 = node as LSEventHandlerNode;
-                    Console.WriteLine($"Executing waiting handler 2, returning WAITING: {node.NodeID}");
-                    handlerExecuted++;
-                    return LSEventProcessStatus.WAITING;
-                }))
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
-
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
-        Assert.That(handlerExecuted, Is.EqualTo(1)); // Only first handler should execute
-
-        Assert.That(waitingNode2, Is.Null);
-        Assert.That(waitingNode1, Is.Not.Null); // this should not be null here, the 1st node has not been processed
-        result = processContext.Resume(new string[] { waitingNode1.NodeID });
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
-        Assert.That(handlerExecuted, Is.EqualTo(2)); // Second handler should execute after first resume
-        Assert.That(waitingNode2, Is.Not.Null);
-        result = processContext.Resume(new string[] { waitingNode2.NodeID });
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // Should succeed after
-
-    }
-    [Test]
-    public void TestProcessSelectorWaitingAndResume() {
-        LSEventHandlerNode? waitingNode1 = null;
-        LSEventHandlerNode? waitingNode2 = null;
-        var context = new LSEventContextBuilder()
-            .Selector("root", sel => sel
-                .Execute("failureHandler", _mockHandler3Failure) //execute first, since this is the first register and all handler are NORMAL priority
-                .Execute("waitingHandler", (evt, node) => { // this will be called second, and should return WAITING, causing the var result = processContext.Process(); to return WAITING 
-                    waitingNode1 = node as LSEventHandlerNode;
-                    Console.WriteLine($"WaitingHandler called, returning WAITING.");
-                    return LSEventProcessStatus.WAITING;
-                })
-                .Execute("shouldNotCallHandler", (evt, node) => { // Should not be called because we are Resuming from waiting
-                    Console.WriteLine("shouldNotCallHandler called - THIS SHOULD NOT HAPPEN BECAUSE WE ARE RESUMING");
-                    waitingNode1 = null;
-                    waitingNode2 = node as LSEventHandlerNode;
-                    return LSEventProcessStatus.CANCELLED;
-                }))
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        Console.WriteLine("=== Initial Process ===");
-        var result = var result = processContext.Process();
-
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING)); // return expected because waitingHandler returns WAITING
-        Assert.That(waitingNode2, Is.Null); // shouldNotCallHandler should not be called
-        Assert.That(waitingNode1, Is.Not.Null); // waitingNode1 should be set because the handler should have been called
-        Assert.That(_handler3CallCount, Is.EqualTo(1)); // Because _mockHandler3Failure was called
-
-        Console.WriteLine("=== Resume ===");
-        result = processContext.Resume(new string[] { waitingNode1.NodeID });
-        Console.WriteLine($"Resume result: {result}");
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // Should succeed after resume
-        Assert.That(waitingNode1, Is.Not.Null); //should remain not null
-        Assert.That(waitingNode2, Is.Null); //should still be null
-    }
-    [Test]
-    public void TestProcessParallelWaitingAndResume() {
-        LSEventHandlerNode? waitingNode1 = null;
-        LSEventHandlerNode? waitingNode2 = null;
-
-        var context = new LSEventContextBuilder()
-            .Parallel("root", par => par
-                .Execute("waiting1", (evt, node) => {
-                    waitingNode1 = node as LSEventHandlerNode;
-                    _handler1CallCount++;
-                    return LSEventProcessStatus.WAITING;
-                })
-                .Execute("waiting2", (evt, node) => {
-                    waitingNode2 = node as LSEventHandlerNode;
-                    _handler2CallCount++;
-                    return LSEventProcessStatus.WAITING;
-                }), 2)
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
-
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
-        Assert.That(_handler1CallCount, Is.EqualTo(1));
-        Assert.That(_handler2CallCount, Is.EqualTo(1));
-        Assert.That(waitingNode1, Is.Not.Null);
-        Assert.That(waitingNode2, Is.Not.Null);
-
-        // Resume first node
-        result = processContext.Resume(new string[] { waitingNode1.NodeID });
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING)); // Still waiting for the second
-
-        // Resume second node
-        result = processContext.Resume(new string[] { waitingNode2.NodeID });
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS)); // Should succeed after both resumed
-    }
-
-    [Test]
-    public void TestProcessContextSequenceWaitingAndFail() {
-        LSEventHandlerNode? waitingNode = null;
-        var context = new LSEventContextBuilder()
-            .Sequence("root", seq => seq
-                .Execute("handler1", _mockHandler1)
-                .Execute("waitingHandler", (evt, node) => {
-                    waitingNode = node as LSEventHandlerNode;
-                    _handler3CallCount++;
-                    return LSEventProcessStatus.WAITING;
-                }))
-                .Execute("handler2", _mockHandler2)
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
-
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING)); // Currently succeeds instead of waiting
-        Assert.That(_handler3CallCount, Is.EqualTo(1)); // Waiting handler called
-        Assert.That(_handler1CallCount, Is.EqualTo(1)); // First handler called
-        Assert.That(_handler2CallCount, Is.EqualTo(0)); // Second handler not called
-        Assert.That(waitingNode, Is.Not.Null);
-        result = processContext.Fail(new string[] { waitingNode.NodeID });
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE)); // Should succeed after
-        Assert.That(_handler2CallCount, Is.EqualTo(0)); // Second handler should not be called after Fail()
-    }
-
-    [Test]
-    public void TestProcessContextSelectorWaitingAndFail() {
-        LSEventHandlerNode? waitingNode = null;
-
-        var context = new LSEventContextBuilder()
-            .Selector("root", sel => sel
-                .Execute("failureHandler", _mockHandler3Failure)
-                .Execute("waitingHandler", (evt, node) => {
-                    waitingNode = node as LSEventHandlerNode;
-                    _handler1CallCount++;
-                    return LSEventProcessStatus.WAITING;
-                })
-                .Execute("shouldCallHandler", _mockHandler2)) // Should be called because we are failing from waiting
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
-
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING)); // Currently succeeds instead of waiting
-        Assert.That(_handler3CallCount, Is.EqualTo(1)); // _mockHandler3Failure called
-        Assert.That(_handler1CallCount, Is.EqualTo(1)); // Waiting handler called
-        Assert.That(_handler2CallCount, Is.EqualTo(0)); // Second handler not called
-        Assert.That(waitingNode, Is.Not.Null);
-
-        result = processContext.Fail(new string[] { waitingNode.NodeID });
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE)); // Should result in fail
-        Assert.That(_handler2CallCount, Is.EqualTo(1)); // Should call shouldCallHandler after Fail()
-    }
-    //parallel waiting and fail
-    [Test]
-    public void TestProcessContextParallelWaitingAndFail() {
-        LSEventHandlerNode? waitingNode1 = null;
-        LSEventHandlerNode? waitingNode2 = null;
-
-        var context = new LSEventContextBuilder()
-            .Parallel("root", par => par
-                .Execute("waiting1", (evt, node) => {
-                    waitingNode1 = node as LSEventHandlerNode;
-                    _handler1CallCount++;
-                    return LSEventProcessStatus.WAITING;
-                })
-                .Execute("waiting2", (evt, node) => {
-                    waitingNode2 = node as LSEventHandlerNode;
-                    _handler2CallCount++;
-                    return LSEventProcessStatus.WAITING;
-                }), 2)
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
-
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
-        Assert.That(_handler1CallCount, Is.EqualTo(1));
-        Assert.That(_handler2CallCount, Is.EqualTo(1));
-        Assert.That(waitingNode1, Is.Not.Null);
-        Assert.That(waitingNode2, Is.Not.Null);
-
-        // Fail first node
-        result = processContext.Fail(new string[] { waitingNode1.NodeID });
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING)); // Still waiting for the second
-
-        // Fail second node
-        result = processContext.Fail(new string[] { waitingNode2.NodeID });
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE)); // Should fail after both failed
-    }
-
-    [Test]
-    public void TestProcessContextSequenceWaitingAndCancel() {
-        LSEventHandlerNode? waitingNode = null;
-        var context = new LSEventContextBuilder()
-            .Sequence("root", seq => seq
-                .Execute("cancelHandler", (evt, node) => {
-                    _handler3CallCount++;
-                    waitingNode = node as LSEventHandlerNode;
-                    return LSEventProcessStatus.WAITING;
-                }))
-                .Execute("handler1", _mockHandler1)
-            .Build();
-
-        var mockEvent = new MockEvent(_mockDispatcher);
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = var result = processContext.Process();
-
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.WAITING));
-        Assert.That(_handler3CallCount, Is.EqualTo(1)); // Waiting handler called
-        Assert.That(_handler1CallCount, Is.EqualTo(0)); // Second handler not called
-
-        processContext.Cancel(); // Cancel the entire process
-
-        Assert.That(processContext.IsCancelled, Is.True);
-        Assert.That(_handler1CallCount, Is.EqualTo(0)); // Second handler not called
-
-        Assert.That(waitingNode, Is.Not.Null);
-        result = processContext.Resume(new string[] { waitingNode }); // Resuming after cancel should have no effect
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.CANCELLED)); // Should remain cancelled
-        Assert.That(_handler1CallCount, Is.EqualTo(0)); // Second handler should not be called after Resume when already cancelled
-    }
-
-
-    #endregion
-    */
 }
 
 
