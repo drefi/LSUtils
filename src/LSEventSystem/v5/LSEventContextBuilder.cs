@@ -51,11 +51,20 @@ public class LSEventContextBuilder {
     /// The current node context for hierarchy operations. Null when in global mode before first layer node creation.
     /// </summary>
     private ILSEventLayerNode? _currentNode;
-    
+
     /// <summary>
     /// The root node of the hierarchy being built. Used to return the complete hierarchy from Build().
     /// </summary>
     private ILSEventLayerNode? _rootNode; // Tracks the root node to return on Build()
+    
+    /// <summary>
+    /// Tracks whether Build() has been called to prevent multiple builds from the same instance.
+    /// </summary>
+    /// <remarks>
+    /// <para>Once Build() is called, this flag is set to true and subsequent Build() calls will throw an LSException.</para>
+    /// <para>This ensures the builder follows the expected pattern of single-use instances.</para>
+    /// </remarks>
+    protected bool _hasBuilt = false;
 
     /// <summary>
     /// Initializes a new builder in global mode with no existing hierarchy.
@@ -159,16 +168,63 @@ public class LSEventContextBuilder {
 
         return this;
     }
+    
+    /// <summary>
+    /// Delegate type for sub-context building operations that allow nested hierarchy construction.
+    /// </summary>
+    /// <param name="subBuilder">A builder instance initialized with the parent node for nested operations.</param>
+    /// <returns>The builder instance after performing nested operations for method chaining.</returns>
+    /// <remarks>
+    /// <para><strong>Sub-Context Pattern:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Isolated Building</strong>: The subBuilder operates on a cloned copy of the parent node</description></item>
+    /// <item><description><strong>Fluent Operations</strong>: Allows method chaining within the sub-context scope</description></item>
+    /// <item><description><strong>Automatic Integration</strong>: Results are automatically merged back into the parent hierarchy</description></item>
+    /// <item><description><strong>Type Safety</strong>: Ensures consistent builder pattern throughout nested operations</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Usage Example:</strong></para>
+    /// <code>
+    /// builder.Sequence("parentSeq", sub => sub
+    ///     .Execute("handler1", handler1)
+    ///     .Execute("handler2", handler2))
+    /// </code>
+    /// </remarks>
     public delegate LSEventContextBuilder SubContextBuilder(LSEventContextBuilder subBuilder);
     /// <summary>
-    /// Create or navigate to a sequence node in the current context.
-    /// When creating a new sequence node, if a node with the same ID already exists it will be replaced.
+    /// Creates or navigates to a sequence node in the current context with support for nested hierarchy construction.
     /// </summary>
-    /// <param name="nodeID">The ID of the sequence node.</param>
-    /// <param name="priority">The priority of the sequence node.</param>
-    /// <param name="conditions">The conditions for the sequence node process.</param>
-    /// <returns> The current instance of the context builder.</returns>
-    /// <exception cref="LSException"></exception>
+    /// <param name="nodeID">Unique identifier for the sequence node within the current context.</param>
+    /// <param name="subContextBuilder">Optional delegate for building nested children within this sequence. If provided, the sequence is built completely and the builder stays at the parent level.</param>
+    /// <param name="priority">Processing priority level for this sequence node (default: NORMAL).</param>
+    /// <param name="conditions">Optional array of conditions that must be met before this sequence processes.</param>
+    /// <returns>The current builder instance for method chaining.</returns>
+    /// <exception cref="LSException">Thrown when attempting to override a non-sequence node with the same ID.</exception>
+    /// <remarks>
+    /// <para><strong>Sequence Node Behavior:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Sequential Processing</strong>: Children are processed in priority/order sequence until one fails</description></item>
+    /// <item><description><strong>Early Termination</strong>: Processing stops at the first child that returns FAILURE</description></item>
+    /// <item><description><strong>Success Condition</strong>: All children must succeed for the sequence to succeed</description></item>
+    /// <item><description><strong>AND Logic</strong>: Implements logical AND behavior across child nodes</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Node Creation and Replacement:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>New Node Creation</strong>: Creates a new sequence node if none exists with the given ID</description></item>
+    /// <item><description><strong>Existing Node Navigation</strong>: Navigates to existing sequence node if it exists</description></item>
+    /// <item><description><strong>Type Safety</strong>: Throws exception if attempting to replace non-sequence node</description></item>
+    /// <item><description><strong>Order Preservation</strong>: Maintains original order when replacing existing nodes</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Navigation Behavior:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Root Creation</strong>: If no root exists, this sequence becomes the root node</description></item>
+    /// <item><description><strong>Sub-Context Building</strong>: When subContextBuilder is provided, stays at parent level after building</description></item>
+    /// <item><description><strong>Direct Navigation</strong>: When no subContextBuilder provided, navigates into the sequence for further operations</description></item>
+    /// <item><description><strong>Sibling Support</strong>: Enables creation of sibling nodes when using sub-context pattern</description></item>
+    /// </list>
+    /// </remarks>
     public LSEventContextBuilder Sequence(string nodeID, SubContextBuilder? subContextBuilder = null, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
@@ -195,14 +251,39 @@ public class LSEventContextBuilder {
         return this;
     }
     /// <summary>
-    /// Create or navigate to a selector node in the current context.
-    /// When creating a new selector node, if a node with the same ID already exists it will be replaced.
+    /// Creates or navigates to a selector node in the current context with support for nested hierarchy construction.
     /// </summary>
-    /// <param name="nodeID">The ID of the selector node.</param>
-    /// <param name="priority">The priority of the selector node.</param>
-    /// <param name="conditions">The conditions for the selector node process.</param>
-    /// <returns> The current instance of the context builder.</returns>
-    /// <exception cref="LSException"></exception>
+    /// <param name="nodeID">Unique identifier for the selector node within the current context.</param>
+    /// <param name="subContextBuilder">Optional delegate for building nested children within this selector. If provided, the selector is built completely and the builder stays at the parent level.</param>
+    /// <param name="priority">Processing priority level for this selector node (default: NORMAL).</param>
+    /// <param name="conditions">Optional array of conditions that must be met before this selector processes.</param>
+    /// <returns>The current builder instance for method chaining.</returns>
+    /// <exception cref="LSException">Thrown when attempting to override a non-selector node with the same ID.</exception>
+    /// <remarks>
+    /// <para><strong>Selector Node Behavior:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Sequential Processing</strong>: Children are processed in priority/order sequence until one succeeds</description></item>
+    /// <item><description><strong>Early Termination</strong>: Processing stops at the first child that returns SUCCESS</description></item>
+    /// <item><description><strong>Failure Condition</strong>: All children must fail for the selector to fail</description></item>
+    /// <item><description><strong>OR Logic</strong>: Implements logical OR behavior across child nodes</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Node Creation and Replacement:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>New Node Creation</strong>: Creates a new selector node if none exists with the given ID</description></item>
+    /// <item><description><strong>Existing Node Navigation</strong>: Navigates to existing selector node if it exists</description></item>
+    /// <item><description><strong>Type Safety</strong>: Throws exception if attempting to replace non-selector node</description></item>
+    /// <item><description><strong>Order Preservation</strong>: Maintains original order when replacing existing nodes</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Navigation Behavior:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Root Creation</strong>: If no root exists, this selector becomes the root node</description></item>
+    /// <item><description><strong>Sub-Context Building</strong>: When subContextBuilder is provided, stays at parent level after building</description></item>
+    /// <item><description><strong>Direct Navigation</strong>: When no subContextBuilder provided, navigates into the selector for further operations</description></item>
+    /// <item><description><strong>Sibling Support</strong>: Enables creation of sibling nodes when using sub-context pattern</description></item>
+    /// </list>
+    /// </remarks>
     public LSEventContextBuilder Selector(string nodeID, SubContextBuilder? subContextBuilder = null, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
@@ -230,18 +311,48 @@ public class LSEventContextBuilder {
     }
 
     /// <summary>
-    /// Create or navigate to a parallel node in the current context.
-    /// Parallel nodes have some quirks in terms of waiting behaviour:
-    /// 1. If a parallel node is waiting, it can be resumed individually.
-    /// 2. The overall success or failure of the parallel node depends on its children.
-    /// 3. 
+    /// Creates or navigates to a parallel node in the current context with support for nested hierarchy construction.
     /// </summary>
-    /// <param name="nodeID">The ID of the parallel node.</param>
-    /// <param name="numRequiredToSucceed">The number of child nodes that must succeed.</param>
-    /// <param name="priority">The priority of the parallel node.</param>
-    /// <param name="conditions">The conditions for the parallel node process.</param>
-    /// <returns> The current instance of the context builder.</returns>
-    /// <exception cref="LSException"></exception>
+    /// <param name="nodeID">Unique identifier for the parallel node within the current context.</param>
+    /// <param name="subContextBuilder">Optional delegate for building nested children within this parallel node. If provided, the parallel node is built completely and the builder stays at the parent level.</param>
+    /// <param name="numRequiredToSucceed">The number of child nodes that must succeed for the parallel node to succeed (default: 0 - all must succeed).</param>
+    /// <param name="numRequiredToFailure">The number of child nodes that must fail for the parallel node to fail (default: 0 - any failure causes parallel failure).</param>
+    /// <param name="priority">Processing priority level for this parallel node (default: NORMAL).</param>
+    /// <param name="conditions">Optional array of conditions that must be met before this parallel node processes.</param>
+    /// <returns>The current builder instance for method chaining.</returns>
+    /// <exception cref="LSException">Thrown when attempting to override a non-parallel node with the same ID.</exception>
+    /// <remarks>
+    /// <para><strong>Parallel Node Behavior:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Concurrent Processing</strong>: All eligible children are processed simultaneously</description></item>
+    /// <item><description><strong>Threshold-Based Success</strong>: Success determined by numRequiredToSucceed threshold</description></item>
+    /// <item><description><strong>Threshold-Based Failure</strong>: Failure determined by numRequiredToFailure threshold</description></item>
+    /// <item><description><strong>Flexible Logic</strong>: Supports various parallel processing patterns through threshold configuration</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Threshold Configuration:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Success Threshold</strong>: 0 means all children must succeed; positive value sets minimum success count</description></item>
+    /// <item><description><strong>Failure Threshold</strong>: 0 means any failure causes parallel failure; positive value sets maximum failure tolerance</description></item>
+    /// <item><description><strong>Dynamic Updates</strong>: Existing parallel nodes can have their success threshold updated</description></item>
+    /// <item><description><strong>Validation</strong>: Thresholds are validated against actual child count during processing</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Waiting and Resume Behavior:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Individual Resume</strong>: Parallel nodes in WAITING state can be resumed individually</description></item>
+    /// <item><description><strong>Child State Aggregation</strong>: Overall parallel status depends on child states and thresholds</description></item>
+    /// <item><description><strong>Partial Completion</strong>: Can succeed even if some children are still waiting</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Node Creation and Replacement:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>New Node Creation</strong>: Creates a new parallel node if none exists with the given ID</description></item>
+    /// <item><description><strong>Existing Node Updates</strong>: Updates success threshold of existing parallel nodes when specified</description></item>
+    /// <item><description><strong>Type Safety</strong>: Throws exception if attempting to replace non-parallel node</description></item>
+    /// <item><description><strong>Order Preservation</strong>: Maintains original order when replacing existing nodes</description></item>
+    /// </list>
+    /// </remarks>
     public LSEventContextBuilder Parallel(string nodeID, SubContextBuilder? subContextBuilder = null, int? numRequiredToSucceed = 0, int? numRequiredToFailure = 0, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
@@ -271,12 +382,44 @@ public class LSEventContextBuilder {
         return this;
     }
     /// <summary>
-    /// Merges a sub-layer node into the current context.
+    /// Merges a sub-layer node hierarchy into the current context with intelligent conflict resolution.
     /// </summary>
-    /// <param name="subLayer">The sub-layer node to merge.</param>
-    /// <param name="overrideNode">Whether to override an existing node.</param>
-    /// <returns>The current instance of the context builder.</returns>
+    /// <param name="subLayer">The sub-layer node hierarchy to merge into the current context.</param>
+    /// <param name="subContextBuilder">Optional delegate for building additional content within the merged hierarchy before integration.</param>
+    /// <returns>The current builder instance for method chaining.</returns>
     /// <exception cref="LSArgumentNullException">Thrown when subLayer is null.</exception>
+    /// <exception cref="LSException">Thrown when no current context exists and subLayer is empty.</exception>
+    /// <remarks>
+    /// <para><strong>Merge Strategies:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Root Seeding</strong>: If no current context exists, non-empty subLayer becomes the root</description></item>
+    /// <item><description><strong>Type-Based Merging</strong>: Same-type layer nodes are merged recursively</description></item>
+    /// <item><description><strong>Node Replacement</strong>: Different-type nodes or handler nodes are replaced</description></item>
+    /// <item><description><strong>Additive Integration</strong>: Non-conflicting nodes are added directly</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Conflict Resolution Rules:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Same Type Layer Nodes</strong>: Merged recursively, preserving both hierarchies</description></item>
+    /// <item><description><strong>Different Type Nodes</strong>: SubLayer node replaces existing node</description></item>
+    /// <item><description><strong>Handler Node Conflicts</strong>: SubLayer handler replaces existing handler</description></item>
+    /// <item><description><strong>Root Container Conflicts</strong>: SubLayer container replaces root if types differ</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Entry-Level Merging:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Root Identity Check</strong>: Special handling when merging into root node with same ID</description></item>
+    /// <item><description><strong>Root Type Compatibility</strong>: Same-type roots are content-merged, different types replace</description></item>
+    /// <item><description><strong>Context Preservation</strong>: Current context and root references updated appropriately</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Sub-Context Integration:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Pre-Build Processing</strong>: subContextBuilder can modify the subLayer before merging</description></item>
+    /// <item><description><strong>Isolated Operations</strong>: subContextBuilder operates on cloned copy to prevent side effects</description></item>
+    /// <item><description><strong>Seamless Integration</strong>: Built result is integrated using standard merge logic</description></item>
+    /// </list>
+    /// </remarks>
     public LSEventContextBuilder Merge(ILSEventLayerNode subLayer, SubContextBuilder? subContextBuilder = null) {
         if (subLayer == null) throw new LSArgumentNullException(nameof(subLayer), "Sub-layer node cannot be null.");
         // If there is no current context, allow seeding with a non-empty sub-layer
@@ -324,6 +467,35 @@ public class LSEventContextBuilder {
         return this; // Return the builder for method chaining
     }
 
+    /// <summary>
+    /// Recursively merges the contents of a source node hierarchy into a target node hierarchy.
+    /// </summary>
+    /// <param name="currentNode">The target layer node that will receive merged content.</param>
+    /// <param name="subNode">The source layer node whose content will be merged into the target.</param>
+    /// <remarks>
+    /// <para><strong>Recursive Merge Logic:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Deep Traversal</strong>: Recursively processes all children in the source hierarchy</description></item>
+    /// <item><description><strong>Conflict Detection</strong>: Identifies existing children with same IDs in target hierarchy</description></item>
+    /// <item><description><strong>Type-Aware Merging</strong>: Different merge strategies based on node types</description></item>
+    /// <item><description><strong>Preservation Logic</strong>: Maintains existing structure while integrating new content</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Merge Resolution Strategy:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Both Layer Nodes</strong>: Recursive merge to combine both hierarchies</description></item>
+    /// <item><description><strong>Same Type Non-Layer</strong>: Source node replaces target node (e.g., handler replacement)</description></item>
+    /// <item><description><strong>Different Types</strong>: Source node replaces target node regardless of type</description></item>
+    /// <item><description><strong>No Conflict</strong>: Source node added directly to target</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Node Reference Handling:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Direct Addition</strong>: Non-conflicting nodes are added without cloning</description></item>
+    /// <item><description><strong>Builder Assumption</strong>: Assumes all nodes are already properly cloned or new</description></item>
+    /// <item><description><strong>Reference Integrity</strong>: Maintains proper parent-child relationships</description></item>
+    /// </list>
+    /// </remarks>
     private void mergeRecursive(ILSEventLayerNode currentNode, ILSEventLayerNode subNode) {
         // Iterate through all children of the source node
         foreach (var subNodeChild in subNode.GetChildren()) {
@@ -351,7 +523,34 @@ public class LSEventContextBuilder {
             }
         }
     }
-    protected bool _hasBuilt = false;
+    
+    /// <summary>
+    /// Finalizes the builder and returns the completed event processing hierarchy.
+    /// </summary>
+    /// <returns>The root node of the constructed hierarchy ready for event processing.</returns>
+    /// <exception cref="LSException">Thrown when Build() is called multiple times on the same instance or when no hierarchy was constructed.</exception>
+    /// <remarks>
+    /// <para><strong>Single-Use Pattern:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>One-Time Build</strong>: Each builder instance can only be built once</description></item>
+    /// <item><description><strong>State Protection</strong>: Prevents accidental reuse that could cause inconsistent hierarchies</description></item>
+    /// <item><description><strong>Clean Lifecycle</strong>: Enforces proper builder disposal pattern</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Validation Requirements:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Hierarchy Existence</strong>: Throws exception if no nodes were added to the builder</description></item>
+    /// <item><description><strong>Root Node Availability</strong>: Ensures a valid root node exists for return</description></item>
+    /// <item><description><strong>Structural Integrity</strong>: Built hierarchy is ready for immediate use</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Return Value:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Independent Hierarchy</strong>: Returned hierarchy is independent of the builder</description></item>
+    /// <item><description><strong>Processing Ready</strong>: Can be immediately used with LSEventProcessContext</description></item>
+    /// <item><description><strong>Complete Structure</strong>: All nodes, relationships, and configurations are finalized</description></item>
+    /// </list>
+    /// </remarks>
     public ILSEventLayerNode Build() {
         if (_hasBuilt) throw new LSException("Build can only be called once per builder instance.");
         _hasBuilt = true;
@@ -360,30 +559,32 @@ public class LSEventContextBuilder {
         throw new LSException("No current node to build. Make sure to end all layers.");
     }
 
+    /// <summary>
+    /// Attempts to retrieve a child node from the current context by its identifier.
+    /// </summary>
+    /// <param name="nodeID">The unique identifier of the child node to locate.</param>
+    /// <param name="child">When this method returns, contains the found child node if successful, or null if not found.</param>
+    /// <returns>True if a child node with the specified ID was found; otherwise, false.</returns>
+    /// <remarks>
+    /// <para><strong>Safe Lookup Logic:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Null Context Handling</strong>: Returns false immediately if no current context exists</description></item>
+    /// <item><description><strong>Dictionary Lookup</strong>: Utilizes efficient O(1) child lookup when context is available</description></item>
+    /// <item><description><strong>Out Parameter Pattern</strong>: Provides both success indicator and result value</description></item>
+    /// <item><description><strong>Exception-Free</strong>: Never throws exceptions, always returns success/failure indication</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Usage Pattern:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Existence Check</strong>: Used internally to check if nodes exist before operations</description></item>
+    /// <item><description><strong>Type Validation</strong>: Enables subsequent type checking on found nodes</description></item>
+    /// <item><description><strong>Conflict Detection</strong>: Helps identify naming conflicts during node creation</description></item>
+    /// </list>
+    /// </remarks>
     private bool tryGetContextChild(string nodeID, out ILSEventNode? child) {
         child = null;
         if (_currentNode == null) return false;
         child = _currentNode.GetChild(nodeID);
         return child != null;
     }
-
-
-    // findNodeRecursive probably will not be used anymore, but leaving it here for reference
-    // private ILSEventNode? findNodeRecursive(ILSEventNode? node, string targetNodeID) {
-    //     if (node == null) return null;
-    //     if (node.NodeID == targetNodeID) return node;
-
-    //     if (node is ILSEventLayerNode layerNode) {
-    //         var found = layerNode.GetChild(targetNodeID);
-    //         if (found != null) return found;
-
-    //         // Deep search in children
-    //         foreach (var child in layerNode.GetChildren()) {
-    //             var deepFound = findNodeRecursive(child, targetNodeID);
-    //             if (deepFound != null) return deepFound;
-    //         }
-    //     }
-
-    //     return null;
-    // }
 }
