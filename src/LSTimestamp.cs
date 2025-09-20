@@ -2,7 +2,7 @@ namespace LSUtils;
 
 using LSUtils.EventSystem;
 
-public class LSTimestamp : ILSEventable {
+public class LSTimestamp : ILSEventable_obsolete {
     public class OnUpdateEvent : LSEvent<LSTimestamp> {
         public OnUpdateEvent(LSTimestamp timestamp, LSEventOptions? options = null) : base(timestamp, options) { }
     }

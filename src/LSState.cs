@@ -13,7 +13,7 @@ namespace LSUtils;
 /// for event handling. It maintains compatibility with the ILSState interface while providing
 /// improved performance and cleaner architecture.
 /// </remarks>
-public abstract class LSState<TState, TContext> : ILSState, ILSEventable
+public abstract class LSState<TState, TContext> : ILSState, ILSEventable_obsolete
     where TState : LSState<TState, TContext>
     where TContext : ILSContext {
 

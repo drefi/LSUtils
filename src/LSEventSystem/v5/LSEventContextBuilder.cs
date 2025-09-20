@@ -78,24 +78,21 @@ public class LSEventContextBuilder {
     /// </list>
     /// </remarks>
     internal LSEventContextBuilder() {
-        //when creating a "global" context we start with no root context
     }
 
     /// <summary>
     /// Initializes a new builder in event mode with an existing root node hierarchy.
     /// </summary>
-    /// <param name="rootNode">The existing root node to use as the base for building. Will be cloned to preserve original.</param>
+    /// <param name="rootNode">The existing root node to use as the base for building. Will be referenced directly to the node, this allows global context manipulation.</param>
     /// <remarks>
     /// <para><strong>Event Mode Construction:</strong></para>
     /// <list type="bullet">
-    /// <item><description><strong>Cloned Base</strong>: Creates independent copy of provided root node hierarchy</description></item>
     /// <item><description><strong>Current Context</strong>: Sets both current and root to the cloned hierarchy</description></item>
-    /// <item><description><strong>Isolation</strong>: Original hierarchy remains unchanged during building operations</description></item>
     /// <item><description><strong>Extension Ready</strong>: Ready to add children or navigate into existing structure</description></item>
     /// </list>
     /// </remarks>
     internal LSEventContextBuilder(ILSEventLayerNode rootNode) {
-        _currentNode = _rootNode = rootNode.Clone();
+        _currentNode = _rootNode = rootNode;
     }
 
     /// <summary>
@@ -110,7 +107,7 @@ public class LSEventContextBuilder {
     /// <remarks>
     /// <para><strong>Handler Node Creation:</strong></para>
     /// <list type="bullet">
-    /// <item><description><strong>Context Requirement</strong>: Must have active layer node (Sequence/Selector/Parallel) context</description></item>
+    /// <item><description><strong>Context</strong>: If <c>_currentNode</c> is null, a new root sequence node named: <c>sequence[{nodeID}]</c> is created</description></item>
     /// <item><description><strong>Automatic Ordering</strong>: Order assigned based on current number of children in the layer</description></item>
     /// <item><description><strong>Node Replacement</strong>: Existing handler nodes with same ID are automatically replaced</description></item>
     /// <item><description><strong>Type Safety</strong>: Cannot override non-handler nodes to maintain hierarchy integrity</description></item>
@@ -132,7 +129,7 @@ public class LSEventContextBuilder {
     /// </remarks>
     public LSEventContextBuilder Execute(string nodeID, LSEventHandler handler, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
         if (_currentNode == null) {
-            _currentNode = LSEventSequenceNode.Create("base", 0); // create a root sequence node if none exists
+            _currentNode = LSEventSequenceNode.Create($"sequence[{nodeID}]", 0); // create a root sequence node if none exists
         }
         // Check if a node with the same ID already exists
         if (tryGetContextChild(nodeID, out var existingNode)) {

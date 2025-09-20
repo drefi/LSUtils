@@ -174,10 +174,10 @@ public class LSEventHandlerNode : ILSEventNode {
     /// <para>on actual handler execution frequency regardless of caching or status outcomes.</para>
     /// </remarks>
     LSEventProcessStatus ILSEventNode.Process(LSEventProcessContext context) {
-        System.Console.WriteLine($"[LSEventHandlerNode] Processing node [{NodeID}], status: [{_nodeStatus}]");
+        //System.Console.WriteLine($"[LSEventHandlerNode] Processing node [{NodeID}], status: [{_nodeStatus}]");
         // node handler exit condition (because when WAITING we keep processing it)
         if (_nodeStatus != LSEventProcessStatus.UNKNOWN && _nodeStatus != LSEventProcessStatus.WAITING) {
-            System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler already has final status {_nodeStatus}");
+            //System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler already has final status {_nodeStatus}");
             return _nodeStatus; // already completed
         }
 
@@ -185,11 +185,11 @@ public class LSEventHandlerNode : ILSEventNode {
         // ExecutionCount uses _baseNode if available so the count is "shared" between clones
         // this may change in the future
 
-        var nodeStatus = _handler(context.Event, this);
+        var nodeStatus = _handler(context.Event, context);
         ExecutionCount++;
         // we only update the node status if it was UNKNOWN, when _nodeStatus is not UNKNOWN it means Resume/Fail was already called
         _nodeStatus = (_nodeStatus == LSEventProcessStatus.UNKNOWN) ? nodeStatus : _nodeStatus;
-        System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler executed with result [{nodeStatus}], _nodeStatus: {_nodeStatus}. Execution count is now {ExecutionCount}.");
+        //System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler executed with result [{nodeStatus}], _nodeStatus: {_nodeStatus}. Execution count is now {ExecutionCount}.");
 
         return _nodeStatus;
     }
@@ -214,9 +214,9 @@ public class LSEventHandlerNode : ILSEventNode {
     /// <para>allowing the handler to transition from WAITING to SUCCESS without re-executing the handler delegate.</para>
     /// </remarks>
     LSEventProcessStatus ILSEventNode.Resume(LSEventProcessContext context, params string[]? nodes) {
-        System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler resume called, current status is [{_nodeStatus}]. nodes: {string.Join(", ", nodes ?? System.Array.Empty<string>())}");
+        //System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler resume called, current status is [{_nodeStatus}]. nodes: {string.Join(", ", nodes ?? System.Array.Empty<string>())}");
         if (_nodeStatus != LSEventProcessStatus.WAITING && _nodeStatus != LSEventProcessStatus.UNKNOWN) {
-            System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler cannot be resumed because its current status is [{_nodeStatus}].");
+            //System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler cannot be resumed because its current status is [{_nodeStatus}].");
             return _nodeStatus; // can only resume if waiting or unknown
         }
         _nodeStatus = LSEventProcessStatus.SUCCESS;
@@ -247,9 +247,9 @@ public class LSEventHandlerNode : ILSEventNode {
     /// </list>
     /// </remarks>
     LSEventProcessStatus ILSEventNode.Fail(LSEventProcessContext context, params string[]? nodes) {
-        System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler fail called, current status is [{_nodeStatus}]. nodes: {string.Join(", ", nodes ?? System.Array.Empty<string>())}");
+        //System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler fail called, current status is [{_nodeStatus}]. nodes: {string.Join(", ", nodes ?? System.Array.Empty<string>())}");
         if (_nodeStatus != LSEventProcessStatus.WAITING && _nodeStatus != LSEventProcessStatus.UNKNOWN) {
-            System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler cannot be failed because its current status is [{_nodeStatus}].");
+            //System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler cannot be failed because its current status is [{_nodeStatus}].");
             return _nodeStatus; // can only fail if waiting or unknown
         }
         _nodeStatus = LSEventProcessStatus.FAILURE;
@@ -269,7 +269,7 @@ public class LSEventHandlerNode : ILSEventNode {
     /// <para><strong>Scope:</strong> Only affects this individual handler node (leaf nodes have no children).</para>
     /// </remarks>
     LSEventProcessStatus ILSEventNode.Cancel(LSEventProcessContext context) {
-        System.Console.WriteLine($"[LSEventHandlerNode] Cancelling node {NodeID}.");
+        //System.Console.WriteLine($"[LSEventHandlerNode] Cancelling node {NodeID}.");
         _nodeStatus = LSEventProcessStatus.CANCELLED;
         return _nodeStatus;
     }

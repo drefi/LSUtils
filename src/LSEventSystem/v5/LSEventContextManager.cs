@@ -22,7 +22,7 @@ public class LSEventContextManager {
     internal ILSEventLayerNode getContext(System.Type eventType, ILSEventable? eventable = null) {
 
         // create a root parallel node to serve as the root node, only the manager have direct access to this node.
-        System.Console.WriteLine($"Getting context for event type {eventType.FullName} and instance {(eventable != null ? eventable.GetType().FullName : "null")}");
+        //System.Console.WriteLine($"Getting context for event type {eventType.FullName} and instance {(eventable != null ? eventable.GetType().FullName : "null")}");
         var root = new LSEventContextBuilder()
             .Parallel("root"); ; // root node
         if (_globalContexts.TryGetValue(eventType, out var eventContexts)) {

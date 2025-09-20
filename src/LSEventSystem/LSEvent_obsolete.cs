@@ -620,7 +620,7 @@ public abstract class LSEvent_obsolete : ILSEvent_obsolete {
 /// - Safe for concurrent access to Instance property
 /// </summary>
 /// <typeparam name="TInstance">The type of eventable instance this event is associated with</typeparam>
-public abstract class LSEvent<TInstance> : LSEvent_obsolete where TInstance : ILSEventable {
+public abstract class LSEvent<TInstance> : LSEvent_obsolete where TInstance : ILSEventable_obsolete {
     /// <summary>
     /// Initializes a new instance of the generic event with an associated eventable instance.
     /// 

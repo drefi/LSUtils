@@ -87,7 +87,7 @@ public interface ILSEvent {
     /// <summary>
     /// Process the event through a context manager (or Singleton if not provided).
     /// </summary>
-    LSEventProcessStatus Process(LSEventContextManager? contextManager = null);
+    LSEventProcessStatus Process(ILSEventable? instance = null, LSEventContextManager? contextManager = null);
     LSEventProcessStatus Resume(params string[] nodeIDs); // process context should be stored in the event instance
     LSEventProcessStatus Fail(params string[] nodeIDs); // process context should be stored in the event instance
     void Cancel();

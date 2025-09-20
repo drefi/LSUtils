@@ -32,7 +32,7 @@ public static class OnInitializeEvent {
     /// <param name="options">Event options containing dispatcher and configuration</param>
     /// <returns>A new OnInitializeEvent for the specified instance</returns>
     /// <exception cref="ArgumentNullException">Thrown when instance or options is null</exception>
-    public static OnInitializeEvent<TInstance> Create<TInstance>(TInstance instance, LSEventOptions options) where TInstance : ILSEventable {
+    public static OnInitializeEvent<TInstance> Create<TInstance>(TInstance instance, LSEventOptions options) where TInstance : ILSEventable_obsolete {
         var @event = new OnInitializeEvent<TInstance>(instance, options);
         return @event;
     }
@@ -75,7 +75,7 @@ public static class OnInitializeEvent {
 /// </code>
 /// </summary>
 /// <typeparam name="TInstance">The type of eventable instance being initialized</typeparam>
-public class OnInitializeEvent<TInstance> : LSEvent<TInstance> where TInstance : ILSEventable {
+public class OnInitializeEvent<TInstance> : LSEvent<TInstance> where TInstance : ILSEventable_obsolete {
     /// <summary>
     /// Initializes a new OnInitializeEvent for the specified eventable instance.
     /// 

@@ -12,7 +12,7 @@ namespace LSUtils.EventSystem.Tests;
 [TestFixture]
 public class LSEventSystemTests {
     // user registration class
-    public class User : ILSEventable {
+    public class User : ILSEventable_obsolete {
         public string Email { get; set; }
         public string Password { get; set; }
 

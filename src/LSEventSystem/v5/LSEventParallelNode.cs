@@ -309,11 +309,11 @@ public class LSEventParallelNode : ILSEventLayerNode {
 
         //compare nodes with _availableChildren
         if (nodes == null || nodes.Length == 0) {
-            System.Console.WriteLine($"[LSEventParallelNode] No nodes specified to fail in parallel node {NodeID} failing all childs.");
+            //System.Console.WriteLine($"[LSEventParallelNode] No nodes specified to fail in parallel node {NodeID} failing all childs.");
             foreach (var child in _availableChildren) {
                 var childStatus = child.GetNodeStatus();
                 if (childStatus == LSEventProcessStatus.WAITING || childStatus == LSEventProcessStatus.UNKNOWN) {
-                    System.Console.WriteLine($"[LSEventParallelNode] Failing child node {child.NodeID}.");
+                    //System.Console.WriteLine($"[LSEventParallelNode] Failing child node {child.NodeID}.");
                     child.Fail(context, nodes);
                 }
             }
@@ -322,10 +322,10 @@ public class LSEventParallelNode : ILSEventLayerNode {
         foreach (var node in nodes) {
             var failedChild = _availableChildren.FirstOrDefault(c => c.NodeID == node);
             if (failedChild != null) {
-                System.Console.WriteLine($"[LSEventParallelNode] Failing child node {failedChild.NodeID}.");
+                //System.Console.WriteLine($"[LSEventParallelNode] Failing child node {failedChild.NodeID}.");
                 failedChild.Fail(context, nodes);
             } else {
-                System.Console.WriteLine($"[LSEventParallelNode] Node {NodeID} does not have a child with ID {node} to fail.");
+                //System.Console.WriteLine($"[LSEventParallelNode] Node {NodeID} does not have a child with ID {node} to fail.");
             }
         }
         return GetNodeStatus(); // we return the current parallel status.
@@ -357,11 +357,11 @@ public class LSEventParallelNode : ILSEventLayerNode {
         // parallel can resume multiple nodes at a time so we need to care about nodes we want to resume.
         //compare nodes with _availableChildren
         if (nodes == null || nodes.Length == 0) {
-            System.Console.WriteLine($"[LSEventParallelNode] No nodes specified to resume in parallel node {NodeID} resuming all childs.");
+            //System.Console.WriteLine($"[LSEventParallelNode] No nodes specified to resume in parallel node {NodeID} resuming all childs.");
             foreach (var child in _availableChildren) {
                 var childStatus = child.GetNodeStatus();
                 if (childStatus == LSEventProcessStatus.WAITING || childStatus == LSEventProcessStatus.UNKNOWN) {
-                    System.Console.WriteLine($"[LSEventParallelNode] Resuming child node {child.NodeID}.");
+                    //System.Console.WriteLine($"[LSEventParallelNode] Resuming child node {child.NodeID}.");
                     child.Resume(context, nodes);
                 }
             }
@@ -370,10 +370,10 @@ public class LSEventParallelNode : ILSEventLayerNode {
         foreach (var node in nodes) {
             var resumedChild = _availableChildren.FirstOrDefault(c => c.NodeID == node);
             if (resumedChild != null) {
-                System.Console.WriteLine($"[LSEventParallelNode] Resuming child node {resumedChild.NodeID}.");
+                //System.Console.WriteLine($"[LSEventParallelNode] Resuming child node {resumedChild.NodeID}.");
                 resumedChild.Resume(context, nodes);
             } else {
-                System.Console.WriteLine($"[LSEventParallelNode] Node {NodeID} does not have a child with ID {node} to resume.");
+                //System.Console.WriteLine($"[LSEventParallelNode] Node {NodeID} does not have a child with ID {node} to resume.");
             }
         }
         return GetNodeStatus(); // we return the current parallel status.
@@ -397,7 +397,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
         foreach (var child in _availableChildren) {
             var childStatus = child.GetNodeStatus();
             if (childStatus == LSEventProcessStatus.WAITING || childStatus == LSEventProcessStatus.UNKNOWN) {
-                System.Console.WriteLine($"[LSEventParallelNode] Cancelling child node {child.NodeID}.");
+                //System.Console.WriteLine($"[LSEventParallelNode] Cancelling child node {child.NodeID}.");
                 child.Cancel(context);
             }
         }
@@ -445,11 +445,11 @@ public class LSEventParallelNode : ILSEventLayerNode {
     /// </list>
     /// </remarks>
     public LSEventProcessStatus Process(LSEventProcessContext context) {
-        System.Console.WriteLine($"[LSEventParallelNode] Process called on node {NodeID}, current status is {GetNodeStatus()}.");
+        //System.Console.WriteLine($"[LSEventParallelNode] Process called on node {NodeID}, current status is {GetNodeStatus()}.");
         if (!LSEventConditions.IsMet(context.Event, this)) return LSEventProcessStatus.SUCCESS;
 
 
-        System.Console.WriteLine($"[LSEventParallelNode] Processing parallel node {NodeID} with {_children.Count} children.");
+        //System.Console.WriteLine($"[LSEventParallelNode] Processing parallel node {NodeID} with {_children.Count} children.");
         var parallelStatus = GetNodeStatus();
 
         // Initialize available children list if not done yet
@@ -458,34 +458,34 @@ public class LSEventParallelNode : ILSEventLayerNode {
             // children ordered by Priority (critical first) and Order (lowest first)
             _availableChildren = _children.Values.Where(c => LSEventConditions.IsMet(context.Event, c)).OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
             _isProcessing = true;
-            System.Console.WriteLine($"[LSEventParallelNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()}.");
+            //System.Console.WriteLine($"[LSEventParallelNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()}.");
         }
 
         // exit condition for parallel is if all children are processed
         if (parallelStatus != LSEventProcessStatus.UNKNOWN) {
-            System.Console.WriteLine($"[LSEventParallelNode] Parallel node {NodeID} already has final status {parallelStatus}, skipping processing.");
+            //System.Console.WriteLine($"[LSEventParallelNode] Parallel node {NodeID} already has final status {parallelStatus}, skipping processing.");
             return parallelStatus;
         }
 
 
         foreach (var child in _availableChildren) {
-            System.Console.WriteLine($"[LSEventParallelNode] Processing child node {child.NodeID}.");
+            //System.Console.WriteLine($"[LSEventParallelNode] Processing child node {child.NodeID}.");
 
             // Process the child
             var childStatus = child.Process(context);
-            System.Console.WriteLine($"[LSEventParallelNode] Child node {child.NodeID} processed with status {childStatus}.");
+            //System.Console.WriteLine($"[LSEventParallelNode] Child node {child.NodeID} processed with status {childStatus}.");
 
         }
 
         parallelStatus = GetNodeStatus();
         if (parallelStatus == LSEventProcessStatus.SUCCESS || parallelStatus == LSEventProcessStatus.FAILURE || parallelStatus == LSEventProcessStatus.CANCELLED) {
-            System.Console.WriteLine($"[LSEventParallelNode] Parallel node {NodeID} completed with status {parallelStatus}.");
+            //System.Console.WriteLine($"[LSEventParallelNode] Parallel node {NodeID} completed with status {parallelStatus}.");
             return parallelStatus;
         }
 
 
         // Still processing
-        System.Console.WriteLine($"[LSEventParallelNode] Parallel node {NodeID} still processing parallelStatus: {parallelStatus}.");
+        //System.Console.WriteLine($"[LSEventParallelNode] Parallel node {NodeID} still processing parallelStatus: {parallelStatus}.");
         return parallelStatus;
     }
 

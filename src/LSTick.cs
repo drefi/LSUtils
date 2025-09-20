@@ -6,7 +6,7 @@ namespace LSUtils;
 /// <summary>
 /// Manages clock and notifies any registered listeners when the clock ticks.
 /// </summary>
-public class LSTick : ILSEventable {
+public class LSTick : ILSEventable_obsolete {
     public static LSTick Singleton { get; } = new LSTick(DEFAULT_TICK_VALUE);
     const float DEFAULT_TICK_VALUE = 1f;
     protected int _tickCount;

@@ -99,14 +99,14 @@ public class LSEventProcessContext {
     /// </list>
     /// </remarks>
     internal LSEventProcessStatus Process() {
-        System.Console.WriteLine($"[LSEventProcessContext] Processing root node '{_rootNode.NodeID}'...");
+        //System.Console.WriteLine($"[LSEventProcessContext] Processing root node '{_rootNode.NodeID}'...");
         var result = _rootNode.Process(this);
         if (result == LSEventProcessStatus.CANCELLED) {
             _isCancelled = true;
-            System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");
+            //System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");
         }
         if (result == LSEventProcessStatus.WAITING) {
-            System.Console.WriteLine($"[LSEventProcessContext] Root node is waiting.");
+            //System.Console.WriteLine($"[LSEventProcessContext] Root node is waiting.");
         }
         return result;
     }
@@ -164,9 +164,9 @@ public class LSEventProcessContext {
     public void Cancel() {
         var result = _rootNode.Cancel(this);
         if (result != LSEventProcessStatus.CANCELLED) {
-            System.Console.WriteLine($"[LSEventProcessContext] Warning: Root node Cancel() did not return CANCELLED status.");
+            //System.Console.WriteLine($"[LSEventProcessContext] Warning: Root node Cancel() did not return CANCELLED status.");
         }
             _isCancelled = true;
-            System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");
+            //System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");
     }
 }

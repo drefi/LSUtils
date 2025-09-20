@@ -32,15 +32,15 @@ public abstract class LSEvent : ILSEvent {
         throw new KeyNotFoundException($"No data found for key '{key}'.");
     }
 
-    public LSEventProcessStatus Process(LSEventContextManager? contextManager = null) {
+    public LSEventProcessStatus Process(ILSEventable? instance = null, LSEventContextManager? contextManager = null) {
         var manager = contextManager ?? LSEventContextManager.Singleton;
         if (_processContext != null) throw new LSException("Event already processed.");
 
-        var globalContextBuilder = new LSEventContextBuilder(manager.getContext(this.GetType()));
+        var globalContextBuilder = new LSEventContextBuilder(manager.getContext(this.GetType(), instance));
         if (_eventContext != null) {
             globalContextBuilder
                 .Merge(_eventContext);
-                
+
 
         }
         _processContext = new LSEventProcessContext(this, globalContextBuilder.Build());

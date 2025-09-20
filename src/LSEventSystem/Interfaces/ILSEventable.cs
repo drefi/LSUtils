@@ -1,6 +1,6 @@
 namespace LSUtils.EventSystem;
 
-public interface ILSEventable {
+public interface ILSEventable_obsolete {
     /// <summary>
     /// Gets the dispatcher associated with this eventable.
     /// </summary>

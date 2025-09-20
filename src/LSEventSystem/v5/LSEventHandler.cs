@@ -28,8 +28,8 @@ namespace LSUtils.EventSystem;
 /// <para>Handlers are executed within LSEventHandlerNode.Process() and have access to:</para>
 /// <list type="bullet">
 /// <item><description>Event data through the event parameter</description></item>
-/// <item><description>Node metadata (ID, priority, conditions) through the node parameter</description></item>
-/// <item><description>Execution statistics through node.ExecutionCount (shared across clones)</description></item>
+/// <item><description>Node metadata (ID, priority, conditions) through the context parameter</description></item>
+/// <item><description>Execution statistics through context.ExecutionCount (shared across clones)</description></item>
 /// </list>
 /// </remarks>
-public delegate LSEventProcessStatus LSEventHandler(ILSEvent @event, ILSEventNode node);
+public delegate LSEventProcessStatus LSEventHandler(ILSEvent @event, LSEventProcessContext context);
