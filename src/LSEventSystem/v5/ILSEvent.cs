@@ -80,9 +80,10 @@ public interface ILSEvent {
     /// <see cref="LSEventContextManager"/> root context is a parallel root node with no number.
     /// Return the event instance to allow chaining.
     /// </summary>
-    /// <param name="subBuilder"></param>
+    /// <param name="eventBuilder">Event context builder delegate.</param>
+    /// <param name="instance">Optional instance to associate with the event context.</param>
     /// <returns></returns>
-    ILSEvent Context(LSEventContextDelegate subBuilder);
+    ILSEvent Context(LSEventContextDelegate eventBuilder, ILSEventable? instance = null);
 
     /// <summary>
     /// Process the event through a context manager (or Singleton if not provided).

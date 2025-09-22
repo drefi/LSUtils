@@ -36,7 +36,7 @@ public abstract class LSEvent : ILSEvent {
         var manager = contextManager ?? LSEventContextManager.Singleton;
         if (_processContext != null) throw new LSException("Event already processed.");
 
-        var globalContext = manager.GetContext(this.GetType(), _eventContext, instance);
+        var globalContext = manager.GetContext(this.GetType(), instance, _eventContext);
         _processContext = new LSEventProcessContext(this, globalContext);
         return _processContext.Process();
     }
@@ -55,14 +55,23 @@ public abstract class LSEvent : ILSEvent {
         _processContext.Cancel();
     }
 
-    public ILSEvent Context(LSEventContextDelegate builder) {
-        LSEventContextBuilder contextBuilder;
+    // Allows building or extending the event context using a builder delegate.
+    // If no existing context, starts a new parallel node with the event ID as name.
+    public ILSEvent Context(LSEventContextDelegate builder, ILSEventable? instance = null) {
+        LSEventContextBuilder eventBuilder;
         if (_eventContext == null) {
-            contextBuilder = new LSEventContextBuilder();
+            // no existing context; start a new parallel node with the event ID as name.
+            // creating a parallel node to allow to use handlers in the builder directly.
+            // the eventContext will be merged on globalContext.
+            // if an instance is provided, we use its ID as name for the root node.
+            
+            string id = instance?.InstanceID ?? ID.ToString();
+            eventBuilder = new LSEventContextBuilder().Parallel($"{id}");
         } else {
-            contextBuilder = new LSEventContextBuilder(_eventContext);
+            eventBuilder = new LSEventContextBuilder(_eventContext);
         }
-        _eventContext = builder(contextBuilder).Build();
+        // use the builder to modify or extend the eventContext.
+        _eventContext = builder(eventBuilder).Build();
         return this;
     }
 

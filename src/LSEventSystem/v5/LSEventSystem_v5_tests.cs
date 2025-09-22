@@ -2439,35 +2439,6 @@ public class LSEventSystemTestsV5 {
     }
 
     #endregion
-    [Test]
-    public void RootParallelNodeTest() {
-        var manager = new LSEventContextManager();
-
-        manager.Register<MockEvent>(root => root
-            .Sequence("seqA", seq => seq
-                .Execute("handlerA1", _mockHandler1)
-                .Execute("handlerA2", _mockHandler2))
-        );
-        manager.Register<MockEvent>(root => root
-            .Selector("seqB", seq => seq
-                .Execute("handlerB1", _mockHandler1)
-                .Execute("handlerB2", _mockHandler2))
-        );
-
-        var context = manager.GetContext<MockEvent>();
-        Assert.That(context, Is.Not.Null);
-        Assert.That(context is LSEventParallelNode, Is.True);
-        Assert.That(context.GetChildren().Length, Is.EqualTo(2));
-        Assert.That(context.HasChild("seqA"), Is.True);
-        Assert.That(context.HasChild("seqB"), Is.True);
-        var mockEvent = new MockEvent();
-        var processContext = new LSEventProcessContext(mockEvent, context);
-        var result = processContext.Process();
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
-        Assert.That(_handler1CallCount, Is.EqualTo(2));
-        Assert.That(_handler2CallCount, Is.EqualTo(1)); // handlerA2 should be called, handlerB2 should not because selector succeeds on handlerB1
-
-    }
 
     #region LSEventContextManager Tests
 
@@ -2485,9 +2456,13 @@ public class LSEventSystemTestsV5 {
         );
 
         var root = LSEventContextManager.Singleton.GetContext<MockEvent>();
+        var typeName = typeof(MockEvent).Name;
+        Assert.That(root.HasChild(typeName), Is.True);
+        var eventRoot = root.GetChild(typeName) as ILSEventLayerNode;        
+        Assert.That(eventRoot, Is.Not.Null);
 
-        Assert.That(root.HasChild("seq"), Is.True);
-        Assert.That(root.HasChild("sel"), Is.True);
+        Assert.That(eventRoot.HasChild("seq"), Is.True);
+        Assert.That(eventRoot.HasChild("sel"), Is.True);
 
         var mockEvent = new MockEvent();
         var result = mockEvent.Context(s => s

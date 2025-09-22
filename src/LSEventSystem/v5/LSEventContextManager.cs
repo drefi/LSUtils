@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -68,40 +69,68 @@ public class LSEventContextManager {
             eventDict = new Dictionary<ILSEventable, ILSEventLayerNode>();
             _globalContext[eventType] = eventDict;
         }
-        LSEventContextBuilder builderInstance;
-        if (!eventDict.TryGetValue(instance ?? GlobalEventable.Instance, out var node)) {
-            builderInstance = new LSEventContextBuilder()
-                .Parallel("root");
-            //eventDict[instance ?? GlobalEventable.Instance] = node;
-        } else {
-            builderInstance = new LSEventContextBuilder(node);
+        LSEventContextBuilder contextBuilder;
+        // if no instance is provided, we register a global context.
+        if (instance == null) {
+            if (!eventDict.TryGetValue(GlobalEventable.Instance, out var globalNode)) {
+                // no global context registered for this event type, create a new parallel node using the eventType as nodeID.
+                contextBuilder = new LSEventContextBuilder().Parallel($"{eventType.Name}");
+            } else {
+                contextBuilder = new LSEventContextBuilder(globalNode);
+            }
+        } else { // if an instance is provided, we register a context specific to that instance.
+                 // check if we have a context already registered for this instance.            
+            if (!eventDict.TryGetValue(instance, out var instanceNode)) {
+                instanceNode = new LSEventContextBuilder().Parallel($"{eventType.Name}").Build();
+            }
+            contextBuilder = new LSEventContextBuilder(instanceNode);
         }
-        var result = builder(builderInstance);
+        var result = builder(contextBuilder);
+        if (result == null) {
+            throw new ArgumentNullException(nameof(builder), "The context builder delegate returned null.");
+        }
         eventDict[instance ?? GlobalEventable.Instance] = result.Build();
+
     }
 
-    public ILSEventLayerNode GetContext<TEvent>(ILSEventLayerNode? localContext = null, ILSEventable? instance = null) where TEvent : ILSEvent {
-        return GetContext(typeof(TEvent), localContext, instance);
+    public ILSEventLayerNode GetContext<TEvent>(ILSEventable? instance = null, ILSEventLayerNode? localContext = null) where TEvent : ILSEvent {
+        return GetContext(typeof(TEvent), instance, localContext);
     }
-    public ILSEventLayerNode GetContext(System.Type eventType, ILSEventLayerNode? localContext = null, ILSEventable? instance = null) {
-        if (_globalContext.TryGetValue(eventType, out var eventDict)) {
-            if (eventDict.TryGetValue(instance ?? GlobalEventable.Instance, out var globalContext)) {
-                if (localContext != null) {
-                    var builder = new LSEventContextBuilder(globalContext.Clone());
-                    builder.Merge(localContext);
-                    return builder.Build();
-                }
-                return globalContext.Clone(); // return a clone to prevent external modification, only the manager can modify the original node.
+    public ILSEventLayerNode GetContext(System.Type eventType, ILSEventable? instance = null, ILSEventLayerNode? localContext = null) {
+        // if eventType is not registered, create a new event dictionary for this type.
+        if (!_globalContext.TryGetValue(eventType, out var eventDict)) {
+            eventDict = new Dictionary<ILSEventable, ILSEventLayerNode>();
+            _globalContext[eventType] = eventDict;
+        }
+        LSEventContextBuilder builder = new LSEventContextBuilder().Sequence($"root");
+        if (!eventDict.TryGetValue(GlobalEventable.Instance, out var globalNode)) {
+            // no global context registered for this event type; create a new root parallel node.
+            builder.Parallel($"{eventType.Name}");
+        } else {
+            // we have a globalContext; start with a clone of the global node to avoid modifying the original.
+            builder.Merge(globalNode.Clone());
+        }
+        // merge instance specific context if available. We always use the clone of the node, so we don't modify the original instance node.
+        if (instance != null) {
+            if (!eventDict.TryGetValue(instance, out var instanceNode)) {
+                builder.Parallel($"{eventType.Name}");
+            } else {
+                builder.Merge(instanceNode.Clone());
             }
         }
-        return new LSEventContextBuilder()
-            .Parallel("root")
-            .Build();
+        // local context is merged last, so it has priority over global and instance contexts.
+        if (localContext != null) {
+            builder.Merge(localContext);
+        }
+
+        return builder.Build();
     }
 
     protected class GlobalEventable : ILSEventable {
         static GlobalEventable _instance = new();
         internal static GlobalEventable Instance => _instance;
+
+        public string InstanceID => "GlobalInstance";
 
         LSEventProcessStatus ILSEventable.Initialize(LSEventContextManager manager, ILSEventLayerNode context) {
             throw new System.NotImplementedException();

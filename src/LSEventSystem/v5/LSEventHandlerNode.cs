@@ -189,7 +189,10 @@ public class LSEventHandlerNode : ILSEventNode {
         // ExecutionCount uses _baseNode if available so the count is "shared" between clones
         // this may change in the future
 
-        var nodeStatus = _handler(context.Event, context);
+        var nodeStatus = _handler(context.Event, context) == LSEventProcessStatus.SUCCESS
+            ? (WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS)
+            : (WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE);
+
         ExecutionCount++;
         // we only update the node status if it was UNKNOWN, when _nodeStatus is not UNKNOWN it means Resume/Fail was already called
         _nodeStatus = (_nodeStatus == LSEventProcessStatus.UNKNOWN) ? nodeStatus : _nodeStatus;

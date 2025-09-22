@@ -347,7 +347,8 @@ public class LSEventSelectorNode : ILSEventLayerNode {
             //System.Console.WriteLine($"[LSEventSelectorNode] No children to process for node [{NodeID}], checking final status. selectorStatus {selectorStatus}");
             return selectorStatus; // return selector status
         }
-
+        var successStatus = WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS;
+        var failureStatus = WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE;
         do {
             //System.Console.WriteLine($"[LSEventSelectorNode] Processing child node [{_currentChild.NodeID}].");
             // no more need to check for condition, we already filtered children that meet conditions during stack initialization
@@ -362,7 +363,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
                 //System.Console.WriteLine($"[LSEventSelectorNode] Warning: Selector node [{NodeID}] is in WAITING state but child [{_currentChild.NodeID}] is not WAITING.");
                 return LSEventProcessStatus.WAITING;
             }
-            if (currentChildStatus == LSEventProcessStatus.SUCCESS || selectorStatus == LSEventProcessStatus.CANCELLED) {
+            if (currentChildStatus == successStatus || selectorStatus == LSEventProcessStatus.CANCELLED) {
                 // exit condition: child succeeded (selector success) or cancelled
                 //System.Console.WriteLine($"[LSEventSelectorNode] Selector node [{NodeID}] finished processing because child [{_currentChild.NodeID}] returned {currentChildStatus}.");
                 _processStack.Clear();
@@ -380,7 +381,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
 
         // reach this point means that all children failed
         //System.Console.WriteLine($"[LSEventSelectorNode] Selector node [{NodeID}] finished processing all children. All failed, marking as FAILURE.");
-        return LSEventProcessStatus.FAILURE; // all children failed, selector fails
+        return failureStatus; // all children failed, selector fails
     }
 
     /// <summary>

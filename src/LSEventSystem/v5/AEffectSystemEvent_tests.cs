@@ -40,21 +40,23 @@ public class AEffectSystemEvent_tests {
 
         public Entity(string name) {
             Name = name;
-            TargetMechanic = new TargetMechanic();
+            TargetMechanic = new TargetMechanic(this);
         }
         public TargetMechanic TargetMechanic { get; }
+
+        public string InstanceID { get; } = Guid.NewGuid().ToString();
 
         public LSEventProcessStatus Initialize(LSEventContextManager manager, ILSEventLayerNode context) {
             TargetMechanic?.Initialize(this);
             return LSEventProcessStatus.SUCCESS;
         }
-        public void Target(Entity target) {
-            Console.WriteLine($"{Name} is targeting {target.Name}");
-            var evt = new OnTargetEvent(this, target);
+        public void Hit(Entity target) {
+            if (EquippedSkill == null) {
+                Console.WriteLine($"[Entity.Hit]: {Name} has no skill equipped.");
+                return;
+            }
+            var evt = new OnHitEvent(this, target, EquippedSkill);
             evt.Process(target);
-        }
-        public void Hit(Skill source) {
-
         }
         public void ApplyEffect(Effect effect) {
             var evt = new OnEffectAppliedEvent(effect);
@@ -66,6 +68,8 @@ public class AEffectSystemEvent_tests {
     #region Skill System
     public abstract class SkillTemplate {
         public abstract string SkillID { get; }
+        public abstract string Label { get; }
+        public abstract string Description { get; }
         public Skill Instantiate(Entity owner) {
             return new Skill(owner, this);
         }
@@ -73,22 +77,55 @@ public class AEffectSystemEvent_tests {
         public abstract EffectTemplate[] GetEffects();
     }
     public class PunchSkillTemplate : SkillTemplate {
-        public override string SkillID => "Punch";
-        private DamageEffectTemplate _damageEffect;
-        public PunchSkillTemplate() {
-            _damageEffect = new DamageEffectTemplate(8, 12);
+        public override string SkillID => "basicPunch";
+        public override string Label => "Punch";
+        public override string Description => "A basic punch attack.";
+        private DamageEffectTemplate? _damageEffect = null;
+        protected PunchSkillTemplate() {
         }
         public override EffectTemplate[] GetEffects() {
-            return new EffectTemplate[] { _damageEffect };
+            return _damageEffect != null ? new EffectTemplate[] { _damageEffect } : Array.Empty<EffectTemplate>();
         }
         public override void Initialize(Entity entity) {
-            _damageEffect.Initialize(entity);
+            _damageEffect?.Initialize(entity);
+        }
+        public static PunchSkillTemplate Create(int minDamage, int maxDamage) {
+            return new PunchSkillTemplate() {
+                _damageEffect = new DamageEffectTemplate(minDamage, maxDamage)
+            };
+        }
+    }
+    public class WaterballSkillTemplate : SkillTemplate {
+        public override string SkillID => "waterball";
+        public override string Label => "Waterball";
+        public override string Description => "A ball of water that hits the target.";
+        protected List<EffectTemplate> _effects = new();
+        public WaterballSkillTemplate() {
+
+        }
+        public override EffectTemplate[] GetEffects() {
+            return _effects.ToArray();
+        }
+        public override void Initialize(Entity entity) {
+            //_damageEffect.Initialize(entity);
+            foreach (var effect in _effects) {
+                effect.Initialize(entity);
+            }
+        }
+        public static WaterballSkillTemplate Create(int minDamage, int maxDamage, int wetDuration) {
+            var template = new WaterballSkillTemplate();
+            template._effects.Add(new DamageEffectTemplate(minDamage, maxDamage));
+            template._effects.Add(new WetEffectTemplate(wetDuration));
+            return template;
         }
     }
 
 
     public class Skill {
-        //public readonly List<Effect> Effects = new();
+        public string Label => SkillTemplate.Label;
+        public string Description => SkillTemplate.Description;
+        public string SkillID => SkillTemplate.SkillID;
+        public Guid ID { get; } = Guid.NewGuid();
         public Entity Owner { get; }
         public SkillTemplate SkillTemplate { get; }
         public virtual float Accuracy => 1f; // 100% chance to hit
@@ -177,8 +214,6 @@ public class AEffectSystemEvent_tests {
         LSEventProcessStatus redirectNodeHandler(ILSEvent evt, LSEventProcessContext context) {
             if (evt is not OnEffectAppliedEvent appliedEffect) return LSEventProcessStatus.CANCELLED;
             Console.WriteLine($"{appliedEffect.Target.Name} is being protected by {appliedEffect.Source.Name}");
-
-            var redirectEvent = new OnTargetEvent(appliedEffect.Target, appliedEffect.Source);
             return LSEventProcessStatus.SUCCESS;
         }
         public override void Execute(Effect sourceEffect) {
@@ -210,7 +245,36 @@ public class AEffectSystemEvent_tests {
             evt.Process();
         }
     }
-
+    public class WetEffectTemplate : EffectTemplate {
+        public override string EffectID => "wetEffect";
+        public int Duration { get; }
+        public WetEffectTemplate(int duration) {
+            Duration = duration;
+        }
+        public override void Initialize(Entity entity) {
+            LSEventContextManager.Singleton.Register<OnEffectAppliedEvent>(root => root
+                .Execute("instance", (evt, ctx) => {
+                    if (evt is not OnEffectAppliedEvent appliedEffect) return LSEventProcessStatus.CANCELLED;
+                    Console.WriteLine($"{appliedEffect.Source.Name} applied wet in {appliedEffect.Target.Name} for {Duration}.");
+                    return LSEventProcessStatus.SUCCESS;
+                })
+            , entity);
+            LSEventContextManager.Singleton.Register<OnEffectAppliedEvent>(root => root
+                .Selector("onWet", s => s
+                    .Execute($"{entity.Name}", (evt, ctx) => {
+                        if (evt is not OnEffectAppliedEvent appliedEffect) return LSEventProcessStatus.CANCELLED;
+                        Console.WriteLine($"{entity.Name} sees that {appliedEffect.Target.Name} is wet.");
+                        return LSEventProcessStatus.SUCCESS;
+                    })
+                )
+            );
+        }
+        public override void Execute(Effect sourceEffect) {
+            Console.WriteLine($"{sourceEffect.Target.Name} is wet for {Duration} turns by {sourceEffect.Source.Name}");
+            var evt = new OnEffectAppliedEvent(sourceEffect);
+            evt.Process();
+        }
+    }
     #region Effect Instance
     public class Effect {
         public Guid ID { get; }
@@ -256,55 +320,48 @@ public class AEffectSystemEvent_tests {
 
     #region Target System
     public class TargetMechanic {
+        private readonly Entity _owner;
+        public TargetMechanic(Entity owner) {
+            _owner = owner;
+        }
         public void Initialize(Entity entity) {
-            Console.WriteLine($"Initializing TargetMechanic for {entity.Name}");
-            LSEventContextManager.Singleton.Register<OnTargetEvent>(root => root
-                .Sequence("OnTarget", s => s
-                    .Execute("log", (evt, ctx) => {
-                        Console.WriteLine($"{entity.Name} has triggered [log] handler.");
-                        if (evt is not OnTargetEvent onTargettedEvent) return LSEventProcessStatus.CANCELLED;
-                        Console.WriteLine($"{onTargettedEvent.Source.Name} has targeted {onTargettedEvent.Target.Name}");
-                        return LSEventProcessStatus.SUCCESS;
-                    })
-                    .Execute("select", (evt, ctx) => {
-                        Console.WriteLine($"{entity.Name} has triggered [select] handler.");
-                        if (evt is not OnTargetEvent onTargettedEvent) return LSEventProcessStatus.CANCELLED;
-                        Console.WriteLine($"{onTargettedEvent.Source.Name} is selecting {onTargettedEvent.Target.Name}");
+            //Console.WriteLine($"Initializing TargetMechanic for {entity.Name}");
+            LSEventContextManager.Singleton.Register<OnHitEvent>(root => root
+                .Sequence("onHit", root => root
+                    .Execute("skill", (evt, ctx) => {
+                        if (evt is not OnHitEvent onHitEvent) return LSEventProcessStatus.CANCELLED;
+                        Console.WriteLine($"{onHitEvent.Source.Name} has hit {onHitEvent.Target.Name} with {onHitEvent.Skill?.Label}.");
                         return LSEventProcessStatus.SUCCESS;
                     })
                 ), entity);
-            var test = LSEventContextManager.Singleton.GetContext<OnTargetEvent>(null, entity);
-            Console.WriteLine($"Context for {entity.Name}: {test.NodeID} with {test.GetChildren().Count()} children.");
+            LSEventContextManager.Singleton.Register<OnHitEvent>(root => root
+                .Selector("target", root => root
+                    .Execute($"{_owner.Name}", (evt, ctx) => {
+                        if (evt is not OnHitEvent onHitEvent) return LSEventProcessStatus.CANCELLED;
+                        //if (_owner == onHitEvent.Source || _owner == onHitEvent.Target) return LSEventProcessStatus.SUCCESS;
+                        Console.WriteLine($"{_owner.Name} saw {onHitEvent.Source.Name} hit {onHitEvent.Target.Name} with {onHitEvent.Skill?.Label}.");
+                        return LSEventProcessStatus.SUCCESS;
+                    }, LSPriority.NORMAL, true, (evt, node) => {
+                        if (evt is not OnHitEvent onHitEvent) throw new LSException("Invalid event type for target selector.");
+                        if (_owner == onHitEvent.Source || _owner == onHitEvent.Target) return false;
+                        Console.WriteLine($"Evaluating target selector for {_owner.Name} on event where {onHitEvent.Source.Name} hits {onHitEvent.Target.Name}");
+                        return true;
+                    })
+                    .Execute("defaulPass", (evt, ctx) => LSEventProcessStatus.SUCCESS, LSPriority.BACKGROUND) // default pass
+                ));
         }
     }
-    public class OnTargetEvent : LSEvent {
+    public class OnHitEvent : LSEvent {
         public Entity Source { get; }
         public Entity Target { get; }
-        public OnTargetEvent(Entity source, Entity target) {
+        public Skill Skill { get; }
+        public OnHitEvent(Entity source, Entity target, Skill skill) {
             Source = source;
             Target = target;
+            Skill = skill;
         }
 
     }
-    // public class OnHitEvent : LSEvent {
-    //     public Entity Instance { get; }
-    //     public Skill Source { get; }
-    //     public OnHitEvent(Entity instance, Skill source) {
-    //         Source = source;
-    //         Instance = instance;
-    //     }
-    // }
-    // public class OnTakeDamageEvent : LSEvent {
-    //     public Entity Instance { get; }
-    //     public Entity Source { get; }
-    //     public int DamageAmount { get; }
-    //     public OnTakeDamageEvent(Entity instance, Entity source, int damageAmount) {
-    //         Instance = instance;
-    //         Source = source;
-    //         SetData<int>("DamageAmount", damageAmount);
-    //         DamageAmount = damageAmount;
-    //     }
-    // }
     #endregion
 
     [Test]
@@ -317,7 +374,9 @@ public class AEffectSystemEvent_tests {
 
         //OnTargettedEvent.TargettedSystem();
 
-        var punchTemplate = new PunchSkillTemplate();
+        var punchTemplate = PunchSkillTemplate.Create(1, 3);
+        var waterBallTemplate = WaterballSkillTemplate.Create(2, 5, 1);
+        var protectTemplate = new ProtectEffectTemplate(2);
 
         entityA.Initialize(null!, null!);
         entityB.Initialize(null!, null!);
@@ -326,7 +385,7 @@ public class AEffectSystemEvent_tests {
 
         entityA.EquippedSkill = punchTemplate.Instantiate(entityA).Initialize();
         entityB.EquippedSkill = punchTemplate.Instantiate(entityB).Initialize();
-        entityC.EquippedSkill = punchTemplate.Instantiate(entityC).Initialize();
+        entityC.EquippedSkill = waterBallTemplate.Instantiate(entityC).Initialize();
         entityD.EquippedSkill = punchTemplate.Instantiate(entityD).Initialize();
 
 
@@ -336,8 +395,8 @@ public class AEffectSystemEvent_tests {
         Assert.That(entityD.EquippedSkill != null);
 
         Console.WriteLine("---- Combat Start ----");
-        entityA.Target(entityB);
-        entityC.Target(entityD);
+        entityA.Hit(entityB);
+        entityC.Hit(entityD);
     }
 }
 
