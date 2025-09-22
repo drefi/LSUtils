@@ -127,7 +127,7 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Condition Attachment</strong>: Optional conditions control when handler executes</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Execute(string nodeID, LSEventHandler handler, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Execute(string nodeID, LSEventHandler handler, LSPriority priority = LSPriority.NORMAL, bool isInversed = false, params LSEventCondition?[] conditions) {
         if (_currentNode == null) {
             _currentNode = LSEventSequenceNode.Create($"sequence[{nodeID}]", 0); // create a root sequence node if none exists
         }
@@ -140,7 +140,7 @@ public class LSEventContextBuilder {
             _currentNode.RemoveChild(nodeID);
         }
         int order = _currentNode.GetChildren().Length; // Order is based on the number of existing children
-        LSEventHandlerNode handlerNode = LSEventHandlerNode.Create(nodeID, handler, order, priority, conditions);
+        LSEventHandlerNode handlerNode = LSEventHandlerNode.Create(nodeID, handler, order, priority, isInversed, conditions);
         _currentNode.AddChild(handlerNode);
 
         return this;
@@ -172,7 +172,7 @@ public class LSEventContextBuilder {
     /// Creates or navigates to a sequence node in the current context with support for nested hierarchy construction.
     /// </summary>
     /// <param name="nodeID">Unique identifier for the sequence node within the current context.</param>
-    /// <param name="subContextBuilder">Optional delegate for building nested children within this sequence. If provided, the sequence is built completely and the builder stays at the parent level.</param>
+    /// <param name="sequenceContext">Optional delegate for building nested children within this sequence. If provided, the sequence is built completely and the builder stays at the parent level.</param>
     /// <param name="priority">Processing priority level for this sequence node (default: NORMAL).</param>
     /// <param name="conditions">Optional array of conditions that must be met before this sequence processes.</param>
     /// <returns>The current builder instance for method chaining.</returns>
@@ -202,7 +202,11 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Sibling Support</strong>: Enables creation of sibling nodes when using sub-context pattern</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Sequence(string nodeID, LSEventSubContextBuilder? subContextBuilder = null, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Sequence(string nodeID,
+            LSEventContextDelegate? sequenceContext = null,
+            LSPriority priority = LSPriority.NORMAL,
+            bool isInverse = false,
+            params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -210,20 +214,20 @@ public class LSEventContextBuilder {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not sequence
-            sequenceNode = LSEventSequenceNode.Create(nodeID, order, priority, conditions);
+            sequenceNode = LSEventSequenceNode.Create(nodeID, order, priority, isInverse, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSequenceNode we should throw an exception.
             //if existingNode is not null here is means is not a sequence node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a sequence node.");
             _currentNode?.RemoveChild(nodeID); // remove existing node if exists
         }
         // when we reach this point, sequenceNode is either a new node or the existing sequence node
-        ILSEventLayerNode node = subContextBuilder?.Invoke(new LSEventContextBuilder(sequenceNode)).Build() ?? sequenceNode;
+        ILSEventLayerNode node = sequenceContext?.Invoke(new LSEventContextBuilder(sequenceNode)).Build() ?? sequenceNode;
         // we only add the node if it was newly created and we had a current context
         if (parentBefore != null && existingNode == null) parentBefore.AddChild(node);
         // If there was no root yet, this node becomes the root
         if (_rootNode == null) _rootNode = node;
         // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
-        _currentNode = (parentBefore == null || subContextBuilder == null) ? node : parentBefore;
+        _currentNode = (parentBefore == null || sequenceContext == null) ? node : parentBefore;
 
         return this;
     }
@@ -231,7 +235,7 @@ public class LSEventContextBuilder {
     /// Creates or navigates to a selector node in the current context with support for nested hierarchy construction.
     /// </summary>
     /// <param name="nodeID">Unique identifier for the selector node within the current context.</param>
-    /// <param name="subContextBuilder">Optional delegate for building nested children within this selector. If provided, the selector is built completely and the builder stays at the parent level.</param>
+    /// <param name="selectorBuilder">Optional delegate for building nested children within this selector. If provided, the selector is built completely and the builder stays at the parent level.</param>
     /// <param name="priority">Processing priority level for this selector node (default: NORMAL).</param>
     /// <param name="conditions">Optional array of conditions that must be met before this selector processes.</param>
     /// <returns>The current builder instance for method chaining.</returns>
@@ -261,7 +265,7 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Sibling Support</strong>: Enables creation of sibling nodes when using sub-context pattern</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Selector(string nodeID, LSEventSubContextBuilder? subContextBuilder = null, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Selector(string nodeID, LSEventContextDelegate? selectorBuilder = null, LSPriority priority = LSPriority.NORMAL, bool isInversed = false, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -269,20 +273,20 @@ public class LSEventContextBuilder {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not selector
-            selectorNode = LSEventSelectorNode.Create(nodeID, order, priority, conditions);
+            selectorNode = LSEventSelectorNode.Create(nodeID, order, priority, isInversed, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSelectorNode we should throw an exception.
             //if existingNode is not null here is means is not a selector node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a selector node.");
             _currentNode?.RemoveChild(nodeID);
         }
         // when we reach this point, selectorNode is either a new node or the existing selector node
-        ILSEventLayerNode node = subContextBuilder?.Invoke(new LSEventContextBuilder(selectorNode)).Build() ?? selectorNode;
+        ILSEventLayerNode node = selectorBuilder?.Invoke(new LSEventContextBuilder(selectorNode)).Build() ?? selectorNode;
         // we only add the node if it was newly created and we had a current context
         if (parentBefore != null && existingNode == null) parentBefore.AddChild(node);
         // If there was no root yet, this node becomes the root
         if (_rootNode == null) _rootNode = node;
         // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
-        _currentNode = (parentBefore == null || subContextBuilder == null) ? node : parentBefore;
+        _currentNode = (parentBefore == null || selectorBuilder == null) ? node : parentBefore;
 
         return this;
     }
@@ -291,7 +295,7 @@ public class LSEventContextBuilder {
     /// Creates or navigates to a parallel node in the current context with support for nested hierarchy construction.
     /// </summary>
     /// <param name="nodeID">Unique identifier for the parallel node within the current context.</param>
-    /// <param name="subContextBuilder">Optional delegate for building nested children within this parallel node. If provided, the parallel node is built completely and the builder stays at the parent level.</param>
+    /// <param name="parallelBuilder">Optional delegate for building nested children within this parallel node. If provided, the parallel node is built completely and the builder stays at the parent level.</param>
     /// <param name="numRequiredToSucceed">The number of child nodes that must succeed for the parallel node to succeed (default: 0 - all must succeed).</param>
     /// <param name="numRequiredToFailure">The number of child nodes that must fail for the parallel node to fail (default: 0 - any failure causes parallel failure).</param>
     /// <param name="priority">Processing priority level for this parallel node (default: NORMAL).</param>
@@ -330,7 +334,7 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Order Preservation</strong>: Maintains original order when replacing existing nodes</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Parallel(string nodeID, LSEventSubContextBuilder? subContextBuilder = null, int? numRequiredToSucceed = 0, int? numRequiredToFailure = 0, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Parallel(string nodeID, LSEventContextDelegate? parallelBuilder = null, int? numRequiredToSucceed = 0, int? numRequiredToFailure = 0, LSPriority priority = LSPriority.NORMAL, bool isInversed = false, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -338,7 +342,7 @@ public class LSEventContextBuilder {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not parallel
-            parallelNode = LSEventParallelNode.Create(nodeID, order, numRequiredToSucceed == null ? 0 : numRequiredToSucceed.Value, numRequiredToFailure == null ? 0 : numRequiredToFailure.Value, priority, conditions);
+            parallelNode = LSEventParallelNode.Create(nodeID, order, numRequiredToSucceed == null ? 0 : numRequiredToSucceed.Value, numRequiredToFailure == null ? 0 : numRequiredToFailure.Value, priority, isInversed, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventParallelNode we should throw an exception.
             //if existingNode is not null here is means is not a parallel node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a parallel node.");
@@ -348,13 +352,13 @@ public class LSEventContextBuilder {
             if (numRequiredToSucceed != null) parallelNode.NumRequiredToSucceed = numRequiredToSucceed.Value;
         }
         // when we reach this point, parallelNode is either a new node or the existing parallel node
-        ILSEventLayerNode node = subContextBuilder?.Invoke(new LSEventContextBuilder(parallelNode)).Build() ?? parallelNode;
+        ILSEventLayerNode node = parallelBuilder?.Invoke(new LSEventContextBuilder(parallelNode)).Build() ?? parallelNode;
         // we only add the node if it was newly created and we had a current context
         if (parentBefore != null && existingNode == null) parentBefore.AddChild(node);
         // If there was no root yet, this node becomes the root
         if (_rootNode == null) _rootNode = node;
         // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
-        _currentNode = (parentBefore == null || subContextBuilder == null) ? node : parentBefore;
+        _currentNode = (parentBefore == null || parallelBuilder == null) ? node : parentBefore;
 
         return this;
     }
@@ -362,7 +366,7 @@ public class LSEventContextBuilder {
     /// Merges a sub-layer node hierarchy into the current context with intelligent conflict resolution.
     /// </summary>
     /// <param name="subLayer">The sub-layer node hierarchy to merge into the current context.</param>
-    /// <param name="subContextBuilder">Optional delegate for building additional content within the merged hierarchy before integration.</param>
+    /// <param name="mergeBuilder">Optional delegate for building additional content within the merged hierarchy before integration.</param>
     /// <returns>The current builder instance for method chaining.</returns>
     /// <exception cref="LSArgumentNullException">Thrown when subLayer is null.</exception>
     /// <exception cref="LSException">Thrown when no current context exists and subLayer is empty.</exception>
@@ -397,17 +401,17 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Seamless Integration</strong>: Built result is integrated using standard merge logic</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Merge(ILSEventLayerNode subLayer, LSEventSubContextBuilder? subContextBuilder = null) {
+    public LSEventContextBuilder Merge(ILSEventLayerNode subLayer, LSEventContextDelegate? mergeBuilder = null) {
         if (subLayer == null) throw new LSArgumentNullException(nameof(subLayer), "Sub-layer node cannot be null.");
         // If there is no current context, allow seeding with a non-empty sub-layer
         if (_currentNode == null) {
             if (subLayer.GetChildren().Length == 0) throw new LSException("No current context to merge the sub-layer into. Make sure to start with a layer node (Sequence, Selector, Parallel).");
-            var seeded = subContextBuilder?.Invoke(new LSEventContextBuilder(subLayer)).Build() ?? subLayer;
+            var seeded = mergeBuilder?.Invoke(new LSEventContextBuilder(subLayer)).Build() ?? subLayer;
             _currentNode = seeded;
             _rootNode = seeded;
             return this;
         }
-        ILSEventLayerNode node = subContextBuilder?.Invoke(new LSEventContextBuilder(subLayer)).Build() ?? subLayer;
+        ILSEventLayerNode node = mergeBuilder?.Invoke(new LSEventContextBuilder(subLayer)).Build() ?? subLayer;
 
         // Entry merge: check if merging into root itself
         if (_currentNode.NodeID == node.NodeID) {

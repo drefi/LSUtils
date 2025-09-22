@@ -49,31 +49,31 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// Dictionary storing child nodes keyed by their NodeID for O(1) lookup operations.
     /// </summary>
     protected Dictionary<string, ILSEventNode> _children = new();
-    
+
     /// <summary>
     /// Current child node being processed. Null when no processing is active or all children are complete.
     /// </summary>
     ILSEventNode? _currentChild;
-    
+
     /// <summary>
     /// Stack containing children to be processed, ordered by priority and execution order.
     /// Provides deterministic LIFO processing sequence.
     /// </summary>
     protected Stack<ILSEventNode> _processStack = new();
-    
+
     /// <summary>
     /// List of children eligible for processing after condition filtering and priority sorting.
     /// Populated during initialization and used for status aggregation.
     /// </summary>
     //protected Dictionary<ILSEventNode, LSEventProcessStatus> _childrenStatuses = new();
     List<ILSEventNode> _availableChildren = new();
-    
+
     /// <summary>
     /// Flag indicating whether processing has been initialized.
     /// Once true, prevents child modification to ensure processing integrity.
     /// </summary>
     protected bool _isProcessing = false;
-    
+
     /// <summary>
     /// Execution count is not tracked at the layer node level.
     /// Only handler nodes track execution statistics.
@@ -83,15 +83,17 @@ public class LSEventSequenceNode : ILSEventLayerNode {
 
     /// <inheritdoc />
     public string NodeID { get; }
-    
+
     /// <inheritdoc />
     public LSPriority Priority { get; }
-    
+
     /// <inheritdoc />
     public int Order { get; }
-    
+
     /// <inheritdoc />
     public LSEventCondition Conditions { get; }
+
+    public bool WithInverter { get; }
 
     /// <summary>
     /// Initializes a new sequence node with the specified configuration.
@@ -99,6 +101,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <param name="nodeId">Unique identifier for this sequence node.</param>
     /// <param name="order">Execution order among sibling nodes with the same priority.</param>
     /// <param name="priority">Processing priority level (default: NORMAL).</param>
+    /// <param name="withInverter">If true, inverts the success/failure logic of the sequence.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <remarks>
     /// <para><strong>Condition Handling:</strong></para>
@@ -108,10 +111,11 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <item><description><strong>Null Safety</strong>: Null conditions in the array are automatically filtered out</description></item>
     /// </list>
     /// </remarks>
-    protected LSEventSequenceNode(string nodeId, int order, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    protected LSEventSequenceNode(string nodeId, int order, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
         NodeID = nodeId;
         Order = order;
         Priority = priority;
+        WithInverter = withInverter;
         var defaultCondition = (LSEventCondition)((ctx, node) => true);
         if (conditions == null || conditions.Length == 0) {
             Conditions = defaultCondition;
@@ -172,7 +176,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
 
     /// <inheritdoc />
     public ILSEventLayerNode Clone() {
-        var cloned = new LSEventSequenceNode(NodeID, Order, Priority, Conditions);
+        var cloned = new LSEventSequenceNode(NodeID, Order, Priority, WithInverter, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -206,7 +210,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
             return LSEventProcessStatus.UNKNOWN; // not yet processed
         }
         if (!_availableChildren.Any()) {
-            return LSEventProcessStatus.SUCCESS; // no children available
+            return !WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE; // no children available
         }
 
         var childStatuses = _availableChildren.Select(c => c.GetNodeStatus()).ToList();
@@ -219,9 +223,9 @@ public class LSEventSequenceNode : ILSEventLayerNode {
         }
         // check for FAILURE has the third highest priority
         if (childStatuses.Any(c => c == LSEventProcessStatus.FAILURE)) {
-            return LSEventProcessStatus.FAILURE; // we do not need to continue processing
+            return !WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS; // we do not need to continue processing
         }
-        return LSEventProcessStatus.SUCCESS;
+        return !WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE; // all children are successful
     }
     /// <summary>
     /// Forces waiting children to transition to FAILURE state in sequence processing context.
@@ -249,7 +253,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
 
         return GetNodeStatus(); // we return the current sequence status.
     }
-    
+
     /// <inheritdoc />
     LSEventProcessStatus ILSEventNode.Cancel(LSEventProcessContext context) {
         return _currentChild?.Cancel(context) ?? LSEventProcessStatus.CANCELLED;
@@ -386,13 +390,14 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <param name="nodeID">Unique identifier for the sequence node.</param>
     /// <param name="order">Execution order among sibling nodes with the same priority.</param>
     /// <param name="priority">Processing priority level (default: NORMAL).</param>
+    /// <param name="withInverter">If true, inverts the success/failure logic of the sequence.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <returns>New sequence node instance ready for use in the event processing hierarchy.</returns>
     /// <remarks>
     /// This factory method provides a convenient way to create sequence nodes without directly
     /// invoking the protected constructor. The created node implements AND logic semantics.
     /// </remarks>
-    public static LSEventSequenceNode Create(string nodeID, int order, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
-        return new LSEventSequenceNode(nodeID, order, priority, conditions);
+    public static LSEventSequenceNode Create(string nodeID, int order, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
+        return new LSEventSequenceNode(nodeID, order, priority, withInverter, conditions);
     }
 }

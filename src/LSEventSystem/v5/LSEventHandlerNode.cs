@@ -43,27 +43,29 @@ public class LSEventHandlerNode : ILSEventNode {
     /// This allows execution count to be shared globally while each clone maintains its own processing status.
     /// </remarks>
     protected LSEventHandlerNode? _baseNode;
-    
+
     /// <summary>
     /// Local execution count for this specific node instance.
     /// Used when this node is not a clone (no base node reference).
     /// </summary>
     protected int _executionCount = 0;
-    
+
     /// <summary>
     /// The handler delegate that contains the actual business logic to be executed.
     /// </summary>
     protected LSEventHandler _handler;
-    
+
     /// <inheritdoc />
     public string NodeID { get; }
-    
+
     /// <inheritdoc />
     public LSPriority Priority { get; }
-    
+
     /// <inheritdoc />
     public LSEventCondition Conditions { get; }
-    
+
+    public bool WithInverter { get; } = false;
+
     /// <summary>
     /// Gets or sets the execution count, automatically delegating to the base node if this is a clone.
     /// Provides shared execution statistics across all clones of a handler node.
@@ -88,7 +90,7 @@ public class LSEventHandlerNode : ILSEventNode {
             }
         }
     }
-    
+
     /// <inheritdoc />
     // Order is set during registration in the event system, starts at 0 and increases with each new node registered
     public int Order { get; }
@@ -100,6 +102,7 @@ public class LSEventHandlerNode : ILSEventNode {
     /// <param name="order">Execution order among sibling nodes with the same priority.</param>
     /// <param name="priority">Processing priority level (default: NORMAL).</param>
     /// <param name="baseNode">Base node reference for sharing execution count (used during cloning).</param>
+    /// <param name="withInverter">If true, inverts the success/failure logic of the handler node.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <remarks>
     /// <para><strong>Condition Handling:</strong></para>
@@ -114,12 +117,13 @@ public class LSEventHandlerNode : ILSEventNode {
     /// <para>with the original node while maintaining independent processing state.</para>
     /// </remarks>
     protected LSEventHandlerNode(string nodeID, LSEventHandler handler,
-                      int order, LSPriority priority = LSPriority.NORMAL, LSEventHandlerNode? baseNode = null, params LSEventCondition?[] conditions) {
+                      int order, LSPriority priority = LSPriority.NORMAL, LSEventHandlerNode? baseNode = null, bool withInverter = false, params LSEventCondition?[] conditions) {
         _baseNode = baseNode;
         NodeID = nodeID;
         Priority = priority;
         _handler = handler;
         Order = order;
+        WithInverter = withInverter;
         var defaultCondition = (LSEventCondition)((ctx, node) => true);
         if (conditions == null || conditions.Length == 0) {
             Conditions = defaultCondition;
@@ -139,7 +143,7 @@ public class LSEventHandlerNode : ILSEventNode {
     public LSEventProcessStatus GetNodeStatus() {
         return _nodeStatus;
     }
-    
+
     /// <summary>
     /// Current processing status of this handler node.
     /// Cached after first execution to ensure idempotency for terminal states.
@@ -193,7 +197,7 @@ public class LSEventHandlerNode : ILSEventNode {
 
         return _nodeStatus;
     }
-    
+
     /// <summary>
     /// Resumes processing for this handler node from WAITING state.
     /// Transitions the node from WAITING to SUCCESS, allowing processing to continue.
@@ -223,7 +227,7 @@ public class LSEventHandlerNode : ILSEventNode {
         // if resume had no effect, return current status
         return _nodeStatus;
     }
-    
+
     /// <summary>
     /// Forces this handler node to transition from WAITING state to FAILURE.
     /// Used when external operations fail or timeout, requiring the handler to fail.
@@ -256,7 +260,7 @@ public class LSEventHandlerNode : ILSEventNode {
         // if resume had no effect, return current status
         return _nodeStatus;
     }
-    
+
     /// <summary>
     /// Cancels processing for this handler node, setting its status to CANCELLED.
     /// This operation is always successful and provides a terminal state.
@@ -297,7 +301,7 @@ public class LSEventHandlerNode : ILSEventNode {
     /// <para>executed multiple times while maintaining global execution statistics.</para>
     /// </remarks>
     public ILSEventNode Clone() {
-        return new LSEventHandlerNode(NodeID, _handler, Order, Priority, this, Conditions);
+        return new LSEventHandlerNode(NodeID, _handler, Order, Priority, this, WithInverter, Conditions);
     }
 
     /// <summary>
@@ -308,6 +312,7 @@ public class LSEventHandlerNode : ILSEventNode {
     /// <param name="handler">Handler delegate containing the business logic to execute.</param>
     /// <param name="order">Execution order among sibling nodes with the same priority.</param>
     /// <param name="priority">Processing priority level (default: NORMAL).</param>
+    /// <param name="withInverter">If true, inverts the success/failure logic of the handler node.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <returns>New handler node instance ready for use in the event processing hierarchy.</returns>
     /// <remarks>
@@ -315,7 +320,7 @@ public class LSEventHandlerNode : ILSEventNode {
     /// The resulting node will track its own execution count rather than sharing with another node.
     /// </remarks>
     public static LSEventHandlerNode Create(string nodeID, LSEventHandler handler,
-                      int order, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
-        return new LSEventHandlerNode(nodeID, handler, order, priority, null, conditions);
+                      int order, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
+        return new LSEventHandlerNode(nodeID, handler, order, priority, null, withInverter, conditions);
     }
 }

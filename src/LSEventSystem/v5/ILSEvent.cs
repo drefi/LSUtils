@@ -82,7 +82,7 @@ public interface ILSEvent {
     /// </summary>
     /// <param name="subBuilder"></param>
     /// <returns></returns>
-    ILSEvent Context(LSEventSubContextBuilder subBuilder);
+    ILSEvent Context(LSEventContextDelegate subBuilder);
 
     /// <summary>
     /// Process the event through a context manager (or Singleton if not provided).

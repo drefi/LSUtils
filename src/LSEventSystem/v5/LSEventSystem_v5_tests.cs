@@ -1048,7 +1048,7 @@ public class LSEventSystemTestsV5 {
                 .Execute("conditionalHandler", (ctx, node) => {
                     _handler1CallCount++;
                     return LSEventProcessStatus.FAILURE;
-                }, LSPriority.NORMAL, (evt, node) => false)) // skip the handler
+                }, LSPriority.NORMAL, false, (evt, node) => false)) // skip the handler
             .Build();
 
         var mockEvent = new MockEvent();
@@ -1066,7 +1066,7 @@ public class LSEventSystemTestsV5 {
                         .Execute("conditionalHandler", (ctx, node) => {
                             _handler1CallCount++;
                             return LSEventProcessStatus.FAILURE;
-                        }, LSPriority.NORMAL, (evt, node) => true)) // condition met
+                        }, LSPriority.NORMAL, false, (evt, node) => true)) // condition met
                     .Build();
 
         var mockEvent = new MockEvent();
@@ -1607,7 +1607,7 @@ public class LSEventSystemTestsV5 {
                 .Execute("conditionalHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL,
+                }, LSPriority.NORMAL, false,
                    (evt, node) => { conditionCallCount++; return eventTypeCondition; },
                    (evt, node) => { conditionCallCount++; return stateCondition; }))
             .Build();
@@ -1630,7 +1630,7 @@ public class LSEventSystemTestsV5 {
                 .Execute("conditionalHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL,
+                }, LSPriority.NORMAL, false,
                    (evt, node) => { conditionCallCount++; return eventTypeCondition; },
                    (evt, node) => { conditionCallCount++; return stateCondition; }))
             .Build();
@@ -1653,7 +1653,7 @@ public class LSEventSystemTestsV5 {
                 .Execute("conditionalHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL,
+                }, LSPriority.NORMAL, false,
                    (evt, node) => { conditionCallCount++; return eventTypeCondition; },
                    (evt, node) => { conditionCallCount++; return stateCondition; }))
             .Build();
@@ -1679,7 +1679,7 @@ public class LSEventSystemTestsV5 {
                 .Execute("dataConditionHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL, (evt, node) => {
+                }, LSPriority.NORMAL, false, (evt, node) => {
                     return true;
                 }))
             .Build();
@@ -1699,14 +1699,14 @@ public class LSEventSystemTestsV5 {
                 .Execute("priorityConditionHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.HIGH, (evt, node) => {
+                }, LSPriority.HIGH, false, (evt, node) => {
                     // Condition based on node priority
                     return node.Priority == LSPriority.HIGH;
                 })
                 .Execute("orderConditionHandler", (evt, node) => {
                     _handler2CallCount++;
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL, (evt, node) => {
+                }, LSPriority.NORMAL, false, (evt, node) => {
                     // Condition based on node order
                     return node.Order >= 0;
                 }))
@@ -1730,11 +1730,11 @@ public class LSEventSystemTestsV5 {
                 .Execute("alwaysFailCondition", (evt, node) => {
                     executionPath.Add("SHOULD_NOT_EXECUTE");
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.HIGH, (evt, node) => false) // condition always false
+                }, LSPriority.HIGH, false, (evt, node) => false) // condition always false
                 .Execute("conditionalSuccess", (evt, node) => {
                     executionPath.Add("CONDITIONAL_SUCCESS");
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL, (evt, node) => true) // condition always true
+                }, LSPriority.NORMAL, false, (evt, node) => true) // condition always true
                 .Execute("fallback", (evt, node) => {
                     executionPath.Add("FALLBACK");
                     return LSEventProcessStatus.SUCCESS;
@@ -1762,15 +1762,15 @@ public class LSEventSystemTestsV5 {
                 .Execute("handler1", (evt, node) => {
                     executedHandlers.Add("H1");
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL, (evt, node) => condition1)
+                }, LSPriority.NORMAL, false, (evt, node) => condition1)
                 .Execute("handler2", (evt, node) => {
                     executedHandlers.Add("H2");
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL, (evt, node) => condition2)
+                }, LSPriority.NORMAL, false, (evt, node) => condition2)
                 .Execute("handler3", (evt, node) => {
                     executedHandlers.Add("H3");
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL, (evt, node) => condition3), 2) // require 2 to succeed
+                }, LSPriority.NORMAL, false, (evt, node) => condition3), 2) // require 2 to succeed
             .Build();
 
         var mockEvent = new MockEvent();
@@ -1794,7 +1794,7 @@ public class LSEventSystemTestsV5 {
                 .Execute("exceptionConditionHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL, (evt, node) => {
+                }, LSPriority.NORMAL, false, (evt, node) => {
                     if (throwException) throw new InvalidOperationException("Condition error");
                     return true;
                 }))
@@ -1831,7 +1831,7 @@ public class LSEventSystemTestsV5 {
                 .Execute("handler2", (evt, node) => {
                     _handler2CallCount++;
                     return LSEventProcessStatus.SUCCESS;
-                }), LSPriority.NORMAL, (evt, node) => sequenceCondition)
+                }), LSPriority.NORMAL, false, (evt, node) => sequenceCondition)
             .Build();
 
         var mockEvent = new MockEvent();
@@ -2442,18 +2442,17 @@ public class LSEventSystemTestsV5 {
     [Test]
     public void RootParallelNodeTest() {
         var manager = new LSEventContextManager();
-        var seqA = new LSEventContextBuilder()
+
+        manager.Register<MockEvent>(root => root
             .Sequence("seqA", seq => seq
                 .Execute("handlerA1", _mockHandler1)
                 .Execute("handlerA2", _mockHandler2))
-            .Build();
-        var seqB = new LSEventContextBuilder()
+        );
+        manager.Register<MockEvent>(root => root
             .Selector("seqB", seq => seq
                 .Execute("handlerB1", _mockHandler1)
                 .Execute("handlerB2", _mockHandler2))
-            .Build();
-        manager.RegisterContext<MockEvent>(seqA);
-        manager.RegisterContext<MockEvent>(seqB);
+        );
 
         var context = manager.GetContext<MockEvent>();
         Assert.That(context, Is.Not.Null);
@@ -2474,26 +2473,21 @@ public class LSEventSystemTestsV5 {
 
     [Test]
     public void TestContextManagerRegistrationAndRetrieval() {
-
-        var seqContext = new LSEventContextBuilder()
+        LSEventContextManager.Singleton.Register<MockEvent>(root => root
             .Sequence("seq", seq => seq
                 .Execute("handler1", _mockHandler1)
                 .Execute("handler2", _mockHandler2))
-            .Build();
-
-        var selContext = new LSEventContextBuilder()
+        );
+        LSEventContextManager.Singleton.Register<MockEvent>(root => root
             .Selector("sel", sel => sel
                 .Execute("handler3", _mockHandler1)
                 .Execute("handler4", _mockHandler2))
-            .Build();
-
-        LSEventContextManager.Singleton.RegisterContext<MockEvent>(seqContext);
-        LSEventContextManager.Singleton.RegisterContext<MockEvent>(selContext);
+        );
 
         var root = LSEventContextManager.Singleton.GetContext<MockEvent>();
 
-        Assert.That(root.HasChild(seqContext.NodeID), Is.True);
-        Assert.That(root.HasChild(selContext.NodeID), Is.True);
+        Assert.That(root.HasChild("seq"), Is.True);
+        Assert.That(root.HasChild("sel"), Is.True);
 
         var mockEvent = new MockEvent();
         var result = mockEvent.Context(s => s

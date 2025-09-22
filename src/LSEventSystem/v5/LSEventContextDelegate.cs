@@ -21,4 +21,4 @@ namespace LSUtils.EventSystem;
 ///     .Execute("handler2", handler2))
 /// </code>
 /// </remarks>
-public delegate LSEventContextBuilder LSEventSubContextBuilder(LSEventContextBuilder subBuilder);
+public delegate LSEventContextBuilder LSEventContextDelegate(LSEventContextBuilder subBuilder);

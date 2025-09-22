@@ -36,14 +36,8 @@ public abstract class LSEvent : ILSEvent {
         var manager = contextManager ?? LSEventContextManager.Singleton;
         if (_processContext != null) throw new LSException("Event already processed.");
 
-        var globalContextBuilder = new LSEventContextBuilder(manager.getContext(this.GetType(), instance));
-        if (_eventContext != null) {
-            globalContextBuilder
-                .Merge(_eventContext);
-
-
-        }
-        _processContext = new LSEventProcessContext(this, globalContextBuilder.Build());
+        var globalContext = manager.GetContext(this.GetType(), _eventContext, instance);
+        _processContext = new LSEventProcessContext(this, globalContext);
         return _processContext.Process();
     }
 
@@ -61,7 +55,7 @@ public abstract class LSEvent : ILSEvent {
         _processContext.Cancel();
     }
 
-    public ILSEvent Context(LSEventSubContextBuilder builder) {
+    public ILSEvent Context(LSEventContextDelegate builder) {
         LSEventContextBuilder contextBuilder;
         if (_eventContext == null) {
             contextBuilder = new LSEventContextBuilder();

@@ -93,12 +93,15 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     /// <inheritdoc />
     public LSEventCondition Conditions { get; }
 
+    public bool WithInverter { get; }
+
     /// <summary>
     /// Initializes a new selector node with the specified configuration.
     /// </summary>
     /// <param name="nodeId">Unique identifier for this selector node.</param>
     /// <param name="order">Execution order among sibling nodes with the same priority.</param>
     /// <param name="priority">Processing priority level (default: NORMAL).</param>
+    /// <param name="withInverter">If true, inverts the success/failure logic of the selector.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <remarks>
     /// <para><strong>Condition Handling:</strong></para>
@@ -108,10 +111,11 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     /// <item><description><strong>Null Safety</strong>: Null conditions in the array are automatically filtered out</description></item>
     /// </list>
     /// </remarks>
-    protected LSEventSelectorNode(string nodeId, int order, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    protected LSEventSelectorNode(string nodeId, int order, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
         NodeID = nodeId;
         Order = order;
         Priority = priority;
+        WithInverter = withInverter;
         var defaultCondition = (LSEventCondition)((ctx, node) => true);
         if (conditions == null || conditions.Length == 0) {
             Conditions = defaultCondition;
@@ -161,7 +165,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
 
     /// <inheritdoc />
     public ILSEventLayerNode Clone() {
-        var cloned = new LSEventSelectorNode(NodeID, Order, Priority, Conditions);
+        var cloned = new LSEventSelectorNode(NodeID, Order, Priority, WithInverter, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -385,6 +389,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     /// <param name="nodeID">Unique identifier for the selector node.</param>
     /// <param name="order">Execution order among sibling nodes with the same priority.</param>
     /// <param name="priority">Processing priority level (default: NORMAL).</param>
+    /// <param name="withInverter">If true, inverts the success/failure logic of the selector.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <returns>A new configured selector node instance.</returns>
     /// <remarks>
@@ -395,7 +400,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     /// <item><description><strong>Consistency</strong>: Matches factory pattern used across the framework</description></item>
     /// </list>
     /// </remarks>
-    public static LSEventSelectorNode Create(string nodeID, int order, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
-        return new LSEventSelectorNode(nodeID, order, priority, conditions);
+    public static LSEventSelectorNode Create(string nodeID, int order, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
+        return new LSEventSelectorNode(nodeID, order, priority, withInverter, conditions);
     }
 }

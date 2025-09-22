@@ -130,7 +130,7 @@ public class AEffectSystemEvent_tests {
             DamageAmount = (minDamage, maxDamage);
         }
         public override void Initialize(Entity instance) {
-            var damageContext = new LSEventContextBuilder()
+            LSEventContextManager.Singleton.Register<OnEffectAppliedEvent>(root => root
                 .Sequence("OnTakeDamage", s => s
                     .Execute("log", (evt, ctx) => {
                         if (evt is not OnEffectAppliedEvent appliedEffect) return LSEventProcessStatus.CANCELLED;
@@ -145,8 +145,7 @@ public class AEffectSystemEvent_tests {
                         Console.WriteLine($"{target.Name} takes {damage} damage, remaining health: {target.Health}");
                         return LSEventProcessStatus.SUCCESS;
                     })
-                ).Build();
-            LSEventContextManager.Singleton.RegisterContext<OnEffectAppliedEvent>(damageContext, instance);
+                ), instance);
         }
         public override void Execute(Effect sourceEffect) {
 
@@ -169,11 +168,11 @@ public class AEffectSystemEvent_tests {
             Duration = duration;
         }
         public override void Initialize(Entity entity) {
-            var protectedContext = new LSEventContextBuilder()
+
+            LSEventContextManager.Singleton.Register<OnEffectAppliedEvent>(root => root
                 .Sequence("OnProtected", s => s
                     .Execute("redirect", redirectNodeHandler)
-                ).Build();
-            LSEventContextManager.Singleton.RegisterContext<OnEffectAppliedEvent>(protectedContext, entity);
+                ), entity);
         }
         LSEventProcessStatus redirectNodeHandler(ILSEvent evt, LSEventProcessContext context) {
             if (evt is not OnEffectAppliedEvent appliedEffect) return LSEventProcessStatus.CANCELLED;
@@ -195,15 +194,15 @@ public class AEffectSystemEvent_tests {
             Duration = duration;
         }
         public override void Initialize(Entity entity) {
-            var stunContext = new LSEventContextBuilder()
+            LSEventContextManager.Singleton.Register<OnEffectAppliedEvent>(root => root
                 .Sequence("OnStunned", s => s
                     .Execute("log", (evt, ctx) => {
                         if (evt is not OnEffectAppliedEvent appliedEffect) return LSEventProcessStatus.CANCELLED;
                         Console.WriteLine($"{appliedEffect.Target.Name} is stunned for {Duration} turns by {appliedEffect.Source.Name}");
                         return LSEventProcessStatus.SUCCESS;
                     })
-                ).Build();
-            LSEventContextManager.Singleton.RegisterContext<OnEffectAppliedEvent>(stunContext, entity);
+                )
+            , entity);
         }
         public override void Execute(Effect sourceEffect) {
             Console.WriteLine($"{sourceEffect.Target.Name} is stunned for {Duration} turns by {sourceEffect.Source.Name}");
@@ -259,7 +258,7 @@ public class AEffectSystemEvent_tests {
     public class TargetMechanic {
         public void Initialize(Entity entity) {
             Console.WriteLine($"Initializing TargetMechanic for {entity.Name}");
-            var targetContext = new LSEventContextBuilder()
+            LSEventContextManager.Singleton.Register<OnTargetEvent>(root => root
                 .Sequence("OnTarget", s => s
                     .Execute("log", (evt, ctx) => {
                         Console.WriteLine($"{entity.Name} has triggered [log] handler.");
@@ -273,9 +272,8 @@ public class AEffectSystemEvent_tests {
                         Console.WriteLine($"{onTargettedEvent.Source.Name} is selecting {onTargettedEvent.Target.Name}");
                         return LSEventProcessStatus.SUCCESS;
                     })
-                ).Build();
-            LSEventContextManager.Singleton.RegisterContext<OnTargetEvent>(targetContext, entity);
-            var test = LSEventContextManager.Singleton.GetContext<OnTargetEvent>(entity);
+                ), entity);
+            var test = LSEventContextManager.Singleton.GetContext<OnTargetEvent>(null, entity);
             Console.WriteLine($"Context for {entity.Name}: {test.NodeID} with {test.GetChildren().Count()} children.");
         }
     }

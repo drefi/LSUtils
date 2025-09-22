@@ -49,23 +49,23 @@ namespace LSUtils.EventSystem;
 public class LSEventParallelNode : ILSEventLayerNode {
     /// <inheritdoc />
     int ILSEventNode.ExecutionCount => throw new System.NotImplementedException("ExecutionCount is tracked only in handler node.");
-    
+
     /// <summary>
     /// Collection of all child nodes indexed by their NodeID for efficient lookup and management.
     /// </summary>
     protected Dictionary<string, ILSEventNode> _children = new();
-    
+
     /// <summary>
     /// Processing stack used for unified pattern consistency. In parallel nodes, used for initialization tracking.
     /// </summary>
     protected Stack<ILSEventNode> _processStack = new();
-    
+
     /// <summary>
     /// List of children that meet execution conditions, filtered and cached during first processing call.
     /// All children in this list are processed simultaneously during each Process() call.
     /// </summary>
     List<ILSEventNode> _availableChildren = new();
-    
+
     /// <summary>
     /// Flag indicating whether processing has been initialized to prevent re-filtering children.
     /// </summary>
@@ -73,16 +73,18 @@ public class LSEventParallelNode : ILSEventLayerNode {
 
     /// <inheritdoc />
     public string NodeID { get; }
-    
+
     /// <inheritdoc />
     public LSPriority Priority { get; }
-    
+
     /// <inheritdoc />
     public int Order { get; }
-    
+
     /// <inheritdoc />
     public LSEventCondition Conditions { get; }
-    
+
+    public bool WithInverter { get; }
+
     /// <summary>
     /// Number of child nodes that must reach SUCCESS state for this parallel node to succeed.
     /// </summary>
@@ -96,7 +98,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     /// </list>
     /// </remarks>
     public int NumRequiredToSucceed { get; internal set; }
-    
+
     /// <summary>
     /// Number of child nodes that must reach FAILURE state for this parallel node to fail.
     /// </summary>
@@ -119,6 +121,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     /// <param name="numRequiredToSucceed">Number of children that must succeed for parallel success.</param>
     /// <param name="numRequiredToFailure">Number of children that must fail for parallel failure.</param>
     /// <param name="priority">Processing priority level (default: NORMAL).</param>
+    /// <param name="withInverted">If true, inverts the success/failure logic of the parallel node.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <remarks>
     /// <para><strong>Threshold Configuration:</strong></para>
@@ -135,12 +138,13 @@ public class LSEventParallelNode : ILSEventLayerNode {
     /// <item><description><strong>Null Safety</strong>: Null conditions in the array are automatically filtered out</description></item>
     /// </list>
     /// </remarks>
-    internal LSEventParallelNode(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
+    internal LSEventParallelNode(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
         NodeID = nodeID;
         Order = order;
         Priority = priority;
         NumRequiredToSucceed = numRequiredToSucceed;
         NumRequiredToFailure = numRequiredToFailure;
+        WithInverter = withInverter;
         var defaultCondition = (LSEventCondition)((ctx, node) => true);
         if (conditions == null || conditions.Length == 0) {
             Conditions = defaultCondition;
@@ -169,7 +173,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     public void AddChild(ILSEventNode child) {
         _children[child.NodeID] = child;
     }
-    
+
     /// <summary>
     /// Retrieves a specific child node by its identifier.
     /// </summary>
@@ -178,7 +182,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     public ILSEventNode? GetChild(string label) {
         return _children.TryGetValue(label, out var child) ? child : null;
     }
-    
+
     /// <summary>
     /// Gets all child nodes as an array.
     /// </summary>
@@ -186,7 +190,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     public ILSEventNode[] GetChildren() {
         return _children.Values.ToArray();
     }
-    
+
     /// <summary>
     /// Checks if a child node with the specified identifier exists.
     /// </summary>
@@ -195,7 +199,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     public bool HasChild(string label) {
         return _children.ContainsKey(label);
     }
-    
+
     /// <summary>
     /// Removes a child node from this parallel node's collection.
     /// </summary>
@@ -207,10 +211,10 @@ public class LSEventParallelNode : ILSEventLayerNode {
     public bool RemoveChild(string label) {
         return _children.Remove(label);
     }
-    
+
     /// <inheritdoc />
     public ILSEventLayerNode Clone() {
-        var cloned = new LSEventParallelNode(NodeID, Order, NumRequiredToSucceed, NumRequiredToFailure, Priority, Conditions);
+        var cloned = new LSEventParallelNode(NodeID, Order, NumRequiredToSucceed, NumRequiredToFailure, Priority, WithInverter, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -497,6 +501,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     /// <param name="numRequiredToSucceed">Number of children that must succeed for parallel success.</param>
     /// <param name="numRequiredToFailure">Number of children that must fail for parallel failure.</param>
     /// <param name="priority">Processing priority level (default: NORMAL).</param>
+    /// <param name="withInverter">If true, inverts the success/failure logic of the parallel node.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <returns>A new configured parallel node instance.</returns>
     /// <remarks>
@@ -515,8 +520,8 @@ public class LSEventParallelNode : ILSEventLayerNode {
     /// <item><description><strong>Flexible Configuration</strong>: Allows creating nodes before children are added</description></item>
     /// </list>
     /// </remarks>
-    public static LSEventParallelNode Create(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSPriority priority = LSPriority.NORMAL, params LSEventCondition?[] conditions) {
-        return new LSEventParallelNode(nodeID, order, numRequiredToSucceed, numRequiredToFailure, priority, conditions);
+    public static LSEventParallelNode Create(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
+        return new LSEventParallelNode(nodeID, order, numRequiredToSucceed, numRequiredToFailure, priority, withInverter, conditions);
     }
 
 }

@@ -33,7 +33,7 @@ public interface ILSEventNode {
     /// </summary>
     /// <value>Must be unique within the parent node's children collection.</value>
     string NodeID { get; }  // Used as path identifier for navigation
-    
+
     /// <summary>
     /// Execution priority within parent containers.
     /// Higher priority nodes execute before lower priority nodes.
@@ -41,7 +41,7 @@ public interface ILSEventNode {
     /// <value>Priority level from LSPriority enum (CRITICAL, HIGH, NORMAL, LOW).</value>
     /// <remarks>When priorities are equal, the Order property is used as a tiebreaker.</remarks>
     LSPriority Priority { get; }
-    
+
     /// <summary>
     /// Execution prerequisites that must be satisfied before this node can process.
     /// All conditions must return true for the node to be eligible for execution.
@@ -53,7 +53,7 @@ public interface ILSEventNode {
     /// </remarks>
     // Conditions to be met to execute this node, a node that does not meet conditions should be skipped
     LSEventCondition Conditions { get; }
-    
+
     /// <summary>
     /// Number of times this node has been executed.
     /// For handler nodes, this count is shared among clones to provide global execution statistics.
@@ -64,7 +64,7 @@ public interface ILSEventNode {
     /// This property is used for analytics and debugging purposes.
     /// </remarks>
     int ExecutionCount { get; } // Number of times this node has been executed
-    
+
     /// <summary>
     /// Execution order among sibling nodes with the same priority.
     /// Lower values execute first when priorities are equal.
@@ -72,6 +72,9 @@ public interface ILSEventNode {
     /// <value>Order value set during node registration, typically incremented sequentially.</value>
     /// <remarks>This provides deterministic execution order for nodes with identical priorities.</remarks>
     int Order { get; } // Order of execution among nodes, this is set during registration order (increased)
+
+    bool WithInverter { get; }
+
     /// <summary>
     /// Creates an independent copy of this node for parallel processing or tree manipulation.
     /// </summary>
@@ -85,7 +88,7 @@ public interface ILSEventNode {
     /// <para>Cloned nodes typically start with UNKNOWN status regardless of original node state.</para>
     /// </remarks>
     ILSEventNode Clone();
-    
+
     /// <summary>
     /// Primary execution method for event processing.
     /// Processes this node and returns the resulting status.
@@ -103,7 +106,7 @@ public interface ILSEventNode {
     /// </remarks>
     //LSEventProcessStatus Process(LSEventProcessContext context, params string[]? nodes);
     LSEventProcessStatus Process(LSEventProcessContext context);
-    
+
     /// <summary>
     /// Non-destructive inquiry of the current processing status.
     /// Returns the current state without side effects or state changes.
@@ -121,7 +124,7 @@ public interface ILSEventNode {
     /// </list>
     /// </remarks>
     LSEventProcessStatus GetNodeStatus();
-    
+
     /// <summary>
     /// Continues processing from WAITING state for this node or specified child nodes.
     /// </summary>
@@ -138,7 +141,7 @@ public interface ILSEventNode {
     /// <para><strong>Invalid States:</strong> Returns current status if node is not in WAITING state.</para>
     /// </remarks>
     LSEventProcessStatus Resume(LSEventProcessContext context, params string[]? nodes);
-    
+
     /// <summary>
     /// Forces transition from WAITING to FAILURE state for this node or specified child nodes.
     /// </summary>
@@ -151,7 +154,7 @@ public interface ILSEventNode {
     /// <para><strong>Use Cases:</strong> Timeout handling, error conditions, or explicit failure injection.</para>
     /// </remarks>
     LSEventProcessStatus Fail(LSEventProcessContext context, params string[]? nodes);
-    
+
     /// <summary>
     /// Terminates processing with CANCELLED state for this node and its entire subtree.
     /// </summary>

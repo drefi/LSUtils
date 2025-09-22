@@ -172,7 +172,7 @@ public class EffectSystemExampleTests {
         // Register global contexts for effect system
 
         // Context for SkillUsedEvent - handles damage and effect application
-        var skillUsedContext = new LSEventContextBuilder()
+        LSEventContextManager.Singleton.Register<SkillUsedEvent>(root => root
             .Sequence("skill-processing", seq => seq
                 .Execute("apply-damage", (evt, node) => {
                     var skillEvent = evt as SkillUsedEvent;
@@ -192,19 +192,18 @@ public class EffectSystemExampleTests {
                         };
                         skillEvent.Target.ApplyEffect(effect);
                         _actionLog.Add($"{skillEvent.Target.Name} is now affected by {effect.Type}");
-                        
+
                         // Fire effect applied event to trigger reactions
                         var effectEvent = new EffectAppliedEvent(skillEvent.Target, effect, skillEvent.Caster);
                         effectEvent.Process();
                     }
                     return LSEventProcessStatus.SUCCESS;
-                }, LSPriority.NORMAL))
-            .Build();
-
-        LSEventContextManager.Singleton.RegisterContext<SkillUsedEvent>(skillUsedContext);
+                }, LSPriority.NORMAL)
+            )
+        );
 
         // Context for EffectAppliedEvent - handles reactive skills with priority
-        var effectAppliedContext = new LSEventContextBuilder()
+        LSEventContextManager.Singleton.Register<EffectAppliedEvent>(root => root
             .Sequence("effect-reactions", seq => seq
                 .Execute("find-reactors", (evt, node) => {
                     var effectEvent = evt as EffectAppliedEvent;
@@ -223,45 +222,43 @@ public class EffectSystemExampleTests {
                         return LSEventProcessStatus.SUCCESS;
                     }
                     return LSEventProcessStatus.FAILURE;
-                }, LSPriority.NORMAL))
-            .Build();
-
-        LSEventContextManager.Singleton.RegisterContext<EffectAppliedEvent>(effectAppliedContext);
+                }, LSPriority.NORMAL)
+            )
+        );
 
         // Context for EffectClaimedEvent - logs the claim
-        var effectClaimedContext = new LSEventContextBuilder()
+        LSEventContextManager.Singleton.Register<EffectClaimedEvent>(root => root
             .Sequence("claim-processing", seq => seq
                 .Execute("log-claim", (evt, node) => {
                     var claimEvent = evt as EffectClaimedEvent;
                     if (claimEvent != null) {
                         _actionLog.Add($"{claimEvent.ClaimedBy.Name} claims {claimEvent.Effect.Type} effect on {claimEvent.EffectTarget.Name} with {claimEvent.ReactiveSkill.Name}");
-                        
+
                         // Apply the reactive skill effect
                         claimEvent.EffectTarget.TakeDamage(claimEvent.ReactiveSkill.Damage, claimEvent.ClaimedBy.Id);
                         _actionLog.Add($"{claimEvent.EffectTarget.Name} takes {claimEvent.ReactiveSkill.Damage} additional damage from {claimEvent.ReactiveSkill.Name}");
-                        
+
                         return LSEventProcessStatus.SUCCESS;
                     }
                     return LSEventProcessStatus.FAILURE;
-                }))
-            .Build();
-
-        LSEventContextManager.Singleton.RegisterContext<EffectClaimedEvent>(effectClaimedContext);
+                })
+            )
+        );
     }
 
     private List<(Entity, Skill)> FindPotentialReactors(Effect effect, Entity target) {
         var reactors = new List<(Entity, Skill)>();
-        
+
         foreach (var entity in _allEntities) {
             if (entity == target || !entity.IsAlive) continue;
-            
+
             foreach (var skill in entity.Skills) {
                 if (skill.ReactsToEffect == effect.Type) {
                     reactors.Add((entity, skill));
                 }
             }
         }
-        
+
         // Sort by priority (highest first)
         return reactors.OrderByDescending(r => r.Item2.Priority).ToList();
     }
@@ -280,7 +277,7 @@ public class EffectSystemExampleTests {
             // Fire claim event
             var claimEvent = new EffectClaimedEvent(reactor, effectEvent.Target, effect, skill);
             claimEvent.Process();
-            
+
             break; // Only the highest priority reactor gets to claim
         }
     }
@@ -301,13 +298,13 @@ public class EffectSystemExampleTests {
 
         // Assert
         Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
-        
+
         // EntityB should have taken damage from both Water Blast and Lightning Strike (reaction)
         var expectedDamage = waterBlast.Damage + _entityC.Skills.First().Damage; // 15 + 25 = 40
         Assert.That(_entityB.Health, Is.EqualTo(initialHealthB - expectedDamage));
         Assert.That(_entityB.GetEffect(EffectType.Wet), Is.Not.Null);
         Assert.That(_actionLog.Count, Is.GreaterThan(0));
-        
+
         // Check action log includes basic skill and reactive behavior
         Assert.That(_actionLog.Any(log => log.Contains("Water Blast")), Is.True);
         Assert.That(_actionLog.Any(log => log.Contains("Wet")), Is.True);
@@ -329,11 +326,11 @@ public class EffectSystemExampleTests {
         Assert.That(wetEffect, Is.Not.Null);
         Assert.That(wetEffect!.IsClaimed, Is.True);
         Assert.That(wetEffect.ClaimedBy, Is.EqualTo("C")); // EntityC has higher priority (10)
-        
+
         // EntityB should have taken damage from both the original skill and the reaction
         var expectedDamage = waterBlast.Damage + _entityC.Skills.First().Damage;
         Assert.That(_entityB.Health, Is.EqualTo(initialHealthB - expectedDamage));
-        
+
         // Check action log for reaction
         Assert.That(_actionLog.Any(log => log.Contains("Thunder Warrior claims")), Is.True);
         Assert.That(_actionLog.Any(log => log.Contains("Lightning Strike")), Is.True);
@@ -353,11 +350,11 @@ public class EffectSystemExampleTests {
         Assert.That(wetEffect, Is.Not.Null);
         Assert.That(wetEffect!.IsClaimed, Is.True);
         Assert.That(wetEffect.ClaimedBy, Is.EqualTo("C")); // EntityC (priority 10) should claim before EntityD (priority 5)
-        
+
         // Verify that EntityD did not get to react
         Assert.That(_actionLog.Any(log => log.Contains("Storm Caller")), Is.False);
         Assert.That(_actionLog.Any(log => log.Contains("Thunder Bolt")), Is.False);
-        
+
         // But EntityC did react
         Assert.That(_actionLog.Any(log => log.Contains("Thunder Warrior")), Is.True);
         Assert.That(_actionLog.Any(log => log.Contains("Lightning Strike")), Is.True);
@@ -375,24 +372,24 @@ public class EffectSystemExampleTests {
 
         // Assert - Complete workflow verification
         Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
-        
+
         // 1. EntityB took damage from Water Blast
         Assert.That(_entityB.Health, Is.LessThan(initialHealthB));
-        
+
         // 2. EntityB has Wet effect
         var wetEffect = _entityB.GetEffect(EffectType.Wet);
         Assert.That(wetEffect, Is.Not.Null);
         Assert.That(wetEffect!.Type, Is.EqualTo(EffectType.Wet));
         Assert.That(wetEffect.AppliedBy, Is.EqualTo("A"));
-        
+
         // 3. Effect was claimed by EntityC (higher priority)
         Assert.That(wetEffect.IsClaimed, Is.True);
         Assert.That(wetEffect.ClaimedBy, Is.EqualTo("C"));
-        
+
         // 4. EntityB took additional damage from Lightning Strike
         var expectedTotalDamage = 15 + 25; // Water Blast + Lightning Strike
         Assert.That(_entityB.Health, Is.EqualTo(initialHealthB - expectedTotalDamage));
-        
+
         // 5. Verify action log sequence
         var expectedActions = new[] {
             "Aqua Mage uses Water Blast",
@@ -401,12 +398,12 @@ public class EffectSystemExampleTests {
             "Thunder Warrior claims Wet effect",
             "Target Dummy takes 25 additional damage"
         };
-        
+
         foreach (var expectedAction in expectedActions) {
-            Assert.That(_actionLog.Any(log => log.Contains(expectedAction.Split(' ')[0])), Is.True, 
+            Assert.That(_actionLog.Any(log => log.Contains(expectedAction.Split(' ')[0])), Is.True,
                 $"Expected action containing '{expectedAction.Split(' ')[0]}' not found in log");
         }
-        
+
         // 6. EntityD should not have reacted due to lower priority
         Assert.That(_actionLog.Any(log => log.Contains("Storm Caller")), Is.False);
     }
@@ -415,7 +412,7 @@ public class EffectSystemExampleTests {
     public void TestContextBuilderFluentAPI_CustomEventContext() {
         // Test using fluent API to create a custom context for a specific event instance
         var customEvent = new SkillUsedEvent(_entityA, _entityB, _entityA.Skills.First());
-        
+
         var result = customEvent
             .Context(builder => builder
                 .Sequence("custom-skill-processing", seq => seq
@@ -436,7 +433,7 @@ public class EffectSystemExampleTests {
                         return LSEventProcessStatus.SUCCESS;
                     }, LSPriority.NORMAL)))
             .Process();
-        
+
         Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
         Assert.That(_actionLog.Any(log => log.Contains("Custom processing started")), Is.True);
         Assert.That(_actionLog.Any(log => log.Contains("Custom burning effect applied")), Is.True);
