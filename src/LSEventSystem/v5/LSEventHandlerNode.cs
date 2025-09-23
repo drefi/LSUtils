@@ -65,6 +65,8 @@ public class LSEventHandlerNode : ILSEventNode {
     public LSEventCondition Conditions { get; }
 
     public bool WithInverter { get; } = false;
+    protected LSEventProcessStatus _nodeSuccess => WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS;
+    protected LSEventProcessStatus _nodeFailure => WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE;
 
     /// <summary>
     /// Gets or sets the execution count, automatically delegating to the base node if this is a clone.
@@ -189,13 +191,18 @@ public class LSEventHandlerNode : ILSEventNode {
         // ExecutionCount uses _baseNode if available so the count is "shared" between clones
         // this may change in the future
 
-        var nodeStatus = _handler(context.Event, context) == LSEventProcessStatus.SUCCESS
-            ? (WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS)
-            : (WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE);
-
+        var nodeStatus = _handler(context.Event, context);
         ExecutionCount++;
-        // we only update the node status if it was UNKNOWN, when _nodeStatus is not UNKNOWN it means Resume/Fail was already called
-        _nodeStatus = (_nodeStatus == LSEventProcessStatus.UNKNOWN) ? nodeStatus : _nodeStatus;
+        // Map SUCCESS/FAILURE to possibly inverted status, else keep original
+        if (nodeStatus == LSEventProcessStatus.SUCCESS)
+            nodeStatus = _nodeSuccess;
+        else if (nodeStatus == LSEventProcessStatus.FAILURE)
+            nodeStatus = _nodeFailure;
+
+        // Only update _nodeStatus if it was UNKNOWN
+        if (_nodeStatus == LSEventProcessStatus.UNKNOWN)
+            _nodeStatus = nodeStatus;
+
         //System.Console.WriteLine($"[LSEventHandlerNode] {NodeID} handler executed with result [{nodeStatus}], _nodeStatus: {_nodeStatus}. Execution count is now {ExecutionCount}.");
 
         return _nodeStatus;

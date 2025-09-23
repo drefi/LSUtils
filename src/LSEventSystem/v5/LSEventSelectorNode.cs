@@ -50,30 +50,32 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     /// Dictionary storing child nodes keyed by their NodeID for O(1) lookup operations.
     /// </summary>
     protected Dictionary<string, ILSEventNode> _children = new();
-    
+
     /// <summary>
     /// Current child node being processed. Null when no processing is active or processing is complete.
     /// </summary>
-    ILSEventNode? _currentChild;
-    
+    protected ILSEventNode? _currentChild;
+    protected LSEventProcessStatus _nodeSuccess => WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS;
+    protected LSEventProcessStatus _nodeFailure => WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE;
+
     /// <summary>
     /// Stack containing children to be processed, ordered by priority and execution order.
     /// Provides deterministic LIFO processing sequence.
     /// </summary>
     protected Stack<ILSEventNode> _processStack = new();
-    
+
     /// <summary>
     /// List of children eligible for processing after condition filtering and priority sorting.
     /// Populated during initialization and used for status aggregation.
     /// </summary>
-    List<ILSEventNode> _availableChildren = new();
-    
+    protected IEnumerable<ILSEventNode> _availableChildren = new List<ILSEventNode>();
+
     /// <summary>
     /// Flag indicating whether processing has been initialized.
     /// Once true, prevents child modification to ensure processing integrity.
     /// </summary>
     protected bool _isProcessing = false;
-    
+
     /// <summary>
     /// Execution count is not tracked at the layer node level.
     /// Only handler nodes track execution statistics.
@@ -83,13 +85,13 @@ public class LSEventSelectorNode : ILSEventLayerNode {
 
     /// <inheritdoc />
     public string NodeID { get; }
-    
+
     /// <inheritdoc />
     public LSPriority Priority { get; }
-    
+
     /// <inheritdoc />
     public int Order { get; }
-    
+
     /// <inheritdoc />
     public LSEventCondition Conditions { get; }
 
@@ -142,7 +144,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     public void AddChild(ILSEventNode child) {
         _children[child.NodeID] = child;
     }
-    
+
     /// <summary>
     /// Removes a child node from this selector node's collection.
     /// </summary>
@@ -196,13 +198,16 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     /// </list>
     /// </remarks>
     public LSEventProcessStatus GetNodeStatus() {
+        if (_isProcessing == false) {
+            return LSEventProcessStatus.UNKNOWN; // not yet processed
+        }
         // Selector node status logic:
         // - If any child is in SUCCESS, the selector is in SUCCESS.
         // - If all children are in FAILURE, the selector is in FAILURE.
         // - If any child is in WAITING, the selector is in WAITING.
         // - If any child is in CANCELLED, the selector is in CANCELLED.
         // - if there are no children, the selector is in SUCCESS.
-        if (_availableChildren.Count == 0) return LSEventProcessStatus.SUCCESS;
+        if (_availableChildren.Count() == 0) return _nodeFailure;
 
         // check for CANCELLED has the highest priority
         if (_availableChildren.Any(c => c.GetNodeStatus() == LSEventProcessStatus.CANCELLED)) {
@@ -210,14 +215,14 @@ public class LSEventSelectorNode : ILSEventLayerNode {
         }
         // check for SUCCESS has the second highest priority
         if (_availableChildren.Any(c => c.GetNodeStatus() == LSEventProcessStatus.SUCCESS)) {
-            return LSEventProcessStatus.SUCCESS; // we found a successful child
+            return _nodeSuccess; // we found a successful child
         }
         // check for WAITING has the third highest priority
         if (_availableChildren.Any(c => c.GetNodeStatus() == LSEventProcessStatus.WAITING)) {
             return LSEventProcessStatus.WAITING; // we have at least one child that is still waiting
         }
         // check if all children have failed, if so the selector is FAILURE, otherwise cannot be determined
-        return _availableChildren.Count == _availableChildren.Count(c => c.GetNodeStatus() == LSEventProcessStatus.FAILURE) ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.UNKNOWN;
+        return _availableChildren.Count() == _availableChildren.Count(c => c.GetNodeStatus() == LSEventProcessStatus.FAILURE) ? _nodeFailure : LSEventProcessStatus.UNKNOWN;
     }
 
     /// <summary>
@@ -322,9 +327,8 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     /// </list>
     /// </remarks>
     public LSEventProcessStatus Process(LSEventProcessContext context) {
-        var selectorStatus = GetNodeStatus();
         //System.Console.WriteLine($"[LSEventSelectorNode] Processing selector node [{NodeID}] selectorStatus: <{selectorStatus}>");
-        if (!LSEventConditions.IsMet(context.Event, this)) return LSEventProcessStatus.SUCCESS;
+        if (!LSEventConditions.IsMet(context.Event, this)) return _nodeSuccess;
 
 
         // we should not need to check for CANCELLED. this is handled when calling the child.Process
@@ -342,6 +346,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
             //System.Console.WriteLine($"[LSEventSelectorNode] Initialized processing for node [{NodeID}], children: {_availableChildren.Count()} _currentChild: {_currentChild?.NodeID}.");
         }
         // success condition: any child has succeeded or no children to process
+        var selectorStatus = GetNodeStatus();
         if (_currentChild == null) {
             // no children to process, we are done
             //System.Console.WriteLine($"[LSEventSelectorNode] No children to process for node [{NodeID}], checking final status. selectorStatus {selectorStatus}");

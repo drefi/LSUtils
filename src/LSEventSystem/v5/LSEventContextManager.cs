@@ -130,7 +130,7 @@ public class LSEventContextManager {
         static GlobalEventable _instance = new();
         internal static GlobalEventable Instance => _instance;
 
-        public string InstanceID => "GlobalInstance";
+        public System.Guid ID => Guid.NewGuid();
 
         LSEventProcessStatus ILSEventable.Initialize(LSEventContextManager manager, ILSEventLayerNode context) {
             throw new System.NotImplementedException();

@@ -64,9 +64,9 @@ public abstract class LSEvent : ILSEvent {
             // creating a parallel node to allow to use handlers in the builder directly.
             // the eventContext will be merged on globalContext.
             // if an instance is provided, we use its ID as name for the root node.
-            
-            string id = instance?.InstanceID ?? ID.ToString();
-            eventBuilder = new LSEventContextBuilder().Parallel($"{id}");
+
+            string id = instance?.ID.ToString() ?? ID.ToString();
+            eventBuilder = new LSEventContextBuilder().Parallel($"{GetType().Name}");
         } else {
             eventBuilder = new LSEventContextBuilder(_eventContext);
         }

@@ -136,8 +136,8 @@ public class LSEventSystemTestsV5 {
         var mockEvent = new MockEvent();
         var processContext = new LSEventProcessContext(mockEvent, context);
         var result = processContext.Process();
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.CANCELLED));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.CANCELLED));
     }
     [Test]
     public void TestBuilderBasicSequenceExecuteWaitingResume() {
@@ -214,7 +214,7 @@ public class LSEventSystemTestsV5 {
         var mockEvent = new MockEvent();
         var processContext = new LSEventProcessContext(mockEvent, context);
         var result = processContext.Process();
-        Assert.That(result, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSEventProcessStatus.FAILURE));
     }
     [Test]
     public void TestBuilderBasicSelectorExecuteSuccess() {
@@ -1405,8 +1405,8 @@ public class LSEventSystemTestsV5 {
         // The system executes in global priority order: CRITICAL first, then HIGH, then LOW
         // This demonstrates that priorities work across different node types in the tree
         Assert.That(executionOrder[0], Is.EqualTo("CRITICAL_AFTER")); // CRITICAL priority
-        Assert.That(executionOrder[1], Is.EqualTo("LOW_PAR"));        // LOW priority
-        Assert.That(executionOrder[2], Is.EqualTo("HIGH_PAR"));       // HIGH priority
+        Assert.That(executionOrder[1], Is.EqualTo("HIGH_PAR"));       // HIGH priority
+        Assert.That(executionOrder[2], Is.EqualTo("LOW_PAR"));        // LOW priority
 
         // Test that all expected handlers were called
         Assert.That(executionOrder.Contains("HIGH_PAR"), Is.True);
@@ -1886,7 +1886,7 @@ public class LSEventSystemTestsV5 {
         Assert.That(seqResult, Is.EqualTo(LSEventProcessStatus.SUCCESS));
 
         var selResult = new LSEventProcessContext(mockEvent, emptySelector).Process();
-        Assert.That(selResult, Is.EqualTo(LSEventProcessStatus.SUCCESS));
+        Assert.That(selResult, Is.EqualTo(LSEventProcessStatus.FAILURE)); // selector with no children fails
 
         var parResult = new LSEventProcessContext(mockEvent, emptyParallel).Process();
         Assert.That(parResult, Is.EqualTo(LSEventProcessStatus.SUCCESS));
@@ -2458,7 +2458,7 @@ public class LSEventSystemTestsV5 {
         var root = LSEventContextManager.Singleton.GetContext<MockEvent>();
         var typeName = typeof(MockEvent).Name;
         Assert.That(root.HasChild(typeName), Is.True);
-        var eventRoot = root.GetChild(typeName) as ILSEventLayerNode;        
+        var eventRoot = root.GetChild(typeName) as ILSEventLayerNode;
         Assert.That(eventRoot, Is.Not.Null);
 
         Assert.That(eventRoot.HasChild("seq"), Is.True);

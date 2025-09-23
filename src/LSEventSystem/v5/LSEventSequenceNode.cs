@@ -53,7 +53,9 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <summary>
     /// Current child node being processed. Null when no processing is active or all children are complete.
     /// </summary>
-    ILSEventNode? _currentChild;
+    protected ILSEventNode? _currentChild;
+    protected LSEventProcessStatus _nodeSuccess => WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS;
+    protected LSEventProcessStatus _nodeFailure => WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE;
 
     /// <summary>
     /// Stack containing children to be processed, ordered by priority and execution order.
@@ -66,7 +68,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// Populated during initialization and used for status aggregation.
     /// </summary>
     //protected Dictionary<ILSEventNode, LSEventProcessStatus> _childrenStatuses = new();
-    List<ILSEventNode> _availableChildren = new();
+    protected IEnumerable<ILSEventNode> _availableChildren = new List<ILSEventNode>();
 
     /// <summary>
     /// Flag indicating whether processing has been initialized.
@@ -210,7 +212,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
             return LSEventProcessStatus.UNKNOWN; // not yet processed
         }
         if (!_availableChildren.Any()) {
-            return !WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE; // no children available
+            return _nodeSuccess; // no children to process, we are done
         }
 
         var childStatuses = _availableChildren.Select(c => c.GetNodeStatus()).ToList();
@@ -223,9 +225,9 @@ public class LSEventSequenceNode : ILSEventLayerNode {
         }
         // check for FAILURE has the third highest priority
         if (childStatuses.Any(c => c == LSEventProcessStatus.FAILURE)) {
-            return !WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS; // we do not need to continue processing
+            return _nodeFailure; // we found a failed child
         }
-        return !WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE; // all children are successful
+        return _nodeSuccess; // all children are successful
     }
     /// <summary>
     /// Forces waiting children to transition to FAILURE state in sequence processing context.
@@ -319,7 +321,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// </remarks>
     public LSEventProcessStatus Process(LSEventProcessContext context) {
         //System.Console.WriteLine($"[LSEventSequenceNode] Processing sequence node [{NodeID}]");
-        if (!LSEventConditions.IsMet(context.Event, this)) return LSEventProcessStatus.SUCCESS;
+        if (!LSEventConditions.IsMet(context.Event, this)) return _nodeSuccess;
 
         var sequenceStatus = GetNodeStatus();
 
@@ -330,26 +332,26 @@ public class LSEventSequenceNode : ILSEventLayerNode {
         if (_isProcessing == false) {
             // will only process children that meet conditions
             // children ordered by Priority (critical first) and Order (lowest first)
-            _availableChildren = _children.Values.Where(c => LSEventConditions.IsMet(context.Event, c)).OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
+            _availableChildren = _children.Values.Where(c =>
+                LSEventConditions.IsMet(context.Event, c))
+            .OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
             // Initialize the stack 
             _processStack = new Stack<ILSEventNode>(_availableChildren);
             _isProcessing = true;
             if (_processStack.Count > 0) _currentChild = _processStack.Pop(); // set the current node to the first child
             //System.Console.WriteLine($"[LSEventSequenceNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()} {string.Join(", ", Array.ConvertAll(_availableChildren.ToArray(), c => c.NodeID))} _currentChild: {_currentChild?.NodeID}.");
         }
-        var successStatus = WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS;
-        var failureStatus = WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE;
 
         // success condition: all children have been processed, no _currentNode
         if (_currentChild == null) {
             // no children to process, we are done
             //System.Console.WriteLine($"[LSEventSequenceNode] No children to process for node {NodeID}, marking as SUCCESS.");
             // we keep processing the current node if available, otherwise we are done
-            if (sequenceStatus != successStatus) {
+            if (sequenceStatus != _nodeSuccess) {
                 // this should never be the case
                 System.Console.WriteLine($"[LSEventSequenceNode] Warning: Sequence node [{NodeID}] has no children to process but status is <{sequenceStatus}>");
             }
-            return successStatus;
+            return _nodeSuccess;
         }
 
         do {
@@ -365,7 +367,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
                 //System.Console.WriteLine($"[LSEventSequenceNode] Warning: Sequence node [{NodeID}] is in WAITING state but child [{_currentChild.NodeID}] is not WAITING.");
                 return LSEventProcessStatus.WAITING;
             }
-            if (currentChildStatus == failureStatus || sequenceStatus == LSEventProcessStatus.CANCELLED) {
+            if (currentChildStatus == LSEventProcessStatus.FAILURE || sequenceStatus == LSEventProcessStatus.CANCELLED) {
                 // exit condition in this node is clear the stack and current node
                 //System.Console.WriteLine($"[LSEventSequenceNode] Ué Sequence node [{NodeID}] finished processing because child [{_currentChild.NodeID}] returned <{currentChildStatus}>.");
                 _processStack.Clear();
@@ -384,7 +386,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
 
         //reach this point means that the sequence was successfull
         //System.Console.WriteLine($"[LSEventSequenceNode] Sequence node [{NodeID}] finished processing all children. Final status: [{sequenceStatus}]");
-        return successStatus; //we make sure it return success, even if GetNodeStatus says otherwise, this could even be a case for unknown.
+        return _nodeSuccess;
     }
 
     /// <summary>

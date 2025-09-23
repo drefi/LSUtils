@@ -1,6 +1,6 @@
 namespace LSUtils.EventSystem;
 
 public interface ILSEventable {
-    public string InstanceID { get; }
+    public System.Guid ID { get; }
     LSEventProcessStatus Initialize(LSEventContextManager manager, ILSEventLayerNode context);
 }

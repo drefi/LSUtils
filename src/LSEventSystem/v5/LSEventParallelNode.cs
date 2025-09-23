@@ -64,7 +64,7 @@ public class LSEventParallelNode : ILSEventLayerNode {
     /// List of children that meet execution conditions, filtered and cached during first processing call.
     /// All children in this list are processed simultaneously during each Process() call.
     /// </summary>
-    List<ILSEventNode> _availableChildren = new();
+    protected IEnumerable<ILSEventNode> _availableChildren = new List<ILSEventNode>();
 
     /// <summary>
     /// Flag indicating whether processing has been initialized to prevent re-filtering children.
@@ -459,8 +459,9 @@ public class LSEventParallelNode : ILSEventLayerNode {
         // Initialize available children list if not done yet
         if (_isProcessing == false) {
             // will only process children that meet conditions
-            // children ordered by Priority (critical first) and Order (lowest first)
-            _availableChildren = _children.Values.Where(c => LSEventConditions.IsMet(context.Event, c)).OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
+            // children ordered by Priority (critical first) and Order (lowest first), since _availableChildren in parallel is processed as a list and not as a stack
+            // we do not use reverse.
+            _availableChildren = _children.Values.Where(c => LSEventConditions.IsMet(context.Event, c)).OrderByDescending(c => c.Priority).ThenBy(c => c.Order);
             _isProcessing = true;
             //System.Console.WriteLine($"[LSEventParallelNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()}.");
         }
