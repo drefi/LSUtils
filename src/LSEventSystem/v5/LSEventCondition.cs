@@ -37,7 +37,7 @@ public delegate bool LSEventCondition(ILSEvent @event, ILSEventNode node);
 /// Utility class providing helper methods for working with LSEventCondition delegates.
 /// Centralizes condition evaluation logic and provides consistent behavior across the system.
 /// </summary>
-public static class LSEventConditions { 
+public static class LSEventConditions {
     /// <summary>
     /// Evaluates all conditions in a node's condition delegate chain.
     /// All conditions must return true for the node to be considered eligible for processing.
@@ -62,6 +62,7 @@ public static class LSEventConditions {
     /// <para>This prevents individual condition failures from crashing the entire processing pipeline.</para>
     /// </remarks>
     public static bool IsMet(ILSEvent @event, ILSEventNode node) {
+        if (node.Conditions == null) return true; // No conditions means always true
         foreach (LSEventCondition c in node.Conditions.GetInvocationList()) {
             if (!c(@event, node)) return false;
         }
