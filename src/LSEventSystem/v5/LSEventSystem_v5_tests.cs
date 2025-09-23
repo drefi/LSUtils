@@ -1831,7 +1831,7 @@ public class LSEventSystemTestsV5 {
                 .Execute("handler2", (evt, node) => {
                     _handler2CallCount++;
                     return LSEventProcessStatus.SUCCESS;
-                }), LSPriority.NORMAL, false, (evt, node) => sequenceCondition)
+                }), LSPriority.NORMAL, false, false, (evt, node) => sequenceCondition)
             .Build();
 
         var mockEvent = new MockEvent();

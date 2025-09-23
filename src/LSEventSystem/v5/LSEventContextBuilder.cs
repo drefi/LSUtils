@@ -56,7 +56,7 @@ public class LSEventContextBuilder {
     /// The root node of the hierarchy being built. Used to return the complete hierarchy from Build().
     /// </summary>
     private ILSEventLayerNode? _rootNode; // Tracks the root node to return on Build()
-    
+
     /// <summary>
     /// Tracks whether Build() has been called to prevent multiple builds from the same instance.
     /// </summary>
@@ -167,7 +167,7 @@ public class LSEventContextBuilder {
 
         return this;
     }
-    
+
     /// <summary>
     /// Creates or navigates to a sequence node in the current context with support for nested hierarchy construction.
     /// </summary>
@@ -204,8 +204,9 @@ public class LSEventContextBuilder {
     /// </remarks>
     public LSEventContextBuilder Sequence(string nodeID,
             LSEventContextDelegate? sequenceContext = null,
-            LSPriority priority = LSPriority.NORMAL,
-            bool withInverter = false,
+            LSPriority? priority = LSPriority.NORMAL,
+            bool? withInverter = false,
+            bool overrideConditions = false,
             params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
@@ -213,12 +214,24 @@ public class LSEventContextBuilder {
         if (_currentNode == null || !tryGetContextChild(nodeID, out existingNode) || existingNode is not LSEventSequenceNode sequenceNode) {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
+            priority ??= LSPriority.NORMAL; // default priority
+            withInverter ??= false; // default inverter
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not sequence
-            sequenceNode = LSEventSequenceNode.Create(nodeID, order, priority, withInverter, conditions);
+            sequenceNode = LSEventSequenceNode.Create(nodeID, order, priority.Value, withInverter.Value, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSequenceNode we should throw an exception.
             //if existingNode is not null here is means is not a sequence node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a sequence node.");
             _currentNode?.RemoveChild(nodeID); // remove existing node if exists
+        } else {
+            // existing node is a sequence node
+            // if fields are not provided keep the existing values
+            priority ??= sequenceNode.Priority;
+            withInverter ??= sequenceNode.WithInverter;
+
+            // update values
+            sequenceNode.Priority = priority.Value;
+            sequenceNode.WithInverter = withInverter.Value;
+            sequenceNode.Conditions = LSEventNodeExtensions.UpdateConditions(overrideConditions, sequenceNode.Conditions, conditions);
         }
         // when we reach this point, sequenceNode is either a new node or the existing sequence node
         ILSEventLayerNode node = sequenceContext?.Invoke(new LSEventContextBuilder(sequenceNode)).Build() ?? sequenceNode;
@@ -265,7 +278,7 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Sibling Support</strong>: Enables creation of sibling nodes when using sub-context pattern</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Selector(string nodeID, LSEventContextDelegate? selectorBuilder = null, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Selector(string nodeID, LSEventContextDelegate? selectorBuilder = null, LSPriority? priority = LSPriority.NORMAL, bool? withInverter = false, bool overrideConditions = false, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -273,11 +286,23 @@ public class LSEventContextBuilder {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not selector
-            selectorNode = LSEventSelectorNode.Create(nodeID, order, priority, withInverter, conditions);
+            priority ??= LSPriority.NORMAL; // default priority
+            withInverter ??= false; // default inverter
+            selectorNode = LSEventSelectorNode.Create(nodeID, order, priority.Value, withInverter.Value, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSelectorNode we should throw an exception.
             //if existingNode is not null here is means is not a selector node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a selector node.");
             _currentNode?.RemoveChild(nodeID);
+        } else {
+            // existing node is a selector node
+            // if fields are not provided keep the existing values
+            priority ??= selectorNode.Priority;
+            withInverter ??= selectorNode.WithInverter;
+
+            // update values
+            selectorNode.Priority = priority.Value;
+            selectorNode.WithInverter = withInverter.Value;
+            selectorNode.Conditions = LSEventNodeExtensions.UpdateConditions(overrideConditions, selectorNode.Conditions, conditions);
         }
         // when we reach this point, selectorNode is either a new node or the existing selector node
         ILSEventLayerNode node = selectorBuilder?.Invoke(new LSEventContextBuilder(selectorNode)).Build() ?? selectorNode;
@@ -334,7 +359,7 @@ public class LSEventContextBuilder {
     /// <item><description><strong>Order Preservation</strong>: Maintains original order when replacing existing nodes</description></item>
     /// </list>
     /// </remarks>
-    public LSEventContextBuilder Parallel(string nodeID, LSEventContextDelegate? parallelBuilder = null, int? numRequiredToSucceed = 0, int? numRequiredToFailure = 0, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
+    public LSEventContextBuilder Parallel(string nodeID, LSEventContextDelegate? parallelBuilder = null, int? numRequiredToSucceed = 0, int? numRequiredToFailure = 0, LSPriority? priority = null, bool? withInverter = null, bool overrideConditions = false, params LSEventCondition?[] conditions) {
         ILSEventNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -342,14 +367,28 @@ public class LSEventContextBuilder {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not parallel
-            parallelNode = LSEventParallelNode.Create(nodeID, order, numRequiredToSucceed == null ? 0 : numRequiredToSucceed.Value, numRequiredToFailure == null ? 0 : numRequiredToFailure.Value, priority, withInverter, conditions);
+            priority ??= LSPriority.NORMAL;
+            withInverter ??= false;
+            numRequiredToSucceed ??= 0;
+            numRequiredToFailure ??= 0;
+            parallelNode = LSEventParallelNode.Create(nodeID, order, numRequiredToSucceed.Value, numRequiredToFailure.Value, priority.Value, withInverter.Value, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventParallelNode we should throw an exception.
             //if existingNode is not null here is means is not a parallel node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a parallel node.");
             _currentNode?.RemoveChild(nodeID);
         } else {
-            // node exists and is a parallel node, update numRequiredToSucceed if provided
-            if (numRequiredToSucceed != null) parallelNode.NumRequiredToSucceed = numRequiredToSucceed.Value;
+            // node exists and is a parallel node
+            // if fields are not provided, keep existing values
+            numRequiredToSucceed ??= parallelNode.NumRequiredToSucceed;
+            numRequiredToFailure ??= parallelNode.NumRequiredToFailure;
+            withInverter ??= parallelNode.WithInverter;
+            priority ??= parallelNode.Priority;
+            // update values
+            parallelNode.NumRequiredToSucceed = numRequiredToSucceed.Value;
+            parallelNode.NumRequiredToFailure = numRequiredToFailure.Value;
+            parallelNode.WithInverter = withInverter.Value;
+            parallelNode.Priority = priority.Value;
+            parallelNode.Conditions = LSEventNodeExtensions.UpdateConditions(overrideConditions, parallelNode.Conditions, conditions);
         }
         // when we reach this point, parallelNode is either a new node or the existing parallel node
         ILSEventLayerNode node = parallelBuilder?.Invoke(new LSEventContextBuilder(parallelNode)).Build() ?? parallelNode;
@@ -504,7 +543,7 @@ public class LSEventContextBuilder {
             }
         }
     }
-    
+
     /// <summary>
     /// Finalizes the builder and returns the completed event processing hierarchy.
     /// </summary>

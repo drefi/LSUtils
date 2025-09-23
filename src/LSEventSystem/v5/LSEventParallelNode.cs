@@ -75,15 +75,15 @@ public class LSEventParallelNode : ILSEventLayerNode {
     public string NodeID { get; }
 
     /// <inheritdoc />
-    public LSPriority Priority { get; }
+    public LSPriority Priority { get; internal set; }
 
     /// <inheritdoc />
-    public int Order { get; }
+    public int Order { get; internal set; }
 
     /// <inheritdoc />
-    public LSEventCondition Conditions { get; }
+    public LSEventCondition? Conditions { get; internal set; }
 
-    public bool WithInverter { get; }
+    public bool WithInverter { get; internal set; }
 
     /// <summary>
     /// Number of child nodes that must reach SUCCESS state for this parallel node to succeed.
@@ -145,21 +145,9 @@ public class LSEventParallelNode : ILSEventLayerNode {
         NumRequiredToSucceed = numRequiredToSucceed;
         NumRequiredToFailure = numRequiredToFailure;
         WithInverter = withInverter;
-        var defaultCondition = (LSEventCondition)((ctx, node) => true);
-        if (conditions == null || conditions.Length == 0) {
-            Conditions = defaultCondition;
-        } else {
-            foreach (var condition in conditions) {
-                if (condition != null) {
-                    Conditions += condition;
-                }
-            }
-        }
-        if (Conditions == null) {
-            Conditions = defaultCondition;
-        }
-
+        Conditions = LSEventNodeExtensions.UpdateConditions(true, Conditions, conditions);
     }
+
 
     /// <summary>
     /// Adds a child node to this parallel node's collection.

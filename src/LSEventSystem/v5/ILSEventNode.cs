@@ -52,7 +52,7 @@ public interface ILSEventNode {
     /// Use LSEventConditions.IsMet() to evaluate all conditions in the delegate chain.
     /// </remarks>
     // Conditions to be met to execute this node, a node that does not meet conditions should be skipped
-    LSEventCondition Conditions { get; }
+    LSEventCondition? Conditions { get; }
 
     /// <summary>
     /// Number of times this node has been executed.

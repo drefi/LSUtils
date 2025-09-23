@@ -87,15 +87,15 @@ public class LSEventSelectorNode : ILSEventLayerNode {
     public string NodeID { get; }
 
     /// <inheritdoc />
-    public LSPriority Priority { get; }
+    public LSPriority Priority { get; internal set; }
 
     /// <inheritdoc />
-    public int Order { get; }
+    public int Order { get; internal set; }
 
     /// <inheritdoc />
-    public LSEventCondition Conditions { get; }
+    public LSEventCondition? Conditions { get; internal set; }
 
-    public bool WithInverter { get; }
+    public bool WithInverter { get; internal set; }
 
     /// <summary>
     /// Initializes a new selector node with the specified configuration.
@@ -118,19 +118,7 @@ public class LSEventSelectorNode : ILSEventLayerNode {
         Order = order;
         Priority = priority;
         WithInverter = withInverter;
-        var defaultCondition = (LSEventCondition)((ctx, node) => true);
-        if (conditions == null || conditions.Length == 0) {
-            Conditions = defaultCondition;
-        } else {
-            foreach (var condition in conditions) {
-                if (condition != null) {
-                    Conditions += condition;
-                }
-            }
-        }
-        if (Conditions == null) {
-            Conditions = defaultCondition;
-        }
+        Conditions = LSEventNodeExtensions.UpdateConditions(true, Conditions, conditions);
     }
 
     /// <summary>

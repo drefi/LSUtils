@@ -87,15 +87,15 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     public string NodeID { get; }
 
     /// <inheritdoc />
-    public LSPriority Priority { get; }
+    public LSPriority Priority { get; internal set; }
 
     /// <inheritdoc />
-    public int Order { get; }
+    public int Order { get; internal set; }
 
     /// <inheritdoc />
-    public LSEventCondition Conditions { get; }
+    public LSEventCondition? Conditions { get; internal set; }
 
-    public bool WithInverter { get; }
+    public bool WithInverter { get; internal set; }
 
     /// <summary>
     /// Initializes a new sequence node with the specified configuration.
@@ -118,19 +118,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
         Order = order;
         Priority = priority;
         WithInverter = withInverter;
-        var defaultCondition = (LSEventCondition)((ctx, node) => true);
-        if (conditions == null || conditions.Length == 0) {
-            Conditions = defaultCondition;
-        } else {
-            foreach (var condition in conditions) {
-                if (condition != null) {
-                    Conditions += condition;
-                }
-            }
-        }
-        if (Conditions == null) {
-            Conditions = defaultCondition;
-        }
+        Conditions = LSEventNodeExtensions.UpdateConditions(true, Conditions, conditions);
     }
 
     /// <summary>
@@ -323,8 +311,6 @@ public class LSEventSequenceNode : ILSEventLayerNode {
         //System.Console.WriteLine($"[LSEventSequenceNode] Processing sequence node [{NodeID}]");
         if (!LSEventConditions.IsMet(context.Event, this)) return _nodeSuccess;
 
-        var sequenceStatus = GetNodeStatus();
-
         // we should not need to check for CANCELLED. this is handled when calling the child.Process
 
         // create a stack to process children in order, this stack cannot be re-created after the node is processed.
@@ -342,6 +328,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
             //System.Console.WriteLine($"[LSEventSequenceNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()} {string.Join(", ", Array.ConvertAll(_availableChildren.ToArray(), c => c.NodeID))} _currentChild: {_currentChild?.NodeID}.");
         }
 
+        var sequenceStatus = GetNodeStatus();
         // success condition: all children have been processed, no _currentNode
         if (_currentChild == null) {
             // no children to process, we are done

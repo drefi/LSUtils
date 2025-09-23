@@ -62,7 +62,7 @@ public class LSEventHandlerNode : ILSEventNode {
     public LSPriority Priority { get; }
 
     /// <inheritdoc />
-    public LSEventCondition Conditions { get; }
+    public LSEventCondition? Conditions { get; }
 
     public bool WithInverter { get; } = false;
     protected LSEventProcessStatus _nodeSuccess => WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS;
@@ -126,19 +126,7 @@ public class LSEventHandlerNode : ILSEventNode {
         _handler = handler;
         Order = order;
         WithInverter = withInverter;
-        var defaultCondition = (LSEventCondition)((ctx, node) => true);
-        if (conditions == null || conditions.Length == 0) {
-            Conditions = defaultCondition;
-        } else {
-            foreach (var condition in conditions) {
-                if (condition != null) {
-                    Conditions += condition;
-                }
-            }
-        }
-        if (Conditions == null) {
-            Conditions = defaultCondition;
-        }
+        Conditions = LSEventNodeExtensions.UpdateConditions(true, null, conditions);
     }
 
     /// <inheritdoc />

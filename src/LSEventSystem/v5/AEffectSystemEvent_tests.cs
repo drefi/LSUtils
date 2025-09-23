@@ -367,31 +367,34 @@ public class AEffectSystemEvent_tests {
             }
             _isInitialized = true;
             Console.WriteLine($"Initializing TargetMechanic for {entity.Name}");
+            // when the entity is the source of the hit event, it uses its equipped skill on the target
             LSEventContextManager.Singleton.Register<OnHitEvent>(root => root
-                .Selector("onHitSkillUse", sel => sel
+                .Selector("onHitUseSkill", sel => sel
                     .Execute($"{_owner.Name}_skillUse", (evt, ctx) => {
                         if (evt is not OnHitEvent onHitEvent) return LSEventProcessStatus.CANCELLED;
                         Console.WriteLine($"{onHitEvent.Source.Name} has hit {onHitEvent.Target.Name} with {onHitEvent.Skill?.Label}.");
-                        onHitEvent.Source.EquippedSkill?.Use(onHitEvent.Target);
+                        onHitEvent.Skill?.Use(onHitEvent.Target);
                         return LSEventProcessStatus.SUCCESS;
-                    }, LSPriority.LOW) //the use skill node should be the last to run, this gives the change of other entities to react to the hit first (like protect
+                    }, LSPriority.LOW) //the use skill node should be the last to run, this gives the change of other entities to react to the hit first (like protect)
                 ), entity);
+
+            // any entity that is not the source or target of the hit event can watch the event and react to it
             LSEventContextManager.Singleton.Register<OnHitEvent>(root => root
-                .Selector("onHitWatcher", sel => sel // all other entities (that are either source or target) watch the event
+                .Selector("onHitWatcher", sel => sel // all entities watch the event, but only those that are not source or target will be able actually "watch" the onHitEvent
                     .Execute($"{_owner.Name}_watcher", (evt, ctx) => {
                         if (evt is not OnHitEvent onHitEvent) return LSEventProcessStatus.CANCELLED;
                         //if (_owner == onHitEvent.Source || _owner == onHitEvent.Target) return LSEventProcessStatus.SUCCESS;
                         Console.WriteLine($"{_owner.Name} saw {onHitEvent.Source.Name} hit {onHitEvent.Target.Name} with {onHitEvent.Skill?.Label}.");
-                        return LSEventProcessStatus.SUCCESS;
-                    }, LSPriority.LOW, true, //we give this handler a low priority so that it runs after other handlers (like protect)
-                    (evt, node) => {
-                        if (evt is not OnHitEvent onHitEvent) throw new LSException("Invalid event type for target selector.");
-                        if (_owner == onHitEvent.Source || _owner == onHitEvent.Target) return false;
-                        //Console.WriteLine($"Evaluating target selector for {_owner.Name} on event where {onHitEvent.Source.Name} hits {onHitEvent.Target.Name}");
-                        return true;
-                    })
+                        return LSEventProcessStatus.SUCCESS; // we return success so that other watchers can also run, handler is inverted
+                    }, LSPriority.LOW, true) //we give this handler a low priority so that it runs after other handlers (like protect)
+
                     .Execute("defaultPass", (evt, ctx) => LSEventProcessStatus.SUCCESS, LSPriority.BACKGROUND) // default pass
-                , LSPriority.HIGH));
+                , LSPriority.HIGH, false, true, (evt, node) => {
+                    if (evt is not OnHitEvent onHitEvent) throw new LSException("Invalid event type for target selector.");
+                    if (_owner == onHitEvent.Source || _owner == onHitEvent.Target) return false;
+                    //Console.WriteLine($"Evaluating target selector for {_owner.Name} on event where {onHitEvent.Source.Name} hits {onHitEvent.Target.Name}");
+                    return true;
+                }));
         }
     }
     public class OnHitEvent : LSEvent {
