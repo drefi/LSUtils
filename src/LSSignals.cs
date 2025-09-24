@@ -1,6 +1,6 @@
 using LSUtils.LSLocale;
 
-namespace LSUtils.EventSystem;
+namespace LSUtils.Processing;
 
 /// <summary>
 /// Provides event-based notifications for printing, warnings, errors, confirmations, and general notifications.
@@ -57,7 +57,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for confirmation messages.
     /// </summary>
-    public class OnConfirmationEvent : LSEvent {
+    public class OnConfirmationEvent : LSProcess {
         public ConfirmationSignal ConfirmationSignal { get; protected set; }
         /// <summary>
         /// Initializes a new instance of the <see cref="OnConfirmationEvent"/> class with confirm and cancel buttons.
@@ -96,7 +96,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for general notifications.
     /// </summary>
-    public class OnNotifyEvent : LSEvent {
+    public class OnNotifyEvent : LSProcess {
         protected NotificationSignal _notificationSignal;
         /// <summary>
         /// The notification message.
@@ -131,29 +131,29 @@ public static class LSSignals {
 
     #region Static Methods
 
-    public static LSEventProcessStatus Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSEventContextManager? contextManager = null) {
+    public static LSProcessResultStatus Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSProcessManager? contextManager = null) {
         var @event = new OnNotifyEvent(new NotificationSignal(message, description, allowDismiss, timeout));
-        return @event.Process(null, contextManager);
+        return @event.Execute(null, contextManager);
     }
 
-    public static LSEventProcessStatus Notify(NotificationSignal notificationSignal, LSEventContextManager? contextManager = null) {
+    public static LSProcessResultStatus Notify(NotificationSignal notificationSignal, LSProcessManager? contextManager = null) {
         var @event = new OnNotifyEvent(notificationSignal);
-        return @event.Process(null, contextManager);
+        return @event.Execute(null, contextManager);
     }
 
-    public static LSEventProcessStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSEventContextManager? contextManager = null) {
+    public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSProcessManager? contextManager = null) {
         var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
-        return @event.Process(null, contextManager);
+        return @event.Execute(null, contextManager);
     }
 
-    public static LSEventProcessStatus Confirmation(ConfirmationSignal confirmationSignal, LSEventContextManager? contextManager = null) {
+    public static LSProcessResultStatus Confirmation(ConfirmationSignal confirmationSignal, LSProcessManager? contextManager = null) {
         var @event = new OnConfirmationEvent(confirmationSignal);
-        return @event.Process(null, contextManager);
+        return @event.Execute(null, contextManager);
     }
 
-    public static LSEventProcessStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSEventContextManager? contextManager = null) {
+    public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSProcessManager? contextManager = null) {
         var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
-        return @event.Process(null, contextManager);
+        return @event.Execute(null, contextManager);
     }
 
     #endregion

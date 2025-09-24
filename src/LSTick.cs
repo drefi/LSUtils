@@ -1,15 +1,15 @@
 using System;
-using LSUtils.EventSystem;
+using LSUtils.Processing;
 
 namespace LSUtils;
 
 /// <summary>
 /// Manages clock and notifies any registered listeners when the clock ticks.
 /// </summary>
-public class LSTick : ILSEventable {
+public class LSTick : ILSProcessable {
     public static LSTick Singleton { get; } = new LSTick(DEFAULT_TICK_VALUE);
     const float DEFAULT_TICK_VALUE = 1f;
-    protected LSEventContextManager? _manager;
+    protected LSProcessManager? _manager;
     protected int _tickCount;
     protected int _resetTickCount;
     protected bool _hasInitialized;
@@ -25,23 +25,23 @@ public class LSTick : ILSEventable {
         ID = System.Guid.NewGuid();
     }
 
-    public LSEventProcessStatus Initialize(LSEventContextDelegate? ctxBuilder = null, LSEventContextManager? manager = null) {
+    public LSProcessResultStatus Initialize(LSProcessBuilderAction? ctxBuilder = null, LSProcessManager? manager = null) {
         _manager = manager;
         OnInitializeEvent @event = new OnInitializeEvent(this);
-        if (ctxBuilder != null) @event.Context(ctxBuilder, this);
+        if (ctxBuilder != null) @event.WithProcessing(ctxBuilder, this);
         return @event
-            .Context(b => b
+            .WithProcessing(b => b
                 .Execute("initialize", (evt, ctx) => {
                     _hasInitialized = true;
                     _isPaused = true;
                     _tickCount = 0;
                     _resetTickCount = 0;
                     _tickTimer = 0f;
-                    var result = new OnTickEvent(this, _tickCount).Process(this, _manager);
-                    return LSEventProcessStatus.SUCCESS;
+                    var result = new OnTickEvent(this, _tickCount).Execute(this, _manager);
+                    return LSProcessResultStatus.SUCCESS;
                 }
             ), this
-        ).Process(this, _manager);
+        ).Execute(this, _manager);
     }
 
     // public EventProcessResult Initialize(LSEventOptions options) {
@@ -81,7 +81,7 @@ public class LSTick : ILSEventable {
                 _resetTickCount++;
                 _tickCount = 0;
             }
-            var result = new OnTickEvent(this, _tickCount).Process(this, _manager);
+            var result = new OnTickEvent(this, _tickCount).Execute(this, _manager);
             //tickEvent(_tickCount, new LSEventOptions(Dispatcher, this));
         }
     }
@@ -119,7 +119,7 @@ public class LSTick : ILSEventable {
     public void TogglePause() {
         if (_hasInitialized == false) return;
         _isPaused = !_isPaused;
-        var result = new OnTogglePauseEvent(this, _isPaused).Process(this, _manager);
+        var result = new OnTogglePauseEvent(this, _isPaused).Execute(this, _manager);
     }
 
     /// <summary>
@@ -130,7 +130,7 @@ public class LSTick : ILSEventable {
     public void SetDeltaFactor(int value) {
         if (DeltaFactor == value) return;
         DeltaFactor = value;
-        var result = new OnChangeDeltaFactorEvent(this, DeltaFactor, _isPaused).Process(this, _manager);
+        var result = new OnChangeDeltaFactorEvent(this, DeltaFactor, _isPaused).Execute(this, _manager);
     }
 
     public void Cleanup() {
@@ -139,14 +139,14 @@ public class LSTick : ILSEventable {
 
     #region Events
 
-    public class OnInitializeEvent : LSEvent {
+    public class OnInitializeEvent : LSProcess {
         public LSTick TickManager { get; }
 
         public OnInitializeEvent(LSTick tickManager) {
             TickManager = tickManager;
         }
     }
-    public class OnTickEvent : LSEvent {
+    public class OnTickEvent : LSProcess {
         public int TickCount { get; }
         public LSTick TickManager { get; }
 
@@ -156,7 +156,7 @@ public class LSTick : ILSEventable {
         }
     }
 
-    public class OnChangeDeltaFactorEvent : LSEvent {
+    public class OnChangeDeltaFactorEvent : LSProcess {
         public int Speed { get; }
         public bool IsPaused { get; }
         public LSTick TickManager { get; }
@@ -168,7 +168,7 @@ public class LSTick : ILSEventable {
         }
     }
 
-    public class OnTogglePauseEvent : LSEvent {
+    public class OnTogglePauseEvent : LSProcess {
         public bool IsPaused { get; }
         public LSTick TickManager { get; }
 

@@ -1,6 +1,6 @@
 using System;
 
-namespace LSUtils.EventSystem.Logging;
+namespace LSUtils.Processing.Logging;
 
 /// <summary>
 /// Console-based log provider that outputs to standard console.

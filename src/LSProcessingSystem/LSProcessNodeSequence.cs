@@ -1,7 +1,8 @@
+namespace LSUtils.Processing;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
-namespace LSUtils.EventSystem;
 
 /// <summary>
 /// Layer node implementation that processes children sequentially with AND logic semantics.
@@ -9,66 +10,55 @@ namespace LSUtils.EventSystem;
 /// Serves as the reference implementation for the unified layer node processing pattern.
 /// </summary>
 /// <remarks>
-/// <para><strong>Processing Semantics (AND Logic):</strong></para>
-/// <list type="bullet">
-/// <item><description><strong>Success Condition</strong>: All children must succeed for the sequence to succeed</description></item>
-/// <item><description><strong>Failure Condition</strong>: Any child failure immediately fails the entire sequence</description></item>
-/// <item><description><strong>Processing Order</strong>: Children processed sequentially by Priority (descending) then Order (ascending)</description></item>
-/// <item><description><strong>Short-Circuit</strong>: Processing stops immediately on first failure or cancellation</description></item>
-/// </list>
-/// 
-/// <para><strong>Unified Processing Pattern:</strong></para>
-/// <para>This class implements the standard pattern used across all layer nodes in LSEventSystem v5:</para>
-/// <list type="bullet">
-/// <item><description><strong>_availableChildren</strong>: Condition-filtered and priority-sorted children list</description></item>
-/// <item><description><strong>_processStack</strong>: Stack-based processing for deterministic execution order</description></item>
-/// <item><description><strong>_currentChild</strong>: Current node being processed</description></item>
-/// <item><description><strong>_isProcessing</strong>: One-time initialization flag preventing child modification during processing</description></item>
-/// <item><description><strong>GetNodeStatus()</strong>: Delegation pattern for status aggregation</description></item>
-/// </list>
-/// 
-/// <para><strong>State Management:</strong></para>
-/// <list type="bullet">
-/// <item><description><strong>UNKNOWN</strong>: Before processing starts (_isProcessing = false)</description></item>
-/// <item><description><strong>SUCCESS</strong>: All children succeeded or no eligible children</description></item>
-/// <item><description><strong>FAILURE</strong>: Any child failed</description></item>
-/// <item><description><strong>WAITING</strong>: Any child is waiting for external completion</description></item>
-/// <item><description><strong>CANCELLED</strong>: Any child was cancelled</description></item>
-/// </list>
-/// 
-/// <para><strong>Concurrency Considerations:</strong></para>
-/// <para>Once processing begins (_isProcessing = true), child modification is prevented to ensure</para>
-/// <para>processing integrity. Resume/Fail operations delegate to waiting children while maintaining</para>
-/// <para>the sequential processing contract.</para>
+/// <b>Processing Semantics (AND Logic):</b><br/>
+/// • <b>Success Condition:</b> All children must succeed for the sequence to succeed<br/>
+/// • <b>Failure Condition:</b> Any child failure immediately fails the entire sequence<br/>
+/// • <b>Processing Order:</b> Children processed sequentially by Priority (descending) then Order (ascending)<br/>
+/// • <b>Short-Circuit:</b> Processing stops immediately on first failure or cancellation<br/>
+/// <br/>
+/// <b>Unified Processing Pattern:</b><br/>
+/// This class implements the standard pattern used across all layer nodes in LSProcessing system:<br/>
+/// • <b>_availableChildren:</b> Condition-filtered and priority-sorted children list<br/>
+/// • <b>_processStack:</b> Stack-based processing for deterministic execution order<br/>
+/// • <b>_currentChild:</b> Current node being processed<br/>
+/// • <b>_isProcessing:</b> One-time initialization flag preventing child modification during processing<br/>
+/// • <b>GetNodeStatus():</b> Delegation pattern for status aggregation<br/>
+/// <br/>
+/// <b>State Management:</b><br/>
+/// • <b>UNKNOWN:</b> Before processing starts (_isProcessing = false)<br/>
+/// • <b>SUCCESS:</b> All children succeeded or no eligible children<br/>
+/// • <b>FAILURE:</b> Any child failed<br/>
+/// • <b>WAITING:</b> Any child is waiting for external completion<br/>
+/// • <b>CANCELLED:</b> Any child was cancelled<br/>
+/// <br/>
+/// <b>Concurrency Considerations:</b><br/>
+/// Once processing begins (_isProcessing = true), child modification is prevented to ensure processing integrity. Resume/Fail operations delegate to waiting children while maintaining the sequential processing contract.
 /// </remarks>
-/// <summary>
-/// An event node that processes its children in order until one fails.
-/// </summary>
-public class LSEventSequenceNode : ILSEventLayerNode {
+public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <summary>
     /// Dictionary storing child nodes keyed by their NodeID for O(1) lookup operations.
     /// </summary>
-    protected Dictionary<string, ILSEventNode> _children = new();
+    protected Dictionary<string, ILSProcessNode> _children = new();
 
     /// <summary>
     /// Current child node being processed. Null when no processing is active or all children are complete.
     /// </summary>
-    protected ILSEventNode? _currentChild;
-    protected LSEventProcessStatus _nodeSuccess => WithInverter ? LSEventProcessStatus.FAILURE : LSEventProcessStatus.SUCCESS;
-    protected LSEventProcessStatus _nodeFailure => WithInverter ? LSEventProcessStatus.SUCCESS : LSEventProcessStatus.FAILURE;
+    protected ILSProcessNode? _currentChild;
+    protected LSProcessResultStatus _nodeSuccess => WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
+    protected LSProcessResultStatus _nodeFailure => WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
 
     /// <summary>
     /// Stack containing children to be processed, ordered by priority and execution order.
     /// Provides deterministic LIFO processing sequence.
     /// </summary>
-    protected Stack<ILSEventNode> _processStack = new();
+    protected Stack<ILSProcessNode> _processStack = new();
 
     /// <summary>
     /// List of children eligible for processing after condition filtering and priority sorting.
     /// Populated during initialization and used for status aggregation.
     /// </summary>
     //protected Dictionary<ILSEventNode, LSEventProcessStatus> _childrenStatuses = new();
-    protected IEnumerable<ILSEventNode> _availableChildren = new List<ILSEventNode>();
+    protected IEnumerable<ILSProcessNode> _availableChildren = new List<ILSProcessNode>();
 
     /// <summary>
     /// Flag indicating whether processing has been initialized.
@@ -81,19 +71,19 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// Only handler nodes track execution statistics.
     /// </summary>
     /// <exception cref="NotImplementedException">Always thrown as layer nodes don't track execution count.</exception>
-    int ILSEventNode.ExecutionCount => throw new System.NotImplementedException("ExecutionCount is tracked only in handler node.");
+    int ILSProcessNode.ExecutionCount => throw new System.NotImplementedException("ExecutionCount is tracked only in handler node.");
 
     /// <inheritdoc />
     public string NodeID { get; }
 
     /// <inheritdoc />
-    public LSPriority Priority { get; internal set; }
+    public LSProcessPriority Priority { get; internal set; }
 
     /// <inheritdoc />
     public int Order { get; internal set; }
 
     /// <inheritdoc />
-    public LSEventCondition? Conditions { get; internal set; }
+    public LSProcessNodeCondition? Conditions { get; internal set; }
 
     public bool WithInverter { get; internal set; }
 
@@ -106,19 +96,17 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <param name="withInverter">If true, inverts the success/failure logic of the sequence.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <remarks>
-    /// <para><strong>Condition Handling:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Default</strong>: If no conditions provided, uses a default condition that always returns true</description></item>
-    /// <item><description><strong>Composition</strong>: Multiple conditions are combined using delegate composition (+=)</description></item>
-    /// <item><description><strong>Null Safety</strong>: Null conditions in the array are automatically filtered out</description></item>
-    /// </list>
+    /// <b>Condition Handling:</b><br/>
+    /// • <b>Default:</b> If no conditions provided, uses a default condition that always returns true<br/>
+    /// • <b>Composition:</b> Multiple conditions are combined using delegate composition (+=)<br/>
+    /// • <b>Null Safety:</b> Null conditions in the array are automatically filtered out
     /// </remarks>
-    protected LSEventSequenceNode(string nodeId, int order, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
+    protected LSProcessNodeSequence(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeId;
         Order = order;
         Priority = priority;
         WithInverter = withInverter;
-        Conditions = LSEventNodeExtensions.UpdateConditions(true, Conditions, conditions);
+        Conditions = LSProcessNodeExtensions.UpdateConditions(true, Conditions, conditions);
     }
 
     /// <summary>
@@ -127,10 +115,10 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <param name="child">The child node to add. Must have a unique NodeID within this sequence.</param>
     /// <exception cref="InvalidOperationException">Thrown if called after processing has started.</exception>
     /// <remarks>
-    /// <para><strong>Processing Restriction:</strong> Cannot add children once processing has begun (_isProcessing = true).</para>
-    /// <para><strong>Uniqueness:</strong> If a child with the same NodeID already exists, it will be replaced.</para>
+    /// <b>Processing Restriction:</b> Cannot add children once processing has begun (_isProcessing = true).<br/>
+    /// <b>Uniqueness:</b> If a child with the same NodeID already exists, it will be replaced.
     /// </remarks>
-    public void AddChild(ILSEventNode child) {
+    public void AddChild(ILSProcessNode child) {
         if (_isProcessing) {
             throw new System.InvalidOperationException("Cannot add child after processing.");
         }
@@ -144,7 +132,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <returns>True if the child was found and removed, false if no child with the specified ID existed.</returns>
     /// <exception cref="InvalidOperationException">Thrown if called after processing has started.</exception>
     /// <remarks>
-    /// <para><strong>Processing Restriction:</strong> Cannot remove children once processing has begun (_isProcessing = true).</para>
+    /// <b>Processing Restriction:</b> Cannot remove children once processing has begun (_isProcessing = true).
     /// </remarks>
     public bool RemoveChild(string label) {
         if (_isProcessing) {
@@ -154,7 +142,7 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     }
 
     /// <inheritdoc />
-    public ILSEventNode? GetChild(string label) {
+    public ILSProcessNode? GetChild(string label) {
         return _children.TryGetValue(label, out var child) ? child : null;
     }
 
@@ -162,42 +150,38 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     public bool HasChild(string label) => _children.ContainsKey(label);
 
     /// <inheritdoc />
-    public ILSEventNode[] GetChildren() => _children.Values.ToArray();
+    public ILSProcessNode[] GetChildren() => _children.Values.ToArray();
 
     /// <inheritdoc />
-    public ILSEventLayerNode Clone() {
-        var cloned = new LSEventSequenceNode(NodeID, Order, Priority, WithInverter, Conditions);
+    public ILSProcessLayerNode Clone() {
+        var cloned = new LSProcessNodeSequence(NodeID, Order, Priority, WithInverter, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
         return cloned;
     }
-    ILSEventNode ILSEventNode.Clone() => Clone();
+    ILSProcessNode ILSProcessNode.Clone() => Clone();
 
     /// <summary>
     /// Gets the current processing status by aggregating child node statuses according to sequence logic.
     /// </summary>
     /// <returns>The current status of this sequence node.</returns>
     /// <remarks>
-    /// <para><strong>Status Evaluation Priority (sequence AND logic):</strong></para>
-    /// <list type="number">
-    /// <item><description><strong>UNKNOWN</strong>: Processing has not started yet (_isProcessing = false)</description></item>
-    /// <item><description><strong>SUCCESS</strong>: No eligible children (all filtered out by conditions)</description></item>
-    /// <item><description><strong>CANCELLED</strong>: Any child is in CANCELLED state (highest priority)</description></item>
-    /// <item><description><strong>WAITING</strong>: Any child is in WAITING state (blocks further processing)</description></item>
-    /// <item><description><strong>FAILURE</strong>: Any child is in FAILURE state (sequence fails immediately)</description></item>
-    /// <item><description><strong>SUCCESS</strong>: All children are in SUCCESS state (sequence succeeds)</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Edge Cases:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>No Children</strong>: Returns SUCCESS when no eligible children exist</description></item>
-    /// <item><description><strong>Mixed States</strong>: CANCELLED and WAITING take precedence over SUCCESS/FAILURE</description></item>
-    /// </list>
+    /// <b>Status Evaluation Priority (sequence AND logic):</b><br/>
+    /// 1. <b>UNKNOWN:</b> Processing has not started yet (_isProcessing = false)<br/>
+    /// 2. <b>SUCCESS:</b> No eligible children (all filtered out by conditions)<br/>
+    /// 3. <b>CANCELLED:</b> Any child is in CANCELLED state (highest priority)<br/>
+    /// 4. <b>WAITING:</b> Any child is in WAITING state (blocks further processing)<br/>
+    /// 5. <b>FAILURE:</b> Any child is in FAILURE state (sequence fails immediately)<br/>
+    /// 6. <b>SUCCESS:</b> All children are in SUCCESS state (sequence succeeds)<br/>
+    /// <br/>
+    /// <b>Edge Cases:</b><br/>
+    /// • <b>No Children:</b> Returns SUCCESS when no eligible children exist<br/>
+    /// • <b>Mixed States:</b> CANCELLED and WAITING take precedence over SUCCESS/FAILURE
     /// </remarks>
-    public LSEventProcessStatus GetNodeStatus() {
+    public LSProcessResultStatus GetNodeStatus() {
         if (_isProcessing == false) {
-            return LSEventProcessStatus.UNKNOWN; // not yet processed
+            return LSProcessResultStatus.UNKNOWN; // not yet processed
         }
         if (!_availableChildren.Any()) {
             return _nodeSuccess; // no children to process, we are done
@@ -205,14 +189,14 @@ public class LSEventSequenceNode : ILSEventLayerNode {
 
         var childStatuses = _availableChildren.Select(c => c.GetNodeStatus()).ToList();
         // Check for CANCELLED has the highest priority
-        if (childStatuses.Any(c => c == LSEventProcessStatus.CANCELLED)) {
-            return LSEventProcessStatus.CANCELLED;
+        if (childStatuses.Any(c => c == LSProcessResultStatus.CANCELLED)) {
+            return LSProcessResultStatus.CANCELLED;
         }
-        if (childStatuses.Any(c => c == LSEventProcessStatus.WAITING)) {
-            return LSEventProcessStatus.WAITING; // we have at least one child that is still waiting
+        if (childStatuses.Any(c => c == LSProcessResultStatus.WAITING)) {
+            return LSProcessResultStatus.WAITING; // we have at least one child that is still waiting
         }
         // check for FAILURE has the third highest priority
-        if (childStatuses.Any(c => c == LSEventProcessStatus.FAILURE)) {
+        if (childStatuses.Any(c => c == LSProcessResultStatus.FAILURE)) {
             return _nodeFailure; // we found a failed child
         }
         return _nodeSuccess; // all children are successful
@@ -224,16 +208,14 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <param name="nodes">Optional node IDs to target (unused as sequence processes one child at a time).</param>
     /// <returns>The sequence status after the failure operation.</returns>
     /// <remarks>
-    /// <para><strong>Sequence Behavior:</strong> Since sequences process children one at a time,</para>
-    /// <para>this method targets the first waiting child found rather than processing multiple nodes.</para>
-    /// 
-    /// <para><strong>Delegation Pattern:</strong> The failure operation is delegated to the waiting child,</para>
-    /// <para>which then updates its status. The sequence status is recalculated based on child states.</para>
+    /// <b>Sequence Behavior:</b> Since sequences process children one at a time, this method targets the first waiting child found rather than processing multiple nodes.<br/>
+    /// <br/>
+    /// <b>Delegation Pattern:</b> The failure operation is delegated to the waiting child, which then updates its status. The sequence status is recalculated based on child states.
     /// </remarks>
-    public LSEventProcessStatus Fail(LSEventProcessContext context, params string[]? nodes) {
+    public LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodes) {
         // sequence can only fail one node at a time so we don't need to care about nodes we just fail the first 
 
-        var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSEventProcessStatus.WAITING).ToList().FirstOrDefault();
+        var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
         if (waitingChild != null) {
             //System.Console.WriteLine($"[LSEventSequenceNode] Failing waiting child node {waitingChild.NodeID}.");
             return waitingChild.Fail(context, nodes); //we propagate the fail to the waiting child
@@ -245,8 +227,8 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     }
 
     /// <inheritdoc />
-    LSEventProcessStatus ILSEventNode.Cancel(LSEventProcessContext context) {
-        return _currentChild?.Cancel(context) ?? LSEventProcessStatus.CANCELLED;
+    LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession context) {
+        return _currentChild?.Cancel(context) ?? LSProcessResultStatus.CANCELLED;
     }
 
 
@@ -257,16 +239,14 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <param name="nodes">Optional node IDs to target (unused as sequence processes one child at a time).</param>
     /// <returns>The sequence status after the resume operation.</returns>
     /// <remarks>
-    /// <para><strong>Sequential Resume:</strong> Finds the first waiting child and delegates the resume operation.</para>
-    /// <para>Upon successful resume, the sequence may continue processing remaining children.</para>
-    /// 
-    /// <para><strong>Status Propagation:</strong> The resume result affects the overall sequence status</para>
-    /// <para>based on whether the resumed child succeeds or encounters further issues.</para>
+    /// <b>Sequential Resume:</b> Finds the first waiting child and delegates the resume operation. Upon successful resume, the sequence may continue processing remaining children.<br/>
+    /// <br/>
+    /// <b>Status Propagation:</b> The resume result affects the overall sequence status based on whether the resumed child succeeds or encounters further issues.
     /// </remarks>
-    public LSEventProcessStatus Resume(LSEventProcessContext context, params string[]? nodes) {
+    public LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodes) {
         // sequence can only resume one node at a time so we don't need to care about nodes we just resume the first 
 
-        var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSEventProcessStatus.WAITING).ToList().FirstOrDefault();
+        var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
         if (waitingChild != null) {
             //System.Console.WriteLine($"[LSEventSequenceNode] Resuming waiting child node {waitingChild.NodeID}.");
             return waitingChild.Resume(context, nodes); //we propagate the resume to the waiting child
@@ -282,34 +262,28 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <param name="context">The processing context containing the event and system state.</param>
     /// <returns>The processing status after sequence processing.</returns>
     /// <remarks>
-    /// <para><strong>Processing Algorithm:</strong></para>
-    /// <list type="number">
-    /// <item><description><strong>Condition Check</strong>: Return SUCCESS if node conditions are not met</description></item>
-    /// <item><description><strong>Initialization</strong>: One-time setup of _availableChildren and _processStack</description></item>
-    /// <item><description><strong>Sequential Processing</strong>: Process children in priority/order sequence</description></item>
-    /// <item><description><strong>Status Evaluation</strong>: Check child results and determine continuation</description></item>
-    /// <item><description><strong>Completion</strong>: Return final status when all children processed or failure occurs</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Termination Conditions:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>WAITING</strong>: Child is waiting, sequence blocks until Resume/Fail</description></item>
-    /// <item><description><strong>FAILURE</strong>: Any child fails, sequence fails immediately (short-circuit)</description></item>
-    /// <item><description><strong>CANCELLED</strong>: Any child cancelled, sequence terminates</description></item>
-    /// <item><description><strong>SUCCESS</strong>: All children succeed, sequence succeeds</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Child Ordering:</strong></para>
-    /// <para>Children are processed in Priority (descending) then Order (ascending) sequence.</para>
-    /// <para>The stack is reversed to ensure correct processing order (lowest priority/order first).</para>
-    /// 
-    /// <para><strong>State Persistence:</strong></para>
-    /// <para>Once _isProcessing is set to true, it never resets, ensuring processing consistency</para>
-    /// <para>and preventing child modification during active processing.</para>
+    /// <b>Processing Algorithm:</b><br/>
+    /// 1. <b>Condition Check:</b> Return SUCCESS if node conditions are not met<br/>
+    /// 2. <b>Initialization:</b> One-time setup of _availableChildren and _processStack<br/>
+    /// 3. <b>Sequential Processing:</b> Process children in priority/order sequence<br/>
+    /// 4. <b>Status Evaluation:</b> Check child results and determine continuation<br/>
+    /// 5. <b>Completion:</b> Return final status when all children processed or failure occurs<br/>
+    /// <br/>
+    /// <b>Termination Conditions:</b><br/>
+    /// • <b>WAITING:</b> Child is waiting, sequence blocks until Resume/Fail<br/>
+    /// • <b>FAILURE:</b> Any child fails, sequence fails immediately (short-circuit)<br/>
+    /// • <b>CANCELLED:</b> Any child cancelled, sequence terminates<br/>
+    /// • <b>SUCCESS:</b> All children succeed, sequence succeeds<br/>
+    /// <br/>
+    /// <b>Child Ordering:</b><br/>
+    /// Children are processed in Priority (descending) then Order (ascending) sequence. The stack is reversed to ensure correct processing order (lowest priority/order first).<br/>
+    /// <br/>
+    /// <b>State Persistence:</b><br/>
+    /// Once _isProcessing is set to true, it never resets, ensuring processing consistency and preventing child modification during active processing.
     /// </remarks>
-    public LSEventProcessStatus Process(LSEventProcessContext context) {
+    public LSProcessResultStatus Execute(LSProcessSession context) {
         //System.Console.WriteLine($"[LSEventSequenceNode] Processing sequence node [{NodeID}]");
-        if (!LSEventConditions.IsMet(context.Event, this)) return _nodeSuccess;
+        if (!LSProcessConditions.IsMet(context.Current, this)) return _nodeSuccess;
 
         // we should not need to check for CANCELLED. this is handled when calling the child.Process
 
@@ -319,10 +293,10 @@ public class LSEventSequenceNode : ILSEventLayerNode {
             // will only process children that meet conditions
             // children ordered by Priority (critical first) and Order (lowest first)
             _availableChildren = _children.Values.Where(c =>
-                LSEventConditions.IsMet(context.Event, c))
+                LSProcessConditions.IsMet(context.Current, c))
             .OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
             // Initialize the stack 
-            _processStack = new Stack<ILSEventNode>(_availableChildren);
+            _processStack = new Stack<ILSProcessNode>(_availableChildren);
             _isProcessing = true;
             if (_processStack.Count > 0) _currentChild = _processStack.Pop(); // set the current node to the first child
             //System.Console.WriteLine($"[LSEventSequenceNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()} {string.Join(", ", Array.ConvertAll(_availableChildren.ToArray(), c => c.NodeID))} _currentChild: {_currentChild?.NodeID}.");
@@ -345,16 +319,16 @@ public class LSEventSequenceNode : ILSEventLayerNode {
             //System.Console.WriteLine($"[LSEventSequenceNode] Processing child node [{_currentChild.NodeID}].");
 
             // process the child
-            var currentChildStatus = _currentChild.Process(context);
+            var currentChildStatus = _currentChild.Execute(context);
             sequenceStatus = GetNodeStatus();
             //System.Console.WriteLine($"[LSEventSequenceNode] Child node [{_currentChild.NodeID}] processed with status <{currentChildStatus}> sequenceStatus: <{sequenceStatus}>.");
-            if (currentChildStatus == LSEventProcessStatus.WAITING) return LSEventProcessStatus.WAITING;
-            if (sequenceStatus == LSEventProcessStatus.WAITING) {
+            if (currentChildStatus == LSProcessResultStatus.WAITING) return LSProcessResultStatus.WAITING;
+            if (sequenceStatus == LSProcessResultStatus.WAITING) {
                 // this should never happen because childStatus is WAITING should have been caught above
                 //System.Console.WriteLine($"[LSEventSequenceNode] Warning: Sequence node [{NodeID}] is in WAITING state but child [{_currentChild.NodeID}] is not WAITING.");
-                return LSEventProcessStatus.WAITING;
+                return LSProcessResultStatus.WAITING;
             }
-            if (currentChildStatus == LSEventProcessStatus.FAILURE || sequenceStatus == LSEventProcessStatus.CANCELLED) {
+            if (currentChildStatus == LSProcessResultStatus.FAILURE || sequenceStatus == LSProcessResultStatus.CANCELLED) {
                 // exit condition in this node is clear the stack and current node
                 //System.Console.WriteLine($"[LSEventSequenceNode] Ué Sequence node [{NodeID}] finished processing because child [{_currentChild.NodeID}] returned <{currentChildStatus}>.");
                 _processStack.Clear();
@@ -386,10 +360,10 @@ public class LSEventSequenceNode : ILSEventLayerNode {
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
     /// <returns>New sequence node instance ready for use in the event processing hierarchy.</returns>
     /// <remarks>
-    /// This factory method provides a convenient way to create sequence nodes without directly
-    /// invoking the protected constructor. The created node implements AND logic semantics.
+    /// <b>Factory Method Benefits:</b><br/>
+    /// This factory method provides a convenient way to create sequence nodes without directly invoking the protected constructor. The created node implements AND logic semantics.
     /// </remarks>
-    public static LSEventSequenceNode Create(string nodeID, int order, LSPriority priority = LSPriority.NORMAL, bool withInverter = false, params LSEventCondition?[] conditions) {
-        return new LSEventSequenceNode(nodeID, order, priority, withInverter, conditions);
+    public static LSProcessNodeSequence Create(string nodeID, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
+        return new LSProcessNodeSequence(nodeID, order, priority, withInverter, conditions);
     }
 }

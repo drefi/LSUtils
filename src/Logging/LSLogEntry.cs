@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace LSUtils.EventSystem.Logging;
+namespace LSUtils.Processing.Logging;
 
 /// <summary>
 /// Defines the severity levels for log messages.

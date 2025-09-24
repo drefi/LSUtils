@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 
-namespace LSUtils.EventSystem.Logging;
+namespace LSUtils.Processing.Logging;
 
 /// <summary>
 /// Central logging system for the LSEventSystem with configurable providers and filtering.

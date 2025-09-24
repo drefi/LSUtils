@@ -1,4 +1,4 @@
-namespace LSUtils.EventSystem.Logging;
+namespace LSUtils.Processing.Logging;
 
 /// <summary>
 /// Interface for log output providers that handle the actual writing of log messages.
