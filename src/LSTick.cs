@@ -6,45 +6,62 @@ namespace LSUtils;
 /// <summary>
 /// Manages clock and notifies any registered listeners when the clock ticks.
 /// </summary>
-public class LSTick : ILSEventable_obsolete {
+public class LSTick : ILSEventable {
     public static LSTick Singleton { get; } = new LSTick(DEFAULT_TICK_VALUE);
     const float DEFAULT_TICK_VALUE = 1f;
+    protected LSEventContextManager? _manager;
     protected int _tickCount;
     protected int _resetTickCount;
     protected bool _hasInitialized;
     protected bool _isPaused;
     protected double _tickTimer;
     public readonly float TICK_VALUE;
-    public string ClassName => nameof(LSTick);
+    public string ClassName => typeof(LSTick).AssemblyQualifiedName ?? nameof(LSTick);
     public System.Guid ID { get; protected set; }
     public int DeltaFactor { get; protected set; } = 1;
-
-    public LSDispatcher? Dispatcher { get; protected set; }
-
 
     protected LSTick(float tickValue) {
         TICK_VALUE = tickValue;
         ID = System.Guid.NewGuid();
     }
 
-    public EventProcessResult Initialize(LSEventOptions options) {
-        Dispatcher = options.Dispatcher;
-        return OnInitializeEvent.Create<LSTick>(this, options)
-            .OnCompleted((evt) => {
-                _hasInitialized = true;
-                _isPaused = true;
-                _tickCount = 0;
-                _resetTickCount = 0;
-                _tickTimer = 0f;
-                tickEvent(_tickCount, new LSEventOptions(options.Dispatcher, this));
-            })
-            .Dispatch();
+    public LSEventProcessStatus Initialize(LSEventContextDelegate? ctxBuilder = null, LSEventContextManager? manager = null) {
+        _manager = manager;
+        OnInitializeEvent @event = new OnInitializeEvent(this);
+        if (ctxBuilder != null) @event.Context(ctxBuilder, this);
+        return @event
+            .Context(b => b
+                .Execute("initialize", (evt, ctx) => {
+                    _hasInitialized = true;
+                    _isPaused = true;
+                    _tickCount = 0;
+                    _resetTickCount = 0;
+                    _tickTimer = 0f;
+                    var result = new OnTickEvent(this, _tickCount).Process(this, _manager);
+                    return LSEventProcessStatus.SUCCESS;
+                }
+            ), this
+        ).Process(this, _manager);
     }
 
-    protected EventProcessResult tickEvent(int tickCount, LSEventOptions? options) {
-        var @event = new OnTickEvent(this, tickCount, options);
-        return @event.Dispatch();
-    }
+    // public EventProcessResult Initialize(LSEventOptions options) {
+    //     Dispatcher = options.Dispatcher;
+    //     return OnInitializeEvent.Create<LSTick>(this, options)
+    //         .OnCompleted((evt) => {
+    //             _hasInitialized = true;
+    //             _isPaused = true;
+    //             _tickCount = 0;
+    //             _resetTickCount = 0;
+    //             _tickTimer = 0f;
+    //             tickEvent(_tickCount, new LSEventOptions(options.Dispatcher, this));
+    //         })
+    //         .Dispatch();
+    // }
+
+    // protected EventProcessResult tickEvent(int tickCount, LSEventOptions? options) {
+    //     var @event = new OnTickEvent(this, tickCount, options);
+    //     return @event.Dispatch();
+    // }
     /// <summary>
     /// Updates the tick count and notifies listeners of tick updates.
     /// </summary>
@@ -64,7 +81,8 @@ public class LSTick : ILSEventable_obsolete {
                 _resetTickCount++;
                 _tickCount = 0;
             }
-            tickEvent(_tickCount, new LSEventOptions(Dispatcher, this));
+            var result = new OnTickEvent(this, _tickCount).Process(this, _manager);
+            //tickEvent(_tickCount, new LSEventOptions(Dispatcher, this));
         }
     }
 
@@ -101,8 +119,7 @@ public class LSTick : ILSEventable_obsolete {
     public void TogglePause() {
         if (_hasInitialized == false) return;
         _isPaused = !_isPaused;
-        var @event = new OnPauseEvent(this, _isPaused, new LSEventOptions(Dispatcher, this));
-        @event.Dispatch();
+        var result = new OnTogglePauseEvent(this, _isPaused).Process(this, _manager);
     }
 
     /// <summary>
@@ -113,8 +130,7 @@ public class LSTick : ILSEventable_obsolete {
     public void SetDeltaFactor(int value) {
         if (DeltaFactor == value) return;
         DeltaFactor = value;
-        var @event = new OnChangeDeltaFactorEvent(this, DeltaFactor, _isPaused, new LSEventOptions(Dispatcher, this));
-        @event.Dispatch();
+        var result = new OnChangeDeltaFactorEvent(this, DeltaFactor, _isPaused).Process(this, _manager);
     }
 
     public void Cleanup() {
@@ -123,29 +139,42 @@ public class LSTick : ILSEventable_obsolete {
 
     #region Events
 
-    public class OnTickEvent : LSEvent<LSTick> {
-        public int TickCount { get; }
+    public class OnInitializeEvent : LSEvent {
+        public LSTick TickManager { get; }
 
-        public OnTickEvent(LSTick tickManager, int tickCount, LSEventOptions? options) : base(tickManager, options) {
+        public OnInitializeEvent(LSTick tickManager) {
+            TickManager = tickManager;
+        }
+    }
+    public class OnTickEvent : LSEvent {
+        public int TickCount { get; }
+        public LSTick TickManager { get; }
+
+        public OnTickEvent(LSTick tickManager, int tickCount) {
             TickCount = tickCount;
+            TickManager = tickManager;
         }
     }
 
-    public class OnChangeDeltaFactorEvent : LSEvent<LSTick> {
+    public class OnChangeDeltaFactorEvent : LSEvent {
         public int Speed { get; }
         public bool IsPaused { get; }
+        public LSTick TickManager { get; }
 
-        public OnChangeDeltaFactorEvent(LSTick tickManager, int speed, bool isPaused, LSEventOptions? options) : base(tickManager, options) {
+        public OnChangeDeltaFactorEvent(LSTick tickManager, int speed, bool isPaused) {
             Speed = speed;
             IsPaused = isPaused;
+            TickManager = tickManager;
         }
     }
 
-    public class OnPauseEvent : LSEvent<LSTick> {
+    public class OnTogglePauseEvent : LSEvent {
         public bool IsPaused { get; }
+        public LSTick TickManager { get; }
 
-        public OnPauseEvent(LSTick tickManager, bool isPaused, LSEventOptions? options) : base(tickManager, options) {
+        public OnTogglePauseEvent(LSTick tickManager, bool isPaused) {
             IsPaused = isPaused;
+            TickManager = tickManager;
         }
     }
     #endregion

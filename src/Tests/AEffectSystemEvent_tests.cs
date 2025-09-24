@@ -46,7 +46,7 @@ public class AEffectSystemEvent_tests {
 
         public Guid ID { get; } = Guid.NewGuid();
 
-        public LSEventProcessStatus Initialize(LSEventContextManager manager, ILSEventLayerNode context) {
+        public LSEventProcessStatus Initialize(LSEventContextDelegate? ctxBuilder = null, LSEventContextManager? manager = null) {
             TargetMechanic?.Initialize();
             return LSEventProcessStatus.SUCCESS;
         }
@@ -200,15 +200,15 @@ public class AEffectSystemEvent_tests {
                 return _instance;
             }
         }
-        
+
         public override string SkillID => "guard";
         public override string ClassName => typeof(GuardSkillTemplate).AssemblyQualifiedName ?? nameof(GuardSkillTemplate);
         public override string Label => "Guard";
         public override string Description => "Protects an ally by intercepting attacks directed at them.";
         public int ProtectDuration => 3; // Lasts 3 turns
-        
+
         protected GuardSkillTemplate(EffectTemplate[] effects) : base(effects) { }
-        
+
         static bool _initialized = false;
         public override void Initialize() {
             if (_initialized) {
@@ -217,28 +217,28 @@ public class AEffectSystemEvent_tests {
             }
             _initialized = true;
             Console.WriteLine($"[GuardSkillTemplate] Initializing {SkillID}.");
-            
+
             // Initialize effect templates
             foreach (var effect in _effects) {
                 Console.WriteLine($"[GuardSkillTemplate] Initializing effect {effect.EffectID}");
                 effect.Initialize();
             }
         }
-        
+
         public override Skill Instantiate(Entity owner, params object[] args) {
             var skill = new Skill(owner, this);
             return skill;
         }
-        
+
         public override Effect[] GetEffects(Skill source, Entity target) {
             // Guard skill creates a protect effect where the skill user protects the target
             var effectInstances = new Effect[] {
                 ProtectEffectTemplate.Singleton.Instantiate(source, target, ProtectDuration, source.Owner)
             };
-            
+
             return effectInstances.ToArray();
         }
-        
+
         public override EffectTemplate[] GetSkillEffectTemplate() {
             return _effects.ToArray();
         }
@@ -264,7 +264,7 @@ public class AEffectSystemEvent_tests {
                 target.ApplyEffect(effect);
             }
         }
-        
+
         public void UseOnAlly(Entity ally) {
             Console.WriteLine($"[Skill.UseOnAlly]: {Owner.Name} uses {Label} to protect {ally.Name}.");
             var effects = SkillTemplate.GetEffects(this, ally);
@@ -425,14 +425,14 @@ public class AEffectSystemEvent_tests {
                                 damageModifiers = new List<int>();
                             }
                             foreach (var mod in damageModifiers) currentDamage += mod;
-                            
+
                             // Check for damage redirection
                             Entity actualTarget = appliedEffect.Target;
                             if (evt.TryGetData<Entity>("redirectedTo", out var redirectedTarget)) {
                                 actualTarget = redirectedTarget;
                                 Console.WriteLine($"[DamageEffectTemplate] Damage redirected from {appliedEffect.Target.Name} to {actualTarget.Name}");
                             }
-                            
+
                             actualTarget.Health -= currentDamage;
                             Console.WriteLine($"[DamageEffectTemplate] Caller {sourceEffect.ID}: {appliedEffect.Source.Label} deals [{currentDamage}] damage to [{actualTarget.Name}]. [{actualTarget.Name}] has [{actualTarget.Health}] health remaining.");
                             return LSEventProcessStatus.SUCCESS;
@@ -594,15 +594,15 @@ public class AEffectSystemEvent_tests {
                 return _instance;
             }
         }
-        
+
         protected Dictionary<Effect, (int duration, bool isActive, Entity protector)> _protectStatus = new();
         protected Dictionary<Entity, List<Effect>> _activeEffects = new(); // Track effects per entity
         public override string EffectID => "protectEffect";
         public override string ClassName => typeof(ProtectEffectTemplate).AssemblyQualifiedName ?? nameof(ProtectEffectTemplate);
-        
+
         protected ProtectEffectTemplate() { }
         bool _isInitialized = false;
-        
+
         public override void Initialize() {
             if (_isInitialized) {
                 Console.WriteLine($"[ProtectEffectTemplate] {ClassName} is already initialized.");
@@ -610,7 +610,7 @@ public class AEffectSystemEvent_tests {
             }
             _isInitialized = true;
             Console.WriteLine($"[ProtectEffectTemplate] Initializing {ClassName}.");
-            
+
             // Global handler for OnEffectAppliedEvent - manages protect status
             LSEventContextManager.Singleton.Register<OnEffectAppliedEvent>(root => root
                 .Sequence($"{ClassName}", main => main
@@ -637,24 +637,24 @@ public class AEffectSystemEvent_tests {
                     }
                 )
             );
-            
+
             // Global handler for OnEffectUpdateEvent - manages effect duration
             LSEventContextManager.Singleton.Register<OnEffectUpdateEvent>(root => root
                 .Sequence("protectUpdate", main => main
                     .Selector("updateProtection", selUpdate => selUpdate
                         .Execute("updateDuration", (evt, ctx) => {
                             if (evt is not OnEffectUpdateEvent updateEvent) return LSEventProcessStatus.CANCELLED;
-                            
+
                             // Check if this entity has active protect effects
                             if (!_activeEffects.TryGetValue(updateEvent.Target, out var effects)) {
                                 return LSEventProcessStatus.SUCCESS;
                             }
-                            
+
                             // Update all protect effects for this entity
                             var effectsToRemove = new List<Effect>();
                             foreach (var effect in effects) {
                                 if (!_protectStatus.TryGetValue(effect, out var status)) continue;
-                                
+
                                 status.duration -= 1;
                                 if (status.duration <= 0) {
                                     status.isActive = false;
@@ -665,56 +665,56 @@ public class AEffectSystemEvent_tests {
                                 }
                                 _protectStatus[effect] = status;
                             }
-                            
+
                             // Remove expired effects
                             foreach (var expiredEffect in effectsToRemove) {
                                 effects.Remove(expiredEffect);
                                 _protectStatus.Remove(expiredEffect);
                                 expiredEffect.EffectTemplate.Remove(expiredEffect);
                             }
-                            
+
                             // Clean up empty lists
                             if (effects.Count == 0) {
                                 _activeEffects.Remove(updateEvent.Target);
                             }
-                            
+
                             return LSEventProcessStatus.SUCCESS;
                         }, LSPriority.NORMAL)
                     , LSPriority.NORMAL)
                 , LSPriority.NORMAL)
             );
-            
+
             // Global handler for OnEffectAppliedEvent - intercepts damage effects to protected targets
             LSEventContextManager.Singleton.Register<OnEffectAppliedEvent>(root => root
                 .Sequence("protectDamageInterception", main => main
                     .Selector("checkDamageProtection", selCheck => selCheck
                         .Execute("interceptDamageEffect", (evt, ctx) => {
                             if (evt is not OnEffectAppliedEvent effectEvent) return LSEventProcessStatus.CANCELLED;
-                            
+
                             // Only intercept damage effects
                             if (effectEvent.Effect.EffectTemplate is not DamageEffectTemplate) {
                                 return LSEventProcessStatus.SUCCESS;
                             }
-                            
+
                             // Check if target has active protect effects
                             if (!_activeEffects.TryGetValue(effectEvent.Target, out var effects)) {
                                 return LSEventProcessStatus.SUCCESS;
                             }
-                            
+
                             // Find first active protector
                             foreach (var effect in effects) {
                                 if (_protectStatus.TryGetValue(effect, out var status) && status.isActive && status.duration > 0) {
                                     Console.WriteLine($"[ProtectEffectTemplate] {status.protector.Name} intercepts damage effect on {effectEvent.Target.Name}!");
-                                    
+
                                     // Store redirection info in the event data
                                     evt.SetData("originalTarget", effectEvent.Target);
                                     evt.SetData("redirectedTo", status.protector);
                                     evt.SetData("wasRedirected", true);
-                                    
+
                                     return LSEventProcessStatus.SUCCESS;
                                 }
                             }
-                            
+
                             return LSEventProcessStatus.SUCCESS;
                         }, LSPriority.CRITICAL) // Very high priority to intercept before damage calculation
                     , LSPriority.CRITICAL)
@@ -728,7 +728,7 @@ public class AEffectSystemEvent_tests {
                 )
             );
         }
-        
+
         public override void Cleanup() {
             LSEventContextManager.Singleton.Register<OnEffectAppliedEvent>(root => root
                 .RemoveChild($"{ClassName}"));
@@ -737,33 +737,33 @@ public class AEffectSystemEvent_tests {
             LSEventContextManager.Singleton.Register<OnEffectAppliedEvent>(root => root
                 .RemoveChild("protectDamageInterception"));
         }
-        
+
         public override Effect Instantiate(Skill source, Entity target, params object[] args) {
             if (args.Length != 2 || args[0] is not int duration || args[1] is not Entity protector) {
                 throw new LSException("ProtectEffectTemplate requires two parameters: duration (int) and protector (Entity).");
             }
-            
+
             Effect effect = new Effect(source, target, this);
             _protectStatus[effect] = (duration, true, protector);
-            
+
             // Register the effect with the target entity
             if (!_activeEffects.ContainsKey(target)) {
                 _activeEffects[target] = new List<Effect>();
             }
             _activeEffects[target].Add(effect);
-            
+
             return effect;
         }
-        
+
         public bool TryGetProtectStatus(Effect effect, out (int duration, bool isActive, Entity protector) status) {
             return _protectStatus.TryGetValue(effect, out status);
         }
-        
+
         public bool HasActiveEffect(Entity entity) {
-            return _activeEffects.ContainsKey(entity) && _activeEffects[entity].Any(effect => 
+            return _activeEffects.ContainsKey(entity) && _activeEffects[entity].Any(effect =>
                 _protectStatus.TryGetValue(effect, out var status) && status.isActive && status.duration > 0);
         }
-        
+
         public override void Apply(Effect sourceEffect) {
             // Apply method is called once when the effect is first applied
             // The effect now manages itself through the global event handlers
@@ -771,12 +771,12 @@ public class AEffectSystemEvent_tests {
                 Console.WriteLine($"[ProtectEffectTemplate] Activating protection: {status.protector.Name} protects {sourceEffect.Target.Name}");
             }
         }
-        
+
         public override void Remove(Effect sourceEffect) {
             if (_protectStatus.TryGetValue(sourceEffect, out var status)) {
                 Console.WriteLine($"[ProtectEffectTemplate] Removing protection from {status.protector.Name} on {sourceEffect.Target.Name}");
                 _protectStatus.Remove(sourceEffect);
-                
+
                 // Remove from active effects
                 if (_activeEffects.TryGetValue(sourceEffect.Target, out var effects)) {
                     effects.Remove(sourceEffect);
@@ -818,7 +818,7 @@ public class AEffectSystemEvent_tests {
             Effect = effect;
         }
     }
-    
+
     public class OnEffectUpdateEvent : LSEvent {
         public Entity Target { get; }
         public OnEffectUpdateEvent(Entity target) {
@@ -936,117 +936,117 @@ public class AEffectSystemEvent_tests {
         // entityA.Hit(entityB);
         //entityC.Hit(entityD);
     }
-    
+
     [Test]
     public void TestGuardProtectEffect() {
         Console.WriteLine("=== Testing Guard/Protect Effect ===");
-        
+
         // Create entities
         var guardian = new Entity("Guardian");
         var protectedEntity = new Entity("Protected");
         var attacker = new Entity("Attacker");
-        
+
         // Initialize entities
         guardian.Initialize(null!, null!);
         protectedEntity.Initialize(null!, null!);
         attacker.Initialize(null!, null!);
-        
+
         // Create skills
         var guardSkill = GuardSkillTemplate.Singleton.Instantiate(guardian);
         var punchSkill = PunchSkillTemplate.Singleton.Instantiate(attacker);
-        
+
         guardian.EquippedSkill = guardSkill;
         attacker.EquippedSkill = punchSkill;
-        
+
         // Record initial health values
         var guardianInitialHealth = guardian.Health;
         var protectedInitialHealth = protectedEntity.Health;
-        
+
         Console.WriteLine($"Initial Health - Guardian: {guardianInitialHealth}, Protected: {protectedInitialHealth}");
-        
+
         // Guardian uses guard skill to protect the protected entity
         Console.WriteLine("\n--- Guardian casts Guard on Protected ---");
         guardSkill.UseOnAlly(protectedEntity);
-        
+
         // Verify protect effect was applied by checking the template's internal registry
         var hasProtectEffect = ProtectEffectTemplate.Singleton.HasActiveEffect(protectedEntity);
         Assert.That(hasProtectEffect, Is.True, "Protected entity should have an active protect effect");
-        
+
         Console.WriteLine($"Guard effect applied successfully on {protectedEntity.Name}.");
-        
+
         // Attacker hits the protected entity
         Console.WriteLine("\n--- Attacker attacks Protected (should be intercepted by Guardian) ---");
         attacker.Hit(protectedEntity);
-        
+
         // Check if damage was redirected to guardian
         Console.WriteLine($"After attack - Guardian Health: {guardian.Health}, Protected Health: {protectedEntity.Health}");
-        
+
         // The protected entity should not take damage (guardian should intercept)
         // Guardian should take damage instead
         Assert.That(protectedEntity.Health, Is.EqualTo(protectedInitialHealth), "Protected entity should not take damage");
         Assert.That(guardian.Health, Is.LessThan(guardianInitialHealth), "Guardian should take damage from interception");
-        
+
         Console.WriteLine("=== Guard/Protect Test Completed Successfully ===");
     }
-    
+
     [Test]
     public void TestGuardProtectEffectDuration() {
         Console.WriteLine("=== Testing Guard/Protect Effect Duration ===");
-        
+
         // Create entities
         var guardian = new Entity("Guardian");
         var protectedEntity = new Entity("Protected");
         var attacker = new Entity("Attacker");
-        
+
         // Initialize entities
         guardian.Initialize(null!, null!);
         protectedEntity.Initialize(null!, null!);
         attacker.Initialize(null!, null!);
-        
+
         // Create skills
         var guardSkill = GuardSkillTemplate.Singleton.Instantiate(guardian);
         var punchSkill = PunchSkillTemplate.Singleton.Instantiate(attacker);
-        
+
         guardian.EquippedSkill = guardSkill;
         attacker.EquippedSkill = punchSkill;
-        
+
         // Guardian uses guard skill to protect the protected entity
         Console.WriteLine("\n--- Guardian casts Guard on Protected ---");
         guardSkill.UseOnAlly(protectedEntity);
-        
+
         // Test multiple attack rounds to verify duration mechanics
         for (int turn = 1; turn <= 4; turn++) {
             Console.WriteLine($"\n--- Turn {turn} ---");
-            
+
             var guardianHealth = guardian.Health;
             var protectedHealth = protectedEntity.Health;
-            
+
             // Check if protection is still active
             var hasProtectEffect = ProtectEffectTemplate.Singleton.HasActiveEffect(protectedEntity);
             Console.WriteLine($"Protection active: {hasProtectEffect}");
-            
+
             if (hasProtectEffect) {
                 // Attack should be redirected to guardian
                 Console.WriteLine($"Attacker attacks Protected (should be intercepted by Guardian)");
                 attacker.Hit(protectedEntity);
-                
+
                 Assert.That(protectedEntity.Health, Is.EqualTo(protectedHealth), $"Turn {turn}: Protected entity should not take damage");
                 Assert.That(guardian.Health, Is.LessThan(guardianHealth), $"Turn {turn}: Guardian should take damage from interception");
             } else {
                 // Protection has expired, attack hits protected entity
                 Console.WriteLine($"Attacker attacks Protected (protection expired)");
                 attacker.Hit(protectedEntity);
-                
+
                 Assert.That(protectedEntity.Health, Is.LessThan(protectedHealth), $"Turn {turn}: Protected entity should take damage when protection expires");
                 Assert.That(guardian.Health, Is.EqualTo(guardianHealth), $"Turn {turn}: Guardian should not take damage when protection expires");
             }
-            
+
             // Simulate turn passing (trigger effect updates)
             protectedEntity.Update();
-            
+
             Console.WriteLine($"Guardian Health: {guardian.Health}, Protected Health: {protectedEntity.Health}");
         }
-        
+
         Console.WriteLine("=== Guard/Protect Duration Test Completed Successfully ===");
     }
 }

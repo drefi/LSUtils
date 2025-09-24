@@ -1,237 +1,172 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace LSUtils.EventSystem;
 
+//internal record NodeResultKey(ILSEventNode? parent, ILSEventNode node);
+
 /// <summary>
-/// Context for state transitions and phase execution in v4.
-/// 
-/// The EventSystemContext serves as the central coordination point for event processing,
-/// managing the state machine lifecycle and providing access to all processing components.
-/// 
-/// Key Responsibilities:
-/// - State machine coordination and transitions
-/// - Handler management and execution context
-/// - Event lifecycle tracking (failures, cancellation, completion)
-/// - Dispatcher integration for handler retrieval and execution
-/// 
-/// State Machine Flow:
-/// 1. Initialization: Creates BusinessState as starting state
-/// 2. Processing: Executes state.Process() until completion or waiting
-/// 3. Transitions: Manages state changes based on processing results
-/// 4. Termination: Handles final state transitions (Success, Failure, Cancelled)
-/// 
-/// Thread Safety:
-/// - State transitions are managed internally by individual state implementations
-/// - Context properties are read-only after initialization
-/// - Handler execution follows phase-based sequential model
-/// 
-/// Usage Pattern:
-/// The context is created internally by BaseEvent.Dispatch() and should not be
-/// instantiated directly by client code. External actors can interact with
-/// waiting states through Resume(), Cancel(), and Fail() methods.
+/// Simplified processing context that holds the event being processed and provides delegation methods for node operations.
+/// Represents the execution environment for a single event processing session.
 /// </summary>
-public class LSEventProcessContext_Legacy {
-    /// <summary>
-    /// The dispatcher instance used for handler retrieval and management.
-    /// Provides access to globally registered handlers for event processing.
-    /// </summary>
-    public LSDispatcher Dispatcher { get; }
+/// <remarks>
+/// <para><strong>Design Philosophy:</strong></para>
+/// <para>LSEventProcessContext v5 follows a minimal responsibility pattern, containing only essential state:</para>
+/// <list type="bullet">
+/// <item><description><strong>Event</strong>: The event being processed</description></item>
+/// <item><description><strong>Root Node</strong>: Entry point for processing operations</description></item>
+/// <item><description><strong>Cancellation State</strong>: Thread-safe cancellation flag</description></item>
+/// </list>
+/// 
+/// <para><strong>Delegation Pattern:</strong></para>
+/// <para>All processing operations (Process, Resume, Fail, Cancel) are delegated to the root node,</para>
+/// <para>which then coordinates the processing hierarchy according to each node's specific logic.</para>
+/// 
+/// <para><strong>Thread Safety:</strong></para>
+/// <para>The cancellation state is managed using volatile fields to ensure visibility across threads.</para>
+/// </remarks>
+public class LSEventProcessContext {
 
     /// <summary>
-    /// The current state in the event processing state machine.
-    /// Can be BusinessState, SucceedState, CancelledState, or CompletedState.
-    /// Null when processing is complete.
+    /// The event being processed by this context.
+    /// Contains all event data and metadata needed for processing decisions.
     /// </summary>
-    public IEventProcessState? CurrentState { get; internal set; }
+    /// <value>The ILSEvent instance being processed. This property is read-only after construction.</value>
+    public ILSEvent Event { get; }
+
+    // NOTE: giving the capability to create a complex node structure, the system won't need to have callbacks;
+    // any sort desired behaviour should be possible using nodes only.
+    /// <summary>
+    /// Thread-safe cancellation flag indicating whether processing has been cancelled.
+    /// </summary>
+    /// <value>True if processing has been cancelled, false otherwise.</value>
+    /// <remarks>
+    /// This field is volatile to ensure visibility across threads without requiring locks.
+    /// Once set to true, it remains true for the lifetime of the context.
+    /// </remarks>
+    private volatile bool _isCancelled = false;
 
     /// <summary>
-    /// The event being processed through the state machine.
-    /// Contains all event data and provides access to event metadata.
+    /// The root node of the processing hierarchy.
+    /// All processing operations are delegated to this node.
     /// </summary>
-    public ILSEvent_obsolete Event { get; internal set; }
+    /// <remarks>
+    /// The root node coordinates the entire processing session and maintains the processing state.
+    /// This field is internal as external code should use the delegation methods rather than direct access.
+    /// </remarks>
+    ILSEventNode _rootNode;
 
     /// <summary>
-    /// Read-only collection of all handlers available for this event.
-    /// Includes both global handlers from the dispatcher and event-scoped handlers.
+    /// Gets the current cancellation state of this processing context.
     /// </summary>
-    public IReadOnlyList<IHandlerEntry> Handlers { get; }
-
+    /// <value>True if processing has been cancelled, false otherwise.</value>
+    /// <remarks>
+    /// This property provides thread-safe read access to the cancellation state.
+    /// Nodes can check this during processing to determine if they should terminate early.
+    /// </remarks>
+    public bool IsCancelled => _isCancelled;
     /// <summary>
-    /// Indicates if the event processing has encountered failures.
-    /// True when any handler has failed or returned failure results.
-    /// Does not prevent processing completion - events can complete with failures.
+    /// Initializes a new processing context for the specified event and root node.
     /// </summary>
-    public bool HasFailures { get; internal set; }
-
-    /// <summary>
-    /// Indicates if the event processing has been cancelled.
-    /// True when cancellation has been requested or a handler returned CANCELLED.
-    /// Results in immediate termination of processing and transition to CancelledState.
-    /// </summary>
-    public bool IsCancelled { get; internal set; }
-
-    /// <summary>
-    /// Initializes a new EventSystemContext with the specified components.
-    /// 
-    /// The context is created with:
-    /// - BusinessState as the initial state for phase-based processing
-    /// - Handler collection from both global dispatcher and event-scoped sources
-    /// - Event reference for state machine processing
-    /// 
-    /// This constructor is internal and should only be called by the Create factory method.
-    /// </summary>
-    /// <param name="dispatcher">The dispatcher for handler management</param>
-    /// <param name="event">The event to process</param>
-    /// <param name="handlers">Complete collection of handlers for this event</param>
-    protected LSEventProcessContext_Legacy(LSDispatcher dispatcher, ILSEvent_obsolete @event, IReadOnlyList<IHandlerEntry> handlers) {
+    /// <param name="event">The event to be processed.</param>
+    /// <param name="rootNode">The root node that will coordinate processing.</param>
+    /// <remarks>
+    /// This constructor is internal as contexts are typically created by the event system infrastructure
+    /// rather than directly by user code. The context starts in a non-cancelled state.
+    /// </remarks>
+    internal LSEventProcessContext(ILSEvent @event, ILSEventNode rootNode) {
         Event = @event;
-        Dispatcher = dispatcher;
-        Handlers = handlers;
-        CurrentState = new LSEventBusinessState(this);
+        _rootNode = rootNode;
     }
 
     /// <summary>
-    /// Processes the event through its complete lifecycle until completion, cancellation, or waiting state.
-    /// 
-    /// Processing Flow:
-    /// 1. Validates event is marked as InDispatch
-    /// 2. Executes state machine loop until CurrentState is null or WAITING
-    /// 3. Processes each state via state.Process() method
-    /// 4. Handles state transitions based on StateResult
-    /// 5. Updates context flags (HasFailures, IsCancelled) based on results
-    /// 6. Returns final processing result
-    /// 
-    /// State Transition Logic:
-    /// - SUCCESS: Continue to next state
-    /// - FAILURE: Mark HasFailures, continue processing  
-    /// - CANCELLED: Mark IsCancelled, may continue for cleanup
-    /// - WAITING: Pause processing, return WAITING result
-    /// 
-    /// This method can only be called by the event itself and should not be accessed externally.
+    /// Initiates processing of the event through the root node hierarchy.
     /// </summary>
-    /// <returns>
-    /// Final processing result:
-    /// - SUCCESS: Event completed successfully
-    /// - FAILURE: Event completed with failures
-    /// - CANCELLED: Event was cancelled
-    /// - WAITING: Event is waiting for external input
-    /// </returns>
-    /// <exception cref="LSException">Thrown when event is not marked as InDispatch</exception>
-    internal EventProcessResult processEvent() {
-        if (Event.InDispatch == false) throw new LSException("Event must be marked as InDispatch before processing.");
-        EventProcessResult result = EventProcessResult.UNKNOWN;
-        while (CurrentState != null) {
-            var currentState = CurrentState;
-            result = process(currentState, out var nextState, currentState.Process);
-            if (result == EventProcessResult.WAITING) return EventProcessResult.WAITING;
-            CurrentState = nextState;
-        }
-        return result;
-    }
-    EventProcessResult process(IEventProcessState currentState, out IEventProcessState? nextState, System.Func<IEventProcessState?> callback) {
-        nextState = callback();
-        var result = currentState.StateResult;
-        switch (result) {
-            case StateProcessResult.CANCELLED:
-                IsCancelled = true;
-                break;
-            case StateProcessResult.FAILURE:
-                HasFailures = true;
-                break;
-            case StateProcessResult.WAITING:
-                //stay in current state
-                return EventProcessResult.WAITING;
-            case StateProcessResult.SUCCESS:
-            default:
-                break;
-        }
-        return IsCancelled ? EventProcessResult.CANCELLED : HasFailures ? EventProcessResult.FAILURE : EventProcessResult.SUCCESS;
-    }
-
-    /// <summary>
-    /// Resumes processing from a waiting state.
+    /// <returns>The final processing status after the root node and its children have been processed.</returns>
+    /// <remarks>
+    /// <para><strong>Processing Flow:</strong></para>
+    /// <list type="number">
+    /// <item><description>Delegates processing to the root node</description></item>
+    /// <item><description>Updates cancellation state if processing was cancelled</description></item>
+    /// <item><description>Logs processing outcomes for debugging</description></item>
+    /// </list>
     /// 
-    /// Called by external actors when async operations complete successfully.
-    /// Delegates to the current state's Resume() method to continue processing
-    /// from where it was paused.
-    /// 
-    /// Typical usage scenario:
-    /// 1. Handler returns WAITING result
-    /// 2. Event processing pauses
-    /// 3. External operation completes
-    /// 4. External actor calls Resume()
-    /// 5. Processing continues from the paused state
-    /// </summary>
-    /// <returns>The next state to transition to, or null if processing remains in current state</returns>
-    public EventProcessResult Resume() {
-        if (Event.InDispatch == false) throw new LSException("Event must be marked as InDispatch before processing.");
-        EventProcessResult result = EventProcessResult.UNKNOWN;
-        while (CurrentState != null) {
-            var currentState = CurrentState;
-            result = process(currentState, out var nextState, currentState.Resume);
-            if (result == EventProcessResult.WAITING) return EventProcessResult.WAITING;
-            CurrentState = nextState;
+    /// <para><strong>Status Handling:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>CANCELLED</strong>: Sets internal cancellation flag</description></item>
+    /// <item><description><strong>WAITING</strong>: Indicates processing is blocked and requires external Resume/Fail</description></item>
+    /// <item><description><strong>SUCCESS/FAILURE</strong>: Terminal states indicating completion</description></item>
+    /// </list>
+    /// </remarks>
+    internal LSEventProcessStatus Process() {
+        //System.Console.WriteLine($"[LSEventProcessContext] Processing root node '{_rootNode.NodeID}'...");
+        var result = _rootNode.Process(this);
+        if (result == LSEventProcessStatus.CANCELLED) {
+            _isCancelled = true;
+            //System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");
+        }
+        if (result == LSEventProcessStatus.WAITING) {
+            //System.Console.WriteLine($"[LSEventProcessContext] Root node is waiting.");
         }
         return result;
     }
 
     /// <summary>
-    /// Cancels processing from a waiting state.
-    /// 
-    /// Called by external actors when async operations are cancelled or 
-    /// when a critical failure requires immediate termination.
-    /// Delegates to the current state's Cancel() method.
-    /// 
-    /// Results in transition to CancelledState and eventual completion.
+    /// Resumes processing from WAITING state for the specified nodes or all waiting nodes.
     /// </summary>
-    /// <returns>The next state to transition to, typically CancelledState</returns>
-    public EventProcessResult Cancel() {
-        if (Event.InDispatch == false) throw new LSException("Event must be marked as InDispatch before processing.");
-        EventProcessResult result = EventProcessResult.UNKNOWN;
-        while (CurrentState != null) {
-            var currentState = CurrentState;
-            result = process(currentState, out var nextState, currentState.Cancel);
-            if (result == EventProcessResult.WAITING) return EventProcessResult.WAITING;
-            CurrentState = nextState;
-        }
-        return result;
+    /// <param name="nodes">Optional array of specific node IDs to resume. If null or empty, resumes all waiting nodes.</param>
+    /// <returns>The processing status after the resume operation.</returns>
+    /// <remarks>
+    /// <para><strong>Delegation:</strong> This method delegates to the root node's Resume method, which then</para>
+    /// <para>coordinates resumption across the node hierarchy based on the provided node IDs.</para>
+    /// 
+    /// <para><strong>Targeting:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Specific Nodes</strong>: When node IDs are provided, only those nodes are targeted</description></item>
+    /// <item><description><strong>All Waiting</strong>: When no IDs are provided, all waiting nodes in the hierarchy are resumed</description></item>
+    /// </list>
+    /// </remarks>
+    public LSEventProcessStatus Resume(params string[]? nodes) {
+        return _rootNode.Resume(this, nodes);
     }
 
     /// <summary>
-    /// Marks processing as failed from a waiting state.
-    /// 
-    /// Called by external actors when async operations fail but processing
-    /// should continue through failure handling phases.
-    /// Delegates to the current state's Fail() method.
-    /// 
-    /// Sets HasFailures flag and continues processing through appropriate phases.
+    /// Forces transition from WAITING to FAILURE state for the specified nodes or all waiting nodes.
     /// </summary>
-    /// <returns>The next state to transition to, allowing failure handling to continue</returns>
-    public EventProcessResult Fail() {
-        if (Event.InDispatch == false) throw new LSException("Event must be marked as InDispatch before processing.");
-        EventProcessResult result = EventProcessResult.UNKNOWN;
-        while (CurrentState != null) {
-            var currentState = CurrentState;
-            result = process(currentState, out var nextState, currentState.Fail);
-            if (result == EventProcessResult.WAITING) return EventProcessResult.WAITING;
-            CurrentState = nextState;
-        }
-        return result;
+    /// <param name="nodes">Optional array of specific node IDs to fail. If null or empty, fails all waiting nodes.</param>
+    /// <returns>The processing status after the fail operation.</returns>
+    /// <remarks>
+    /// <para><strong>Use Cases:</strong></para>
+    /// <list type="bullet">
+    /// <item><description><strong>Timeout Handling</strong>: Force failure when operations take too long</description></item>
+    /// <item><description><strong>Error Conditions</strong>: Propagate external errors to waiting nodes</description></item>
+    /// <item><description><strong>Resource Constraints</strong>: Fail operations when resources are unavailable</description></item>
+    /// </list>
+    /// 
+    /// <para><strong>Cascading Effects:</strong> Failing nodes may trigger status changes in parent nodes</para>
+    /// <para>based on their aggregation logic (sequence, selector, parallel).</para>
+    /// </remarks>
+    public LSEventProcessStatus Fail(params string[]? nodes) {
+        return _rootNode.Fail(this, nodes);
     }
-
+    
     /// <summary>
-    /// Factory method for creating EventSystemContext instances.
-    /// 
-    /// Provides controlled instantiation with proper initialization of all components.
-    /// This is the only way to create context instances, ensuring consistent setup.
+    /// Cancels processing for the entire node hierarchy and sets the context cancellation state.
     /// </summary>
-    /// <param name="dispatcher">The dispatcher for handler management</param>
-    /// <param name="event">The event to process through the state machine</param>
-    /// <param name="handlers">Complete handler collection for this event</param>
-    /// <returns>A fully initialized EventSystemContext ready for processing</returns>
-    internal static LSEventProcessContext_Legacy Create(LSDispatcher dispatcher, ILSEvent_obsolete @event, IReadOnlyList<IHandlerEntry> handlers) {
-        return new LSEventProcessContext_Legacy(dispatcher, @event, handlers);
+    /// <remarks>
+    /// <para><strong>Scope:</strong> Cancellation affects the entire processing hierarchy rooted at the root node.</para>
+    /// <para><strong>Finality:</strong> Once cancelled, the context cannot be resumed or continued.</para>
+    /// <para><strong>Thread Safety:</strong> This method safely updates the cancellation state using volatile fields.</para>
+    /// 
+    /// <para><strong>Error Handling:</strong> If the root node's Cancel method doesn't return CANCELLED status,</para>
+    /// <para>a warning is logged, but the context cancellation state is still set to ensure consistency.</para>
+    /// </remarks>
+    public void Cancel() {
+        var result = _rootNode.Cancel(this);
+        if (result != LSEventProcessStatus.CANCELLED) {
+            //System.Console.WriteLine($"[LSEventProcessContext] Warning: Root node Cancel() did not return CANCELLED status.");
+        }
+            _isCancelled = true;
+            //System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");
     }
 }

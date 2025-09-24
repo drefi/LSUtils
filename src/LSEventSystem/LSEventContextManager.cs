@@ -132,7 +132,7 @@ public class LSEventContextManager {
 
         public System.Guid ID => Guid.NewGuid();
 
-        LSEventProcessStatus ILSEventable.Initialize(LSEventContextManager manager, ILSEventLayerNode context) {
+        LSEventProcessStatus ILSEventable.Initialize(LSEventContextDelegate? ctxBuilder = null, LSEventContextManager? manager = null) {
             throw new System.NotImplementedException();
         }
     }
