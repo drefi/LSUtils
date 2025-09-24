@@ -133,7 +133,7 @@ namespace FluentBehaviourTree {
                 throw new System.InvalidOperationException($"Could not create an instance of type {typeof(T).FullName}.");
             }
             var stateMachineNode = (T)instance;
-            LSAction<IFSMBehaviourTreeNode>? cb = callback == null ? null : new LSAction<IFSMBehaviourTreeNode>((IFSMBehaviourTreeNode? smNode) => callback((T)smNode!));
+            LSAction<IFSMBehaviourTreeNode>? cb = callback == null ? null : new LSAction<IFSMBehaviourTreeNode>((IFSMBehaviourTreeNode smNode) => callback((T)smNode!));
             return StateMachine((IFSMBehaviourTreeNode)stateMachineNode, cb);
         }
         public BehaviourTreeBuilder StateMachine(IFSMBehaviourTreeNode stateMachineNode, LSAction<IFSMBehaviourTreeNode>? callback = null) {
@@ -156,8 +156,8 @@ namespace FluentBehaviourTree {
         }
         public BehaviourTreeBuilder Transition<T>(string name, IFSMBehaviourTreeNode? smNode, LSAction<T>? callback = null) where T : IBTStateNode {
             LSAction<IBTStateNode> genericCallback = callback == null
-                ? new LSAction<IBTStateNode>((IBTStateNode? state) => { })
-                : new LSAction<IBTStateNode>((IBTStateNode? state) => callback((T)state!));
+                ? new LSAction<IBTStateNode>((IBTStateNode state) => { })
+                : new LSAction<IBTStateNode>((IBTStateNode state) => callback((T)state!));
             if (smNode == null) throw new System.ArgumentNullException("smNode");
             var transitionNode = new TransitionNode(name, smNode, typeof(T), genericCallback);
             if (transitionNode == null) {
