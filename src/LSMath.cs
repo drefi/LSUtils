@@ -5,7 +5,15 @@ namespace LSUtils;
 /// Provides mathematical utility functions.
 /// </summary>
 public static class LSMath {
-
+    public static bool TryParseFloat(string? value, out float result) {
+        return float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out result);
+    }
+    public static float ParseFloat(string? value, float defaultValue = 0f) {
+        return TryParseFloat(value, out float result) ? result : defaultValue;
+    }
+    public static bool TryParseInt(string? value, out int result) {
+        return int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out result);
+    }
     /// <summary>
     /// Clamps a value between a minimum and maximum value.
     /// </summary>

@@ -135,8 +135,7 @@ public static class LSProcessConditions {
             }
             return true;
         } catch {
-            // Any exception in condition evaluation is treated as condition failure
-            return false;
+            throw;
         }
     }
 }
