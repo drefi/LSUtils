@@ -91,7 +91,7 @@ public interface ILSProcess {
     /// <item><description>Can be called multiple times to build complex hierarchies incrementally</description></item>
     /// </list>
     /// </remarks>
-    ILSProcess WithProcessing(LSProcessBuilderAction builder, ILSProcessable? instance = null);
+    ILSProcess WithProcessing(LSProcessBuilderAction builder);
 
     /// <summary>
     /// Execute the process through a context manager (or Singleton if not provided).

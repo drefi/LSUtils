@@ -75,7 +75,7 @@ public class LSTimestamp : ILSProcessable {
 
     public LSProcessResultStatus Initialize(LSProcessBuilderAction? ctxBuilder = null, LSProcessManager? manager = null) {
         var @event = new OnInitializeEvent(this);
-        if (ctxBuilder != null) @event.WithProcessing(ctxBuilder, this);
+        if (ctxBuilder != null) @event.WithProcessing(ctxBuilder);
         return @event.Execute(this, manager);
     }
 

@@ -174,7 +174,7 @@ public abstract class LSProcess : ILSProcess {
     /// <para>Root node is named using the instance ID (if provided) or this process's ID,</para>
     /// <para>prefixed with the process type name for clarity in debugging.</para>
     /// </remarks>
-    public ILSProcess WithProcessing(LSProcessBuilderAction builder, ILSProcessable? instance = null) {
+    public ILSProcess WithProcessing(LSProcessBuilderAction builder) {
         LSProcessTreeBuilder processBuilder;
         if (_processContext == null) {
             // no existing context; start a new parallel node with the process ID as name.
@@ -182,7 +182,6 @@ public abstract class LSProcess : ILSProcess {
             // the processContext will be merged on globalContext.
             // if an instance is provided, we use its ID as name for the root node.
 
-            string id = instance?.ID.ToString() ?? ID.ToString();
             processBuilder = new LSProcessTreeBuilder().Parallel($"{GetType().Name}");
         } else {
             processBuilder = new LSProcessTreeBuilder(_processContext);

@@ -28,7 +28,7 @@ public class LSTick : ILSProcessable {
     public LSProcessResultStatus Initialize(LSProcessBuilderAction? ctxBuilder = null, LSProcessManager? manager = null) {
         _manager = manager;
         OnInitializeEvent @event = new OnInitializeEvent(this);
-        if (ctxBuilder != null) @event.WithProcessing(ctxBuilder, this);
+        if (ctxBuilder != null) @event.WithProcessing(ctxBuilder);
         return @event
             .WithProcessing(b => b
                 .Execute("initialize", (evt, ctx) => {
@@ -40,7 +40,7 @@ public class LSTick : ILSProcessable {
                     var result = new OnTickEvent(this, _tickCount).Execute(this, _manager);
                     return LSProcessResultStatus.SUCCESS;
                 }
-            ), this
+            )
         ).Execute(this, _manager);
     }
 
