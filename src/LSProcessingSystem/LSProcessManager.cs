@@ -142,21 +142,17 @@ public class LSProcessManager {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
         }
-        LSProcessTreeBuilder builder = new LSProcessTreeBuilder().Sequence($"root");
-        if (!processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
-            // no global context registered for this process type; create a new main parallel node.
-            builder.Parallel($"{processType.Name}");
-        } else {
+        LSProcessTreeBuilder builder = new LSProcessTreeBuilder().Parallel($"{processType.Name}");
+        // LSProcessTreeBuilder builder = new LSProcessTreeBuilder().Sequence($"root");
+        if (processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
             // we have a global node to merge. We clone the global node to avoid modifying the original.
+            //builder.Merge(globalNode.Clone());
             builder.Merge(globalNode.Clone());
         }
         // merge instance specific node if available. We clone the instance node to avoid modifying the original.
-        if (instance != null) {
-            if (!processDict.TryGetValue(instance, out var instanceNode)) {
-                builder.Parallel($"{processType.Name}");
-            } else {
-                builder.Merge(instanceNode.Clone());
-            }
+        if (instance != null && processDict.TryGetValue(instance, out var instanceNode)) {
+            //builder.Parallel($"{processType.Name}");
+            builder.Merge(instanceNode.Clone());
         }
         // local context is merged last, so it has priority over global and instance contexts.
         if (localNode != null) {

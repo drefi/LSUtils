@@ -10,8 +10,8 @@ namespace LSUtils.Processing.Tests;
 /// </summary>
 [TestFixture]
 public class LSProcessingSystemTests {
-    public class MockEvent : LSProcess {
-        public MockEvent() { }
+    public class MockProcess : LSProcess {
+        public MockProcess() { }
     }
 
     private LSProcessHandler _mockHandler1;
@@ -63,12 +63,12 @@ public class LSProcessingSystemTests {
         _handler3CallCount = 0;
     }
 
-    #region Basic Event Tests
+    #region Basic Process Tests
     [Test]
-    public void TestEventCreation() {
-        var mockEvent = new MockEvent();
-        Assert.That(mockEvent, Is.Not.Null);
-        Assert.That(mockEvent.ID, Is.Not.EqualTo(System.Guid.Empty));
+    public void TestProcessCreation() {
+        var mockProcess = new MockProcess();
+        Assert.That(mockProcess, Is.Not.Null);
+        Assert.That(mockProcess.ID, Is.Not.EqualTo(System.Guid.Empty));
     }
     #endregion
 
@@ -83,7 +83,7 @@ public class LSProcessingSystemTests {
         Assert.That(context, Is.Not.Null);
         Assert.That(context.NodeID, Is.EqualTo("root"));
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -99,7 +99,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -116,7 +116,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
@@ -133,7 +133,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -150,7 +150,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -171,7 +171,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -192,7 +192,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -211,7 +211,7 @@ public class LSProcessingSystemTests {
         Assert.That(context, Is.Not.Null);
         Assert.That(context.NodeID, Is.EqualTo("root"));
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
@@ -227,7 +227,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -244,7 +244,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
@@ -261,7 +261,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -282,7 +282,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -303,7 +303,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -322,7 +322,7 @@ public class LSProcessingSystemTests {
         Assert.That(context, Is.Not.Null);
         Assert.That(context.NodeID, Is.EqualTo("root"));
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -338,7 +338,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -357,7 +357,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.HasChild("handler1"), Is.True);
         Assert.That(context.HasChild("handler2"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -378,7 +378,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.HasChild("handler1"), Is.True);
         Assert.That(context.HasChild("handler2"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -396,7 +396,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
@@ -414,7 +414,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
@@ -432,7 +432,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -455,9 +455,9 @@ public class LSProcessingSystemTests {
         Assert.That(context.HasChild("handler1"), Is.True);
         Assert.That(context.HasChild("handler2"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
-        var processContext = new LSProcessSession(mockEvent, context);
-        System.Console.WriteLine("[TestBuilderParallelWaitingSuccessWithFail] Processing event...");
+        var mockProcess = new MockProcess();
+        var processContext = new LSProcessSession(mockProcess, context);
+        System.Console.WriteLine("[TestBuilderParallelWaitingSuccessWithFail] Processing...");
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // handler1 should succeed immediately
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -481,7 +481,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.HasChild("handler1"), Is.True);
         Assert.That(context.HasChild("handler2"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -506,7 +506,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.NodeID, Is.EqualTo("root"));
         Assert.That(context.HasChild("handler1"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -529,7 +529,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.HasChild("handler1"), Is.True);
         Assert.That(context.HasChild("handler2"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -554,7 +554,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.HasChild("handler2"), Is.True);
         Assert.That(context.HasChild("handler3"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         System.Console.WriteLine("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Process result: " + result);
@@ -586,7 +586,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.HasChild("handler1"), Is.True);
         Assert.That(context.HasChild("handler2"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -612,7 +612,7 @@ public class LSProcessingSystemTests {
         Assert.That(context.HasChild("handler1"), Is.True);
         Assert.That(context.HasChild("handler2"), Is.True);
         // Test execution
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -659,7 +659,7 @@ public class LSProcessingSystemTests {
         Assert.That(childParallel.HasChild("handler2B"), Is.True);
 
         // Test execution of the entire structure
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -688,7 +688,7 @@ public class LSProcessingSystemTests {
         Assert.That(newSequence.HasChild("handler2"), Is.True);
 
         // Test execution of the entire structure
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, newContext);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -730,7 +730,7 @@ public class LSProcessingSystemTests {
         Assert.That(subContextNode, Is.Not.Null);
         Assert.That(subContextNode.HasChild("handler1"), Is.True);
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, mergedContext);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -766,7 +766,7 @@ public class LSProcessingSystemTests {
         Assert.That(seqA?.HasChild("handlerA"), Is.True);
         Assert.That(seqB?.HasChild("handlerB"), Is.True);
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, root);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -797,7 +797,7 @@ public class LSProcessingSystemTests {
         Assert.That(sequence.HasChild("handler"), Is.True);
         Assert.That(sequence.GetChildren().Length, Is.EqualTo(1));
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, sequence);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -1014,7 +1014,7 @@ public class LSProcessingSystemTests {
         Assert.That(mergedContext.HasChild("handler"), Is.True);
 
         // Since override is always allowed, the second handler should replace the first
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, mergedContext);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -1051,7 +1051,7 @@ public class LSProcessingSystemTests {
                 }, LSProcessPriority.NORMAL, false, (evt, node) => false)) // skip the handler
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         var result = processContext.Execute();
@@ -1069,7 +1069,7 @@ public class LSProcessingSystemTests {
                         }, LSProcessPriority.NORMAL, false, (evt, node) => true)) // condition met
                     .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         var result = processContext.Execute();
@@ -1124,7 +1124,7 @@ public class LSProcessingSystemTests {
                 .Merge(contextB))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, mergedContext);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -1167,7 +1167,7 @@ public class LSProcessingSystemTests {
                 .Merge(contextB))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, mergedContextWithPriority);
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -1194,7 +1194,7 @@ public class LSProcessingSystemTests {
 
         // Execute original
         var context = new LSProcessTreeBuilder().Sequence("root").Execute("handler", _mockHandler1).Build();
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         processContext.Execute();
 
@@ -1224,7 +1224,7 @@ public class LSProcessingSystemTests {
         // Test that clone maintains reference while original doesn't
         // Note: We can't directly access _baseNode as it's protected, 
         // but we can test the behavior through execution count sharing
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var testContext = new LSProcessSession(mockEvent, originalHandler);
 
         // Original execution count should be independent before cloning
@@ -1247,7 +1247,7 @@ public class LSProcessingSystemTests {
         Assert.That(sequence.HasChild("handler1"), Is.True);
 
         // Start processing to set _isProcessing = true
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var context = new LSProcessSession(mockEvent, sequence);
         ((ILSProcessNode)sequence).Execute(context);
 
@@ -1267,7 +1267,7 @@ public class LSProcessingSystemTests {
         Assert.That(selector.HasChild("handler1"), Is.True);
 
         // Start processing
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var context = new LSProcessSession(mockEvent, selector);
         ((ILSProcessNode)selector).Execute(context);
 
@@ -1298,7 +1298,7 @@ public class LSProcessingSystemTests {
                 .Execute("h2", _mockHandler2), 0, 0) // 0 required to succeed, 0 required to fail
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         // With 0 required to succeed, should succeed immediately
@@ -1320,7 +1320,7 @@ public class LSProcessingSystemTests {
         Assert.That(clonedSeq.NodeID, Is.EqualTo(originalSeq.NodeID));
 
         // Should have independent processing state
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var originalContext = new LSProcessSession(mockEvent, originalSeq);
         var clonedContext = new LSProcessSession(mockEvent, clonedSeq);
 
@@ -1360,7 +1360,7 @@ public class LSProcessingSystemTests {
                 }, LSProcessPriority.CRITICAL))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -1395,7 +1395,7 @@ public class LSProcessingSystemTests {
                 }, LSProcessPriority.CRITICAL))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -1434,7 +1434,7 @@ public class LSProcessingSystemTests {
                 }), 2, 1) // need 2 success, 1 failure
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext1 = new LSProcessSession(mockEvent, context1);
         var result1 = processContext1.Execute();
 
@@ -1482,7 +1482,7 @@ public class LSProcessingSystemTests {
                 }), 2) // outer parallel needs 2 successes
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -1521,7 +1521,7 @@ public class LSProcessingSystemTests {
                     })))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -1552,7 +1552,7 @@ public class LSProcessingSystemTests {
         }, handlerCount); // require all to succeed
 
         var context = builder.Build();
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -1579,7 +1579,7 @@ public class LSProcessingSystemTests {
         }
 
         var context = builder.Build();
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -1617,7 +1617,7 @@ public class LSProcessingSystemTests {
         conditionCallCount = 0;
         _handler1CallCount = 0;
 
-        var mockEvent1 = new MockEvent();
+        var mockEvent1 = new MockProcess();
         var processContext1 = new LSProcessSession(mockEvent1, context1);
         var result1 = processContext1.Execute();
         Assert.That(result1, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -1640,7 +1640,7 @@ public class LSProcessingSystemTests {
         conditionCallCount = 0;
         _handler1CallCount = 0;
 
-        var mockEvent2 = new MockEvent();
+        var mockEvent2 = new MockProcess();
         var processContext2 = new LSProcessSession(mockEvent2, context2);
         var result2 = processContext2.Execute();
         Assert.That(result2, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // sequence succeeds when handler is skipped
@@ -1663,7 +1663,7 @@ public class LSProcessingSystemTests {
         conditionCallCount = 0;
         _handler1CallCount = 0;
 
-        var mockEvent3 = new MockEvent();
+        var mockEvent3 = new MockProcess();
         var processContext3 = new LSProcessSession(mockEvent3, context3);
         var result3 = processContext3.Execute();
         Assert.That(result3, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -1673,7 +1673,7 @@ public class LSProcessingSystemTests {
 
     [Test]
     public void TestConditionParameterValidation() {
-        // Test with event data-based conditions
+        // Test with data-based conditions
         var context = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
                 .Execute("dataConditionHandler", (evt, node) => {
@@ -1684,7 +1684,7 @@ public class LSProcessingSystemTests {
                 }))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -1712,7 +1712,7 @@ public class LSProcessingSystemTests {
                 }))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -1741,7 +1741,7 @@ public class LSProcessingSystemTests {
                 }, LSProcessPriority.LOW))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -1773,7 +1773,7 @@ public class LSProcessingSystemTests {
                 }, LSProcessPriority.NORMAL, false, (evt, node) => condition3), 2) // require 2 to succeed
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -1800,7 +1800,7 @@ public class LSProcessingSystemTests {
                 }))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         // Exception in condition should propagate (current implementation behavior)
@@ -1834,7 +1834,7 @@ public class LSProcessingSystemTests {
                 }), LSProcessPriority.NORMAL, false, false, (evt, node) => sequenceCondition)
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         // Test sequence executes when condition is true
@@ -1880,7 +1880,7 @@ public class LSProcessingSystemTests {
         Assert.That(emptyParallel, Is.Not.Null);
 
         // Test that they work when processed
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
 
         var seqResult = new LSProcessSession(mockEvent, emptySequence).Execute();
         Assert.That(seqResult, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -1903,7 +1903,7 @@ public class LSProcessingSystemTests {
                 .Sequence("root", seq => seq.Execute("test", null!))
                 .Build();
             // If build succeeds, test processing
-            var mockEvent = new MockEvent();
+            var mockEvent = new MockProcess();
             var processContext = new LSProcessSession(mockEvent, context);
             try {
                 processContext.Execute();
@@ -1950,7 +1950,7 @@ public class LSProcessingSystemTests {
                 .Build();
 
             // If this succeeds, let's test the behavior
-            var mockEvent = new MockEvent();
+            var mockEvent = new MockProcess();
             var processContext = new LSProcessSession(mockEvent, context);
             var result = processContext.Execute();
 
@@ -1994,7 +1994,7 @@ public class LSProcessingSystemTests {
                 }))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         // Exception should propagate and stop execution
@@ -2018,7 +2018,7 @@ public class LSProcessingSystemTests {
                 .Build();
 
             // If allowed, test behavior
-            var mockEvent = new MockEvent();
+            var mockEvent = new MockProcess();
             var result = new LSProcessSession(mockEvent, context1).Execute();
             Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // might succeed immediately
 
@@ -2033,7 +2033,7 @@ public class LSProcessingSystemTests {
                 .Execute("handler2", _mockHandler2), 5) // requires 5 but only has 2 children
             .Build();
 
-        var mockEvent2 = new MockEvent();
+        var mockEvent2 = new MockProcess();
         var processContext = new LSProcessSession(mockEvent2, context);
 
         // Should fail because impossible to meet threshold
@@ -2058,7 +2058,7 @@ public class LSProcessingSystemTests {
         sequence.AddChild(handler1);
 
         // Start processing to set internal state
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var context = new LSProcessSession(mockEvent, sequence);
 
         // Process first to set internal processing state
@@ -2101,7 +2101,7 @@ public class LSProcessingSystemTests {
         }
 
         // Test null context
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         Exception? caughtException2 = null;
         try {
             var processContext = new LSProcessSession(mockEvent, null!);
@@ -2161,7 +2161,7 @@ public class LSProcessingSystemTests {
                 }))
             .Build();
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
 
@@ -2184,7 +2184,7 @@ public class LSProcessingSystemTests {
         Assert.That(successHandler.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
         Assert.That(failureHandler.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
 
         // Test success transition
         var context1 = new LSProcessSession(mockEvent, successHandler);
@@ -2208,7 +2208,7 @@ public class LSProcessingSystemTests {
         // Initial state should be UNKNOWN
         Assert.That(context.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         // After successful processing, should be SUCCESS
@@ -2234,7 +2234,7 @@ public class LSProcessingSystemTests {
         Assert.That(initialStatus, Is.AnyOf(LSProcessResultStatus.UNKNOWN, LSProcessResultStatus.SUCCESS),
             $"Initial status was {initialStatus}, expected UNKNOWN or SUCCESS if cached");
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         var result = processContext.Execute();
@@ -2252,7 +2252,7 @@ public class LSProcessingSystemTests {
 
         Assert.That(context.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         var result = processContext.Execute();
@@ -2266,7 +2266,7 @@ public class LSProcessingSystemTests {
 
         Assert.That(waitingHandler.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var context = new LSProcessSession(mockEvent, waitingHandler);
 
         // Process should result in WAITING
@@ -2301,7 +2301,7 @@ public class LSProcessingSystemTests {
         Assert.That(initialStatus, Is.AnyOf(LSProcessResultStatus.UNKNOWN, LSProcessResultStatus.SUCCESS),
             $"Initial status was {initialStatus}");
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         // Test cancellation functionality
@@ -2339,7 +2339,7 @@ public class LSProcessingSystemTests {
 
         Assert.That(handler.ExecutionCount, Is.EqualTo(0));
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
 
         // Test first execution
         var context1 = new LSProcessSession(mockEvent, handler);
@@ -2378,7 +2378,7 @@ public class LSProcessingSystemTests {
         // Test initial state
         Assert.That(context.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
 
         // Process the entire hierarchy
@@ -2404,7 +2404,7 @@ public class LSProcessingSystemTests {
         var originalOrder = handler.Order;
 
         // Process the handler
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var context = new LSProcessSession(mockEvent, handler);
         ((ILSProcessNode)handler).Execute(context);
 
@@ -2431,7 +2431,7 @@ public class LSProcessingSystemTests {
 
         // ExecutionCount should be immutable from outside
         // (can only be modified through processing)
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var context = new LSProcessSession(mockEvent, handler);
         ((ILSProcessNode)handler).Execute(context);
 
@@ -2444,27 +2444,26 @@ public class LSProcessingSystemTests {
 
     [Test]
     public void TestContextManagerRegistrationAndRetrieval() {
-        LSProcessManager.Singleton.Register<MockEvent>(root => root
+        LSProcessManager.Singleton.Register<MockProcess>(root => root
             .Sequence("seq", seq => seq
                 .Execute("handler1", _mockHandler1)
                 .Execute("handler2", _mockHandler2))
         );
-        LSProcessManager.Singleton.Register<MockEvent>(root => root
+        LSProcessManager.Singleton.Register<MockProcess>(root => root
             .Selector("sel", sel => sel
                 .Execute("handler3", _mockHandler1)
                 .Execute("handler4", _mockHandler2))
         );
 
-        var root = LSProcessManager.Singleton.GetRootNode<MockEvent>();
-        var typeName = typeof(MockEvent).Name;
-        Assert.That(root.HasChild(typeName), Is.True);
-        var eventRoot = root.GetChild(typeName) as ILSProcessLayerNode;
-        Assert.That(eventRoot, Is.Not.Null);
+        var root = LSProcessManager.Singleton.GetRootNode<MockProcess>();
+        var typeName = typeof(MockProcess).Name;
+        Assert.That(root.NodeID, Is.EqualTo(typeName));
+        Assert.That(root, Is.InstanceOf<LSProcessNodeParallel>());
 
-        Assert.That(eventRoot.HasChild("seq"), Is.True);
-        Assert.That(eventRoot.HasChild("sel"), Is.True);
+        Assert.That(root.HasChild("seq"), Is.True);
+        Assert.That(root.HasChild("sel"), Is.True);
 
-        var mockEvent = new MockEvent();
+        var mockEvent = new MockProcess();
         var result = mockEvent.WithProcessing(s => s
             .Sequence("seq", seq => seq
                 .Execute("handler5", _mockHandler1)
