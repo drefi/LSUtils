@@ -1,5 +1,5 @@
-using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
+//using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
@@ -49,8 +49,8 @@ public class LSProcessManager {
     /// Internal storage for registered processing contexts, organized by process type and processable instance.
     /// Maps process types to dictionaries containing instance-specific and global contexts.
     /// </summary>
-    protected readonly Dictionary<System.Type, Dictionary<ILSProcessable, ILSProcessLayerNode>> _globalContext = new();
-    
+    protected readonly ConcurrentDictionary<System.Type, ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>> _globalNodes = new();
+
     /// <summary>
     /// Registers a processing context for a specific process type using a fluent builder pattern.
     /// </summary>
@@ -64,7 +64,7 @@ public class LSProcessManager {
     public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null) where TProcess : ILSProcess {
         Register(typeof(TProcess), builder, instance);
     }
-    
+
     /// <summary>
     /// Registers a processing context for a specific process type using a fluent builder pattern.
     /// </summary>
@@ -83,29 +83,21 @@ public class LSProcessManager {
     /// </list>
     /// </remarks>
     public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null) {
-        if (!_globalContext.TryGetValue(processType, out var processDict)) {
-            processDict = new Dictionary<ILSProcessable, ILSProcessLayerNode>();
-            _globalContext[processType] = processDict;
+        if (!_globalNodes.TryGetValue(processType, out var processDict)) {
+            processDict = new();
+            if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
         }
-        LSProcessTreeBuilder contextBuilder;
-        // if no instance is provided, we register a global context.
-        if (instance == null) {
-            if (!processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
-                // no global context registered for this process type, create a new parallel node using the processType as nodeID.
-                contextBuilder = new LSProcessTreeBuilder().Parallel($"{processType.Name}");
-            } else {
-                contextBuilder = new LSProcessTreeBuilder(globalNode);
-            }
-        } else { // if an instance is provided, we register a context specific to that instance.
-                 // check if we have a context already registered for this instance.            
-            if (!processDict.TryGetValue(instance, out var instanceNode)) {
-                instanceNode = new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build();
-            }
-            contextBuilder = new LSProcessTreeBuilder(instanceNode);
+        instance ??= GlobalProcessable.Instance;
+
+
+
+        if (!processDict.TryGetValue(instance, out var instanceNode)) {
+            instanceNode = new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build();
         }
-        var result = builder(contextBuilder);
+        var localBuilder = new LSProcessTreeBuilder(instanceNode);
+        var result = builder(localBuilder);
         if (result == null) {
-            throw new ArgumentNullException(nameof(builder), "The context builder delegate returned null.");
+            throw new LSArgumentNullException(nameof(builder), "The context builder delegate returned null.");
         }
         processDict[instance ?? GlobalProcessable.Instance] = result.Build();
 
@@ -122,16 +114,16 @@ public class LSProcessManager {
     /// Contexts are merged in priority order: local context (highest) → instance-specific → global (lowest).
     /// Each context is cloned before merging to preserve the original registered contexts.
     /// </remarks>
-    public ILSProcessLayerNode GetContext<TProcess>(ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) where TProcess : ILSProcess {
-        return GetContext(typeof(TProcess), instance, localContext);
+    public ILSProcessLayerNode GetRootNode<TProcess>(ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) where TProcess : ILSProcess {
+        return GetRootNode(typeof(TProcess), instance, localContext);
     }
-    
+
     /// <summary>
     /// Retrieves a merged processing context for the specified process type and optional instance.
     /// </summary>
     /// <param name="processType">The process type to retrieve the context for</param>
     /// <param name="instance">Optional processable instance for instance-specific context merging</param>
-    /// <param name="localContext">Optional local context to merge with highest priority</param>
+    /// <param name="localNode">Optional local context to merge with highest priority</param>
     /// <returns>Merged processing hierarchy containing global, instance-specific, and local contexts</returns>
     /// <remarks>
     /// <para><strong>Context Merging Strategy:</strong></para>
@@ -144,21 +136,21 @@ public class LSProcessManager {
     /// 
     /// <para>All contexts are cloned before merging to ensure the original registered contexts remain unmodified.</para>
     /// </remarks>
-    public ILSProcessLayerNode GetContext(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) {
+    public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localNode = null) {
         // if processType is not registered, create a new process dictionary for this type.
-        if (!_globalContext.TryGetValue(processType, out var processDict)) {
-            processDict = new Dictionary<ILSProcessable, ILSProcessLayerNode>();
-            _globalContext[processType] = processDict;
+        if (!_globalNodes.TryGetValue(processType, out var processDict)) {
+            processDict = new();
+            if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
         }
         LSProcessTreeBuilder builder = new LSProcessTreeBuilder().Sequence($"root");
         if (!processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
-            // no global context registered for this process type; create a new root parallel node.
+            // no global context registered for this process type; create a new main parallel node.
             builder.Parallel($"{processType.Name}");
         } else {
-            // we have a globalContext; start with a clone of the global node to avoid modifying the original.
+            // we have a global node to merge. We clone the global node to avoid modifying the original.
             builder.Merge(globalNode.Clone());
         }
-        // merge instance specific context if available. We always use the clone of the node, so we don't modify the original instance node.
+        // merge instance specific node if available. We clone the instance node to avoid modifying the original.
         if (instance != null) {
             if (!processDict.TryGetValue(instance, out var instanceNode)) {
                 builder.Parallel($"{processType.Name}");
@@ -167,8 +159,8 @@ public class LSProcessManager {
             }
         }
         // local context is merged last, so it has priority over global and instance contexts.
-        if (localContext != null) {
-            builder.Merge(localContext);
+        if (localNode != null) {
+            builder.Merge(localNode);
         }
 
         return builder.Build();
@@ -191,7 +183,7 @@ public class LSProcessManager {
         /// Gets a new GUID for each access. This ensures the global processable is treated uniquely
         /// but should not be used for identity comparison in the processing system.
         /// </summary>
-        public System.Guid ID => Guid.NewGuid();
+        public System.Guid ID => System.Guid.NewGuid();
 
         /// <summary>
         /// Not implemented as this placeholder class should never be initialized in the processing pipeline.

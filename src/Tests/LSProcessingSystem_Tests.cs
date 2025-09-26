@@ -2455,7 +2455,7 @@ public class LSProcessingSystemTests {
                 .Execute("handler4", _mockHandler2))
         );
 
-        var root = LSProcessManager.Singleton.GetContext<MockEvent>();
+        var root = LSProcessManager.Singleton.GetRootNode<MockEvent>();
         var typeName = typeof(MockEvent).Name;
         Assert.That(root.HasChild(typeName), Is.True);
         var eventRoot = root.GetChild(typeName) as ILSProcessLayerNode;

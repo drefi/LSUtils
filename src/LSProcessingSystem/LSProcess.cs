@@ -44,7 +44,7 @@ public abstract class LSProcess : ILSProcess {
     /// Custom processing context/tree defined for this specific process instance.
     /// Merged with global context during execution.
     /// </summary>
-    private ILSProcessLayerNode? _processContext;
+    private ILSProcessLayerNode? _localProcessBuilder;
 
     /// <summary>
     /// Unique identifier for this process instance.
@@ -122,8 +122,8 @@ public abstract class LSProcess : ILSProcess {
         manager ??= LSProcessManager.Singleton;
         if (_processSession != null) throw new LSException("Process already executed.");
 
-        var globalContext = manager.GetContext(this.GetType(), instance, _processContext);
-        _processSession = new LSProcessSession(this, globalContext);
+        var globalBuilder = manager.GetRootNode(this.GetType(), instance, _localProcessBuilder);
+        _processSession = new LSProcessSession(this, globalBuilder);
         return _processSession.Execute();
     }
 
@@ -176,18 +176,18 @@ public abstract class LSProcess : ILSProcess {
     /// </remarks>
     public ILSProcess WithProcessing(LSProcessBuilderAction builder) {
         LSProcessTreeBuilder processBuilder;
-        if (_processContext == null) {
-            // no existing context; start a new parallel node with the process ID as name.
-            // creating a parallel node to allow to use handlers in the builder directly.
-            // the processContext will be merged on globalContext.
+        if (_localProcessBuilder == null) {
+            // no existing builder; start a new parallel node with the process type as name.
+            // creating a parallel node should allow to use handlers in the builder directly.
+            // the processBuilder will be merged on globalBuilder.
             // if an instance is provided, we use its ID as name for the root node.
 
             processBuilder = new LSProcessTreeBuilder().Parallel($"{GetType().Name}");
         } else {
-            processBuilder = new LSProcessTreeBuilder(_processContext);
+            processBuilder = new LSProcessTreeBuilder(_localProcessBuilder);
         }
-        // use the builder to modify or extend the processContext.
-        _processContext = builder(processBuilder).Build();
+        // use the builder to modify or extend the processBuilder.
+        _localProcessBuilder = builder(processBuilder).Build();
         return this;
     }
 

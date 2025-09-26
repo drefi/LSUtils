@@ -46,27 +46,11 @@ public interface ILSProcessable {
     
     /// <summary>
     /// Initialize this processable entity with a custom processing context.
-    /// Allows setting up entity-specific processing workflows that will be executed
+    /// Allows usage of local processing workflows that will be executed
     /// when processes target this entity.
     /// </summary>
-    /// <param name="ctxBuilder">Optional context builder delegate for defining entity-specific processing logic.</param>
+    /// <param name="treeBuilder">Optional tree builder delegate for defining entity-specific processing logic.</param>
     /// <param name="manager">Optional context manager to register the processing context with. Uses singleton if not provided.</param>
     /// <returns>The initialization status indicating success, failure, or other processing states.</returns>
-    /// <remarks>
-    /// <para><strong>Initialization Behavior:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Context Registration</strong>: Registers entity-specific processing trees with the manager</description></item>
-    /// <item><description><strong>Workflow Definition</strong>: Defines how processes should be handled for this entity type</description></item>
-    /// <item><description><strong>Global Integration</strong>: Integrates with global context system for seamless processing</description></item>
-    /// <item><description><strong>Idempotency</strong>: Can be called multiple times to update or extend processing logic</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Usage Patterns:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Entity Setup</strong>: Called during entity creation or configuration phase</description></item>
-    /// <item><description><strong>Dynamic Reconfiguration</strong>: Used to update processing behavior at runtime</description></item>
-    /// <item><description><strong>Template Application</strong>: Apply processing templates to multiple entity instances</description></item>
-    /// </list>
-    /// </remarks>
-    LSProcessResultStatus Initialize(LSProcessBuilderAction? ctxBuilder = null, LSProcessManager? manager = null);
+    LSProcessResultStatus Initialize(LSProcessBuilderAction? treeBuilder = null, LSProcessManager? manager = null);
 }
