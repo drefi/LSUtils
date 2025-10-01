@@ -127,7 +127,7 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Condition Attachment</strong>: Optional conditions control when handler executes</description></item>
     /// </list>
     /// </remarks>
-    public LSProcessTreeBuilder Execute(string nodeID, LSProcessHandler handler, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
+    public LSProcessTreeBuilder Handler(string nodeID, LSProcessHandler handler, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
         if (_currentNode == null) {
             _currentNode = LSProcessNodeSequence.Create($"sequence[{nodeID}]", 0); // create a root sequence node if none exists
         }

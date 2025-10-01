@@ -31,7 +31,7 @@ public class LSTick : ILSProcessable {
         if (ctxBuilder != null) @event.WithProcessing(ctxBuilder);
         return @event
             .WithProcessing(b => b
-                .Execute("initialize", (evt, ctx) => {
+                .Handler("initialize", (evt, ctx) => {
                     _hasInitialized = true;
                     _isPaused = true;
                     _tickCount = 0;

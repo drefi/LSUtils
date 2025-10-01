@@ -92,7 +92,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSequenceSuccess() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler1))
+                .Handler("handler1", _mockHandler1))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -109,7 +109,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSequenceFailure() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Failure))
+                .Handler("handler1", _mockHandler3Failure))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -126,7 +126,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSequenceCancel() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Cancel))
+                .Handler("handler1", _mockHandler3Cancel))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -143,7 +143,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSequenceExecuteWaitingResume() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Waiting))
+                .Handler("handler1", _mockHandler3Waiting))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -164,7 +164,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSequenceExecuteWaitingFailure() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Waiting))
+                .Handler("handler1", _mockHandler3Waiting))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -185,7 +185,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSequenceExecuteWaitingCancel() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Waiting))
+                .Handler("handler1", _mockHandler3Waiting))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -220,7 +220,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSelectorExecuteSuccess() {
         var context = new LSProcessTreeBuilder()
             .Selector("root", (subBuilder) => subBuilder
-                .Execute("handler1", _mockHandler1))
+                .Handler("handler1", _mockHandler1))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -237,7 +237,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSelectorExecuteFailure() {
         var context = new LSProcessTreeBuilder()
             .Selector("root", (subBuilder) => subBuilder
-                .Execute("handler1", _mockHandler3Failure))
+                .Handler("handler1", _mockHandler3Failure))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -254,7 +254,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSelectorExecuteWaitingResume() {
         var context = new LSProcessTreeBuilder()
             .Selector("root", (subBuilder) => subBuilder
-                .Execute("handler1", _mockHandler3Waiting))
+                .Handler("handler1", _mockHandler3Waiting))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -275,7 +275,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSelectorExecuteWaitingFail() {
         var context = new LSProcessTreeBuilder()
             .Selector("root", (subBuilder) => subBuilder
-                .Execute("handler1", _mockHandler3Waiting))
+                .Handler("handler1", _mockHandler3Waiting))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -296,7 +296,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicSelectorExecuteWaitingCancel() {
         var context = new LSProcessTreeBuilder()
             .Selector("root", (subBuilder) => subBuilder
-                .Execute("handler1", _mockHandler3Waiting))
+                .Handler("handler1", _mockHandler3Waiting))
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -331,7 +331,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelSuccess() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler1), 1) // require 1 to succeed
+                .Handler("handler1", _mockHandler1), 1) // require 1 to succeed
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -348,8 +348,8 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelSuccess2() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler2), 2) // require 2 to succeed
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler2), 2) // require 2 to succeed
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -369,8 +369,8 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelSuccess3() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler3Failure), 1) // require 1 to succeed
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler3Failure), 1) // require 1 to succeed
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -389,7 +389,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelFailure() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Failure), 1)
+                .Handler("handler1", _mockHandler3Failure), 1)
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -406,8 +406,8 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelFailure2() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler3Failure), 2) // require 2 to succeed
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler3Failure), 2) // require 2 to succeed
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -425,7 +425,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelWaitingSuccessWithResume() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Waiting), 1)
+                .Handler("handler1", _mockHandler3Waiting), 1)
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -446,8 +446,8 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelWaitingSuccessWithFail() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler3Waiting), 1)
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler3Waiting), 1)
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -471,9 +471,9 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelWaitingSuccessWithFailAndResume() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler3Waiting)
-                .Execute("handler3", _mockHandler3Waiting), 2)
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler3Waiting)
+                .Handler("handler3", _mockHandler3Waiting), 2)
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -499,7 +499,7 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelWaitingFailureWithFail() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Waiting), 1)
+                .Handler("handler1", _mockHandler3Waiting), 1)
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -520,8 +520,8 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicParallelMultipleWaitingFailureWithResume() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Failure)
-                .Execute("handler2", _mockHandler3Waiting), 2)
+                .Handler("handler1", _mockHandler3Failure)
+                .Handler("handler2", _mockHandler3Waiting), 2)
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -543,9 +543,9 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicParallelMultipleWaitingSuccessResume() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Waiting)
-                .Execute("handler2", _mockHandler3Waiting)
-                .Execute("handler3", _mockHandler3Waiting), 2)
+                .Handler("handler1", _mockHandler3Waiting)
+                .Handler("handler2", _mockHandler3Waiting)
+                .Handler("handler3", _mockHandler3Waiting), 2)
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -577,8 +577,8 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicParallelMultipleWaitingFail() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Waiting)
-                .Execute("handler2", _mockHandler3Waiting), 2)
+                .Handler("handler1", _mockHandler3Waiting)
+                .Handler("handler2", _mockHandler3Waiting), 2)
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -603,8 +603,8 @@ public class LSProcessingSystemTests {
     public void TestBuilderBasicParallelMultipleWaitingFail2() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Execute("handler1", _mockHandler3Waiting)
-                .Execute("handler2", _mockHandler3Waiting), 1)
+                .Handler("handler1", _mockHandler3Waiting)
+                .Handler("handler2", _mockHandler3Waiting), 1)
             .Build();
 
         Assert.That(context, Is.Not.Null);
@@ -631,12 +631,12 @@ public class LSProcessingSystemTests {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", rootBuilder => rootBuilder
                 .Sequence("childSequence", seqBuilder => seqBuilder
-                    .Execute("handler1", _mockHandler1))
+                    .Handler("handler1", _mockHandler1))
                 .Selector("childSelector", selBuilder => selBuilder
-                    .Execute("handler2", _mockHandler2))
+                    .Handler("handler2", _mockHandler2))
                 .Parallel("childParallel", parBuilder => parBuilder
-                    .Execute("handler1B", _mockHandler1)
-                    .Execute("handler2B", _mockHandler2), 2)
+                    .Handler("handler1B", _mockHandler1)
+                    .Handler("handler2B", _mockHandler2), 2)
                 )
             .Build();
 
@@ -671,12 +671,12 @@ public class LSProcessingSystemTests {
     public void TestBuilderWithContext() {
         var baseContext = new LSProcessTreeBuilder()
             .Sequence("base", baseBuilder => baseBuilder
-                .Execute("handler1", _mockHandler1))
+                .Handler("handler1", _mockHandler1))
             .Build();
 
         var newContext = new LSProcessTreeBuilder(baseContext)
             .Sequence("newSequence", seqBuilder => seqBuilder
-                .Execute("handler2", _mockHandler2))
+                .Handler("handler2", _mockHandler2))
             .Build();
 
         Assert.That(newContext.NodeID, Is.EqualTo("base"));
@@ -711,7 +711,7 @@ public class LSProcessingSystemTests {
 
         var subContext = new LSProcessTreeBuilder()
             .Sequence("subContext", seqBuilder => seqBuilder
-                .Execute("handler1", _mockHandler1))
+                .Handler("handler1", _mockHandler1))
             .Build();
 
         Console.WriteLine($"Sub context: {subContext.NodeID}");
@@ -742,12 +742,12 @@ public class LSProcessingSystemTests {
     public void TestMergeNonConflictingNodes() {
         var contextA = new LSProcessTreeBuilder()
             .Sequence("sequenceA", seqBuilder => seqBuilder
-                .Execute("handlerA", _mockHandler1))
+                .Handler("handlerA", _mockHandler1))
             .Build();
 
         var contextB = new LSProcessTreeBuilder()
             .Sequence("sequenceB", seqBuilder => seqBuilder
-                .Execute("handlerB", _mockHandler2))
+                .Handler("handlerB", _mockHandler2))
             .Build();
 
         var root = new LSProcessTreeBuilder()
@@ -779,12 +779,12 @@ public class LSProcessingSystemTests {
     public void TestMergeHandlerReplacement() {
         var contextA = new LSProcessTreeBuilder()
             .Sequence("sequence", seq => seq
-                .Execute("handler", _mockHandler1))
+                .Handler("handler", _mockHandler1))
             .Build();
 
         var contextB = new LSProcessTreeBuilder()
             .Sequence("sequence", seq => seq
-                .Execute("handler", _mockHandler2))
+                .Handler("handler", _mockHandler2))
             .Build();
 
         var sequence = new LSProcessTreeBuilder()
@@ -815,7 +815,7 @@ public class LSProcessingSystemTests {
             .Sequence("level1", level1 => level1
                 .Sequence("level2", level2 => level2
                     .Sequence("level3", level3 => level3
-                        .Execute("handlerA", _mockHandler1)
+                        .Handler("handlerA", _mockHandler1)
                     )
                 )
             )
@@ -825,7 +825,7 @@ public class LSProcessingSystemTests {
             .Sequence("level1", level1 => level1
                 .Sequence("level2", level2 => level2
                     .Sequence("level3", level3 => level3
-                        .Execute("handlerB", _mockHandler2)
+                        .Handler("handlerB", _mockHandler2)
                     )
                 )
             )
@@ -855,13 +855,13 @@ public class LSProcessingSystemTests {
     public void TestMixedNodeTypeMerge() {
         var contextA = new LSProcessTreeBuilder()
             .Sequence("container", container => container
-                .Execute("handler1", _mockHandler1)
+                .Handler("handler1", _mockHandler1)
             )
             .Build();
 
         var contextB = new LSProcessTreeBuilder()
             .Selector("container", selector => selector
-                .Execute("handler2", _mockHandler2)
+                .Handler("handler2", _mockHandler2)
             )
             .Build();
 
@@ -887,11 +887,11 @@ public class LSProcessingSystemTests {
         var sourceContext = new LSProcessTreeBuilder()
             .Sequence("mainSequence", mainSeq => mainSeq
                 .Selector("validation", validation => validation
-                    .Execute("validateUser", _mockHandler1)
-                    .Execute("validatePermissions", _mockHandler2)
+                    .Handler("validateUser", _mockHandler1)
+                    .Handler("validatePermissions", _mockHandler2)
                 )
                 .Sequence("execution", execution => execution
-                    .Execute("executeAction", _mockHandler1)
+                    .Handler("executeAction", _mockHandler1)
                 )
             )
             .Build();
@@ -901,9 +901,9 @@ public class LSProcessingSystemTests {
             .Sequence("root", root => root
                 .Sequence("mainSequence", mainSeq => mainSeq
                     .Sequence("execution", execution => execution
-                        .Execute("preExecute", _mockHandler1)
+                        .Handler("preExecute", _mockHandler1)
                     )
-                    .Execute("cleanup", _mockHandler2)
+                    .Handler("cleanup", _mockHandler2)
                 )
             )
             .Build();
@@ -950,7 +950,7 @@ public class LSProcessingSystemTests {
     public void TestMergeWithoutCurrentNode() {
         var sourceContext = new LSProcessTreeBuilder()
             .Sequence("sequence", seq => seq
-                .Execute("handler", _mockHandler1))
+                .Handler("handler", _mockHandler1))
             .Build();
 
         var builder = new LSProcessTreeBuilder();
@@ -981,7 +981,7 @@ public class LSProcessingSystemTests {
 
         var populatedContext = new LSProcessTreeBuilder()
             .Sequence("populated", seq => seq
-                .Execute("handler1", _mockHandler1))
+                .Handler("handler1", _mockHandler1))
             .Build();
 
         var mergedContext = new LSProcessTreeBuilder(populatedContext)
@@ -998,12 +998,12 @@ public class LSProcessingSystemTests {
     public void TestMergeWithPriority() {
         var contextA = new LSProcessTreeBuilder()
             .Sequence("sequence", seq => seq
-                .Execute("handler", _mockHandler1, LSProcessPriority.NORMAL))
+                .Handler("handler", _mockHandler1, LSProcessPriority.NORMAL))
             .Build();
 
         var contextB = new LSProcessTreeBuilder()
             .Sequence("sequence", seq => seq
-                .Execute("handler", _mockHandler2, LSProcessPriority.HIGH))
+                .Handler("handler", _mockHandler2, LSProcessPriority.HIGH))
             .Build();
 
         var mergedContext = new LSProcessTreeBuilder()
@@ -1026,9 +1026,9 @@ public class LSProcessingSystemTests {
     public void TestRemoveChildScenarios() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", root => root
-                .Execute("handler1", _mockHandler1)
+                .Handler("handler1", _mockHandler1)
                 .Sequence("childSeq", child => child
-                    .Execute("handler2", _mockHandler2)))
+                    .Handler("handler2", _mockHandler2)))
             .Build();
 
         var builder = new LSProcessTreeBuilder(context);
@@ -1045,7 +1045,7 @@ public class LSProcessingSystemTests {
     public void TestHandlerWithConditionsFalse() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("conditionalHandler", (ctx, node) => {
+                .Handler("conditionalHandler", (ctx, node) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.FAILURE;
                 }, LSProcessPriority.NORMAL, false, (evt, node) => false)) // skip the handler
@@ -1063,7 +1063,7 @@ public class LSProcessingSystemTests {
     public void TestHandlerWithConditionsTrue() {
         var context = new LSProcessTreeBuilder()
                     .Sequence("root", seq => seq
-                        .Execute("conditionalHandler", (ctx, node) => {
+                        .Handler("conditionalHandler", (ctx, node) => {
                             _handler1CallCount++;
                             return LSProcessResultStatus.FAILURE;
                         }, LSProcessPriority.NORMAL, false, (evt, node) => true)) // condition met
@@ -1088,13 +1088,13 @@ public class LSProcessingSystemTests {
     public void TestMultipleBuilds() {
         var builder = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("handler1", _mockHandler1));
+                .Handler("handler1", _mockHandler1));
 
         var context1 = builder.Build();
         Assert.That(context1.HasChild("handler1"), Is.True);
 
         // Modify builder after first build
-        builder.Execute("handler2", _mockHandler2); //this could even throw an exception, but for now we allow it
+        builder.Handler("handler2", _mockHandler2); //this could even throw an exception, but for now we allow it
 
         Assert.Throws<LSException>(() => builder.Build()); // Building again without changes should throw
     }
@@ -1104,7 +1104,7 @@ public class LSProcessingSystemTests {
         List<string> executionOrder = new List<string>();
         var contextA = new LSProcessTreeBuilder()
             .Sequence("seqA", seq => seq
-                .Execute("handlerA", (evt, node) => {
+                .Handler("handlerA", (evt, node) => {
                     executionOrder.Add("A");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -1112,7 +1112,7 @@ public class LSProcessingSystemTests {
 
         var contextB = new LSProcessTreeBuilder()
             .Sequence("seqB", seq => seq
-                .Execute("handlerB", (evt, node) => {
+                .Handler("handlerB", (evt, node) => {
                     executionOrder.Add("B");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -1139,7 +1139,7 @@ public class LSProcessingSystemTests {
         // Create fresh contexts for the second test
         var contextA = new LSProcessTreeBuilder()
             .Sequence("seqA", seq => seq
-                .Execute("handlerA", (evt, node) => {
+                .Handler("handlerA", (evt, node) => {
                     executionOrder.Add("A");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -1147,7 +1147,7 @@ public class LSProcessingSystemTests {
 
         var contextB = new LSProcessTreeBuilder()
             .Sequence("seqB", seq => seq
-                .Execute("handlerB", (evt, node) => {
+                .Handler("handlerB", (evt, node) => {
                     executionOrder.Add("B");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -1155,7 +1155,7 @@ public class LSProcessingSystemTests {
 
         var contextC = new LSProcessTreeBuilder()
             .Sequence("seqC", seq => seq
-                .Execute("handlerC", (evt, node) => {
+                .Handler("handlerC", (evt, node) => {
                     executionOrder.Add("C");
                     return LSProcessResultStatus.SUCCESS;
                 }), LSProcessPriority.HIGH)
@@ -1193,7 +1193,7 @@ public class LSProcessingSystemTests {
         Assert.That(cloneHandler!.ExecutionCount, Is.EqualTo(0));
 
         // Execute original
-        var context = new LSProcessTreeBuilder().Sequence("root").Execute("handler", _mockHandler1).Build();
+        var context = new LSProcessTreeBuilder().Sequence("root").Handler("handler", _mockHandler1).Build();
         var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         processContext.Execute();
@@ -1294,8 +1294,8 @@ public class LSProcessingSystemTests {
         // Test with handlers
         var context = new LSProcessTreeBuilder()
             .Parallel("par", builder => builder
-                .Execute("h1", _mockHandler1)
-                .Execute("h2", _mockHandler2), 0, 0) // 0 required to succeed, 0 required to fail
+                .Handler("h1", _mockHandler1)
+                .Handler("h2", _mockHandler2), 0, 0) // 0 required to succeed, 0 required to fail
             .Build();
 
         var mockEvent = new MockProcess();
@@ -1310,7 +1310,7 @@ public class LSProcessingSystemTests {
     public void TestNodeCloneIndependence() {
         // Test sequence node cloning
         var originalSeq = new LSProcessTreeBuilder()
-            .Sequence("seq", seq => seq.Execute("handler", _mockHandler1))
+            .Sequence("seq", seq => seq.Handler("handler", _mockHandler1))
             .Build();
 
         var clonedSeq = originalSeq.Clone();
@@ -1342,19 +1342,19 @@ public class LSProcessingSystemTests {
 
         var context = new LSProcessTreeBuilder()
             .Sequence("root", root => root
-                .Execute("lowPriority", (evt, node) => {
+                .Handler("lowPriority", (evt, node) => {
                     executionOrder.Add("LOW");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.LOW)
-                .Execute("normalPriority", (evt, node) => {
+                .Handler("normalPriority", (evt, node) => {
                     executionOrder.Add("NORMAL");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL)
-                .Execute("highPriority", (evt, node) => {
+                .Handler("highPriority", (evt, node) => {
                     executionOrder.Add("HIGH");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.HIGH)
-                .Execute("criticalPriority", (evt, node) => {
+                .Handler("criticalPriority", (evt, node) => {
                     executionOrder.Add("CRITICAL");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.CRITICAL))
@@ -1381,15 +1381,15 @@ public class LSProcessingSystemTests {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", root => root
                 .Parallel("parallel1", par => par
-                    .Execute("highParallel", (evt, node) => {
+                    .Handler("highParallel", (evt, node) => {
                         executionOrder.Add("HIGH_PAR");
                         return LSProcessResultStatus.SUCCESS;
                     }, LSProcessPriority.HIGH)
-                    .Execute("lowParallel", (evt, node) => {
+                    .Handler("lowParallel", (evt, node) => {
                         executionOrder.Add("LOW_PAR");
                         return LSProcessResultStatus.SUCCESS;
                     }, LSProcessPriority.LOW), 2) // require both to succeed
-                .Execute("criticalAfter", (evt, node) => {
+                .Handler("criticalAfter", (evt, node) => {
                     executionOrder.Add("CRITICAL_AFTER");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.CRITICAL))
@@ -1420,15 +1420,15 @@ public class LSProcessingSystemTests {
         // Test exact threshold matching
         var context1 = new LSProcessTreeBuilder()
             .Parallel("exactMatch", par => par
-                .Execute("success1", (evt, node) => {
+                .Handler("success1", (evt, node) => {
                     executionResults.Add("S1");
                     return LSProcessResultStatus.SUCCESS;
                 })
-                .Execute("success2", (evt, node) => {
+                .Handler("success2", (evt, node) => {
                     executionResults.Add("S2");
                     return LSProcessResultStatus.SUCCESS;
                 })
-                .Execute("failure1", (evt, node) => {
+                .Handler("failure1", (evt, node) => {
                     executionResults.Add("F1");
                     return LSProcessResultStatus.FAILURE;
                 }), 2, 1) // need 2 success, 1 failure
@@ -1446,7 +1446,7 @@ public class LSProcessingSystemTests {
         executionResults.Clear();
         var context2 = new LSProcessTreeBuilder()
             .Parallel("zeroSuccess", par => par
-                .Execute("willExecute", (evt, node) => {
+                .Handler("willExecute", (evt, node) => {
                     executionResults.Add("EXECUTED");
                     return LSProcessResultStatus.SUCCESS;
                 }), 0, 1) // need 0 success, 1 failure
@@ -1468,15 +1468,15 @@ public class LSProcessingSystemTests {
         var context = new LSProcessTreeBuilder()
             .Parallel("outer", outer => outer
                 .Parallel("inner1", inner => inner
-                    .Execute("innerExec1", (evt, node) => {
+                    .Handler("innerExec1", (evt, node) => {
                         innerExecutionCount++;
                         return LSProcessResultStatus.SUCCESS;
                     })
-                    .Execute("innerExec2", (evt, node) => {
+                    .Handler("innerExec2", (evt, node) => {
                         innerExecutionCount++;
                         return LSProcessResultStatus.SUCCESS;
                     }), 1) // inner parallel needs 1 success
-                .Execute("outerExec", (evt, node) => {
+                .Handler("outerExec", (evt, node) => {
                     outerExecutionCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }), 2) // outer parallel needs 2 successes
@@ -1498,24 +1498,24 @@ public class LSProcessingSystemTests {
         var context = new LSProcessTreeBuilder()
             .Sequence("mainSequence", seq => seq
                 .Selector("firstSelector", sel => sel
-                    .Execute("failFirst", (evt, node) => {
+                    .Handler("failFirst", (evt, node) => {
                         executionFlow.Add("FAIL_FIRST");
                         return LSProcessResultStatus.FAILURE;
                     })
-                    .Execute("succeedSecond", (evt, node) => {
+                    .Handler("succeedSecond", (evt, node) => {
                         executionFlow.Add("SUCCEED_SECOND");
                         return LSProcessResultStatus.SUCCESS;
                     }))
-                .Execute("afterSelector", (evt, node) => {
+                .Handler("afterSelector", (evt, node) => {
                     executionFlow.Add("AFTER_SELECTOR");
                     return LSProcessResultStatus.SUCCESS;
                 })
                 .Selector("secondSelector", sel => sel
-                    .Execute("succeedFirst", (evt, node) => {
+                    .Handler("succeedFirst", (evt, node) => {
                         executionFlow.Add("SUCCEED_FIRST");
                         return LSProcessResultStatus.SUCCESS;
                     })
-                    .Execute("willNotRun", (evt, node) => {
+                    .Handler("willNotRun", (evt, node) => {
                         executionFlow.Add("WILL_NOT_RUN");
                         return LSProcessResultStatus.SUCCESS;
                     })))
@@ -1541,7 +1541,7 @@ public class LSProcessingSystemTests {
         var builder = new LSProcessTreeBuilder().Parallel("massParallel", par => {
             for (int i = 0; i < handlerCount; i++) {
                 int capturedIndex = i; // capture for lambda
-                par.Execute($"handler_{capturedIndex}", (evt, node) => {
+                par.Handler($"handler_{capturedIndex}", (evt, node) => {
                     lock (lockObject) {
                         totalExecutions++;
                     }
@@ -1572,7 +1572,7 @@ public class LSProcessingSystemTests {
         for (int i = 0; i < depth; i++) {
             int capturedIndex = i;
             currentBuilder = currentBuilder.Sequence($"level_{capturedIndex}", nested => nested
-                .Execute($"handler_{capturedIndex}", (evt, node) => {
+                .Handler($"handler_{capturedIndex}", (evt, node) => {
                     executionCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }));
@@ -1604,7 +1604,7 @@ public class LSProcessingSystemTests {
         // Test case 1: Both conditions true - should execute
         var context1 = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("conditionalHandler", (evt, node) => {
+                .Handler("conditionalHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false,
@@ -1627,7 +1627,7 @@ public class LSProcessingSystemTests {
         // Test case 2: First condition false - should not execute
         var context2 = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("conditionalHandler", (evt, node) => {
+                .Handler("conditionalHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false,
@@ -1650,7 +1650,7 @@ public class LSProcessingSystemTests {
         // Test case 3: Second condition false - should not execute
         var context3 = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("conditionalHandler", (evt, node) => {
+                .Handler("conditionalHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false,
@@ -1676,7 +1676,7 @@ public class LSProcessingSystemTests {
         // Test with data-based conditions
         var context = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("dataConditionHandler", (evt, node) => {
+                .Handler("dataConditionHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false, (evt, node) => {
@@ -1696,14 +1696,14 @@ public class LSProcessingSystemTests {
     public void TestNodeMetadataBasedConditions() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("priorityConditionHandler", (evt, node) => {
+                .Handler("priorityConditionHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.HIGH, false, (evt, node) => {
                     // Condition based on node priority
                     return node.Priority == LSProcessPriority.HIGH;
                 })
-                .Execute("orderConditionHandler", (evt, node) => {
+                .Handler("orderConditionHandler", (evt, node) => {
                     _handler2CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false, (evt, node) => {
@@ -1727,15 +1727,15 @@ public class LSProcessingSystemTests {
 
         var context = new LSProcessTreeBuilder()
             .Selector("root", sel => sel
-                .Execute("alwaysFailCondition", (evt, node) => {
+                .Handler("alwaysFailCondition", (evt, node) => {
                     executionPath.Add("SHOULD_NOT_EXECUTE");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.HIGH, false, (evt, node) => false) // condition always false
-                .Execute("conditionalSuccess", (evt, node) => {
+                .Handler("conditionalSuccess", (evt, node) => {
                     executionPath.Add("CONDITIONAL_SUCCESS");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false, (evt, node) => true) // condition always true
-                .Execute("fallback", (evt, node) => {
+                .Handler("fallback", (evt, node) => {
                     executionPath.Add("FALLBACK");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.LOW))
@@ -1759,15 +1759,15 @@ public class LSProcessingSystemTests {
 
         var context = new LSProcessTreeBuilder()
             .Parallel("root", par => par
-                .Execute("handler1", (evt, node) => {
+                .Handler("handler1", (evt, node) => {
                     executedHandlers.Add("H1");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false, (evt, node) => condition1)
-                .Execute("handler2", (evt, node) => {
+                .Handler("handler2", (evt, node) => {
                     executedHandlers.Add("H2");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false, (evt, node) => condition2)
-                .Execute("handler3", (evt, node) => {
+                .Handler("handler3", (evt, node) => {
                     executedHandlers.Add("H3");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false, (evt, node) => condition3), 2) // require 2 to succeed
@@ -1791,7 +1791,7 @@ public class LSProcessingSystemTests {
 
         var context = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("exceptionConditionHandler", (evt, node) => {
+                .Handler("exceptionConditionHandler", (evt, node) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, false, (evt, node) => {
@@ -1824,11 +1824,11 @@ public class LSProcessingSystemTests {
 
         var context = new LSProcessTreeBuilder()
             .Sequence("conditionalSequence", seq => seq
-                .Execute("handler1", (evt, node) => {
+                .Handler("handler1", (evt, node) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 })
-                .Execute("handler2", (evt, node) => {
+                .Handler("handler2", (evt, node) => {
                     _handler2CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }), LSProcessPriority.NORMAL, false, false, (evt, node) => sequenceCondition)
@@ -1900,7 +1900,7 @@ public class LSProcessingSystemTests {
         Exception? caughtException = null;
         try {
             var context = new LSProcessTreeBuilder()
-                .Sequence("root", seq => seq.Execute("test", null!))
+                .Sequence("root", seq => seq.Handler("test", null!))
                 .Build();
             // If build succeeds, test processing
             var mockEvent = new MockProcess();
@@ -1926,13 +1926,13 @@ public class LSProcessingSystemTests {
         // Test empty/whitespace node IDs - these should definitely be invalid
         Assert.Throws<ArgumentException>(() => {
             new LSProcessTreeBuilder()
-                .Sequence("root", seq => seq.Execute("", _mockHandler1))
+                .Sequence("root", seq => seq.Handler("", _mockHandler1))
                 .Build();
         });
 
         Assert.Throws<ArgumentException>(() => {
             new LSProcessTreeBuilder()
-                .Sequence("root", seq => seq.Execute("   ", _mockHandler1))
+                .Sequence("root", seq => seq.Handler("   ", _mockHandler1))
                 .Build();
         });
     }
@@ -1945,8 +1945,8 @@ public class LSProcessingSystemTests {
         try {
             var context = new LSProcessTreeBuilder()
                 .Sequence("root", seq => seq
-                    .Execute("duplicate", _mockHandler1)
-                    .Execute("duplicate", _mockHandler2))
+                    .Handler("duplicate", _mockHandler1)
+                    .Handler("duplicate", _mockHandler2))
                 .Build();
 
             // If this succeeds, let's test the behavior
@@ -1965,8 +1965,8 @@ public class LSProcessingSystemTests {
         // Test that valid unique IDs work fine
         var validContext = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler2))
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler2))
             .Build();
 
         Assert.That(validContext, Is.Not.Null);
@@ -1980,15 +1980,15 @@ public class LSProcessingSystemTests {
 
         var context = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("beforeException", (evt, node) => {
+                .Handler("beforeException", (evt, node) => {
                     executionOrder.Add("BEFORE");
                     return LSProcessResultStatus.SUCCESS;
                 })
-                .Execute("throwsException", (evt, node) => {
+                .Handler("throwsException", (evt, node) => {
                     executionOrder.Add("EXCEPTION");
                     throw new InvalidOperationException("Handler error");
                 })
-                .Execute("afterException", (evt, node) => {
+                .Handler("afterException", (evt, node) => {
                     executionOrder.Add("AFTER");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -2014,7 +2014,7 @@ public class LSProcessingSystemTests {
         // Test if negative thresholds are allowed or converted
         try {
             var context1 = new LSProcessTreeBuilder()
-                .Parallel("root", par => par.Execute("handler", _mockHandler1), -1, 0)
+                .Parallel("root", par => par.Handler("handler", _mockHandler1), -1, 0)
                 .Build();
 
             // If allowed, test behavior
@@ -2029,8 +2029,8 @@ public class LSProcessingSystemTests {
         // Test success threshold greater than child count
         var context = new LSProcessTreeBuilder()
             .Parallel("root", par => par
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler2), 5) // requires 5 but only has 2 children
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler2), 5) // requires 5 but only has 2 children
             .Build();
 
         var mockEvent2 = new MockProcess();
@@ -2042,7 +2042,7 @@ public class LSProcessingSystemTests {
 
         // Test zero thresholds work
         var context3 = new LSProcessTreeBuilder()
-            .Parallel("root", par => par.Execute("handler", _mockHandler1), 0, 0)
+            .Parallel("root", par => par.Handler("handler", _mockHandler1), 0, 0)
             .Build();
 
         var result3 = new LSProcessSession(mockEvent2, context3).Execute();
@@ -2074,7 +2074,7 @@ public class LSProcessingSystemTests {
     [Test]
     public void TestProcessContextNullEventHandling() {
         var context = new LSProcessTreeBuilder()
-            .Sequence("root", seq => seq.Execute("handler", _mockHandler1))
+            .Sequence("root", seq => seq.Handler("handler", _mockHandler1))
             .Build();
 
         // Test null event - system might accept it
@@ -2129,14 +2129,14 @@ public class LSProcessingSystemTests {
 
         // Test building twice should NOT work (builder should NOT be reusable)
         var context1 = builder
-            .Sequence("root", seq => seq.Execute("handler", _mockHandler1))
+            .Sequence("root", seq => seq.Handler("handler", _mockHandler1))
             .Build();
         Assert.That(context1, Is.Not.Null);
 
         // Test that builder can NOT be reused
         Assert.Throws<LSException>(() => {
             var context2 = builder
-                .Selector("root2", sel => sel.Execute("handler2", _mockHandler2))
+                .Selector("root2", sel => sel.Handler("handler2", _mockHandler2))
                 .Build();
         });
     }
@@ -2147,15 +2147,15 @@ public class LSProcessingSystemTests {
 
         var context = new LSProcessTreeBuilder()
             .Selector("root", sel => sel
-                .Execute("failingHandler", (evt, node) => {
+                .Handler("failingHandler", (evt, node) => {
                     executionResults.Add("FAILED");
                     return LSProcessResultStatus.FAILURE;
                 })
-                .Execute("workingHandler", (evt, node) => {
+                .Handler("workingHandler", (evt, node) => {
                     executionResults.Add("SUCCESS");
                     return LSProcessResultStatus.SUCCESS;
                 })
-                .Execute("fallbackHandler", (evt, node) => {
+                .Handler("fallbackHandler", (evt, node) => {
                     executionResults.Add("FALLBACK");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -2201,8 +2201,8 @@ public class LSProcessingSystemTests {
     public void TestSequenceNodeStateTransitions() {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler2))
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler2))
             .Build();
 
         // Initial state should be UNKNOWN
@@ -2225,8 +2225,8 @@ public class LSProcessingSystemTests {
 
         var context = new LSProcessTreeBuilder()
             .Selector("selectorRoot", sel => sel
-                .Execute("failingHandler", freshHandler1)
-                .Execute("successHandler", freshHandler2))
+                .Handler("failingHandler", freshHandler1)
+                .Handler("successHandler", freshHandler2))
             .Build();
 
         // Check initial state - might be affected by previous tests if builder caches nodes
@@ -2246,8 +2246,8 @@ public class LSProcessingSystemTests {
     public void TestParallelNodeStateTransitions() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", par => par
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler2), 2) // both must succeed
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler2), 2) // both must succeed
             .Build();
 
         Assert.That(context.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
@@ -2293,8 +2293,8 @@ public class LSProcessingSystemTests {
     public void TestCancelledStateTransitions() {
         var context = new LSProcessTreeBuilder()
             .Sequence("cancelRoot", seq => seq
-                .Execute("cancelHandler1", _mockHandler1)
-                .Execute("cancelHandler2", _mockHandler2))
+                .Handler("cancelHandler1", _mockHandler1)
+                .Handler("cancelHandler2", _mockHandler2))
             .Build();
 
         var initialStatus = context.GetNodeStatus();
@@ -2368,11 +2368,11 @@ public class LSProcessingSystemTests {
         var context = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
                 .Selector("selector1", sel => sel
-                    .Execute("fail1", (evt, node) => LSProcessResultStatus.FAILURE)
-                    .Execute("success1", _mockHandler1))
+                    .Handler("fail1", (evt, node) => LSProcessResultStatus.FAILURE)
+                    .Handler("success1", _mockHandler1))
                 .Parallel("parallel1", par => par
-                    .Execute("handler1", _mockHandler1)
-                    .Execute("handler2", _mockHandler2), 2))
+                    .Handler("handler1", _mockHandler1)
+                    .Handler("handler2", _mockHandler2), 2))
             .Build();
 
         // Test initial state
@@ -2446,13 +2446,13 @@ public class LSProcessingSystemTests {
     public void TestContextManagerRegistrationAndRetrieval() {
         LSProcessManager.Singleton.Register<MockProcess>(root => root
             .Sequence("seq", seq => seq
-                .Execute("handler1", _mockHandler1)
-                .Execute("handler2", _mockHandler2))
+                .Handler("handler1", _mockHandler1)
+                .Handler("handler2", _mockHandler2))
         );
         LSProcessManager.Singleton.Register<MockProcess>(root => root
             .Selector("sel", sel => sel
-                .Execute("handler3", _mockHandler1)
-                .Execute("handler4", _mockHandler2))
+                .Handler("handler3", _mockHandler1)
+                .Handler("handler4", _mockHandler2))
         );
 
         var root = LSProcessManager.Singleton.GetRootNode<MockProcess>();
@@ -2466,8 +2466,8 @@ public class LSProcessingSystemTests {
         var mockEvent = new MockProcess();
         var result = mockEvent.WithProcessing(s => s
             .Sequence("seq", seq => seq
-                .Execute("handler5", _mockHandler1)
-                .Execute("handler6", _mockHandler2))
+                .Handler("handler5", _mockHandler1)
+                .Handler("handler6", _mockHandler2))
         ).Execute();
 
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
