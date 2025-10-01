@@ -214,7 +214,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// Processes this handler node by executing its associated handler delegate.
     /// Implements single-execution semantics for terminal states while allowing re-processing for WAITING states.
     /// </summary>
-    /// <param name="context">The processing session containing the current process and system state.</param>
+    /// <param name="session">The processing session containing the current process and system state.</param>
     /// <returns>The processing status after handler execution.</returns>
     /// <remarks>
     /// <para>
@@ -244,18 +244,18 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// is shared across clones for accurate system-wide statistics.
     /// </para>
     /// </remarks>
-    LSProcessResultStatus ILSProcessNode.Execute(LSProcessSession context) {
+    LSProcessResultStatus ILSProcessNode.Execute(LSProcessSession session) {
         // Terminal state check - return cached status for completed nodes
         if (_nodeStatus != LSProcessResultStatus.UNKNOWN && _nodeStatus != LSProcessResultStatus.WAITING) {
             return _nodeStatus; // Already completed with terminal status
         }
 
         // Execute the handler delegate with current process and session context
-        var nodeStatus = _handler(context.Current, context);
-        
+        var nodeStatus = _handler(session.Process, session);
+
         // Increment execution count for analytics (shared across clones via base node)
         ExecutionCount++;
-        
+
         // Apply inversion logic if WithInverter is enabled
         if (nodeStatus == LSProcessResultStatus.SUCCESS)
             nodeStatus = _nodeSuccess;
@@ -294,7 +294,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
         if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
             return _nodeStatus; // Cannot resume from terminal states
         }
-        
+
         // Transition to SUCCESS status (external operation completed successfully)
         _nodeStatus = LSProcessResultStatus.SUCCESS;
         return _nodeStatus;
@@ -327,7 +327,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
         if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
             return _nodeStatus; // Cannot fail from terminal states
         }
-        
+
         // Transition to FAILURE status (external operation failed or timed out)
         _nodeStatus = LSProcessResultStatus.FAILURE;
         return _nodeStatus;

@@ -62,7 +62,7 @@ public interface ILSProcess {
     /// <returns>The data cast to the specified type.</returns>
     /// <exception cref="KeyNotFoundException">Thrown when the specified key is not found.</exception>
     /// <exception cref="InvalidCastException">Thrown when the stored data cannot be cast to the specified type.</exception>
-    T GetData<T>(string key);
+    T? GetData<T>(string key);
 
     /// <summary>
     /// Attempts to retrieve strongly-typed data associated with this process.
@@ -72,7 +72,7 @@ public interface ILSProcess {
     /// <param name="key">The key used to store the data.</param>
     /// <param name="value">When this method returns, contains the retrieved value if successful, or the default value for T if unsuccessful.</param>
     /// <returns>true if the data was found and successfully cast to the specified type; otherwise, false.</returns>
-    bool TryGetData<T>(string key, out T value);
+    bool TryGetData<T>(string key, out T? value);
 
     /// <summary>
     /// Configures or extends the processing tree for this process using a builder action.

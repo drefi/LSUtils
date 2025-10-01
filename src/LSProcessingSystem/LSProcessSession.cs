@@ -22,17 +22,6 @@ using System.Linq;
 /// </remarks>
 public class LSProcessSession {
 
-    /// <summary>
-    /// The process being executed by this session.
-    /// Contains all process data and metadata needed for processing decisions.
-    /// </summary>
-    /// <value>The ILSProcess instance being executed. This property is read-only after construction.</value>
-    /// <remarks>
-    /// <b>Process Access:</b><br/>
-    /// Nodes can access process data through this property during Execute, Resume, Fail, and Cancel operations. The process instance provides context for condition evaluation and processing logic.
-    /// </remarks>
-    public ILSProcess Current { get; }
-
     // NOTE: The node-based architecture eliminates the need for callbacks;
     // any desired behavior can be implemented using nodes and their composition.
     /// <summary>
@@ -62,6 +51,19 @@ public class LSProcessSession {
     ILSProcessNode _rootNode;
 
     /// <summary>
+
+    /// <summary>
+    /// The process being executed by this session.
+    /// Contains all process data and metadata needed for processing decisions.
+    /// </summary>
+    /// <value>The ILSProcess instance being executed. This property is read-only after construction.</value>
+    /// <remarks>
+    /// <b>Process Access:</b><br/>
+    /// Nodes can access process data through this property during Execute, Resume, Fail, and Cancel operations. The process instance provides context for condition evaluation and processing logic.
+    /// </remarks>
+    public ILSProcess Process { get; }
+    internal Stack<ILSProcessNode> _sessionStack = new Stack<ILSProcessNode>();
+    public ILSProcessNode? CurrentNode => _sessionStack.Count > 0 ? _sessionStack.Peek() : null;
     /// Gets the current cancellation state of this processing session.
     /// </summary>
     /// <value>True if processing has been cancelled, false otherwise.</value>
@@ -76,7 +78,7 @@ public class LSProcessSession {
     /// <summary>
     /// Initializes a new processing session for the specified process and root node.
     /// </summary>
-    /// <param name="current">The process to be executed.</param>
+    /// <param name="process">The process to be executed.</param>
     /// <param name="rootNode">The root node that will coordinate processing.</param>
     /// <remarks>
     /// <b>Infrastructure Creation:</b><br/>
@@ -85,8 +87,8 @@ public class LSProcessSession {
     /// <b>Initial State:</b><br/>
     /// The session starts in a non-cancelled state with the provided process and root node ready for execution.
     /// </remarks>
-    internal LSProcessSession(ILSProcess current, ILSProcessNode rootNode) {
-        Current = current;
+    internal LSProcessSession(ILSProcess process, ILSProcessNode rootNode) {
+        Process = process;
         _rootNode = rootNode;
     }
 
@@ -107,7 +109,10 @@ public class LSProcessSession {
     /// </remarks>
     internal LSProcessResultStatus Execute() {
         //System.Console.WriteLine($"[LSEventProcessContext] Processing root node '{_rootNode.NodeID}'...");
+        _sessionStack.Push(_rootNode);
         var result = _rootNode.Execute(this);
+        _sessionStack.Pop();
+
         if (result == LSProcessResultStatus.CANCELLED) {
             _isCancelled = true;
             //System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");

@@ -251,14 +251,15 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         return GetNodeStatus(); //we return the current selector status, it may be SUCCESS if any child succeeded
     }
 
-    LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession context) {
-        return _currentChild?.Cancel(context) ?? LSProcessResultStatus.CANCELLED;
+    LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
+        return _currentChild?.Cancel(session) ?? LSProcessResultStatus.CANCELLED;
+        //return _currentChild?.Cancel(session) ?? LSProcessResultStatus.CANCELLED;
     }
 
     /// <summary>
     /// Processes this selector node using sequential OR logic until the first child succeeds.
     /// </summary>
-    /// <param name="context">The processing context containing the event and execution environment.</param>
+    /// <param name="session">The processing context containing the event and execution environment.</param>
     /// <returns>The final processing status of this selector node.</returns>
     /// <remarks>
     /// <b>Selector Processing Algorithm (OR Logic):</b><br/>
@@ -285,9 +286,9 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// • <b>CANCELLED:</b> Terminates processing and clears remaining stack<br/>
     /// • <b>State Preservation:</b> Processing state maintained across multiple calls
     /// </remarks>
-    public LSProcessResultStatus Execute(LSProcessSession context) {
+    public LSProcessResultStatus Execute(LSProcessSession session) {
         //System.Console.WriteLine($"[LSEventSelectorNode] Processing selector node [{NodeID}] selectorStatus: <{selectorStatus}>");
-        if (!LSProcessConditions.IsMet(context.Current, this)) return _nodeSuccess;
+        if (!LSProcessConditions.IsMet(session.Process, this)) return _nodeSuccess;
 
 
         // we should not need to check for CANCELLED. this is handled when calling the child.Process
@@ -297,7 +298,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         if (_isProcessing == false) {
             // will only process children that meet conditions
             // children ordered by Priority (critical first) and Order (lowest first)
-            _availableChildren = _children.Values.Where(c => LSProcessConditions.IsMet(context.Current, c)).OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
+            _availableChildren = _children.Values.Where(c => LSProcessConditions.IsMet(session.Process, c)).OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
             // Initialize the stack 
             _processStack = new Stack<ILSProcessNode>(_availableChildren);
             _isProcessing = true;
@@ -318,7 +319,9 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
             // no more need to check for condition, we already filtered children that meet conditions during stack initialization
 
             // process the child
-            var currentChildStatus = _currentChild.Execute(context); //child status will only be used to update the selector state
+            session._sessionStack.Push(_currentChild);
+            var currentChildStatus = _currentChild.Execute(session); //child status will only be used to update the selector state
+            session._sessionStack.Pop();
             selectorStatus = GetNodeStatus();
             //System.Console.WriteLine($"[LSEventSelectorNode] Child node [{_currentChild.NodeID}] processed with status <{currentChildStatus}> selectorStatus: <{selectorStatus}>.");
             if (currentChildStatus == LSProcessResultStatus.WAITING) return LSProcessResultStatus.WAITING;

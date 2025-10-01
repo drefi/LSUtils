@@ -37,6 +37,7 @@ namespace LSUtils.Processing;
 /// </list>
 /// </remarks>
 public interface ILSProcessable {
+    public const string ID_LABEL = "id";
     /// <summary>
     /// Unique identifier for this processable entity.
     /// Used by the processing system to associate contexts, lookup registered workflows,

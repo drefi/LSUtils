@@ -228,7 +228,8 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
 
     /// <inheritdoc />
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession context) {
-        return _currentChild?.Cancel(context) ?? LSProcessResultStatus.CANCELLED;
+        //return _currentChild?.Cancel(context) ?? LSProcessResultStatus.CANCELLED;
+        return context.CurrentNode?.Cancel(context) ?? LSProcessResultStatus.CANCELLED;
     }
 
 
@@ -259,7 +260,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// Processes this sequence node and its children using the unified layer node processing pattern.
     /// Implements sequential AND logic where all children must succeed for the sequence to succeed.
     /// </summary>
-    /// <param name="context">The processing context containing the event and system state.</param>
+    /// <param name="session">The processing context containing the event and system state.</param>
     /// <returns>The processing status after sequence processing.</returns>
     /// <remarks>
     /// <b>Processing Algorithm:</b><br/>
@@ -281,9 +282,9 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <b>State Persistence:</b><br/>
     /// Once _isProcessing is set to true, it never resets, ensuring processing consistency and preventing child modification during active processing.
     /// </remarks>
-    public LSProcessResultStatus Execute(LSProcessSession context) {
+    public LSProcessResultStatus Execute(LSProcessSession session) {
         //System.Console.WriteLine($"[LSEventSequenceNode] Processing sequence node [{NodeID}]");
-        if (!LSProcessConditions.IsMet(context.Current, this)) return _nodeSuccess;
+        if (!LSProcessConditions.IsMet(session.Process, this)) return _nodeSuccess;
 
         // we should not need to check for CANCELLED. this is handled when calling the child.Process
 
@@ -293,7 +294,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
             // will only process children that meet conditions
             // children ordered by Priority (critical first) and Order (lowest first)
             _availableChildren = _children.Values.Where(c =>
-                LSProcessConditions.IsMet(context.Current, c))
+                LSProcessConditions.IsMet(session.Process, c))
             .OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
             // Initialize the stack 
             _processStack = new Stack<ILSProcessNode>(_availableChildren);
@@ -303,11 +304,11 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
         }
 
         var sequenceStatus = GetNodeStatus();
-        // success condition: all children have been processed, no _currentNode
+        // success condition: all children have been processed, no CurrentNode
         if (_currentChild == null) {
             // no children to process, we are done
             //System.Console.WriteLine($"[LSEventSequenceNode] No children to process for node {NodeID}, marking as SUCCESS.");
-            // we keep processing the current node if available, otherwise we are done
+            // we keep processing the CurrentNode if available, otherwise we are done
             if (sequenceStatus != _nodeSuccess) {
                 // this should never be the case
                 System.Console.WriteLine($"[LSEventSequenceNode] Warning: Sequence node [{NodeID}] has no children to process but status is <{sequenceStatus}>");
@@ -319,7 +320,9 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
             //System.Console.WriteLine($"[LSEventSequenceNode] Processing child node [{_currentChild.NodeID}].");
 
             // process the child
-            var currentChildStatus = _currentChild.Execute(context);
+            session._sessionStack.Push(_currentChild);
+            var currentChildStatus = _currentChild.Execute(session);
+            session._sessionStack.Pop();
             sequenceStatus = GetNodeStatus();
             //System.Console.WriteLine($"[LSEventSequenceNode] Child node [{_currentChild.NodeID}] processed with status <{currentChildStatus}> sequenceStatus: <{sequenceStatus}>.");
             if (currentChildStatus == LSProcessResultStatus.WAITING) return LSProcessResultStatus.WAITING;

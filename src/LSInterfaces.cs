@@ -6,7 +6,8 @@ public interface ILSClass {
     /// <summary>
     /// Gets the class name of the eventable.
     /// </summary>
-    string ClassName { get; }
+    static virtual string ClassName { get; } = typeof(ILSClass).AssemblyQualifiedName ?? string.Empty;
+    const string CLASS_NAME_LABEL = "class_name";
 }
 
 public interface ILSSerializer : ILSClass {

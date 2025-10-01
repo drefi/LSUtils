@@ -96,7 +96,7 @@ public abstract class LSProcess : ILSProcess {
     /// <returns>The data cast to the specified type.</returns>
     /// <exception cref="KeyNotFoundException">Thrown when the specified key is not found.</exception>
     /// <exception cref="InvalidCastException">Thrown when the stored data cannot be cast to the specified type.</exception>
-    public virtual T GetData<T>(string key) {
+    public virtual T? GetData<T>(string key) {
         if (_data.TryGetValue(key, out var value)) {
             if (value is T tValue) {
                 return tValue;
@@ -231,7 +231,7 @@ public abstract class LSProcess : ILSProcess {
     /// <param name="key">The key used to store the data.</param>
     /// <param name="value">When this method returns, contains the retrieved value if successful, or the default value for T if unsuccessful.</param>
     /// <returns>true if the data was found and successfully cast to the specified type; otherwise, false.</returns>
-    public virtual bool TryGetData<T>(string key, out T value) {
+    public virtual bool TryGetData<T>(string key, out T? value) {
         if (_data.TryGetValue(key, out var objValue)) {
             if (objValue is T tValue) {
                 value = tValue;
