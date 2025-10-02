@@ -1,5 +1,4 @@
 namespace LSUtils.Processing;
-
 /// <summary>
 /// Extended interface for composite nodes that can contain and manage child nodes in the process execution hierarchy.
 /// Implements the Composite Pattern by extending ILSProcessNode with child management capabilities.
@@ -69,7 +68,6 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// </list>
     /// </remarks>
     void AddChild(ILSProcessNode child);
-    
     /// <summary>
     /// Retrieves a child node by its unique identifier.
     /// </summary>
@@ -77,7 +75,6 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// <returns>The child node with the specified ID, or null if not found.</returns>
     /// <remarks>This operation is O(1) due to dictionary-based storage.</remarks>
     ILSProcessNode? GetChild(string nodeID);
-    
     /// <summary>
     /// Checks whether a child node with the specified ID exists in this layer node.
     /// </summary>
@@ -85,7 +82,7 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// <returns>True if a child with the specified ID exists, false otherwise.</returns>
     /// <remarks>This operation is O(1) and is useful for conditional child access.</remarks>
     bool HasChild(string nodeID);
-    
+
     /// <summary>
     /// Returns an array containing all child nodes in this layer node.
     /// Used for navigation, cloning, and status aggregation operations.
@@ -115,7 +112,6 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// </list>
     /// </remarks>
     ILSProcessNode[] GetChildren();
-    
     /// <summary>
     /// Removes a child node from this layer node's collection.
     /// </summary>
@@ -126,7 +122,6 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// <para><strong>Status Impact:</strong> Removing children may affect the parent node's aggregated status.</para>
     /// </remarks>
     bool RemoveChild(string nodeID);
-    
     /// <summary>
     /// Creates an independent copy of this layer node and its entire child hierarchy.
     /// </summary>

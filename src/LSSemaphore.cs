@@ -1,8 +1,7 @@
-using System.Collections.Generic;
-using System.Linq;
-
 namespace LSUtils;
 
+using System.Collections.Generic;
+using System.Linq;
 /// <summary>
 /// A thread-safe semaphore implementation that manages a queue of signal IDs and provides
 /// synchronization capabilities with failure handling and cancellation support.

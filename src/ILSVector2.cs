@@ -1,11 +1,8 @@
-using System;
-
 namespace LSUtils;
-
 /// <summary>
 /// Represents a 2D vector with various mathematical operations.
 /// </summary>
-public interface ILSVector2 : IEquatable<ILSVector2> {
+public interface ILSVector2 : System.IEquatable<ILSVector2> {
     // Properties
     float X { get; }
     float Y { get; }

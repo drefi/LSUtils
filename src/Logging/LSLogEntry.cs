@@ -97,14 +97,15 @@ public readonly struct LSLogEntry {
         ProcessId = processId;
     }
 
+    public static int SourcePadding { get; set; } = 10;
+    public static int LevelPadding { get; set; } = 9;
     /// <summary>
     /// Creates a formatted string representation of this log entry.
     /// </summary>
-    public static int SourcePadding { get; set; } = 15;
     public override string ToString() {
-        var levelStr = Level.ToString().PadRight(5);
+        var levelStr = Level.ToString().PadLeft(LevelPadding - 1).PadRight(LevelPadding);
         var timeStr = Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff");
-        var sourceStr = Source == null ? "" : $" [{Source?.PadRight(SourcePadding)}]";
+        var sourceStr = Source == null ? "" : $" [{Source?.PadLeft(SourcePadding - 1).PadRight(SourcePadding)}]";
 
         var result = $"{timeStr} [{levelStr}]{sourceStr}: {Message}";
 

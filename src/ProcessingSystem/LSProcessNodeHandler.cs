@@ -1,7 +1,5 @@
-using System.Linq;
-
 namespace LSUtils.Processing;
-
+using System.Linq;
 /// <summary>
 /// Leaf node implementation that executes process handler delegates in the LSProcessing system hierarchy.
 /// Represents the concrete processing units that perform actual business logic within the processing pipeline.
@@ -61,7 +59,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </para>
     /// </remarks>
     protected LSProcessNodeHandler? _baseNode;
-
     /// <summary>
     /// Local execution count for this specific node instance.
     /// Used when this node is not a clone (no base node reference).
@@ -71,7 +68,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// the clones will reference the original's execution count through the base node reference.
     /// </remarks>
     protected int _executionCount = 0;
-
     /// <summary>
     /// The handler delegate that contains the actual business logic to be executed.
     /// This delegate is invoked when the node is processed and determines the processing outcome.
@@ -81,16 +77,12 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// allowing it to access process data and node metadata for decision-making.
     /// </remarks>
     protected LSProcessHandler _handler;
-
     /// <inheritdoc />
     public string NodeID { get; }
-
     /// <inheritdoc />
     public LSProcessPriority Priority { get; }
-
     /// <inheritdoc />
     public LSProcessNodeCondition? Conditions { get; }
-
     /// <summary>
     /// Gets a value indicating whether this handler node inverts success/failure logic.
     /// When true, SUCCESS results from the handler are treated as FAILURE and vice versa.
@@ -110,19 +102,16 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </para>
     /// </remarks>
     public bool WithInverter { get; } = false;
-
     /// <summary>
     /// Gets the effective SUCCESS status considering the WithInverter property.
     /// Returns FAILURE when WithInverter is true, SUCCESS otherwise.
     /// </summary>
     protected LSProcessResultStatus _nodeSuccess => WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
-
     /// <summary>
     /// Gets the effective FAILURE status considering the WithInverter property.
     /// Returns SUCCESS when WithInverter is true, FAILURE otherwise.
     /// </summary>
     protected LSProcessResultStatus _nodeFailure => WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
-
     /// <summary>
     /// Gets or sets the execution count, automatically delegating to the base node if this is a clone.
     /// Provides shared execution statistics across all clones of a handler node.
@@ -147,7 +136,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
             }
         }
     }
-
     /// <inheritdoc />
     /// <remarks>
     /// Order is set during registration in the processing system, starts at 0 and increases 
@@ -185,14 +173,12 @@ public class LSProcessNodeHandler : ILSProcessNode {
         _handler = handler;
         Order = order;
         WithInverter = withInverter;
-        Conditions = LSProcessNodeExtensions.UpdateConditions(true, null, conditions);
+        Conditions = LSProcessConditions.UpdateConditions(true, null, conditions);
     }
-
     /// <inheritdoc />
     public LSProcessResultStatus GetNodeStatus() {
         return _nodeStatus;
     }
-
     /// <summary>
     /// Current processing status of this handler node.
     /// Cached after first execution to ensure idempotency for terminal states.
@@ -209,7 +195,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </para>
     /// </remarks>
     LSProcessResultStatus _nodeStatus = LSProcessResultStatus.UNKNOWN;
-
     /// <summary>
     /// Processes this handler node by executing its associated handler delegate.
     /// Implements single-execution semantics for terminal states while allowing re-processing for WAITING states.
@@ -249,27 +234,22 @@ public class LSProcessNodeHandler : ILSProcessNode {
         if (_nodeStatus != LSProcessResultStatus.UNKNOWN && _nodeStatus != LSProcessResultStatus.WAITING) {
             return _nodeStatus; // Already completed with terminal status
         }
-
         // Execute the handler delegate with current process and session context
         var nodeStatus = _handler(session.Process, session);
-
         // Increment execution count for analytics (shared across clones via base node)
         ExecutionCount++;
-
         // Apply inversion logic if WithInverter is enabled
         if (nodeStatus == LSProcessResultStatus.SUCCESS)
             nodeStatus = _nodeSuccess;
         else if (nodeStatus == LSProcessResultStatus.FAILURE)
             nodeStatus = _nodeFailure;
         // WAITING and CANCELLED statuses are not inverted
-
         // Only update _nodeStatus if it was UNKNOWN (preserves Resume/Fail operations)
         if (_nodeStatus == LSProcessResultStatus.UNKNOWN)
             _nodeStatus = nodeStatus;
 
         return _nodeStatus;
     }
-
     /// <summary>
     /// Resumes processing for this handler node from WAITING state.
     /// Transitions the node from WAITING to SUCCESS, allowing processing to continue.
@@ -299,7 +279,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
         _nodeStatus = LSProcessResultStatus.SUCCESS;
         return _nodeStatus;
     }
-
     /// <summary>
     /// Forces this handler node to transition from WAITING state to FAILURE.
     /// Used when external operations fail or timeout, requiring the handler to fail.
@@ -332,7 +311,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
         _nodeStatus = LSProcessResultStatus.FAILURE;
         return _nodeStatus;
     }
-
     /// <summary>
     /// Cancels processing for this handler node, setting its status to CANCELLED.
     /// This operation is always successful and provides a terminal state.
@@ -349,7 +327,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
         _nodeStatus = LSProcessResultStatus.CANCELLED;
         return _nodeStatus;
     }
-
     /// <summary>
     /// Creates a clone of this handler node that shares execution count with the original.
     /// The clone maintains independent processing state while sharing execution statistics.
@@ -375,7 +352,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
     public ILSProcessNode Clone() {
         return new LSProcessNodeHandler(NodeID, _handler, Order, Priority, this, WithInverter, Conditions);
     }
-
     /// <summary>
     /// Factory method for creating a new handler node with the specified configuration.
     /// Provides a convenient way to create handler nodes without exposing the protected constructor.

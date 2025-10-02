@@ -1,7 +1,7 @@
-using System.Collections.Generic;
-using System.Linq;
 namespace LSUtils.Processing;
 
+using System.Collections.Generic;
+using System.Linq;
 /// <summary>
 /// Represents a parallel processing node that executes multiple child nodes simultaneously with threshold-based success/failure conditions.
 /// Implements configurable parallel execution patterns within the LSProcessing system hierarchy.
@@ -57,42 +57,32 @@ namespace LSUtils.Processing;
 public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// <inheritdoc />
     int ILSProcessNode.ExecutionCount => throw new System.NotImplementedException("ExecutionCount is tracked only in handler node.");
-
     /// <summary>
     /// Collection of all child nodes indexed by their NodeID for efficient lookup and management.
     /// </summary>
     protected Dictionary<string, ILSProcessNode> _children = new();
-
     /// <summary>
     /// Processing stack used for unified pattern consistency. In parallel nodes, used for initialization tracking.
     /// </summary>
     protected Stack<ILSProcessNode> _processStack = new();
-
     /// <summary>
     /// List of children that meet execution conditions, filtered and cached during first processing call.
     /// All children in this list are processed simultaneously during each Process() call.
     /// </summary>
     protected IEnumerable<ILSProcessNode> _availableChildren = new List<ILSProcessNode>();
-
     /// <summary>
     /// Flag indicating whether processing has been initialized to prevent re-filtering children.
     /// </summary>
     protected bool _isProcessing = false;
-
     /// <inheritdoc />
     public string NodeID { get; }
-
     /// <inheritdoc />
     public LSProcessPriority Priority { get; internal set; }
-
     /// <inheritdoc />
     public int Order { get; internal set; }
-
     /// <inheritdoc />
     public LSProcessNodeCondition? Conditions { get; internal set; }
-
     public bool WithInverter { get; internal set; }
-
     /// <summary>
     /// Number of child nodes that must reach SUCCESS state for this parallel node to succeed.
     /// </summary>
@@ -107,7 +97,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </para>
     /// </remarks>
     public int NumRequiredToSucceed { get; internal set; }
-
     /// <summary>
     /// Number of child nodes that must reach FAILURE state for this parallel node to fail.
     /// </summary>
@@ -122,7 +111,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </para>
     /// </remarks>
     public int NumRequiredToFailure { get; internal set; }
-
     /// <summary>
     /// Create a new parallel node with threshold-based success/failure conditions.
     /// </summary>
@@ -156,10 +144,8 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
         NumRequiredToSucceed = numRequiredToSucceed;
         NumRequiredToFailure = numRequiredToFailure;
         WithInverter = withInverter;
-        Conditions = LSProcessNodeExtensions.UpdateConditions(true, Conditions, conditions);
+        Conditions = LSProcessConditions.UpdateConditions(true, Conditions, conditions);
     }
-
-
     /// <summary>
     /// Adds a child node to this parallel node's collection.
     /// </summary>
@@ -181,7 +167,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     public void AddChild(ILSProcessNode child) {
         _children[child.NodeID] = child;
     }
-
     /// <summary>
     /// Retrieves a specific child node by its identifier.
     /// </summary>
@@ -190,7 +175,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     public ILSProcessNode? GetChild(string label) {
         return _children.TryGetValue(label, out var child) ? child : null;
     }
-
     /// <summary>
     /// Gets all child nodes as an array.
     /// </summary>
@@ -198,7 +182,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     public ILSProcessNode[] GetChildren() {
         return _children.Values.ToArray();
     }
-
     /// <summary>
     /// Checks if a child node with the specified identifier exists.
     /// </summary>
@@ -207,7 +190,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     public bool HasChild(string label) {
         return _children.ContainsKey(label);
     }
-
     /// <summary>
     /// Removes a child node from this parallel node's collection.
     /// </summary>
@@ -222,7 +204,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     public bool RemoveChild(string label) {
         return _children.Remove(label);
     }
-
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
         var cloned = new LSProcessNodeParallel(NodeID, Order, NumRequiredToSucceed, NumRequiredToFailure, Priority, WithInverter, Conditions);
@@ -232,7 +213,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
         return cloned;
     }
     ILSProcessNode ILSProcessNode.Clone() => Clone();
-
     /// <summary>
     /// Gets the current processing status by aggregating child node statuses according to parallel threshold logic.
     /// </summary>
@@ -296,7 +276,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
 
         return LSProcessResultStatus.FAILURE;
     }
-
     /// <summary>
     /// Propagates failure to specified children or all waiting children according to parallel logic.
     /// </summary>
@@ -346,7 +325,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
         }
         return GetNodeStatus(); // we return the current parallel status.
     }
-
     /// <summary>
     /// Propagates resumption to specified children or all waiting children according to parallel logic.
     /// </summary>
@@ -395,7 +373,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
         }
         return GetNodeStatus(); // we return the current parallel status.
     }
-
     /// <summary>
     /// Cancels all waiting children in this parallel node.
     /// </summary>
@@ -421,7 +398,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
         }
         return LSProcessResultStatus.CANCELLED;
     }
-
     /// <summary>
     /// Processes this parallel node by executing all eligible children simultaneously and evaluating threshold conditions.
     /// </summary>
@@ -479,23 +455,17 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
             _isProcessing = true;
             //System.Console.WriteLine($"[LSEventParallelNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()}.");
         }
-
         // exit condition for parallel is if all children are processed
         if (parallelStatus != LSProcessResultStatus.UNKNOWN) {
             //System.Console.WriteLine($"[LSEventParallelNode] Parallel node {NodeID} already has final status {parallelStatus}, skipping processing.");
             return parallelStatus;
         }
-
-
         foreach (var child in _availableChildren) {
-            //System.Console.WriteLine($"[LSEventParallelNode] Processing child node {child.NodeID}.");
-
             // Process the child
             session._sessionStack.Push(child);
             var childStatus = child.Execute(session);
             session._sessionStack.Pop();
             //System.Console.WriteLine($"[LSEventParallelNode] Child node {child.NodeID} processed with status {childStatus}.");
-
         }
 
         parallelStatus = GetNodeStatus();
@@ -503,13 +473,10 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
             //System.Console.WriteLine($"[LSEventParallelNode] Parallel node {NodeID} completed with status {parallelStatus}.");
             return parallelStatus;
         }
-
-
         // Still processing
         //System.Console.WriteLine($"[LSEventParallelNode] Parallel node {NodeID} still processing parallelStatus: {parallelStatus}.");
         return parallelStatus;
     }
-
     /// <summary>
     /// Creates a new parallel node with the specified threshold configuration.
     /// </summary>
@@ -541,5 +508,4 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     public static LSProcessNodeParallel Create(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
         return new LSProcessNodeParallel(nodeID, order, numRequiredToSucceed, numRequiredToFailure, priority, withInverter, conditions);
     }
-
 }

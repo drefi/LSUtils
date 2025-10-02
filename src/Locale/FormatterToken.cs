@@ -1,9 +1,8 @@
+namespace LSUtils.LSLocale;
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-
-namespace LSUtils.LSLocale;
-
 public class FormatterToken {
     public static string DefaultPattern => @"\{([^}]+)\}";
     #region Fields
@@ -143,11 +142,4 @@ public class FormatterToken {
 
     public static FormatterToken Instantiate(string? pattern = null) => new FormatterToken(string.IsNullOrEmpty(pattern) ? DefaultPattern : pattern);
 
-}
-[System.Flags]
-public enum Languages {
-    NONE,
-    VALUE, //itens marked with VALUE are dynamically added and do not belong to any language
-    EN_US,
-    PT_BR,
 }

@@ -1,7 +1,6 @@
 namespace LSUtils.Processing;
 
 using System.Collections.Generic;
-
 /// <summary>
 /// Core process interface representing an immutable data container with comprehensive state tracking.
 /// Processes serve as data carriers throughout the processing pipeline, providing access to 

@@ -1,7 +1,6 @@
+namespace LSUtils.Processing;
 using System.Collections.Generic;
 using System.Linq;
-namespace LSUtils.Processing;
-
 /// <summary>
 /// Layer node implementation that processes children sequentially with OR logic semantics.
 /// Succeeds when any child succeeds, fails only when all children fail.
@@ -39,53 +38,42 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// Dictionary storing child nodes keyed by their NodeID for O(1) lookup operations.
     /// </summary>
     protected Dictionary<string, ILSProcessNode> _children = new();
-
     /// <summary>
     /// Current child node being processed. Null when no processing is active or processing is complete.
     /// </summary>
     protected ILSProcessNode? _currentChild;
     protected LSProcessResultStatus _nodeSuccess => WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
     protected LSProcessResultStatus _nodeFailure => WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
-
     /// <summary>
     /// Stack containing children to be processed, ordered by priority and execution order.
     /// Provides deterministic LIFO processing sequence.
     /// </summary>
     protected Stack<ILSProcessNode> _processStack = new();
-
     /// <summary>
     /// List of children eligible for processing after condition filtering and priority sorting.
     /// Populated during initialization and used for status aggregation.
     /// </summary>
     protected IEnumerable<ILSProcessNode> _availableChildren = new List<ILSProcessNode>();
-
     /// <summary>
     /// Flag indicating whether processing has been initialized.
     /// Once true, prevents child modification to ensure processing integrity.
     /// </summary>
     protected bool _isProcessing = false;
-
     /// <summary>
     /// Execution count is not tracked at the layer node level.
     /// Only handler nodes track execution statistics.
     /// </summary>
     /// <exception cref="NotImplementedException">Always thrown as layer nodes don't track execution count.</exception>
     int ILSProcessNode.ExecutionCount => throw new System.NotImplementedException("ExecutionCount is tracked only in handler node.");
-
     /// <inheritdoc />
     public string NodeID { get; }
-
     /// <inheritdoc />
     public LSProcessPriority Priority { get; internal set; }
-
     /// <inheritdoc />
     public int Order { get; internal set; }
-
     /// <inheritdoc />
     public LSProcessNodeCondition? Conditions { get; internal set; }
-
     public bool WithInverter { get; internal set; }
-
     /// <summary>
     /// Initializes a new selector node with the specified configuration.
     /// </summary>
@@ -105,9 +93,8 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         Order = order;
         Priority = priority;
         WithInverter = withInverter;
-        Conditions = LSProcessNodeExtensions.UpdateConditions(true, Conditions, conditions);
+        Conditions = LSProcessConditions.UpdateConditions(true, Conditions, conditions);
     }
-
     /// <summary>
     /// Adds a child node to this selector node's collection.
     /// </summary>
@@ -119,7 +106,6 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     public void AddChild(ILSProcessNode child) {
         _children[child.NodeID] = child;
     }
-
     /// <summary>
     /// Removes a child node from this selector node's collection.
     /// </summary>
@@ -128,18 +114,14 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     public bool RemoveChild(string label) {
         return _children.Remove(label);
     }
-
     /// <inheritdoc />
     public ILSProcessNode? GetChild(string label) {
         return _children.TryGetValue(label, out var child) ? child : null;
     }
-
     /// <inheritdoc />
     public bool HasChild(string label) => _children.ContainsKey(label);
-
     /// <inheritdoc />
     public ILSProcessNode[] GetChildren() => _children.Values.ToArray();
-
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
         var cloned = new LSProcessNodeSelector(NodeID, Order, Priority, WithInverter, Conditions);
@@ -149,7 +131,6 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         return cloned;
     }
     ILSProcessNode ILSProcessNode.Clone() => Clone();
-
     /// <summary>
     /// Gets the current processing status by aggregating child node statuses according to selector logic.
     /// </summary>
@@ -195,7 +176,6 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         // check if all children have failed, if so the selector is FAILURE, otherwise cannot be determined
         return _availableChildren.Count() == _availableChildren.Count(c => c.GetNodeStatus() == LSProcessResultStatus.FAILURE) ? _nodeFailure : LSProcessResultStatus.UNKNOWN;
     }
-
     /// <summary>
     /// Propagates failure to waiting children according to selector logic.
     /// </summary>
@@ -223,7 +203,6 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
 
         return GetNodeStatus(); // we return the current selector status.
     }
-
     /// <summary>
     /// Propagates resumption to waiting children according to selector logic.
     /// </summary>
@@ -250,12 +229,10 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         //System.Console.WriteLine($"[LSEventSelectorNode] No child node is in WAITING state, cannot resume selector node {NodeID}.");
         return GetNodeStatus(); //we return the current selector status, it may be SUCCESS if any child succeeded
     }
-
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
         return _currentChild?.Cancel(session) ?? LSProcessResultStatus.CANCELLED;
         //return _currentChild?.Cancel(session) ?? LSProcessResultStatus.CANCELLED;
     }
-
     /// <summary>
     /// Processes this selector node using sequential OR logic until the first child succeeds.
     /// </summary>
@@ -289,10 +266,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     public LSProcessResultStatus Execute(LSProcessSession session) {
         //System.Console.WriteLine($"[LSEventSelectorNode] Processing selector node [{NodeID}] selectorStatus: <{selectorStatus}>");
         if (!LSProcessConditions.IsMet(session.Process, this)) return _nodeSuccess;
-
-
         // we should not need to check for CANCELLED. this is handled when calling the child.Process
-
         // create a stack to process children in order, this stack cannot be re-created after the node is processed.
         // so _isProcessing can never be set to false again after the first initialization
         if (_isProcessing == false) {
@@ -317,7 +291,6 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         do {
             //System.Console.WriteLine($"[LSEventSelectorNode] Processing child node [{_currentChild.NodeID}].");
             // no more need to check for condition, we already filtered children that meet conditions during stack initialization
-
             // process the child
             session._sessionStack.Push(_currentChild);
             var currentChildStatus = _currentChild.Execute(session); //child status will only be used to update the selector state
@@ -350,7 +323,6 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         //System.Console.WriteLine($"[LSEventSelectorNode] Selector node [{NodeID}] finished processing all children. All failed, marking as FAILURE.");
         return failureStatus; // all children failed, selector fails
     }
-
     /// <summary>
     /// Creates a new selector node with the specified configuration.
     /// </summary>

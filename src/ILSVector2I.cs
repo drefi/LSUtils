@@ -1,9 +1,6 @@
-using System;
-
 namespace LSUtils;
 
-public interface ILSVector2I : IEquatable<ILSVector2I>
-{
+public interface ILSVector2I : System.IEquatable<ILSVector2I> {
     /// <summary>
     /// Gets the X component of the vector.
     /// </summary>

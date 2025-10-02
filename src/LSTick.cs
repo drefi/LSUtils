@@ -1,74 +1,60 @@
-using System;
-using LSUtils.Processing;
-
 namespace LSUtils;
 
+using Logging;
+using Processing;
 /// <summary>
 /// Manages clock and notifies any registered listeners when the clock ticks.
 /// </summary>
 public class LSTick : ILSProcessable {
     public static LSTick Singleton { get; } = new LSTick(DEFAULT_TICK_VALUE);
     const float DEFAULT_TICK_VALUE = 1f;
+    public const string START_LABEL = "start";
+    public const string UPDATE_LABEL = "update";
+    public const string PHYSICS_UPDATE_LABEL = "physics_update";
+    public const string DELTA_CHANGE_LABEL = "delta_change";
+    public const string TOGGLE_PAUSE_LABEL = "toggle_pause";
     protected LSProcessManager? _manager;
     protected int _tickCount;
     protected int _resetTickCount;
-    protected bool _hasInitialized;
+    protected bool _isInitialized;
     protected bool _isPaused;
     protected double _tickTimer;
     public readonly float TICK_VALUE;
     public string ClassName => typeof(LSTick).AssemblyQualifiedName ?? nameof(LSTick);
     public System.Guid ID { get; protected set; }
-    public int DeltaFactor { get; protected set; } = 1;
+    public float DeltaFactor { get; protected set; } = 1;
 
     protected LSTick(float tickValue) {
         TICK_VALUE = tickValue;
         ID = System.Guid.NewGuid();
     }
 
-    public LSProcessResultStatus Initialize(LSProcessBuilderAction? ctxBuilder = null, LSProcessManager? manager = null) {
+    public LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null, LSProcessManager? manager = null) {
         _manager = manager;
-        OnInitializeEvent @event = new OnInitializeEvent(this);
-        if (ctxBuilder != null) @event.WithProcessing(ctxBuilder);
-        return @event
-            .WithProcessing(b => b
-                .Handler("initialize", (evt, ctx) => {
-                    _hasInitialized = true;
+        var process = new TickProcess(this, ILSProcessable.INITIALIZE_LABEL);
+        return process
+            .WithProcessing(builder => builder
+                .Handler("isInitialized",
+                handler: (proc, ctx) => {
+                    if (_isInitialized) return LSProcessResultStatus.CANCELLED;
+                    _isInitialized = true;
                     _isPaused = true;
                     _tickCount = 0;
                     _resetTickCount = 0;
                     _tickTimer = 0f;
-                    var result = new OnTickEvent(this, _tickCount).Execute(this, _manager);
                     return LSProcessResultStatus.SUCCESS;
-                }
-            )
+                }, priority: LSProcessPriority.CRITICAL)
+                .Selector(ILSProcessable.INITIALIZE_LABEL,
+                selectorBuilder: initBuilder)
         ).Execute(this, _manager);
     }
-
-    // public EventProcessResult Initialize(LSEventOptions options) {
-    //     Dispatcher = options.Dispatcher;
-    //     return OnInitializeEvent.Create<LSTick>(this, options)
-    //         .OnCompleted((evt) => {
-    //             _hasInitialized = true;
-    //             _isPaused = true;
-    //             _tickCount = 0;
-    //             _resetTickCount = 0;
-    //             _tickTimer = 0f;
-    //             tickEvent(_tickCount, new LSEventOptions(options.Dispatcher, this));
-    //         })
-    //         .Dispatch();
-    // }
-
-    // protected EventProcessResult tickEvent(int tickCount, LSEventOptions? options) {
-    //     var @event = new OnTickEvent(this, tickCount, options);
-    //     return @event.Dispatch();
-    // }
     /// <summary>
     /// Updates the tick count and notifies listeners of tick updates.
     /// </summary>
     /// <param name="delta">The time since the last update.</param>
     /// <exception cref="LSException">Thrown if any errors occur during the update.</exception>
     public void Update(double delta) {
-        if (_hasInitialized == false || _isPaused) return;
+        if (_isInitialized == false || _isPaused) return;
 
         double deltaTick = (float)delta * DeltaFactor;
         _tickTimer += deltaTick;
@@ -81,8 +67,15 @@ public class LSTick : ILSProcessable {
                 _resetTickCount++;
                 _tickCount = 0;
             }
-            var result = new OnTickEvent(this, _tickCount).Execute(this, _manager);
-            //tickEvent(_tickCount, new LSEventOptions(Dispatcher, this));
+            var process = new TickProcess(this, UPDATE_LABEL);
+            process.SetData("tickCount", _tickCount);
+            process.WithProcessing(builder => builder
+                .Selector(UPDATE_LABEL, selectorBuilder: builder => builder,
+                priority: LSProcessPriority.LOW,
+                withInverter: false,
+                overrideConditions: true,
+                conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == UPDATE_LABEL)
+            ).Execute(this, _manager);
         }
     }
 
@@ -93,7 +86,7 @@ public class LSTick : ILSProcessable {
     /// <exception cref="LSException">Thrown if any errors occur during the update.</exception>
     public void PhysicsUpdate(double delta) {
         float percentage = (float)(_tickTimer / TICK_VALUE);
-        if (_hasInitialized == false || _isPaused) return;
+        if (_isInitialized == false || _isPaused) return;
         double deltaTick = (float)delta * DeltaFactor;
     }
     /// <summary>
@@ -104,10 +97,31 @@ public class LSTick : ILSProcessable {
     /// </remarks>
     /// <exception cref="LSException">Thrown if the tick manager has not been initialized.</exception>
     public void Start() {
-        if (_hasInitialized == false) {
-            throw new LSException($"{ClassName}::Start::not_initialized");
-        }
-        _isPaused = false;
+        // if (_isInitialized == false) {
+        //     throw new LSException($"{ClassName}::Start::not_initialized");
+        // }
+        // _isPaused = false;
+        var process = new TickProcess(this, START_LABEL);
+        var result = process.WithProcessing(
+            builder => builder
+                .Handler("isInitialized",
+                    handler: (proc, ctx) => {
+                        if (_isInitialized == false) {
+                            LSLogger.Singleton.Warning($"Tick Manager is not initialized.", $"{nameof(LSTick)}.Start", proc.ID);
+                            return LSProcessResultStatus.CANCELLED;
+                        }
+                        _isPaused = false;
+                        LSLogger.Singleton.Info($"Tick Manager started.", $"{nameof(LSTick)}.Start", proc.ID);
+                        return LSProcessResultStatus.SUCCESS;
+                    },
+                    priority: LSProcessPriority.CRITICAL)
+                .Selector(START_LABEL,
+                    selectorBuilder: builder => builder,
+                    priority: LSProcessPriority.NORMAL,
+                    withInverter: false,
+                    overrideConditions: true,
+                    conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == START_LABEL)
+            ).Execute(this, _manager);
     }
 
     /// <summary>
@@ -117,9 +131,30 @@ public class LSTick : ILSProcessable {
     /// If the tick manager has not been initialized, this method does nothing.
     /// </remarks>
     public void TogglePause() {
-        if (_hasInitialized == false) return;
-        _isPaused = !_isPaused;
-        var result = new OnTogglePauseEvent(this, _isPaused).Execute(this, _manager);
+        // if (_isInitialized == false) return;
+        // _isPaused = !_isPaused;
+        // var result = new OnTogglePauseEvent(this, _isPaused).Execute(this, _manager);
+        var process = new TickProcess(this, START_LABEL);
+        var result = process.WithProcessing(
+            builder => builder
+                .Handler("isInitialized",
+                    handler: (proc, ctx) => {
+                        if (_isInitialized == false) {
+                            LSLogger.Singleton.Warning($"Tick Manager is not initialized.", $"{nameof(LSTick)}.TogglePause", proc.ID);
+                            return LSProcessResultStatus.CANCELLED;
+                        }
+                        _isPaused = !_isPaused;
+                        LSLogger.Singleton.Info($"Tick Manager {(_isPaused ? "paused" : "resumed")}.", $"{nameof(LSTick)}.TogglePause", proc.ID);
+                        return LSProcessResultStatus.SUCCESS;
+                    },
+                    priority: LSProcessPriority.CRITICAL)
+                .Selector(START_LABEL,
+                    selectorBuilder: builder => builder,
+                    priority: LSProcessPriority.NORMAL,
+                    withInverter: false,
+                    overrideConditions: true,
+                    conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == START_LABEL)
+            ).Execute(this, _manager);
     }
 
     /// <summary>
@@ -127,55 +162,53 @@ public class LSTick : ILSProcessable {
     /// 
     /// </summary>
     /// <param name="value">The new delta factor to set.</param>
-    public void SetDeltaFactor(int value) {
-        if (DeltaFactor == value) return;
-        DeltaFactor = value;
-        var result = new OnChangeDeltaFactorEvent(this, DeltaFactor, _isPaused).Execute(this, _manager);
+    public void SetDeltaFactor(float value) {
+        // if (DeltaFactor == value) return;
+        // DeltaFactor = value;
+        // var result = new OnChangeDeltaFactorEvent(this, DeltaFactor, _isPaused).Execute(this, _manager);
+        var process = new TickProcess(this, DELTA_CHANGE_LABEL);
+        process.SetData("oldDeltaFactor", DeltaFactor);
+        process.SetData("newDeltaFactor", value);
+        var result = process.WithProcessing(
+            builder => builder
+                .Handler("isInitialized",
+                    handler: (proc, ctx) => {
+                        if (_isInitialized == false) {
+                            LSLogger.Singleton.Warning($"Tick Manager is not initialized.", $"{nameof(LSTick)}.SetDeltaFactor", proc.ID);
+                            return LSProcessResultStatus.CANCELLED;
+                        }
+                        if (!proc.TryGetData<float>("oldDeltaFactor", out var oldDelta)) {
+                            LSLogger.Singleton.Warning($"Tick Manager could not get old delta factor value.", $"{nameof(LSTick)}.SetDeltaFactor", proc.ID);
+                            oldDelta = 1f;
+                        }
+                        if (!proc.TryGetData<float>("newDeltaFactor", out var newDelta)) {
+                            LSLogger.Singleton.Warning($"Tick Manager could not get new delta factor value.", $"{nameof(LSTick)}.SetDeltaFactor", proc.ID);
+                            newDelta = 1f;
+                        }
+                        LSLogger.Singleton.Info($"Tick Manager delta factor changed from {oldDelta} to {newDelta}.", $"{nameof(LSTick)}.SetDeltaFactor", proc.ID);
+                        return LSProcessResultStatus.SUCCESS;
+                    },
+                    priority: LSProcessPriority.CRITICAL)
+                .Selector(DELTA_CHANGE_LABEL,
+                    selectorBuilder: builder => builder,
+                    priority: LSProcessPriority.NORMAL,
+                    withInverter: false,
+                    overrideConditions: true,
+                    conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == DELTA_CHANGE_LABEL)
+            ).Execute(this, _manager);
     }
 
     public void Cleanup() {
         // No cleanup needed for CleanEventDispatcher
     }
 
-    #region Events
-
-    public class OnInitializeEvent : LSProcess {
+    public class TickProcess : LSProcess {
         public LSTick TickManager { get; }
+        public string Action { get; }
 
-        public OnInitializeEvent(LSTick tickManager) {
+        public TickProcess(LSTick tickManager, string action) {
             TickManager = tickManager;
+            Action = action;
         }
     }
-    public class OnTickEvent : LSProcess {
-        public int TickCount { get; }
-        public LSTick TickManager { get; }
-
-        public OnTickEvent(LSTick tickManager, int tickCount) {
-            TickCount = tickCount;
-            TickManager = tickManager;
-        }
-    }
-
-    public class OnChangeDeltaFactorEvent : LSProcess {
-        public int Speed { get; }
-        public bool IsPaused { get; }
-        public LSTick TickManager { get; }
-
-        public OnChangeDeltaFactorEvent(LSTick tickManager, int speed, bool isPaused) {
-            Speed = speed;
-            IsPaused = isPaused;
-            TickManager = tickManager;
-        }
-    }
-
-    public class OnTogglePauseEvent : LSProcess {
-        public bool IsPaused { get; }
-        public LSTick TickManager { get; }
-
-        public OnTogglePauseEvent(LSTick tickManager, bool isPaused) {
-            IsPaused = isPaused;
-            TickManager = tickManager;
-        }
-    }
-    #endregion
 }

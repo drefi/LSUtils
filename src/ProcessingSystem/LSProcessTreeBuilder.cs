@@ -231,7 +231,7 @@ public class LSProcessTreeBuilder {
             // update values
             sequenceNode.Priority = priority.Value;
             sequenceNode.WithInverter = withInverter.Value;
-            sequenceNode.Conditions = LSProcessNodeExtensions.UpdateConditions(overrideConditions, sequenceNode.Conditions, conditions);
+            sequenceNode.Conditions = LSProcessConditions.UpdateConditions(overrideConditions, sequenceNode.Conditions, conditions);
         }
         // when we reach this point, sequenceNode is either a new node or the existing sequence node
         ILSProcessLayerNode node = sequenceContext?.Invoke(new LSProcessTreeBuilder(sequenceNode)).Build() ?? sequenceNode;
@@ -302,7 +302,7 @@ public class LSProcessTreeBuilder {
             // update values
             selectorNode.Priority = priority.Value;
             selectorNode.WithInverter = withInverter.Value;
-            selectorNode.Conditions = LSProcessNodeExtensions.UpdateConditions(overrideConditions, selectorNode.Conditions, conditions);
+            selectorNode.Conditions = LSProcessConditions.UpdateConditions(overrideConditions, selectorNode.Conditions, conditions);
         }
         // when we reach this point, selectorNode is either a new node or the existing selector node
         ILSProcessLayerNode node = selectorBuilder?.Invoke(new LSProcessTreeBuilder(selectorNode)).Build() ?? selectorNode;
@@ -388,7 +388,7 @@ public class LSProcessTreeBuilder {
             parallelNode.NumRequiredToFailure = numRequiredToFailure.Value;
             parallelNode.WithInverter = withInverter.Value;
             parallelNode.Priority = priority.Value;
-            parallelNode.Conditions = LSProcessNodeExtensions.UpdateConditions(overrideConditions, parallelNode.Conditions, conditions);
+            parallelNode.Conditions = LSProcessConditions.UpdateConditions(overrideConditions, parallelNode.Conditions, conditions);
         }
         // when we reach this point, parallelNode is either a new node or the existing parallel node
         ILSProcessLayerNode node = parallelBuilder?.Invoke(new LSProcessTreeBuilder(parallelNode)).Build() ?? parallelNode;

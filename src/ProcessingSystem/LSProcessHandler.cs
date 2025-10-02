@@ -1,5 +1,4 @@
 namespace LSUtils.Processing;
-
 /// <summary>
 /// Delegate that represents a process handler function in the LSProcessing system.
 /// Encapsulates the business logic to be executed when a process is executed within the processing pipeline.

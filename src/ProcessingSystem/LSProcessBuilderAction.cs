@@ -1,5 +1,4 @@
 namespace LSUtils.Processing;
-
 /// <summary>
 /// Delegate type for process tree building operations that enable nested hierarchy construction.
 /// Provides a fluent interface for building complex processing workflows with hierarchical node structures.

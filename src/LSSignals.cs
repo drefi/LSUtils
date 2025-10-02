@@ -1,7 +1,4 @@
-using LSUtils.LSLocale;
-
 namespace LSUtils.Processing;
-
 /// <summary>
 /// Provides event-based notifications for printing, warnings, errors, confirmations, and general notifications.
 /// </summary>
@@ -9,9 +6,7 @@ public static class LSSignals {
     /// <summary>
     /// Gets the class name.
     /// </summary>
-    public static string ClassName => nameof(LSSignals);
-
-    #region Events
+    public static string ClassName => typeof(LSSignals).AssemblyQualifiedName ?? nameof(LSSignals);
 
     public class ConfirmationSignal {
         /// <summary>
@@ -57,17 +52,15 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for confirmation messages.
     /// </summary>
-    public class OnConfirmationEvent : LSProcess {
+    public class ConfirmationProcess : LSProcess {
         public ConfirmationSignal ConfirmationSignal { get; protected set; }
         /// <summary>
-        /// Initializes a new instance of the <see cref="OnConfirmationEvent"/> class with confirm and cancel buttons.
+        /// Initializes a new instance of the <see cref="ConfirmationProcess"/> class with confirm and cancel buttons.
         /// </summary>
-        internal OnConfirmationEvent(ConfirmationSignal confirmationSignal) {
+        internal ConfirmationProcess(ConfirmationSignal confirmationSignal) {
             ConfirmationSignal = confirmationSignal;
         }
     }
-
-
     public class NotificationSignal {
         /// <summary>
         /// The notification message.
@@ -96,7 +89,7 @@ public static class LSSignals {
     /// <summary>
     /// Event triggered for general notifications.
     /// </summary>
-    public class OnNotifyEvent : LSProcess {
+    public class NotifyProcess : LSProcess {
         protected NotificationSignal _notificationSignal;
         /// <summary>
         /// The notification message.
@@ -116,44 +109,41 @@ public static class LSSignals {
         public double NotificationTimeout => _notificationSignal.NotificationTimeout;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="OnNotifyEvent"/> class.
+        /// Initializes a new instance of the <see cref="NotifyProcess"/> class.
         /// </summary>
         /// <param name="message">The notification message.</param>
         /// <param name="description">The notification description.</param>
         /// <param name="allowDismiss">Whether the notification can be dismissed.</param>
         /// <param name="notificationTimeout">Timeout in seconds.</param>
-        internal OnNotifyEvent(NotificationSignal notificationSignal) {
+        internal NotifyProcess(NotificationSignal notificationSignal) {
             _notificationSignal = notificationSignal;
         }
     }
-
-    #endregion
-
     #region Static Methods
 
     public static LSProcessResultStatus Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSProcessManager? contextManager = null) {
-        var @event = new OnNotifyEvent(new NotificationSignal(message, description, allowDismiss, timeout));
-        return @event.Execute(null, contextManager);
+        var process = new NotifyProcess(new NotificationSignal(message, description, allowDismiss, timeout));
+        return process.Execute(null, contextManager);
     }
 
     public static LSProcessResultStatus Notify(NotificationSignal notificationSignal, LSProcessManager? contextManager = null) {
-        var @event = new OnNotifyEvent(notificationSignal);
-        return @event.Execute(null, contextManager);
+        var process = new NotifyProcess(notificationSignal);
+        return process.Execute(null, contextManager);
     }
 
     public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSProcessManager? contextManager = null) {
-        var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
-        return @event.Execute(null, contextManager);
+        var process = new ConfirmationProcess(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
+        return process.Execute(null, contextManager);
     }
 
     public static LSProcessResultStatus Confirmation(ConfirmationSignal confirmationSignal, LSProcessManager? contextManager = null) {
-        var @event = new OnConfirmationEvent(confirmationSignal);
-        return @event.Execute(null, contextManager);
+        var process = new ConfirmationProcess(confirmationSignal);
+        return process.Execute(null, contextManager);
     }
 
     public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSProcessManager? contextManager = null) {
-        var @event = new OnConfirmationEvent(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
-        return @event.Execute(null, contextManager);
+        var process = new ConfirmationProcess(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
+        return process.Execute(null, contextManager);
     }
 
     #endregion

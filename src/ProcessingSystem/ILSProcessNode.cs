@@ -1,5 +1,4 @@
 namespace LSUtils.Processing;
-
 /// <summary>
 /// Core interface for all nodes in the LSProcessing system hierarchy.
 /// Defines the fundamental contract for process execution, state management, and tree navigation.
@@ -32,8 +31,7 @@ public interface ILSProcessNode {
     /// Used for navigation, debugging, and targeting Resume/Fail operations.
     /// </summary>
     /// <value>Must be unique within the parent node's children collection.</value>
-    string NodeID { get; }  // Used as path identifier for navigation
-
+    string NodeID { get; }
     /// <summary>
     /// Execution priority within parent containers.
     /// Higher priority nodes execute before lower priority nodes.
@@ -41,7 +39,6 @@ public interface ILSProcessNode {
     /// <value>Priority level from LSProcessPriority enum (CRITICAL, HIGH, NORMAL, LOW, BACKGROUND).</value>
     /// <remarks>When priorities are equal, the Order property is used as a tiebreaker.</remarks>
     LSProcessPriority Priority { get; }
-
     /// <summary>
     /// Execution prerequisites that must be satisfied before this node can process.
     /// All conditions must return true for the node to be eligible for execution.
@@ -51,9 +48,7 @@ public interface ILSProcessNode {
     /// Conditions are evaluated before processing and can be composed using delegate combination.
     /// Use LSProcessConditions.IsMet() to evaluate all conditions in the delegate chain.
     /// </remarks>
-    // Conditions to be met to execute this node, a node that does not meet conditions should be skipped
     LSProcessNodeCondition? Conditions { get; }
-
     /// <summary>
     /// Number of times this node has been executed.
     /// For handler nodes, this count is shared among clones to provide global execution statistics.
@@ -63,16 +58,14 @@ public interface ILSProcessNode {
     /// Layer nodes throw NotImplementedException as execution tracking is only meaningful for handler nodes.
     /// This property is used for analytics and debugging purposes.
     /// </remarks>
-    int ExecutionCount { get; } // Number of times this node has been executed
-
+    int ExecutionCount { get; }
     /// <summary>
     /// Execution order among sibling nodes with the same priority.
     /// Lower values execute first when priorities are equal.
     /// </summary>
     /// <value>Order value set during node registration, typically incremented sequentially.</value>
     /// <remarks>This provides deterministic execution order for nodes with identical priorities.</remarks>
-    int Order { get; } // Order of execution among nodes, this is set during registration order (increased)
-
+    int Order { get; }
     /// <summary>
     /// Indicates whether this node has an inverter applied to its result.
     /// When true, the node's success/failure results are inverted.
@@ -88,7 +81,6 @@ public interface ILSProcessNode {
     /// <para>Used for implementing negative conditions or failure-expected scenarios.</para>
     /// </remarks>
     bool WithInverter { get; }
-
     /// <summary>
     /// Creates an independent copy of this node for parallel processing or tree manipulation.
     /// </summary>
@@ -102,7 +94,6 @@ public interface ILSProcessNode {
     /// <para>Cloned nodes typically start with UNKNOWN status regardless of original node state.</para>
     /// </remarks>
     ILSProcessNode Clone();
-
     /// <summary>
     /// Primary execution method for process execution.
     /// Processes this node and returns the resulting status.
@@ -132,7 +123,6 @@ public interface ILSProcessNode {
     /// </list>
     /// </remarks>
     LSProcessResultStatus Execute(LSProcessSession context);
-
     /// <summary>
     /// Non-destructive inquiry of the current processing status.
     /// Returns the current state without side effects or state changes.
@@ -150,7 +140,6 @@ public interface ILSProcessNode {
     /// </list>
     /// </remarks>
     LSProcessResultStatus GetNodeStatus();
-
     /// <summary>
     /// Continues processing from WAITING state for this node or specified child nodes.
     /// </summary>
@@ -179,7 +168,6 @@ public interface ILSProcessNode {
     /// </list>
     /// </remarks>
     LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodes);
-
     /// <summary>
     /// Forces transition from WAITING to FAILURE state for this node or specified child nodes.
     /// </summary>
@@ -210,7 +198,6 @@ public interface ILSProcessNode {
     /// </list>
     /// </remarks>
     LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodes);
-
     /// <summary>
     /// Terminates processing with CANCELLED state for this node and its entire subtree.
     /// </summary>
@@ -247,5 +234,4 @@ public interface ILSProcessNode {
     /// </list>
     /// </remarks>
     LSProcessResultStatus Cancel(LSProcessSession context);
-
 }

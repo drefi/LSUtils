@@ -1,8 +1,5 @@
 namespace LSUtils.Processing;
-
-using System;
 using System.Collections.Generic;
-
 /// <summary>
 /// Abstract base class for all processes in the LSProcessing system.
 /// Provides core functionality for process execution, state management, and data storage.
@@ -34,48 +31,40 @@ public abstract class LSProcess : ILSProcess {
     /// The current execution session for this process. Null until Execute() is called.
     /// </summary>
     private LSProcessSession? _processSession;
-
     /// <summary>
     /// Internal data store for process-specific key-value pairs.
     /// </summary>
     private Dictionary<string, object> _data = new();
-
     /// <summary>
     /// Custom processing context/tree defined for this specific process instance.
     /// Merged with global context during execution.
     /// </summary>
     private ILSProcessLayerNode? _localProcessBuilder;
-
     /// <summary>
     /// Unique identifier for this process instance.
     /// Generated automatically when the process is created.
     /// </summary>
-    public Guid ID { get; }
-
+    public System.Guid ID { get; }
     /// <summary>
     /// UTC timestamp when this process was created.
     /// Used for timing analysis and audit trails.
     /// </summary>
-    public DateTime CreatedAt { get; }
-
+    public System.DateTime CreatedAt { get; }
     /// <summary>
     /// Indicates whether this process has been cancelled.
     /// Set by the Cancel() method and prevents further processing.
     /// </summary>
     public bool IsCancelled { get; protected set; }
-
     /// <summary>
     /// Indicates whether this process has encountered failures during execution.
     /// Set during processing based on node execution results.
     /// </summary>
     public bool HasFailures { get; protected set; }
-
     /// <summary>
     /// Indicates whether this process has completed execution successfully.
     /// Set when the processing pipeline reaches a terminal success state.
     /// </summary>
     public bool IsCompleted { get; protected set; }
-
     /// <summary>
     /// Initializes a new process instance with auto-generated ID and creation timestamp.
     /// </summary>
@@ -84,10 +73,9 @@ public abstract class LSProcess : ILSProcess {
     /// Derived classes should implement specific process types.
     /// </remarks>
     protected LSProcess() {
-        ID = Guid.NewGuid();
-        CreatedAt = DateTime.UtcNow;
+        ID = System.Guid.NewGuid();
+        CreatedAt = System.DateTime.UtcNow;
     }
-
     /// <summary>
     /// Retrieves strongly-typed data associated with the specified key.
     /// </summary>
@@ -95,17 +83,16 @@ public abstract class LSProcess : ILSProcess {
     /// <param name="key">The key used to store the data.</param>
     /// <returns>The data cast to the specified type.</returns>
     /// <exception cref="KeyNotFoundException">Thrown when the specified key is not found.</exception>
-    /// <exception cref="InvalidCastException">Thrown when the stored data cannot be cast to the specified type.</exception>
+    /// <exception cref="LSException">Thrown when the stored data cannot be cast to the specified type.</exception>
     public virtual T? GetData<T>(string key) {
         if (_data.TryGetValue(key, out var value)) {
             if (value is T tValue) {
                 return tValue;
             }
-            throw new InvalidCastException($"Stored data with key '{key}' is not of type {typeof(T).FullName}.");
+            throw new LSException($"Stored data with key '{key}' is not of type {typeof(T).FullName}.");
         }
         throw new KeyNotFoundException($"No data found for key '{key}'.");
     }
-
     /// <summary>
     /// Executes this process through the processing pipeline.
     /// Creates a new execution session and processes through the node hierarchy.
@@ -126,7 +113,6 @@ public abstract class LSProcess : ILSProcess {
         _processSession = new LSProcessSession(this, globalBuilder);
         return _processSession.Execute();
     }
-
     /// <summary>
     /// Resumes processing from WAITING state for the specified node IDs.
     /// </summary>
@@ -139,7 +125,6 @@ public abstract class LSProcess : ILSProcess {
         }
         return _processSession.Resume(nodeIDs);
     }
-
     /// <summary>
     /// Cancels the entire process execution immediately.
     /// Sets the process to CANCELLED state and prevents any further processing.
@@ -155,7 +140,6 @@ public abstract class LSProcess : ILSProcess {
         }
         _processSession.Cancel();
     }
-
     /// <summary>
     /// Configures or extends the processing tree for this process using a builder delegate.
     /// Allows defining custom processing logic that will be merged with global context during execution.
@@ -190,7 +174,6 @@ public abstract class LSProcess : ILSProcess {
         _localProcessBuilder = builder(processBuilder).Build();
         return this;
     }
-
     /// <summary>
     /// Forces transition from WAITING to FAILURE state for the specified node IDs.
     /// </summary>
@@ -207,7 +190,6 @@ public abstract class LSProcess : ILSProcess {
         }
         return _processSession.Fail(nodeIDs);
     }
-
     /// <summary>
     /// Associates data with this process using a string key.
     /// Allows storing information that persists for the lifetime of the process.
@@ -222,7 +204,6 @@ public abstract class LSProcess : ILSProcess {
     public virtual void SetData<T>(string key, T value) {
         _data[key] = value!;
     }
-
     /// <summary>
     /// Attempts to retrieve strongly-typed data associated with the specified key.
     /// Provides safe access without throwing exceptions for missing keys or type mismatches.

@@ -1,10 +1,6 @@
-using System.Collections.Concurrent;
-//using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-
 namespace LSUtils.Processing;
 
+using System.Collections.Concurrent;
 /// <summary>
 /// Manages global processing contexts for different process types and optional processable instances.
 /// Provides centralized registration and retrieval of processing hierarchies within the LSProcessing system.
@@ -50,7 +46,6 @@ public class LSProcessManager {
     /// Maps process types to dictionaries containing instance-specific and global contexts.
     /// </summary>
     protected readonly ConcurrentDictionary<System.Type, ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>> _globalNodes = new();
-
     /// <summary>
     /// Registers a processing context for a specific process type using a fluent builder pattern.
     /// </summary>
@@ -64,7 +59,6 @@ public class LSProcessManager {
     public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null) where TProcess : ILSProcess {
         Register(typeof(TProcess), builder, instance);
     }
-
     /// <summary>
     /// Registers a processing context for a specific process type using a fluent builder pattern.
     /// </summary>
@@ -88,9 +82,6 @@ public class LSProcessManager {
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
         }
         instance ??= GlobalProcessable.Instance;
-
-
-
         if (!processDict.TryGetValue(instance, out var instanceNode)) {
             instanceNode = new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build();
         }
@@ -102,7 +93,6 @@ public class LSProcessManager {
         processDict[instance ?? GlobalProcessable.Instance] = result.Build();
 
     }
-
     /// <summary>
     /// Retrieves a merged processing context for the specified process type and optional instance.
     /// </summary>
@@ -117,7 +107,6 @@ public class LSProcessManager {
     public ILSProcessLayerNode GetRootNode<TProcess>(ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) where TProcess : ILSProcess {
         return GetRootNode(typeof(TProcess), instance, localContext);
     }
-
     /// <summary>
     /// Retrieves a merged processing context for the specified process type and optional instance.
     /// </summary>
@@ -161,7 +150,6 @@ public class LSProcessManager {
 
         return builder.Build();
     }
-
     /// <summary>
     /// Internal placeholder class representing global processable contexts.
     /// Used as a key for storing process contexts that apply globally rather than to specific instances.
@@ -174,13 +162,11 @@ public class LSProcessManager {
     protected class GlobalProcessable : ILSProcessable {
         static GlobalProcessable _instance = new();
         internal static GlobalProcessable Instance => _instance;
-
         /// <summary>
         /// Gets a new GUID for each access. This ensures the global processable is treated uniquely
         /// but should not be used for identity comparison in the processing system.
         /// </summary>
         public System.Guid ID => System.Guid.NewGuid();
-
         /// <summary>
         /// Not implemented as this placeholder class should never be initialized in the processing pipeline.
         /// </summary>
