@@ -1,4 +1,4 @@
-using LSUtils.Processing.Logging;
+using LSUtils.Logging;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -545,6 +545,7 @@ public class LSProcessingSystemTests {
     }
     [Test]
     public void TestBuilderBasicParallelMultipleWaitingSuccessResume() {
+        var sourceStr = "ParallelMultipleWaitingSuccessResume";
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
                 .Handler("handler1", _mockHandler3Waiting)
@@ -561,16 +562,16 @@ public class LSProcessingSystemTests {
         var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
-        _logger.Info("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Process result: " + result);
+        _logger.Info($"Process result: {result}", sourceStr);
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(3));
         // Simulate external resume
         var resumeResult1 = processContext.Resume("handler1");
-        _logger.Info("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Resume handler1 result: " + resumeResult1);
+        _logger.Info($"Resume handler1 result: {resumeResult1}", sourceStr);
         Assert.That(resumeResult1, Is.EqualTo(LSProcessResultStatus.WAITING)); // the context is still waiting on handler2
         Assert.That(_handler3CallCount, Is.EqualTo(3)); //should not call handler again
         var resumeResult2 = processContext.Resume("handler2");
-        _logger.Info("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Resume handler2 result: " + resumeResult2);
+        _logger.Info($"Resume handler2 result: {resumeResult2}", sourceStr);
         Assert.That(resumeResult2, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // now two have resumed, which meets the requirement of 2
         Assert.That(_handler3CallCount, Is.EqualTo(3)); //should not call handler again
                                                         // handler3 is still waiting, but the parallel node has already succeeded

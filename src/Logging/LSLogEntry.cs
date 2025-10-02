@@ -1,8 +1,6 @@
-using System;
+namespace LSUtils.Logging;
+
 using System.Collections.Generic;
-
-namespace LSUtils.Processing.Logging;
-
 /// <summary>
 /// Defines the severity levels for log messages.
 /// Ordered from most verbose (lowest value) to least verbose (highest value).
@@ -57,17 +55,17 @@ public readonly struct LSLogEntry {
     /// <summary>
     /// The component or system that generated this log entry.
     /// </summary>
-    public string Source { get; }
+    public string? Source { get; }
 
     /// <summary>
     /// UTC timestamp when this log entry was created.
     /// </summary>
-    public DateTime Timestamp { get; }
+    public System.DateTime Timestamp { get; }
 
     /// <summary>
     /// Optional exception associated with this log entry.
     /// </summary>
-    public Exception? Exception { get; }
+    public LSException? Exception { get; }
 
     /// <summary>
     /// Optional structured data associated with this log entry.
@@ -75,9 +73,9 @@ public readonly struct LSLogEntry {
     public IReadOnlyDictionary<string, object>? Properties { get; }
 
     /// <summary>
-    /// Optional event ID for correlation with specific event instances.
+    /// Optional process ID for correlation with specific process instances.
     /// </summary>
-    public Guid? EventId { get; }
+    public System.Guid? ProcessId { get; }
 
     /// <summary>
     /// Initializes a new log entry.
@@ -85,48 +83,49 @@ public readonly struct LSLogEntry {
     public LSLogEntry(
         LSLogLevel level,
         string message,
-        string source,
-        DateTime? timestamp = null,
-        Exception? exception = null,
+        string? source,
+        System.DateTime? timestamp = null,
+        LSException? exception = null,
         IReadOnlyDictionary<string, object>? properties = null,
-        Guid? eventId = null) {
+        System.Guid? processId = null) {
         Level = level;
-        Message = message ?? throw new ArgumentNullException(nameof(message));
-        Source = source ?? throw new ArgumentNullException(nameof(source));
-        Timestamp = timestamp ?? DateTime.UtcNow;
+        Message = message ?? throw new LSArgumentNullException(nameof(message));
+        Source = source;
+        Timestamp = timestamp ?? System.DateTime.UtcNow;
         Exception = exception;
         Properties = properties;
-        EventId = eventId;
+        ProcessId = processId;
     }
 
     /// <summary>
     /// Creates a formatted string representation of this log entry.
     /// </summary>
+    public static int SourcePadding { get; set; } = 15;
     public override string ToString() {
-        var levelStr = Level.ToString().PadRight(8);
+        var levelStr = Level.ToString().PadRight(5);
         var timeStr = Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff");
-        var sourceStr = Source.PadRight(20);
-        
-        var result = $"{timeStr} [{levelStr}] {sourceStr}: {Message}";
-        
-        if (EventId.HasValue) {
-            result += $" [Event: {EventId.Value:N}]";
+        var sourceStr = Source == null ? "" : $" [{Source?.PadRight(SourcePadding)}]";
+
+        var result = $"{timeStr} [{levelStr}]{sourceStr}: {Message}";
+
+        if (ProcessId.HasValue) {
+            result += $" [Process: {ProcessId.Value:N}]";
         }
-        
+
         if (Exception != null) {
             result += $"\n  Exception: {Exception.GetType().Name}: {Exception.Message}";
             if (!string.IsNullOrEmpty(Exception.StackTrace)) {
                 result += $"\n  Stack Trace: {Exception.StackTrace}";
             }
         }
-        
+
         if (Properties != null && Properties.Count > 0) {
             result += "\n  Properties:";
             foreach (var prop in Properties) {
                 result += $"\n    {prop.Key}: {prop.Value}";
             }
         }
-        
+
         return result;
     }
 }

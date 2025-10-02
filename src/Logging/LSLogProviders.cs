@@ -1,7 +1,4 @@
-using System;
-
-namespace LSUtils.Processing.Logging;
-
+namespace LSUtils.Logging;
 /// <summary>
 /// Console-based log provider that outputs to standard console.
 /// Default implementation suitable for desktop applications and development.
@@ -24,21 +21,21 @@ public class LSConsoleLogProvider : ILSLogProvider {
     public void WriteLog(LSLogEntry entry) {
         try {
             // Set console color based on log level
-            var originalColor = Console.ForegroundColor;
-            Console.ForegroundColor = entry.Level switch {
-                LSLogLevel.DEBUG => ConsoleColor.Gray,
-                LSLogLevel.INFO => ConsoleColor.White,
-                LSLogLevel.WARNING => ConsoleColor.Yellow,
-                LSLogLevel.ERROR => ConsoleColor.Red,
-                LSLogLevel.CRITICAL => ConsoleColor.Magenta,
-                _ => ConsoleColor.White
+            var originalColor = System.Console.ForegroundColor;
+            System.Console.ForegroundColor = entry.Level switch {
+                LSLogLevel.DEBUG => System.ConsoleColor.Gray,
+                LSLogLevel.INFO => System.ConsoleColor.White,
+                LSLogLevel.WARNING => System.ConsoleColor.Yellow,
+                LSLogLevel.ERROR => System.ConsoleColor.Red,
+                LSLogLevel.CRITICAL => System.ConsoleColor.Magenta,
+                _ => System.ConsoleColor.White
             };
 
-            Console.WriteLine(entry.ToString());
-            Console.ForegroundColor = originalColor;
+            System.Console.WriteLine(entry.ToString());
+            System.Console.ForegroundColor = originalColor;
         } catch {
             // Fallback to basic output if color setting fails
-            Console.WriteLine(entry.ToString());
+            System.Console.WriteLine(entry.ToString());
         }
     }
 }
@@ -48,8 +45,8 @@ public class LSConsoleLogProvider : ILSLogProvider {
 /// Automatically detects if Godot is available and falls back gracefully.
 /// </summary>
 public class LSGodotLogProvider : ILSLogProvider {
-    private static readonly Lazy<bool> _isGodotAvailable = new(CheckGodotAvailability);
-    
+    private static readonly System.Lazy<bool> _isGodotAvailable = new(CheckGodotAvailability);
+
     /// <summary>
     /// Gets the name of this log provider.
     /// </summary>
@@ -69,7 +66,7 @@ public class LSGodotLogProvider : ILSLogProvider {
 
         try {
             // Use reflection to call GD.Print to avoid hard dependency on Godot
-            var gdType = Type.GetType("Godot.GD, GodotSharp");
+            var gdType = System.Type.GetType("Godot.GD, GodotSharp");
             if (gdType != null) {
                 var printMethod = entry.Level switch {
                     LSLogLevel.DEBUG => gdType.GetMethod("Print"),
@@ -89,7 +86,7 @@ public class LSGodotLogProvider : ILSLogProvider {
 
     private static bool CheckGodotAvailability() {
         try {
-            var gdType = Type.GetType("Godot.GD, GodotSharp");
+            var gdType = System.Type.GetType("Godot.GD, GodotSharp");
             return gdType != null;
         } catch {
             return false;
