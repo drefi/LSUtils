@@ -5,16 +5,16 @@ using System.Collections.Concurrent;
 namespace LSUtils.Processing.Logging;
 
 /// <summary>
-/// Central logging system for the LSEventSystem with configurable providers and filtering.
+/// Central logging system with configurable providers and filtering.
 /// Thread-safe singleton that manages log output and provides structured logging capabilities.
 /// </summary>
-public sealed class LSEventLogger {
-    private static readonly Lazy<LSEventLogger> _instance = new(() => new LSEventLogger());
+public sealed class LSLogger {
+    private static readonly Lazy<LSLogger> _instance = new(() => new LSLogger());
     
     /// <summary>
     /// Gets the singleton instance of the event logger.
     /// </summary>
-    public static LSEventLogger Instance => _instance.Value;
+    public static LSLogger Singleton => _instance.Value;
 
     private readonly ConcurrentBag<ILSLogProvider> _providers = new();
     private volatile LSLogLevel _minimumLevel = LSLogLevel.INFO;
@@ -23,7 +23,7 @@ public sealed class LSEventLogger {
     /// <summary>
     /// Initializes the logger with default providers.
     /// </summary>
-    private LSEventLogger() {
+    private LSLogger() {
         // Add default providers in order of preference
         if (new LSGodotLogProvider().IsAvailable) {
             _providers.Add(new LSGodotLogProvider());
@@ -81,7 +81,7 @@ public sealed class LSEventLogger {
     /// <summary>
     /// Logs a debug message with optional structured data.
     /// </summary>
-    public void Debug(string message, string source = "LSEventSystem", Guid? eventId = null, 
+    public void Debug(string message, string source = "LSProcessSystem", Guid? eventId = null, 
                      IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.DEBUG, message, source, eventId: eventId, properties: properties);
     }
@@ -89,7 +89,7 @@ public sealed class LSEventLogger {
     /// <summary>
     /// Logs an info message with optional structured data.
     /// </summary>
-    public void Info(string message, string source = "LSEventSystem", Guid? eventId = null, 
+    public void Info(string message, string source = "LSProcessSystem", Guid? eventId = null, 
                     IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.INFO, message, source, eventId: eventId, properties: properties);
     }
@@ -97,7 +97,7 @@ public sealed class LSEventLogger {
     /// <summary>
     /// Logs a warning message with optional structured data.
     /// </summary>
-    public void Warning(string message, string source = "LSEventSystem", Guid? eventId = null, 
+    public void Warning(string message, string source = "LSProcessSystem", Guid? eventId = null, 
                        IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.WARNING, message, source, eventId: eventId, properties: properties);
     }
@@ -105,7 +105,7 @@ public sealed class LSEventLogger {
     /// <summary>
     /// Logs an error message with optional exception and structured data.
     /// </summary>
-    public void Error(string message, Exception? exception = null, string source = "LSEventSystem", 
+    public void Error(string message, Exception? exception = null, string source = "LSProcessSystem", 
                      Guid? eventId = null, IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.ERROR, message, source, exception: exception, eventId: eventId, properties: properties);
     }
@@ -113,7 +113,7 @@ public sealed class LSEventLogger {
     /// <summary>
     /// Logs a critical error message with optional exception and structured data.
     /// </summary>
-    public void Critical(string message, Exception? exception = null, string source = "LSEventSystem", 
+    public void Critical(string message, Exception? exception = null, string source = "LSProcessSystem", 
                         Guid? eventId = null, IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.CRITICAL, message, source, exception: exception, eventId: eventId, properties: properties);
     }
@@ -122,7 +122,7 @@ public sealed class LSEventLogger {
     /// Logs an exception as a critical error with full details.
     /// </summary>
     public void LogException(Exception exception, string message = "Unhandled exception occurred", 
-                           string source = "LSEventSystem", Guid? eventId = null, 
+                           string source = "LSProcessSystem", Guid? eventId = null, 
                            IDictionary<string, object>? properties = null) {
         Critical(message, exception, source, eventId, properties);
     }
@@ -131,7 +131,7 @@ public sealed class LSEventLogger {
     /// Executes an action within a try-catch block and logs any exceptions as critical errors.
     /// </summary>
     public void SafeExecute(Action action, string context = "Unknown operation", 
-                          string source = "LSEventSystem", Guid? eventId = null) {
+                          string source = "LSProcessSystem", Guid? eventId = null) {
         try {
             action?.Invoke();
         } catch (Exception ex) {
@@ -144,7 +144,7 @@ public sealed class LSEventLogger {
     /// Returns the default value of T if an exception occurs.
     /// </summary>
     public T SafeExecute<T>(Func<T> func, T defaultValue = default!, string context = "Unknown operation", 
-                          string source = "LSEventSystem", Guid? eventId = null) {
+                          string source = "LSProcessSystem", Guid? eventId = null) {
         try {
             return func != null ? func() : defaultValue;
         } catch (Exception ex) {

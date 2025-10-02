@@ -1,3 +1,4 @@
+using LSUtils.Processing.Logging;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -22,9 +23,12 @@ public class LSProcessingSystemTests {
     private int _handler1CallCount;
     private int _handler2CallCount;
     private int _handler3CallCount;
-
+    private LSLogger _logger;
     [SetUp]
     public void Setup() {
+        _logger = LSLogger.Singleton;
+        _logger.ClearProviders();
+        _logger.AddProvider(new LSConsoleLogProvider());
         _handler1CallCount = 0;
         _handler2CallCount = 0;
         _handler3CallCount = 0;
@@ -457,12 +461,12 @@ public class LSProcessingSystemTests {
         // Test execution
         var mockProcess = new MockProcess();
         var processContext = new LSProcessSession(mockProcess, context);
-        System.Console.WriteLine("[TestBuilderParallelWaitingSuccessWithFail] Processing...");
+        LSLogger.Singleton.Debug("[TestBuilderParallelWaitingSuccessWithFail] Processing...");
         var result = processContext.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // handler1 should succeed immediately
         Assert.That(_handler3CallCount, Is.EqualTo(1));
         // Simulate external resume
-        System.Console.WriteLine("[TestBuilderParallelWaitingSuccessWithFail] Failing handler1...");
+        LSLogger.Singleton.Debug("[TestBuilderParallelWaitingSuccessWithFail] Failing handler1...");
         var resumeResult = processContext.Fail("handler1");
         Assert.That(resumeResult, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // handler1 has already succeeded, this should not change anything
         Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
@@ -557,16 +561,16 @@ public class LSProcessingSystemTests {
         var mockEvent = new MockProcess();
         var processContext = new LSProcessSession(mockEvent, context);
         var result = processContext.Execute();
-        System.Console.WriteLine("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Process result: " + result);
+        _logger.Info("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Process result: " + result);
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(3));
         // Simulate external resume
         var resumeResult1 = processContext.Resume("handler1");
-        System.Console.WriteLine("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Resume handler1 result: " + resumeResult1);
+        _logger.Info("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Resume handler1 result: " + resumeResult1);
         Assert.That(resumeResult1, Is.EqualTo(LSProcessResultStatus.WAITING)); // the context is still waiting on handler2
         Assert.That(_handler3CallCount, Is.EqualTo(3)); //should not call handler again
         var resumeResult2 = processContext.Resume("handler2");
-        System.Console.WriteLine("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Resume handler2 result: " + resumeResult2);
+        _logger.Info("[TestBuilderBasicParallelMultipleWaitingSuccessResume] Resume handler2 result: " + resumeResult2);
         Assert.That(resumeResult2, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // now two have resumed, which meets the requirement of 2
         Assert.That(_handler3CallCount, Is.EqualTo(3)); //should not call handler again
                                                         // handler3 is still waiting, but the parallel node has already succeeded
@@ -706,22 +710,22 @@ public class LSProcessingSystemTests {
             .Sequence("root", seqBuilder => seqBuilder)
             .Build();
 
-        Console.WriteLine($"Root context before merge: {rootContext.NodeID}");
-        Console.WriteLine($"Root children before: {string.Join(", ", Array.ConvertAll(rootContext.GetChildren(), c => c.NodeID))}");
+        _logger.Info($"Root context before merge: {rootContext.NodeID}");
+        _logger.Info($"Root children before: {string.Join(", ", Array.ConvertAll(rootContext.GetChildren(), c => c.NodeID))}");
 
         var subContext = new LSProcessTreeBuilder()
             .Sequence("subContext", seqBuilder => seqBuilder
                 .Handler("handler1", _mockHandler1))
             .Build();
 
-        Console.WriteLine($"Sub context: {subContext.NodeID}");
-        Console.WriteLine($"Sub context children: {string.Join(", ", Array.ConvertAll(subContext.GetChildren(), c => c.NodeID))}");
+        _logger.Info($"Sub context: {subContext.NodeID}");
+        _logger.Info($"Sub context children: {string.Join(", ", Array.ConvertAll(subContext.GetChildren(), c => c.NodeID))}");
 
         var mergedContext = new LSProcessTreeBuilder(rootContext)
             .Merge(subContext)
             .Build();
-        Console.WriteLine($"Merged context: {mergedContext.NodeID}");
-        Console.WriteLine($"Merged children: {string.Join(", ", Array.ConvertAll(mergedContext.GetChildren(), c => c.NodeID))}");
+        _logger.Info($"Merged context: {mergedContext.NodeID}");
+        _logger.Info($"Merged children: {string.Join(", ", Array.ConvertAll(mergedContext.GetChildren(), c => c.NodeID))}");
 
         // The merged context should be the root context itself, containing the subContext as a child
         Assert.That(mergedContext.NodeID, Is.EqualTo("root")); // The merged context is the root
