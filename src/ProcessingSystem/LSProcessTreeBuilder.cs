@@ -172,7 +172,7 @@ public class LSProcessTreeBuilder {
     /// Creates or navigates to a sequence node in the current context with support for nested hierarchy construction.
     /// </summary>
     /// <param name="nodeID">Unique identifier for the sequence node within the current context.</param>
-    /// <param name="sequenceContext">Optional delegate for building nested children within this sequence. If provided, the sequence is built completely and the builder stays at the parent level.</param>
+    /// <param name="sequenceBuilderAction">Optional delegate for building nested children within this sequence. If provided, the sequence is built completely and the builder stays at the parent level.</param>
     /// <param name="priority">Processing priority level for this sequence node (default: NORMAL).</param>
     /// <param name="conditions">Optional array of conditions that must be met before this sequence processes.</param>
     /// <returns>The current builder instance for method chaining.</returns>
@@ -203,7 +203,7 @@ public class LSProcessTreeBuilder {
     /// </list>
     /// </remarks>
     public LSProcessTreeBuilder Sequence(string nodeID,
-            LSProcessBuilderAction? sequenceContext = null,
+            LSProcessBuilderAction? sequenceBuilderAction = null,
             LSProcessPriority? priority = LSProcessPriority.NORMAL,
             bool? withInverter = false,
             bool overrideConditions = false,
@@ -233,14 +233,15 @@ public class LSProcessTreeBuilder {
             sequenceNode.WithInverter = withInverter.Value;
             sequenceNode.Conditions = LSProcessConditions.UpdateConditions(overrideConditions, sequenceNode.Conditions, conditions);
         }
+        var builder = new LSProcessTreeBuilder(sequenceNode);
         // when we reach this point, sequenceNode is either a new node or the existing sequence node
-        ILSProcessLayerNode node = sequenceContext?.Invoke(new LSProcessTreeBuilder(sequenceNode)).Build() ?? sequenceNode;
+        ILSProcessLayerNode node = sequenceBuilderAction?.Invoke(builder).Build() ?? sequenceNode;
         // we only add the node if it was newly created and we had a current context
         if (parentBefore != null && existingNode == null) parentBefore.AddChild(node);
         // If there was no root yet, this node becomes the root
         if (_rootNode == null) _rootNode = node;
         // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
-        _currentNode = (parentBefore == null || sequenceContext == null) ? node : parentBefore;
+        _currentNode = (parentBefore == null || sequenceBuilderAction == null) ? node : parentBefore;
 
         return this;
     }
@@ -398,6 +399,18 @@ public class LSProcessTreeBuilder {
         if (_rootNode == null) _rootNode = node;
         // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
         _currentNode = (parentBefore == null || parallelBuilder == null) ? node : parentBefore;
+
+        return this;
+    }
+    public LSProcessTreeBuilder Navigate(string nodeID, LSProcessBuilderAction? builderAction = null) { 
+        if (_currentNode == null) throw new LSException("No current context to navigate from. Make sure to start with a layer node (Sequence, Selector, Parallel).");
+        if (!tryGetContextChild(nodeID, out var existingNode)) throw new LSException($"Node with ID '{nodeID}' does not exist in the current context.");
+        if (existingNode is not ILSProcessLayerNode layerNode) throw new LSException($"Node with ID '{nodeID}' is not a layer node and cannot be navigated into.");
+        var parentBefore = _currentNode;
+        var builder = new LSProcessTreeBuilder(layerNode);
+        ILSProcessLayerNode node = builderAction?.Invoke(builder).Build() ?? layerNode;
+        // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
+        _currentNode = (parentBefore == null || builderAction == null) ? node : parentBefore;
 
         return this;
     }

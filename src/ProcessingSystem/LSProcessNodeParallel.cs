@@ -258,22 +258,39 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
         if (childStatuses.Any(c => c == LSProcessResultStatus.CANCELLED)) {
             return LSProcessResultStatus.CANCELLED;
         }
-
-        int failureCount = childStatuses.Count(c => c == LSProcessResultStatus.FAILURE);
-        if (NumRequiredToFailure > 0 && failureCount >= NumRequiredToFailure) {
-            return LSProcessResultStatus.FAILURE;
-        }
         int successCount = childStatuses.Count(c => c == LSProcessResultStatus.SUCCESS);
-        if (NumRequiredToSucceed > 0 && successCount >= NumRequiredToSucceed) {
-            return LSProcessResultStatus.SUCCESS;
+        int failureCount = childStatuses.Count(c => c == LSProcessResultStatus.FAILURE);
+        if (NumRequiredToSucceed > NumRequiredToFailure) {
+            // succeed has priority, only consider success if the number of successes is greater than or equal to required.
+            if (successCount >= NumRequiredToSucceed) {
+                return LSProcessResultStatus.SUCCESS;
+            }
+            // consider failure only if the number of failures is greater than or equal to required.
+            if (failureCount >= NumRequiredToFailure) {
+                return LSProcessResultStatus.FAILURE;
+            }
+        } else if (NumRequiredToFailure > NumRequiredToSucceed) {
+            // failure has priority, only consider failure if the number of failures is greater than or equal to required.
+            if (failureCount >= NumRequiredToFailure) {
+                return LSProcessResultStatus.FAILURE;
+            }
+            // consider success only if the number of successes is greater than or equal to required.
+            if (successCount >= NumRequiredToSucceed) {
+                return LSProcessResultStatus.SUCCESS;
+            }
         }
+        // if no threshold reached we check for waiting childs
         if (childStatuses.Any(c => c == LSProcessResultStatus.WAITING)) {
             return LSProcessResultStatus.WAITING;
         }
+        // if we have no waiting childs and no threshold reached we check if the number of success is greater than the required to succeed.
         if (successCount >= NumRequiredToSucceed) {
-            return LSProcessResultStatus.SUCCESS;
+            //return LSProcessResultStatus.SUCCESS;
+            return NumRequiredToSucceed < 0 ? // if NumRequiredToSucceed is less than 0 we require all childs to succeed.
+                childStatuses.Count == successCount ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE :
+                LSProcessResultStatus.SUCCESS; // otherwise we return success.
         }
-
+        // any other result the parallel node failure
         return LSProcessResultStatus.FAILURE;
     }
     /// <summary>

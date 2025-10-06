@@ -1,4 +1,5 @@
 namespace LSUtils.Processing;
+
 using System.Collections.Generic;
 /// <summary>
 /// Abstract base class for all processes in the LSProcessing system.
@@ -39,7 +40,7 @@ public abstract class LSProcess : ILSProcess {
     /// Custom processing context/tree defined for this specific process instance.
     /// Merged with global context during execution.
     /// </summary>
-    private ILSProcessLayerNode? _localProcessBuilder;
+    private ILSProcessLayerNode? _root;
     /// <summary>
     /// Unique identifier for this process instance.
     /// Generated automatically when the process is created.
@@ -109,7 +110,7 @@ public abstract class LSProcess : ILSProcess {
         manager ??= LSProcessManager.Singleton;
         if (_processSession != null) throw new LSException("Process already executed.");
 
-        var globalBuilder = manager.GetRootNode(this.GetType(), instance, _localProcessBuilder);
+        var globalBuilder = manager.GetRootNode(this.GetType(), instance, _root);
         _processSession = new LSProcessSession(this, globalBuilder);
         return _processSession.Execute();
     }
@@ -144,7 +145,7 @@ public abstract class LSProcess : ILSProcess {
     /// Configures or extends the processing tree for this process using a builder delegate.
     /// Allows defining custom processing logic that will be merged with global context during execution.
     /// </summary>
-    /// <param name="builder">Builder action that defines the processing tree structure.</param>
+    /// <param name="builderAction">Builder action that defines the processing tree structure.</param>
     /// <param name="instance">Optional instance to use for naming the root node.</param>
     /// <returns>This process instance to enable method chaining.</returns>
     /// <remarks>
@@ -158,20 +159,19 @@ public abstract class LSProcess : ILSProcess {
     /// <para>Root node is named using the instance ID (if provided) or this process's ID,</para>
     /// <para>prefixed with the process type name for clarity in debugging.</para>
     /// </remarks>
-    public ILSProcess WithProcessing(LSProcessBuilderAction builder) {
-        LSProcessTreeBuilder processBuilder;
-        if (_localProcessBuilder == null) {
-            // no existing builder; start a new parallel node with the process type as name.
-            // creating a parallel node should allow to use handlers in the builder directly.
-            // the processBuilder will be merged on globalBuilder.
-            // if an instance is provided, we use its ID as name for the root node.
-
-            processBuilder = new LSProcessTreeBuilder().Parallel($"{GetType().Name}");
+    public ILSProcess WithProcessing(LSProcessBuilderAction builderAction, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) {
+        LSProcessTreeBuilder builder;
+        if (_root == null) {
+            builder = layerType switch {
+                LSProcessLayerNodeType.SEQUENCE => new LSProcessTreeBuilder().Sequence($"{GetType().Name}"),
+                LSProcessLayerNodeType.SELECTOR => new LSProcessTreeBuilder().Selector($"{GetType().Name}"),
+                _ => new LSProcessTreeBuilder().Parallel($"{GetType().Name}"),
+            };
         } else {
-            processBuilder = new LSProcessTreeBuilder(_localProcessBuilder);
+            builder = new LSProcessTreeBuilder(_root);
         }
-        // use the builder to modify or extend the processBuilder.
-        _localProcessBuilder = builder(processBuilder).Build();
+        // use the builderAction to modify or extend the root.
+        _root = builderAction(builder).Build();
         return this;
     }
     /// <summary>

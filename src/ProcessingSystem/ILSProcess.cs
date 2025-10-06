@@ -90,7 +90,7 @@ public interface ILSProcess {
     /// <item><description>Can be called multiple times to build complex hierarchies incrementally</description></item>
     /// </list>
     /// </remarks>
-    ILSProcess WithProcessing(LSProcessBuilderAction builder);
+    ILSProcess WithProcessing(LSProcessBuilderAction builder, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL);
 
     /// <summary>
     /// Execute the process through a context manager (or Singleton if not provided).
