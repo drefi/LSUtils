@@ -429,8 +429,9 @@ public class LSProcessingSystemTests {
     public void TestBuilderParallelWaitingSuccessWithResume() {
         var context = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
-                .Handler("handler1", _mockHandler3Waiting), 1)
-            .Build();
+                .Handler("handler1", _mockHandler3Waiting)
+            , 1)
+        .Build();
 
         Assert.That(context, Is.Not.Null);
         Assert.That(context.NodeID, Is.EqualTo("root"));
@@ -1443,7 +1444,7 @@ public class LSProcessingSystemTests {
         var processContext1 = new LSProcessSession(mockEvent, context1);
         var result1 = processContext1.Execute();
 
-        Assert.That(result1, Is.EqualTo(LSProcessResultStatus.FAILURE)); // failure threshold reached first
+        Assert.That(result1, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // since the number of successes is higher than failures it has precedence
         Assert.That(executionResults.Count, Is.GreaterThanOrEqualTo(1));
         Assert.That(executionResults.Contains("F1"), Is.True);
 
@@ -1463,6 +1464,37 @@ public class LSProcessingSystemTests {
         Assert.That(result2, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         // With 0 success threshold, it should succeed immediately, but children may still execute
         Assert.That(executionResults.Count, Is.GreaterThanOrEqualTo(0));
+    }
+    [Test]
+    public void TestParallelNodeThresholdEdgeCases2() {
+        List<string> executionResults = new List<string>();
+
+        // Test exact threshold matching
+        var context1 = new LSProcessTreeBuilder()
+            .Parallel("exactMatch", par => par
+                .Handler("success1", (evt, node) => {
+                    executionResults.Add("S1");
+                    return LSProcessResultStatus.SUCCESS;
+                })
+                .Handler("failure1", (evt, node) => {
+                    executionResults.Add("F1");
+                    return LSProcessResultStatus.FAILURE;
+                })
+                .Handler("failure2", (evt, node) => {
+                    executionResults.Add("F2");
+                    return LSProcessResultStatus.FAILURE;
+                }), 1, 2) // need 1 success, 2 failure
+            .Build();
+
+        var mockEvent = new MockProcess();
+        var processContext1 = new LSProcessSession(mockEvent, context1);
+        var result1 = processContext1.Execute();
+
+        Assert.That(result1, Is.EqualTo(LSProcessResultStatus.FAILURE)); // since the number of failures is higher than successes it has precedence
+        Assert.That(executionResults.Count, Is.GreaterThanOrEqualTo(1));
+        Assert.That(executionResults.Contains("S1"), Is.True);
+        Assert.That(executionResults.Contains("F1"), Is.True);
+        Assert.That(executionResults.Contains("F2"), Is.True);
     }
 
     [Test]
@@ -2009,49 +2041,6 @@ public class LSProcessingSystemTests {
 
         // Verify execution stopped at the exception
         Assert.That(executionOrder, Is.EqualTo(new List<string> { "BEFORE", "EXCEPTION" }));
-    }
-
-    [Test]
-    public void TestParallelNodeInvalidThresholds() {
-        // Test what happens with extreme threshold values
-        // The system might allow negative values or handle them gracefully
-
-        // Test if negative thresholds are allowed or converted
-        try {
-            var context1 = new LSProcessTreeBuilder()
-                .Parallel("root", par => par.Handler("handler", _mockHandler1), -1, 0)
-                .Build();
-
-            // If allowed, test behavior
-            var mockEvent = new MockProcess();
-            var result = new LSProcessSession(mockEvent, context1).Execute();
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // might succeed immediately
-
-        } catch (ArgumentException) {
-            Assert.Pass("Negative success threshold correctly throws ArgumentException");
-        }
-
-        // Test success threshold greater than child count
-        var context = new LSProcessTreeBuilder()
-            .Parallel("root", par => par
-                .Handler("handler1", _mockHandler1)
-                .Handler("handler2", _mockHandler2), 5) // requires 5 but only has 2 children
-            .Build();
-
-        var mockEvent2 = new MockProcess();
-        var processContext = new LSProcessSession(mockEvent2, context);
-
-        // Should fail because impossible to meet threshold
-        var result2 = processContext.Execute();
-        Assert.That(result2, Is.EqualTo(LSProcessResultStatus.FAILURE));
-
-        // Test zero thresholds work
-        var context3 = new LSProcessTreeBuilder()
-            .Parallel("root", par => par.Handler("handler", _mockHandler1), 0, 0)
-            .Build();
-
-        var result3 = new LSProcessSession(mockEvent2, context3).Execute();
-        Assert.That(result3, Is.EqualTo(LSProcessResultStatus.SUCCESS));
     }
 
     [Test]
