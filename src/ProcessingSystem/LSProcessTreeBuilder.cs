@@ -132,7 +132,7 @@ public class LSProcessTreeBuilder {
             _currentNode = LSProcessNodeSequence.Create($"sequence[{nodeID}]", 0); // create a root sequence node if none exists
         }
         // Check if a node with the same ID already exists
-        if (tryGetContextChild(nodeID, out var existingNode)) {
+        if (TryGetChild(nodeID, out var existingNode)) {
             // Node with same ID already exists
             // If the existing node is not a handler node, we cannot override it with a handler node
             if (existingNode is not LSProcessNodeHandler) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a handler node.");
@@ -211,7 +211,7 @@ public class LSProcessTreeBuilder {
         ILSProcessNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        if (_currentNode == null || !tryGetContextChild(nodeID, out existingNode) || existingNode is not LSProcessNodeSequence sequenceNode) {
+        if (_currentNode == null || !TryGetChild(nodeID, out existingNode) || existingNode is not LSProcessNodeSequence sequenceNode) {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             priority ??= LSProcessPriority.NORMAL; // default priority
@@ -283,7 +283,7 @@ public class LSProcessTreeBuilder {
         ILSProcessNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        if (_currentNode == null || !tryGetContextChild(nodeID, out existingNode) || existingNode is not LSProcessNodeSelector selectorNode) {
+        if (_currentNode == null || !TryGetChild(nodeID, out existingNode) || existingNode is not LSProcessNodeSelector selectorNode) {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not selector
@@ -364,7 +364,7 @@ public class LSProcessTreeBuilder {
         ILSProcessNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        if (_currentNode == null || !tryGetContextChild(nodeID, out existingNode) || existingNode is not LSProcessNodeParallel parallelNode) {
+        if (_currentNode == null || !TryGetChild(nodeID, out existingNode) || existingNode is not LSProcessNodeParallel parallelNode) {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not parallel
@@ -402,18 +402,7 @@ public class LSProcessTreeBuilder {
 
         return this;
     }
-    public LSProcessTreeBuilder Navigate(string nodeID, LSProcessBuilderAction? builderAction = null) { 
-        if (_currentNode == null) throw new LSException("No current context to navigate from. Make sure to start with a layer node (Sequence, Selector, Parallel).");
-        if (!tryGetContextChild(nodeID, out var existingNode)) throw new LSException($"Node with ID '{nodeID}' does not exist in the current context.");
-        if (existingNode is not ILSProcessLayerNode layerNode) throw new LSException($"Node with ID '{nodeID}' is not a layer node and cannot be navigated into.");
-        var parentBefore = _currentNode;
-        var builder = new LSProcessTreeBuilder(layerNode);
-        ILSProcessLayerNode node = builderAction?.Invoke(builder).Build() ?? layerNode;
-        // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
-        _currentNode = (parentBefore == null || builderAction == null) ? node : parentBefore;
-
-        return this;
-    }
+    
     /// <summary>
     /// Merges a sub-layer node hierarchy into the current context with intelligent conflict resolution.
     /// </summary>
@@ -614,7 +603,7 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Conflict Detection</strong>: Helps identify naming conflicts during node creation</description></item>
     /// </list>
     /// </remarks>
-    private bool tryGetContextChild(string nodeID, out ILSProcessNode? child) {
+    private bool TryGetChild(string nodeID, out ILSProcessNode? child) {
         child = null;
         if (_currentNode == null) return false;
         child = _currentNode.GetChild(nodeID);
