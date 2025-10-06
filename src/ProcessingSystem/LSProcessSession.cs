@@ -109,6 +109,7 @@ public class LSProcessSession {
     /// </remarks>
     internal LSProcessResultStatus Execute() {
         //System.Console.WriteLine($"[LSEventProcessContext] Processing root node '{_rootNode.NodeID}'...");
+        if (IsCompleted()) throw new LSException("ProcessSession is already completed.");
         _sessionStack.Push(_rootNode);
         var result = _rootNode.Execute(this);
         _sessionStack.Pop();
@@ -181,5 +182,10 @@ public class LSProcessSession {
         }
         _isCancelled = true;
         //System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");
+    }
+
+    public bool IsCompleted() {
+        var status = _rootNode.GetNodeStatus();
+        return status == LSProcessResultStatus.SUCCESS || status == LSProcessResultStatus.FAILURE || status == LSProcessResultStatus.CANCELLED;
     }
 }

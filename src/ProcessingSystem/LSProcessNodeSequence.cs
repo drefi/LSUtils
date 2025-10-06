@@ -107,7 +107,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// </remarks>
     public void AddChild(ILSProcessNode child) {
         if (_isProcessing) {
-            throw new System.InvalidOperationException("Cannot add child after processing.");
+            throw new LSException("Cannot add child after processing.");
         }
         _children[child.NodeID] = child;
     }
@@ -122,7 +122,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// </remarks>
     public bool RemoveChild(string label) {
         if (_isProcessing) {
-            throw new System.InvalidOperationException("Cannot remove child after processing.");
+            throw new LSException("Cannot remove child after processing.");
         }
         return _children.Remove(label);
     }

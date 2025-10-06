@@ -105,6 +105,9 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// <b>Uniqueness:</b> If a child with the same NodeID already exists, it will be replaced.
     /// </remarks>
     public void AddChild(ILSProcessNode child) {
+        if (_isProcessing) {
+            throw new LSException("Cannot add child after processing.");
+        }
         _children[child.NodeID] = child;
     }
     /// <summary>
@@ -113,6 +116,9 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// <param name="label">The NodeID of the child to remove.</param>
     /// <returns>True if the child was found and removed, false if no child with the specified ID existed.</returns>
     public bool RemoveChild(string label) {
+        if (_isProcessing) {
+            throw new LSException("Cannot add child after processing.");
+        }
         return _children.Remove(label);
     }
     /// <inheritdoc />
