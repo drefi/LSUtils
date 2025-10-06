@@ -101,17 +101,17 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// • Error detection where finding no errors is the success condition
     /// </para>
     /// </remarks>
-    public bool WithInverter { get; } = false;
+    //public bool WithInverter { get; } = false;
     /// <summary>
     /// Gets the effective SUCCESS status considering the WithInverter property.
     /// Returns FAILURE when WithInverter is true, SUCCESS otherwise.
     /// </summary>
-    protected LSProcessResultStatus _nodeSuccess => WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
+    //protected LSProcessResultStatus _nodeSuccess => WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
     /// <summary>
     /// Gets the effective FAILURE status considering the WithInverter property.
     /// Returns SUCCESS when WithInverter is true, FAILURE otherwise.
     /// </summary>
-    protected LSProcessResultStatus _nodeFailure => WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
+    //protected LSProcessResultStatus _nodeFailure => WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
     /// <summary>
     /// Gets or sets the execution count, automatically delegating to the base node if this is a clone.
     /// Provides shared execution statistics across all clones of a handler node.
@@ -166,13 +166,13 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para>with the original node while maintaining independent processing state.</para>
     /// </remarks>
     protected LSProcessNodeHandler(string nodeID, LSProcessHandler handler,
-                      int order, LSProcessPriority priority = LSProcessPriority.NORMAL, LSProcessNodeHandler? baseNode = null, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
+                      int order, LSProcessPriority priority = LSProcessPriority.NORMAL, LSProcessNodeHandler? baseNode = null, params LSProcessNodeCondition?[] conditions) {
         _baseNode = baseNode;
         NodeID = nodeID;
         Priority = priority;
         _handler = handler;
         Order = order;
-        WithInverter = withInverter;
+        //WithInverter = withInverter;
         Conditions = LSProcessConditions.UpdateConditions(true, null, conditions);
     }
     /// <inheritdoc />
@@ -238,11 +238,11 @@ public class LSProcessNodeHandler : ILSProcessNode {
         var nodeStatus = _handler(session.Process, session);
         // Increment execution count for analytics (shared across clones via base node)
         ExecutionCount++;
-        // Apply inversion logic if WithInverter is enabled
-        if (nodeStatus == LSProcessResultStatus.SUCCESS)
-            nodeStatus = _nodeSuccess;
-        else if (nodeStatus == LSProcessResultStatus.FAILURE)
-            nodeStatus = _nodeFailure;
+        // WithInverter is obsolete, NodeInverter should be used instead
+        // if (nodeStatus == LSProcessResultStatus.SUCCESS)
+        //     nodeStatus = _nodeSuccess;
+        // else if (nodeStatus == LSProcessResultStatus.FAILURE)
+        //     nodeStatus = _nodeFailure;
         // WAITING and CANCELLED statuses are not inverted
         // Only update _nodeStatus if it was UNKNOWN (preserves Resume/Fail operations)
         if (_nodeStatus == LSProcessResultStatus.UNKNOWN)
@@ -350,7 +350,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para>executed multiple times while maintaining global execution statistics.</para>
     /// </remarks>
     public ILSProcessNode Clone() {
-        return new LSProcessNodeHandler(NodeID, _handler, Order, Priority, this, WithInverter, Conditions);
+        return new LSProcessNodeHandler(NodeID, _handler, Order, Priority, this, Conditions);
     }
     /// <summary>
     /// Factory method for creating a new handler node with the specified configuration.
@@ -375,7 +375,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </para>
     /// </remarks>
     public static LSProcessNodeHandler Create(string nodeID, LSProcessHandler handler,
-                      int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
-        return new LSProcessNodeHandler(nodeID, handler, order, priority, null, withInverter, conditions);
+                      int order, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
+        return new LSProcessNodeHandler(nodeID, handler, order, priority, null, conditions);
     }
 }

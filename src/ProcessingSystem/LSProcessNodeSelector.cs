@@ -1,4 +1,5 @@
 namespace LSUtils.Processing;
+
 using System.Collections.Generic;
 using System.Linq;
 /// <summary>
@@ -42,8 +43,8 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// Current child node being processed. Null when no processing is active or processing is complete.
     /// </summary>
     protected ILSProcessNode? _currentChild;
-    protected LSProcessResultStatus _nodeSuccess => WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
-    protected LSProcessResultStatus _nodeFailure => WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
+    //protected LSProcessResultStatus _nodeSuccess => WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
+    //protected LSProcessResultStatus _nodeFailure => WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
     /// <summary>
     /// Stack containing children to be processed, ordered by priority and execution order.
     /// Provides deterministic LIFO processing sequence.
@@ -73,7 +74,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     public int Order { get; internal set; }
     /// <inheritdoc />
     public LSProcessNodeCondition? Conditions { get; internal set; }
-    public bool WithInverter { get; internal set; }
+    //public bool WithInverter { get; internal set; }
     /// <summary>
     /// Initializes a new selector node with the specified configuration.
     /// </summary>
@@ -88,11 +89,11 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// • <b>Composition:</b> Multiple conditions are combined using delegate composition (+=)<br/>
     /// • <b>Null Safety:</b> Null conditions in the array are automatically filtered out
     /// </remarks>
-    protected LSProcessNodeSelector(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
+    protected LSProcessNodeSelector(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeId;
         Order = order;
         Priority = priority;
-        WithInverter = withInverter;
+        //WithInverter = withInverter;
         Conditions = LSProcessConditions.UpdateConditions(true, Conditions, conditions);
     }
     /// <summary>
@@ -124,7 +125,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     public ILSProcessNode[] GetChildren() => _children.Values.ToArray();
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
-        var cloned = new LSProcessNodeSelector(NodeID, Order, Priority, WithInverter, Conditions);
+        var cloned = new LSProcessNodeSelector(NodeID, Order, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -159,7 +160,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         // - If any child is in WAITING, the selector is in WAITING.
         // - If any child is in CANCELLED, the selector is in CANCELLED.
         // - if there are no children, the selector is in SUCCESS.
-        if (_availableChildren.Count() == 0) return _nodeFailure;
+        if (_availableChildren.Count() == 0) return LSProcessResultStatus.FAILURE;
 
         // check for CANCELLED has the highest priority
         if (_availableChildren.Any(c => c.GetNodeStatus() == LSProcessResultStatus.CANCELLED)) {
@@ -167,14 +168,14 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         }
         // check for SUCCESS has the second highest priority
         if (_availableChildren.Any(c => c.GetNodeStatus() == LSProcessResultStatus.SUCCESS)) {
-            return _nodeSuccess; // we found a successful child
+            return LSProcessResultStatus.SUCCESS; // we found a successful child
         }
         // check for WAITING has the third highest priority
         if (_availableChildren.Any(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING)) {
             return LSProcessResultStatus.WAITING; // we have at least one child that is still waiting
         }
         // check if all children have failed, if so the selector is FAILURE, otherwise cannot be determined
-        return _availableChildren.Count() == _availableChildren.Count(c => c.GetNodeStatus() == LSProcessResultStatus.FAILURE) ? _nodeFailure : LSProcessResultStatus.UNKNOWN;
+        return _availableChildren.Count() == _availableChildren.Count(c => c.GetNodeStatus() == LSProcessResultStatus.FAILURE) ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.UNKNOWN;
     }
     /// <summary>
     /// Propagates failure to waiting children according to selector logic.
@@ -265,7 +266,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
         //System.Console.WriteLine($"[LSEventSelectorNode] Processing selector node [{NodeID}] selectorStatus: <{selectorStatus}>");
-        if (!LSProcessConditions.IsMet(session.Process, this)) return _nodeSuccess;
+        //if (!LSProcessConditions.IsMet(session.Process, this)) return _nodeSuccess;
         // we should not need to check for CANCELLED. this is handled when calling the child.Process
         // create a stack to process children in order, this stack cannot be re-created after the node is processed.
         // so _isProcessing can never be set to false again after the first initialization
@@ -286,8 +287,8 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
             //System.Console.WriteLine($"[LSEventSelectorNode] No children to process for node [{NodeID}], checking final status. selectorStatus {selectorStatus}");
             return selectorStatus; // return selector status
         }
-        var successStatus = WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
-        var failureStatus = WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
+        // var successStatus = WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
+        // var failureStatus = WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
         do {
             //System.Console.WriteLine($"[LSEventSelectorNode] Processing child node [{_currentChild.NodeID}].");
             // no more need to check for condition, we already filtered children that meet conditions during stack initialization
@@ -303,7 +304,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
                 //System.Console.WriteLine($"[LSEventSelectorNode] Warning: Selector node [{NodeID}] is in WAITING state but child [{_currentChild.NodeID}] is not WAITING.");
                 return LSProcessResultStatus.WAITING;
             }
-            if (currentChildStatus == successStatus || selectorStatus == LSProcessResultStatus.CANCELLED) {
+            if (currentChildStatus == LSProcessResultStatus.SUCCESS || selectorStatus == LSProcessResultStatus.CANCELLED) {
                 // exit condition: child succeeded (selector success) or cancelled
                 //System.Console.WriteLine($"[LSEventSelectorNode] Selector node [{NodeID}] finished processing because child [{_currentChild.NodeID}] returned {currentChildStatus}.");
                 _processStack.Clear();
@@ -321,7 +322,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
 
         // reach this point means that all children failed
         //System.Console.WriteLine($"[LSEventSelectorNode] Selector node [{NodeID}] finished processing all children. All failed, marking as FAILURE.");
-        return failureStatus; // all children failed, selector fails
+        return LSProcessResultStatus.FAILURE; // all children failed, selector fails
     }
     /// <summary>
     /// Creates a new selector node with the specified configuration.
@@ -338,7 +339,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// • <b>Clarity:</b> Explicit factory method name indicates intent<br/>
     /// • <b>Consistency:</b> Matches factory pattern used across the framework
     /// </remarks>
-    public static LSProcessNodeSelector Create(string nodeID, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
-        return new LSProcessNodeSelector(nodeID, order, priority, withInverter, conditions);
+    public static LSProcessNodeSelector Create(string nodeID, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
+        return new LSProcessNodeSelector(nodeID, order, priority, conditions);
     }
 }

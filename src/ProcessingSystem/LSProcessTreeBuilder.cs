@@ -127,7 +127,7 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Condition Attachment</strong>: Optional conditions control when handler executes</description></item>
     /// </list>
     /// </remarks>
-    public LSProcessTreeBuilder Handler(string nodeID, LSProcessHandler handler, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
+    public LSProcessTreeBuilder Handler(string nodeID, LSProcessHandler handler, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
         if (_currentNode == null) {
             _currentNode = LSProcessNodeSequence.Create($"sequence[{nodeID}]", 0); // create a root sequence node if none exists
         }
@@ -140,7 +140,7 @@ public class LSProcessTreeBuilder {
             _currentNode.RemoveChild(nodeID);
         }
         int order = _currentNode.GetChildren().Length; // Order is based on the number of existing children
-        LSProcessNodeHandler handlerNode = LSProcessNodeHandler.Create(nodeID, handler, order, priority, withInverter, conditions);
+        LSProcessNodeHandler handlerNode = LSProcessNodeHandler.Create(nodeID, handler, order, priority, conditions);
         _currentNode.AddChild(handlerNode);
 
         return this;
@@ -205,7 +205,6 @@ public class LSProcessTreeBuilder {
     public LSProcessTreeBuilder Sequence(string nodeID,
             LSProcessBuilderAction? sequenceBuilderAction = null,
             LSProcessPriority? priority = LSProcessPriority.NORMAL,
-            bool? withInverter = false,
             bool overrideConditions = false,
             params LSProcessNodeCondition?[] conditions) {
         ILSProcessNode? existingNode = null;
@@ -215,9 +214,8 @@ public class LSProcessTreeBuilder {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             priority ??= LSProcessPriority.NORMAL; // default priority
-            withInverter ??= false; // default inverter
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not sequence
-            sequenceNode = LSProcessNodeSequence.Create(nodeID, order, priority.Value, withInverter.Value, conditions);
+            sequenceNode = LSProcessNodeSequence.Create(nodeID, order, priority.Value, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSequenceNode we should throw an exception.
             //if existingNode is not null here is means is not a sequence node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a sequence node.");
@@ -226,11 +224,9 @@ public class LSProcessTreeBuilder {
             // existing node is a sequence node
             // if fields are not provided keep the existing values
             priority ??= sequenceNode.Priority;
-            withInverter ??= sequenceNode.WithInverter;
 
             // update values
             sequenceNode.Priority = priority.Value;
-            sequenceNode.WithInverter = withInverter.Value;
             sequenceNode.Conditions = LSProcessConditions.UpdateConditions(overrideConditions, sequenceNode.Conditions, conditions);
         }
         var builder = new LSProcessTreeBuilder(sequenceNode);
@@ -279,7 +275,11 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Sibling Support</strong>: Enables creation of sibling nodes when using sub-context pattern</description></item>
     /// </list>
     /// </remarks>
-    public LSProcessTreeBuilder Selector(string nodeID, LSProcessBuilderAction? selectorBuilder = null, LSProcessPriority? priority = LSProcessPriority.NORMAL, bool? withInverter = false, bool overrideConditions = false, params LSProcessNodeCondition?[] conditions) {
+    public LSProcessTreeBuilder Selector(string nodeID,
+            LSProcessBuilderAction? selectorBuilder = null,
+            LSProcessPriority? priority = LSProcessPriority.NORMAL,
+            bool overrideConditions = false,
+            params LSProcessNodeCondition?[] conditions) {
         ILSProcessNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -288,8 +288,7 @@ public class LSProcessTreeBuilder {
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not selector
             priority ??= LSProcessPriority.NORMAL; // default priority
-            withInverter ??= false; // default inverter
-            selectorNode = LSProcessNodeSelector.Create(nodeID, order, priority.Value, withInverter.Value, conditions);
+            selectorNode = LSProcessNodeSelector.Create(nodeID, order, priority.Value, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSelectorNode we should throw an exception.
             //if existingNode is not null here is means is not a selector node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a selector node.");
@@ -298,11 +297,9 @@ public class LSProcessTreeBuilder {
             // existing node is a selector node
             // if fields are not provided keep the existing values
             priority ??= selectorNode.Priority;
-            withInverter ??= selectorNode.WithInverter;
 
             // update values
             selectorNode.Priority = priority.Value;
-            selectorNode.WithInverter = withInverter.Value;
             selectorNode.Conditions = LSProcessConditions.UpdateConditions(overrideConditions, selectorNode.Conditions, conditions);
         }
         // when we reach this point, selectorNode is either a new node or the existing selector node
@@ -360,7 +357,13 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Order Preservation</strong>: Maintains original order when replacing existing nodes</description></item>
     /// </list>
     /// </remarks>
-    public LSProcessTreeBuilder Parallel(string nodeID, LSProcessBuilderAction? parallelBuilder = null, int? numRequiredToSucceed = 0, int? numRequiredToFailure = 0, LSProcessPriority? priority = null, bool? withInverter = null, bool overrideConditions = false, params LSProcessNodeCondition?[] conditions) {
+    public LSProcessTreeBuilder Parallel(string nodeID,
+            LSProcessBuilderAction? parallelBuilder = null,
+            int? numRequiredToSucceed = 0,
+            int? numRequiredToFailure = 0,
+            LSProcessPriority? priority = null,
+            bool overrideConditions = false,
+            params LSProcessNodeCondition?[] conditions) {
         ILSProcessNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -369,10 +372,9 @@ public class LSProcessTreeBuilder {
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not parallel
             priority ??= LSProcessPriority.NORMAL;
-            withInverter ??= false;
             numRequiredToSucceed ??= 0;
             numRequiredToFailure ??= 0;
-            parallelNode = LSProcessNodeParallel.Create(nodeID, order, numRequiredToSucceed.Value, numRequiredToFailure.Value, priority.Value, withInverter.Value, conditions);
+            parallelNode = LSProcessNodeParallel.Create(nodeID, order, numRequiredToSucceed.Value, numRequiredToFailure.Value, priority.Value, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventParallelNode we should throw an exception.
             //if existingNode is not null here is means is not a parallel node
             if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a parallel node.");
@@ -382,12 +384,10 @@ public class LSProcessTreeBuilder {
             // if fields are not provided, keep existing values
             numRequiredToSucceed ??= parallelNode.NumRequiredToSucceed;
             numRequiredToFailure ??= parallelNode.NumRequiredToFailure;
-            withInverter ??= parallelNode.WithInverter;
             priority ??= parallelNode.Priority;
             // update values
             parallelNode.NumRequiredToSucceed = numRequiredToSucceed.Value;
             parallelNode.NumRequiredToFailure = numRequiredToFailure.Value;
-            parallelNode.WithInverter = withInverter.Value;
             parallelNode.Priority = priority.Value;
             parallelNode.Conditions = LSProcessConditions.UpdateConditions(overrideConditions, parallelNode.Conditions, conditions);
         }
@@ -402,7 +402,7 @@ public class LSProcessTreeBuilder {
 
         return this;
     }
-    
+
     /// <summary>
     /// Merges a sub-layer node hierarchy into the current context with intelligent conflict resolution.
     /// </summary>
@@ -544,6 +544,26 @@ public class LSProcessTreeBuilder {
                 currentNode.AddChild(subNodeChild);
             }
         }
+    }
+
+    public LSProcessTreeBuilder Inverter(string nodeID, LSProcessBuilderAction builder, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
+        ILSProcessLayerNode? parentBefore = _currentNode;
+        int order = 0;
+        if (parentBefore != null) {
+            order = parentBefore.GetChildren().Length;
+        }
+
+        var node = LSProcessNodeInverter.Create(nodeID, priority, order, conditions);
+        var inverterTreeBuilder = new LSProcessTreeBuilder(node);
+        if (builder(inverterTreeBuilder).Build() != node) {
+            throw new LSException("Builder should return the created inverter node.");
+        }
+        if (parentBefore != null) parentBefore.AddChild(node);
+        else {
+            _currentNode = node;
+            _rootNode = node;
+        }
+        return this;
     }
 
     /// <summary>

@@ -72,7 +72,6 @@ public class LSTick : ILSProcessable {
             process.WithProcessing(builder => builder
                 .Selector(UPDATE_LABEL, selectorBuilder: builder => builder,
                 priority: LSProcessPriority.LOW,
-                withInverter: false,
                 overrideConditions: true,
                 conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == UPDATE_LABEL)
             ).Execute(this, _manager);
@@ -118,7 +117,6 @@ public class LSTick : ILSProcessable {
                 .Selector(START_LABEL,
                     selectorBuilder: builder => builder,
                     priority: LSProcessPriority.NORMAL,
-                    withInverter: false,
                     overrideConditions: true,
                     conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == START_LABEL)
             ).Execute(this, _manager);
@@ -151,7 +149,6 @@ public class LSTick : ILSProcessable {
                 .Selector(START_LABEL,
                     selectorBuilder: builder => builder,
                     priority: LSProcessPriority.NORMAL,
-                    withInverter: false,
                     overrideConditions: true,
                     conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == START_LABEL)
             ).Execute(this, _manager);
@@ -192,7 +189,6 @@ public class LSTick : ILSProcessable {
                 .Selector(DELTA_CHANGE_LABEL,
                     selectorBuilder: builder => builder,
                     priority: LSProcessPriority.NORMAL,
-                    withInverter: false,
                     overrideConditions: true,
                     conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == DELTA_CHANGE_LABEL)
             ).Execute(this, _manager);

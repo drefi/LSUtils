@@ -82,7 +82,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     public int Order { get; internal set; }
     /// <inheritdoc />
     public LSProcessNodeCondition? Conditions { get; internal set; }
-    public bool WithInverter { get; internal set; }
+    //public bool WithInverter { get; internal set; }
     /// <summary>
     /// Number of child nodes that must reach SUCCESS state for this parallel node to succeed.
     /// </summary>
@@ -137,13 +137,13 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// • Evaluation: Conditions are checked before each processing cycle
     /// </para>
     /// </remarks>
-    internal LSProcessNodeParallel(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
+    internal LSProcessNodeParallel(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeID;
         Order = order;
         Priority = priority;
         NumRequiredToSucceed = numRequiredToSucceed;
         NumRequiredToFailure = numRequiredToFailure;
-        WithInverter = withInverter;
+        //WithInverter = withInverter;
         Conditions = LSProcessConditions.UpdateConditions(true, Conditions, conditions);
     }
     /// <summary>
@@ -206,7 +206,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     }
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
-        var cloned = new LSProcessNodeParallel(NodeID, Order, NumRequiredToSucceed, NumRequiredToFailure, Priority, WithInverter, Conditions);
+        var cloned = new LSProcessNodeParallel(NodeID, Order, NumRequiredToSucceed, NumRequiredToFailure, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -466,7 +466,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
         //System.Console.WriteLine($"[LSEventParallelNode] Process called on node {NodeID}, current status is {GetNodeStatus()}.");
-        if (!LSProcessConditions.IsMet(session.Process, this)) return LSProcessResultStatus.SUCCESS;
+        //if (!LSProcessConditions.IsMet(session.Process, this)) return LSProcessResultStatus.SUCCESS;
 
 
         //System.Console.WriteLine($"[LSEventParallelNode] Processing parallel node {NodeID} with {_children.Count} children.");
@@ -531,7 +531,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// • Deferred Validation: Validation occurs when actual processing begins
     /// </para>
     /// </remarks>
-    public static LSProcessNodeParallel Create(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSProcessPriority priority = LSProcessPriority.NORMAL, bool withInverter = false, params LSProcessNodeCondition?[] conditions) {
-        return new LSProcessNodeParallel(nodeID, order, numRequiredToSucceed, numRequiredToFailure, priority, withInverter, conditions);
+    public static LSProcessNodeParallel Create(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
+        return new LSProcessNodeParallel(nodeID, order, numRequiredToSucceed, numRequiredToFailure, priority, conditions);
     }
 }

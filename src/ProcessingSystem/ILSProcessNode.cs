@@ -80,7 +80,7 @@ public interface ILSProcessNode {
     /// </list>
     /// <para>Used for implementing negative conditions or failure-expected scenarios.</para>
     /// </remarks>
-    bool WithInverter { get; }
+    //bool WithInverter { get; }
     /// <summary>
     /// Creates an independent copy of this node for parallel processing or tree manipulation.
     /// </summary>
