@@ -1,6 +1,9 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using LSUtils.Logging;
+
 /// <summary>
 /// Manages global processing contexts for different process types and optional processable instances.
 /// Provides centralized registration and retrieval of processing hierarchies within the LSProcessing system.
@@ -39,13 +42,32 @@ using System.Collections.Concurrent;
 /// var context = LSProcessManager.Singleton.GetContext&lt;UserLoginProcess&gt;(premiumUser);
 /// </code>
 /// </remarks>
-public class LSProcessManager {
+public sealed class LSProcessManager {
+    public const string ClassName = nameof(LSProcessManager);
     public static LSProcessManager Singleton { get; } = new LSProcessManager();
+    public static void ToggleLogging() {
+        var logger = LSLogger.Singleton;
+        var current = logger.IsSourceEnabled(ClassName);
+        logger.SetSource((ClassName, !current));
+    }
     /// <summary>
     /// Internal storage for registered processing contexts, organized by process type and processable instance.
     /// Maps process types to dictionaries containing instance-specific and global contexts.
     /// </summary>
-    protected readonly ConcurrentDictionary<System.Type, ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>> _globalNodes = new();
+    private readonly ConcurrentDictionary<System.Type, ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>> _globalNodes = new();
+
+    private LSProcessManager() {
+        // private constructor to enforce singleton pattern
+        // disable logging for all classes, if they are not explicitly enabled.
+        LSLogger.Singleton.SetSource((sourceID: ClassName, isEnabled: false), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcess.ClassName, isEnabled: false), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeHandler.ClassName, isEnabled: false), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSequence.ClassName, isEnabled: false), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSelector.ClassName, isEnabled: false), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeParallel.ClassName, isEnabled: false), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessSession.ClassName, isEnabled: false), true);
+
+    }
     /// <summary>
     /// Registers a processing context for a specific process type using a fluent builder pattern.
     /// </summary>
@@ -77,6 +99,11 @@ public class LSProcessManager {
     /// </list>
     /// </remarks>
     public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null) {
+        LSLogger.Singleton.Info("Register tree", ClassName, null, new Dictionary<string, object>() {
+            ["processType"] = processType.Name,
+            ["instance"] = instance?.ID.ToString() ?? "null",
+            ["method"] = nameof(Register)
+        });
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
@@ -131,7 +158,7 @@ public class LSProcessManager {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
         }
-        LSProcessTreeBuilder builder = new LSProcessTreeBuilder().Parallel($"{processType.Name}");
+        LSProcessTreeBuilder builder = new LSProcessTreeBuilder();//.Parallel($"{processType.Name}");
         // LSProcessTreeBuilder builder = new LSProcessTreeBuilder().Sequence($"root");
         if (processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
             // we have a global node to merge. We clone the global node to avoid modifying the original.
@@ -159,7 +186,7 @@ public class LSProcessManager {
     /// global contexts (registered without a specific instance) and instance-specific contexts.
     /// It should never be used directly outside of the LSProcessManager implementation.
     /// </remarks>
-    protected class GlobalProcessable : ILSProcessable {
+    private class GlobalProcessable : ILSProcessable {
         static GlobalProcessable _instance = new();
         internal static GlobalProcessable Instance => _instance;
         /// <summary>
@@ -174,7 +201,7 @@ public class LSProcessManager {
         /// <param name="manager">Ignored parameter</param>
         /// <returns>Never returns as method throws NotImplementedException</returns>
         /// <exception cref="NotImplementedException">Always thrown as this is a placeholder implementation</exception>
-        LSProcessResultStatus ILSProcessable.Initialize(LSProcessBuilderAction? ctxBuilder, LSProcessManager? manager) {
+        LSProcessResultStatus ILSProcessable.Initialize(LSProcessBuilderAction? initBuilder) {
             throw new System.NotImplementedException("GlobalProcessable is a placeholder class and should never be initialized in the processing pipeline.");
         }
     }

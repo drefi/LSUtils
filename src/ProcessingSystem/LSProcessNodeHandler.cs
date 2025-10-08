@@ -1,5 +1,9 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
+
+using System.Collections.Generic;
 using System.Linq;
+using LSUtils.Logging;
+
 /// <summary>
 /// Leaf node implementation that executes process handler delegates in the LSProcessing system hierarchy.
 /// Represents the concrete processing units that perform actual business logic within the processing pipeline.
@@ -47,6 +51,7 @@ using System.Linq;
 /// </para>
 /// </remarks>
 public class LSProcessNodeHandler : ILSProcessNode {
+    public const string ClassName = nameof(LSProcessNodeHandler);
     /// <summary>
     /// Reference to the original node for sharing execution count across clones.
     /// Used to implement shared execution statistics while maintaining independent processing state.
@@ -77,6 +82,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// allowing it to access process data and node metadata for decision-making.
     /// </remarks>
     protected LSProcessHandler _handler;
+    protected bool _hasExecuted = false;
     /// <inheritdoc />
     public string NodeID { get; }
     /// <inheritdoc />
@@ -229,25 +235,34 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// is shared across clones for accurate system-wide statistics.
     /// </para>
     /// </remarks>
-    LSProcessResultStatus ILSProcessNode.Execute(LSProcessSession session) {
-        // Terminal state check - return cached status for completed nodes
-        if (_nodeStatus != LSProcessResultStatus.UNKNOWN && _nodeStatus != LSProcessResultStatus.WAITING) {
-            return _nodeStatus; // Already completed with terminal status
+    public LSProcessResultStatus Execute(LSProcessSession session) {
+        if (_hasExecuted) {
+            LSLogger.Singleton.Warning($"Handler node already executed.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+                ["nodeID"] = NodeID,
+                ["nodeStatus"] = _nodeStatus,
+                ["ExecutionCount"] = ExecutionCount,
+                ["isClone"] = _baseNode != null,
+                ["class"] = ClassName,
+                ["method"] = nameof(Execute)
+            });
+            return _nodeStatus;
         }
+        _hasExecuted = true;
         // Execute the handler delegate with current process and session context
-        var nodeStatus = _handler(session.Process, session);
+        var handlerResult = _handler(session);
         // Increment execution count for analytics (shared across clones via base node)
         ExecutionCount++;
-        // WithInverter is obsolete, NodeInverter should be used instead
-        // if (nodeStatus == LSProcessResultStatus.SUCCESS)
-        //     nodeStatus = _nodeSuccess;
-        // else if (nodeStatus == LSProcessResultStatus.FAILURE)
-        //     nodeStatus = _nodeFailure;
-        // WAITING and CANCELLED statuses are not inverted
-        // Only update _nodeStatus if it was UNKNOWN (preserves Resume/Fail operations)
-        if (_nodeStatus == LSProcessResultStatus.UNKNOWN)
-            _nodeStatus = nodeStatus;
-
+        LSLogger.Singleton.Info($"Handler node executed.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+            ["nodeID"] = NodeID,
+            ["nodeStatus"] = handlerResult,
+            ["ExecutionCount"] = ExecutionCount,
+            ["isClone"] = _baseNode != null,
+            ["class"] = ClassName,
+            ["method"] = nameof(Execute)
+        });
+        // update status if handlerResult is CANCELLED
+        // otherwise is SUCCESS or FAILURE because of Resume/Fail
+        _nodeStatus = handlerResult == LSProcessResultStatus.CANCELLED ? handlerResult : _nodeStatus == LSProcessResultStatus.UNKNOWN ? handlerResult : _nodeStatus;
         return _nodeStatus;
     }
     /// <summary>
@@ -269,45 +284,54 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para>Typically used when external asynchronous operations complete successfully,</para>
     /// <para>allowing the handler to transition from WAITING to SUCCESS without re-executing the handler delegate.</para>
     /// </remarks>
-    LSProcessResultStatus ILSProcessNode.Resume(LSProcessSession context, params string[]? nodes) {
-        // Can only resume from WAITING or UNKNOWN states
-        if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
-            return _nodeStatus; // Cannot resume from terminal states
+    public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+        // execute if we never executed before
+        if (!_hasExecuted) {
+            // pre-set to SUCCESS, this prevents Execute to return WAITING
+            _nodeStatus = LSProcessResultStatus.SUCCESS;
+            // execute the handler, since we handler can still cancel or fail by itself we return the Execute result
+            return Execute(session);
         }
 
-        // Transition to SUCCESS status (external operation completed successfully)
+        if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
+            LSLogger.Singleton.Warning($"Handler node not waiting.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+                ["nodeID"] = NodeID,
+                ["nodeStatus"] = _nodeStatus,
+                ["ExecutionCount"] = ExecutionCount,
+                ["isClone"] = _baseNode != null,
+                ["class"] = ClassName,
+                ["method"] = nameof(Resume)
+            });
+            return _nodeStatus;
+        }
         _nodeStatus = LSProcessResultStatus.SUCCESS;
         return _nodeStatus;
     }
     /// <summary>
-    /// Forces this handler node to transition from WAITING state to FAILURE.
-    /// Used when external operations fail or timeout, requiring the handler to fail.
+    /// Forces this handler node to transition to FAILURE unless the node was already CANCELLED.
     /// </summary>
-    /// <param name="context">The processing context (not used by handler nodes).</param>
+    /// <param name="session">The processing session.</param>
     /// <param name="nodes">Optional node ID array for targeting (not used by handler nodes as they are leaf nodes).</param>
-    /// <returns>The new processing status after failure operation.</returns>
-    /// <remarks>
-    /// <para><strong>Valid Transitions:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>WAITING → FAILURE</strong>: Normal failure path</description></item>
-    /// <item><description><strong>UNKNOWN → FAILURE</strong>: Immediate failure without processing</description></item>
-    /// <item><description><strong>Terminal States</strong>: Returns current status without change</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Use Cases:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Timeout Handling</strong>: Force failure when operations take too long</description></item>
-    /// <item><description><strong>Error Propagation</strong>: Propagate external errors to waiting handlers</description></item>
-    /// <item><description><strong>Resource Failure</strong>: Fail when required resources become unavailable</description></item>
-    /// </list>
-    /// </remarks>
-    LSProcessResultStatus ILSProcessNode.Fail(LSProcessSession context, params string[]? nodes) {
-        // Can only fail from WAITING or UNKNOWN states  
-        if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
-            return _nodeStatus; // Cannot fail from terminal states
+    /// <returns>Node status FAILURE unless node already CANCELLED.</returns>
+    public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
+        // execute if we never executed before
+        if (!_hasExecuted) {
+            // pre-set to FAILURE, this prevents Execute to return WAITING
+            _nodeStatus = LSProcessResultStatus.FAILURE;
+            // execute the handler, since we handler can still cancel or succeed by itself we return the Execute result
+            return Execute(session);
         }
-
-        // Transition to FAILURE status (external operation failed or timed out)
+        if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
+            LSLogger.Singleton.Warning($"Handler node not waiting.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+                ["nodeID"] = NodeID,
+                ["nodeStatus"] = _nodeStatus,
+                ["ExecutionCount"] = ExecutionCount,
+                ["isClone"] = _baseNode != null,
+                ["class"] = ClassName,
+                ["method"] = nameof(Fail)
+            });
+            return _nodeStatus;
+        }
         _nodeStatus = LSProcessResultStatus.FAILURE;
         return _nodeStatus;
     }
@@ -322,7 +346,9 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para><strong>Idempotency:</strong> Safe to call multiple times, always results in CANCELLED status.</para>
     /// <para><strong>Scope:</strong> Only affects this individual handler node (leaf nodes have no children).</para>
     /// </remarks>
-    LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession context) {
+    public LSProcessResultStatus Cancel(LSProcessSession context) {
+        // prevent executing if we never executed before
+        _hasExecuted = true;
         // Set status to CANCELLED (terminal state, always succeeds)
         _nodeStatus = LSProcessResultStatus.CANCELLED;
         return _nodeStatus;
@@ -350,7 +376,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para>executed multiple times while maintaining global execution statistics.</para>
     /// </remarks>
     public ILSProcessNode Clone() {
-        return new LSProcessNodeHandler(NodeID, _handler, Order, Priority, this, Conditions);
+        return new LSProcessNodeHandler(NodeID, _handler, Order, Priority, _baseNode == null ? this : _baseNode, Conditions);
     }
     /// <summary>
     /// Factory method for creating a new handler node with the specified configuration.

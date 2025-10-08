@@ -1,9 +1,8 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Delegate that represents a process handler function in the LSProcessing system.
 /// Encapsulates the business logic to be executed when a process is executed within the processing pipeline.
 /// </summary>
-/// <param name="process">The process being executed, containing all relevant process data and context.</param>
 /// <param name="session">The processing session executing this handler, providing access to session metadata and state.</param>
 /// <returns>Processing status indicating the outcome of the handler execution.</returns>
 /// <remarks>
@@ -40,23 +39,11 @@ namespace LSUtils.Processing;
 /// 
 /// <para><strong>Usage Patterns:</strong></para>
 /// <code>
-/// // Simple synchronous handler
-/// LSProcessHandler simpleHandler = (process, session) => {
+/// LSProcessHandler simpleHandler = (session) => {
 ///     // Perform business logic
-///     if (BusinessRule.IsValid(process.Data))
+///     if (BusinessRule.IsValid(session.process.Data))
 ///         return LSProcessResultStatus.SUCCESS;
 ///     return LSProcessResultStatus.FAILURE;
-/// };
-/// 
-/// // Asynchronous handler with WAITING status
-/// LSProcessHandler asyncHandler = (process, session) => {
-///     if (!asyncOperation.IsStarted) {
-///         asyncOperation.StartAsync(process.Data);
-///         return LSProcessResultStatus.WAITING;
-///     }
-///     // This will be called again when Resume() is invoked
-///     return asyncOperation.IsComplete ? 
-///         LSProcessResultStatus.SUCCESS : LSProcessResultStatus.WAITING;
 /// };
 /// </code>
 /// 
@@ -68,4 +55,4 @@ namespace LSUtils.Processing;
 /// <item><description><strong>Maintainability</strong>: Business logic is encapsulated in focused, single-responsibility functions</description></item>
 /// </list>
 /// </remarks>
-public delegate LSProcessResultStatus LSProcessHandler(ILSProcess process, LSProcessSession session);
+public delegate LSProcessResultStatus LSProcessHandler(LSProcessSession session);

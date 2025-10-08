@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Core interface for all nodes in the LSProcessing system hierarchy.
 /// Defines the fundamental contract for process execution, state management, and tree navigation.
@@ -66,21 +66,6 @@ public interface ILSProcessNode {
     /// <value>Order value set during node registration, typically incremented sequentially.</value>
     /// <remarks>This provides deterministic execution order for nodes with identical priorities.</remarks>
     int Order { get; }
-    /// <summary>
-    /// Indicates whether this node has an inverter applied to its result.
-    /// When true, the node's success/failure results are inverted.
-    /// </summary>
-    /// <value>True if the node result should be inverted, false for normal behavior.</value>
-    /// <remarks>
-    /// <para><strong>Inversion Logic:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>SUCCESS</strong> becomes <strong>FAILURE</strong></description></item>
-    /// <item><description><strong>FAILURE</strong> becomes <strong>SUCCESS</strong></description></item>
-    /// <item><description><strong>WAITING</strong> and <strong>CANCELLED</strong> remain unchanged</description></item>
-    /// </list>
-    /// <para>Used for implementing negative conditions or failure-expected scenarios.</para>
-    /// </remarks>
-    //bool WithInverter { get; }
     /// <summary>
     /// Creates an independent copy of this node for parallel processing or tree manipulation.
     /// </summary>

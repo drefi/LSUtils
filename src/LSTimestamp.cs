@@ -1,7 +1,10 @@
 namespace LSUtils;
 
-using LSUtils.Processing;
+using LSUtils.ProcessSystem;
 
+// TODO: Tests
+// TODO: Logging according to LSLogger standards
+// TODO: LSProcess needs review
 public class LSTimestamp : ILSProcessable {
 
     public int TotalMinutes;
@@ -29,16 +32,16 @@ public class LSTimestamp : ILSProcessable {
         TotalMinutes = totalMinutes;
     }
 
-    public void SetTimestamp(int day, int hour, int minute, bool dontUpdate = false, LSProcessManager? contextManager = null) {
+    public void SetTimestamp(int day, int hour, int minute, bool dontUpdate = false) {
         AddDays(day, true);
         AddHours(hour, true);
         AddMinutes(minute, true);
         //TotalMinutes = (day * 24 * 60) + (hour * 60) + minute;
-        if (dontUpdate == false) Update(contextManager);
+        if (dontUpdate == false) Update();
     }
-    public void Update(LSProcessManager? contextManager = null) {
+    public void Update() {
         var @event = new OnUpdateEvent(this);
-        @event.Execute(this, contextManager);
+        @event.Execute(this);
     }
     public bool AddMinutes(int minutes, bool dontUpdate = false) {
         if (minutes <= 0)
@@ -47,18 +50,18 @@ public class LSTimestamp : ILSProcessable {
         if (dontUpdate == false) Update();
         return true;
     }
-    public bool AddHours(int hours, bool dontUpdate = false, LSProcessManager? contextManager = null) {
+    public bool AddHours(int hours, bool dontUpdate = false) {
         if (hours <= 0)
             return false;
         TotalMinutes += (hours * 60);
-        if (dontUpdate == false) Update(contextManager);
+        if (dontUpdate == false) Update();
         return true;
     }
-    public bool AddDays(int days, bool dontUpdate = false, LSProcessManager? contextManager = null) {
+    public bool AddDays(int days, bool dontUpdate = false) {
         if (days <= 0)
             return false;
         TotalMinutes += (days * 24 * 60);
-        if (dontUpdate == false) Update(contextManager);
+        if (dontUpdate == false) Update();
         return true;
     }
     public int Diff(LSTimestamp timestamp) {
@@ -73,10 +76,10 @@ public class LSTimestamp : ILSProcessable {
         return "[Timestamp: " + TotalMinutes + " => Day = " + Day + " Hour = " + Hour + " Minute = " + Minute + "]";
     }
 
-    public LSProcessResultStatus Initialize(LSProcessBuilderAction? ctxBuilder = null, LSProcessManager? manager = null) {
+    public LSProcessResultStatus Initialize(LSProcessBuilderAction? ctxBuilder = null) {
         var @event = new OnInitializeEvent(this);
         if (ctxBuilder != null) @event.WithProcessing(ctxBuilder);
-        return @event.Execute(this, manager);
+        return @event.Execute(this);
     }
 
     public class OnInitializeEvent : LSProcess {

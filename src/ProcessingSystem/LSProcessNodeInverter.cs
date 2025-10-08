@@ -1,6 +1,9 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
+using System.Collections.Generic;
+using LSUtils.Logging;
 public class LSProcessNodeInverter : ILSProcessLayerNode {
+    public const string ClassName = nameof(LSProcessNodeInverter);
     public string NodeID { get; }
     protected ILSProcessNode? _childNode = null;
 
@@ -28,7 +31,16 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         _childNode = child;
     }
 
-    public LSProcessResultStatus Cancel(LSProcessSession context) => _childNode?.Cancel(context) ?? throw new LSException("No child node to cancel.");
+    public LSProcessResultStatus Cancel(LSProcessSession session) {
+        LSLogger.Singleton.Info($"Cancelling node {NodeID}.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+            ["nodeID"] = NodeID,
+            ["nodeChild"] = _childNode?.NodeID ?? "null",
+            ["class"] = ClassName,
+            ["method"] = nameof(Cancel)
+        });
+        if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
+        return _childNode.Cancel(session);
+    }
 
     public ILSProcessLayerNode Clone() {
         var clone = new LSProcessNodeInverter(NodeID, Priority, Order, Conditions);
@@ -38,12 +50,18 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         return clone;
     }
 
-    public LSProcessResultStatus Execute(LSProcessSession context) {
+    public LSProcessResultStatus Execute(LSProcessSession session) {
         if (_childNode == null) {
             throw new LSException("LSProcessNodeInverter must have a child node!");
         }
+        LSLogger.Singleton.Info($"Inverter Node Execute.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+            ["nodeID"] = NodeID,
+            ["nodeChild"] = _childNode.NodeID,
+            ["class"] = ClassName,
+            ["method"] = nameof(Execute)
+        });
 
-        var result = _childNode.Execute(context);
+        var result = _childNode.Execute(session);
         return result switch {
             LSProcessResultStatus.SUCCESS => LSProcessResultStatus.FAILURE,
             LSProcessResultStatus.FAILURE => LSProcessResultStatus.SUCCESS,
@@ -51,7 +69,17 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         };
     }
 
-    public LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodes) => _childNode?.Fail(context, nodes) ?? throw new LSException("No child node to fail.");
+    public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
+        LSLogger.Singleton.Info($"Inverter Node Fail.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+            ["nodeID"] = NodeID,
+            ["nodeChild"] = _childNode?.NodeID ?? "null",
+            ["nodes"] = nodes != null ? string.Join(",", nodes) : "null",
+            ["class"] = ClassName,
+            ["method"] = nameof(Fail)
+        });
+        if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
+        return _childNode.Fail(session, nodes);
+    }
 
     public ILSProcessNode? GetChild(string nodeID) {
         if (_childNode != null && _childNode.NodeID == nodeID) {
@@ -90,7 +118,17 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         return false;
     }
 
-    public LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodes) => _childNode?.Resume(context, nodes) ?? throw new LSException("No child node to resume.");
+    public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+        LSLogger.Singleton.Info($"Inverter Node Resume.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+            ["nodeID"] = NodeID,
+            ["nodeChild"] = _childNode?.NodeID ?? "null",
+            ["nodes"] = nodes != null ? string.Join(",", nodes) : "null",
+            ["class"] = ClassName,
+            ["method"] = nameof(Resume)
+        });
+        if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
+        return _childNode.Resume(session, nodes);
+    }
 
     ILSProcessNode ILSProcessNode.Clone() {
         return Clone();

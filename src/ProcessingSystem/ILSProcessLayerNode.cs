@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Extended interface for composite nodes that can contain and manage child nodes in the process execution hierarchy.
 /// Implements the Composite Pattern by extending ILSProcessNode with child management capabilities.

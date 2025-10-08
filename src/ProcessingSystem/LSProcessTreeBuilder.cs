@@ -1,6 +1,7 @@
 using System.Collections.Generic;
+using LSUtils.Logging;
 
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
 /// <summary>
 /// Provides a fluent API for building event processing hierarchies using the builder pattern.
@@ -47,6 +48,7 @@ namespace LSUtils.Processing;
 /// </list>
 /// </remarks>
 public class LSProcessTreeBuilder {
+    private const string ClassName = nameof(LSProcessTreeBuilder);
     /// <summary>
     /// The current node context for hierarchy operations. Null when in global mode before first layer node creation.
     /// </summary>
@@ -132,7 +134,7 @@ public class LSProcessTreeBuilder {
             _currentNode = LSProcessNodeSequence.Create($"sequence[{nodeID}]", 0); // create a root sequence node if none exists
         }
         // Check if a node with the same ID already exists
-        if (TryGetChild(nodeID, out var existingNode)) {
+        if (getChild(nodeID, out var existingNode)) {
             // Node with same ID already exists
             // If the existing node is not a handler node, we cannot override it with a handler node
             if (existingNode is not LSProcessNodeHandler) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a handler node.");
@@ -207,18 +209,18 @@ public class LSProcessTreeBuilder {
             LSProcessPriority? priority = LSProcessPriority.NORMAL,
             bool overrideConditions = false,
             params LSProcessNodeCondition?[] conditions) {
-        ILSProcessNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        if (_currentNode == null || !TryGetChild(nodeID, out existingNode) || existingNode is not LSProcessNodeSequence sequenceNode) {
+        getChild(nodeID, out ILSProcessNode? existingNode);
+
+        if (existingNode is not LSProcessNodeSequence sequenceNode) {
+            //if existingNode is not null it means is not a sequence node
+            if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a sequence node.");
             // we keep the original order of the existing node
-            order = existingNode?.Order ?? order;
             priority ??= LSProcessPriority.NORMAL; // default priority
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not sequence
             sequenceNode = LSProcessNodeSequence.Create(nodeID, order, priority.Value, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSequenceNode we should throw an exception.
-            //if existingNode is not null here is means is not a sequence node
-            if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a sequence node.");
             _currentNode?.RemoveChild(nodeID); // remove existing node if exists
         } else {
             // existing node is a sequence node
@@ -238,6 +240,16 @@ public class LSProcessTreeBuilder {
         if (_rootNode == null) _rootNode = node;
         // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
         _currentNode = (parentBefore == null || sequenceBuilderAction == null) ? node : parentBefore;
+
+        LSLogger.Singleton.Info($"Tree Builder Sequence Node created/updated.", ClassName, null, new Dictionary<string, object>() {
+            ["nodeID"] = nodeID,
+            ["isNewNode"] = existingNode == null,
+            ["order"] = order,
+            ["priority"] = priority,
+            ["hasConditions"] = conditions != null && conditions.Length > 0,
+            ["currentContext"] = _currentNode?.NodeID ?? "null",
+            ["rootNode"] = _rootNode?.NodeID ?? "null"
+        });
 
         return this;
     }
@@ -280,18 +292,19 @@ public class LSProcessTreeBuilder {
             LSProcessPriority? priority = LSProcessPriority.NORMAL,
             bool overrideConditions = false,
             params LSProcessNodeCondition?[] conditions) {
-        ILSProcessNode? existingNode = null;
+
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        if (_currentNode == null || !TryGetChild(nodeID, out existingNode) || existingNode is not LSProcessNodeSelector selectorNode) {
+        getChild(nodeID, out ILSProcessNode? existingNode);
+
+        if (existingNode is not LSProcessNodeSelector selectorNode) {
+            //if existingNode is not null here is means is not a selector node
+            if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a selector node.");
             // we keep the original order of the existing node
-            order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not selector
             priority ??= LSProcessPriority.NORMAL; // default priority
             selectorNode = LSProcessNodeSelector.Create(nodeID, order, priority.Value, conditions);
             // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSelectorNode we should throw an exception.
-            //if existingNode is not null here is means is not a selector node
-            if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a selector node.");
             _currentNode?.RemoveChild(nodeID);
         } else {
             // existing node is a selector node
@@ -367,7 +380,7 @@ public class LSProcessTreeBuilder {
         ILSProcessNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        if (_currentNode == null || !TryGetChild(nodeID, out existingNode) || existingNode is not LSProcessNodeParallel parallelNode) {
+        if (_currentNode == null || !getChild(nodeID, out existingNode) || existingNode is not LSProcessNodeParallel parallelNode) {
             // we keep the original order of the existing node
             order = existingNode?.Order ?? order;
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not parallel
@@ -623,7 +636,7 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Conflict Detection</strong>: Helps identify naming conflicts during node creation</description></item>
     /// </list>
     /// </remarks>
-    private bool TryGetChild(string nodeID, out ILSProcessNode? child) {
+    private bool getChild(string nodeID, out ILSProcessNode? child) {
         child = null;
         if (_currentNode == null) return false;
         child = _currentNode.GetChild(nodeID);

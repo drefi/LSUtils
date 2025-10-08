@@ -1,10 +1,13 @@
 namespace LSUtils;
 
 using Logging;
-using Processing;
+using ProcessSystem;
 /// <summary>
 /// Manages clock and notifies any registered listeners when the clock ticks.
 /// </summary>
+/// TODO: Tests
+/// TODO: Logging according to LSLogger standards
+/// TODO: LSProcess needs review
 public class LSTick : ILSProcessable {
     public static LSTick Singleton { get; } = new LSTick(DEFAULT_TICK_VALUE);
     const float DEFAULT_TICK_VALUE = 1f;
@@ -13,14 +16,13 @@ public class LSTick : ILSProcessable {
     public const string PHYSICS_UPDATE_LABEL = "physics_update";
     public const string DELTA_CHANGE_LABEL = "delta_change";
     public const string TOGGLE_PAUSE_LABEL = "toggle_pause";
-    protected LSProcessManager? _manager;
     protected int _tickCount;
     protected int _resetTickCount;
     protected bool _isInitialized;
     protected bool _isPaused;
     protected double _tickTimer;
     public readonly float TICK_VALUE;
-    public string ClassName => typeof(LSTick).AssemblyQualifiedName ?? nameof(LSTick);
+    public string ClassName => nameof(LSTick);
     public System.Guid ID { get; protected set; }
     public float DeltaFactor { get; protected set; } = 1;
 
@@ -29,13 +31,12 @@ public class LSTick : ILSProcessable {
         ID = System.Guid.NewGuid();
     }
 
-    public LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null, LSProcessManager? manager = null) {
-        _manager = manager;
+    public LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null) {
         var process = new TickProcess(this, ILSProcessable.INITIALIZE_LABEL);
         return process
             .WithProcessing(builder => builder
                 .Handler("isInitialized",
-                handler: (proc, ctx) => {
+                handler: (session) => {
                     if (_isInitialized) return LSProcessResultStatus.CANCELLED;
                     _isInitialized = true;
                     _isPaused = true;
@@ -46,7 +47,7 @@ public class LSTick : ILSProcessable {
                 }, priority: LSProcessPriority.CRITICAL)
                 .Selector(ILSProcessable.INITIALIZE_LABEL,
                 selectorBuilder: initBuilder)
-        ).Execute(this, _manager);
+        ).Execute(this);
     }
     /// <summary>
     /// Updates the tick count and notifies listeners of tick updates.
@@ -74,7 +75,7 @@ public class LSTick : ILSProcessable {
                 priority: LSProcessPriority.LOW,
                 overrideConditions: true,
                 conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == UPDATE_LABEL)
-            ).Execute(this, _manager);
+            ).Execute(this);
         }
     }
 
@@ -104,13 +105,13 @@ public class LSTick : ILSProcessable {
         var result = process.WithProcessing(
             builder => builder
                 .Handler("isInitialized",
-                    handler: (proc, ctx) => {
+                    handler: (session) => {
                         if (_isInitialized == false) {
-                            LSLogger.Singleton.Warning($"Tick Manager is not initialized.", $"{nameof(LSTick)}.Start", proc.ID);
+                            LSLogger.Singleton.Warning($"Tick Manager is not initialized.", $"{nameof(LSTick)}.Start", session.SessionID);
                             return LSProcessResultStatus.CANCELLED;
                         }
                         _isPaused = false;
-                        LSLogger.Singleton.Info($"Tick Manager started.", $"{nameof(LSTick)}.Start", proc.ID);
+                        LSLogger.Singleton.Info($"Tick Manager started.", $"{nameof(LSTick)}.Start", session.SessionID);
                         return LSProcessResultStatus.SUCCESS;
                     },
                     priority: LSProcessPriority.CRITICAL)
@@ -119,7 +120,7 @@ public class LSTick : ILSProcessable {
                     priority: LSProcessPriority.NORMAL,
                     overrideConditions: true,
                     conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == START_LABEL)
-            ).Execute(this, _manager);
+            ).Execute(this);
     }
 
     /// <summary>
@@ -136,13 +137,13 @@ public class LSTick : ILSProcessable {
         var result = process.WithProcessing(
             builder => builder
                 .Handler("isInitialized",
-                    handler: (proc, ctx) => {
+                    handler: (session) => {
                         if (_isInitialized == false) {
-                            LSLogger.Singleton.Warning($"Tick Manager is not initialized.", $"{nameof(LSTick)}.TogglePause", proc.ID);
+                            LSLogger.Singleton.Warning($"Tick Manager is not initialized.", $"{nameof(LSTick)}.TogglePause", session.SessionID);
                             return LSProcessResultStatus.CANCELLED;
                         }
                         _isPaused = !_isPaused;
-                        LSLogger.Singleton.Info($"Tick Manager {(_isPaused ? "paused" : "resumed")}.", $"{nameof(LSTick)}.TogglePause", proc.ID);
+                        LSLogger.Singleton.Info($"Tick Manager {(_isPaused ? "paused" : "resumed")}.", $"{nameof(LSTick)}.TogglePause", session.SessionID);
                         return LSProcessResultStatus.SUCCESS;
                     },
                     priority: LSProcessPriority.CRITICAL)
@@ -151,7 +152,7 @@ public class LSTick : ILSProcessable {
                     priority: LSProcessPriority.NORMAL,
                     overrideConditions: true,
                     conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == START_LABEL)
-            ).Execute(this, _manager);
+            ).Execute(this);
     }
 
     /// <summary>
@@ -169,20 +170,24 @@ public class LSTick : ILSProcessable {
         var result = process.WithProcessing(
             builder => builder
                 .Handler("isInitialized",
-                    handler: (proc, ctx) => {
+                    handler: (session) => {
+                        if (session.Process is not TickProcess proc) {
+                            LSLogger.Singleton.Warning($"Tick Manager process is invalid.", $"{nameof(LSTick)}.SetDeltaFactor", session.SessionID);
+                            return LSProcessResultStatus.CANCELLED;
+                        }
                         if (_isInitialized == false) {
-                            LSLogger.Singleton.Warning($"Tick Manager is not initialized.", $"{nameof(LSTick)}.SetDeltaFactor", proc.ID);
+                            LSLogger.Singleton.Warning($"Tick Manager is not initialized.", $"{nameof(LSTick)}.SetDeltaFactor", session.SessionID);
                             return LSProcessResultStatus.CANCELLED;
                         }
                         if (!proc.TryGetData<float>("oldDeltaFactor", out var oldDelta)) {
-                            LSLogger.Singleton.Warning($"Tick Manager could not get old delta factor value.", $"{nameof(LSTick)}.SetDeltaFactor", proc.ID);
+                            LSLogger.Singleton.Warning($"Tick Manager could not get old delta factor value.", $"{nameof(LSTick)}.SetDeltaFactor", session.SessionID);
                             oldDelta = 1f;
                         }
                         if (!proc.TryGetData<float>("newDeltaFactor", out var newDelta)) {
-                            LSLogger.Singleton.Warning($"Tick Manager could not get new delta factor value.", $"{nameof(LSTick)}.SetDeltaFactor", proc.ID);
+                            LSLogger.Singleton.Warning($"Tick Manager could not get new delta factor value.", $"{nameof(LSTick)}.SetDeltaFactor", session.SessionID);
                             newDelta = 1f;
                         }
-                        LSLogger.Singleton.Info($"Tick Manager delta factor changed from {oldDelta} to {newDelta}.", $"{nameof(LSTick)}.SetDeltaFactor", proc.ID);
+                        LSLogger.Singleton.Info($"Tick Manager delta factor changed from {oldDelta} to {newDelta}.", $"{nameof(LSTick)}.SetDeltaFactor", session.SessionID);
                         return LSProcessResultStatus.SUCCESS;
                     },
                     priority: LSProcessPriority.CRITICAL)
@@ -191,7 +196,7 @@ public class LSTick : ILSProcessable {
                     priority: LSProcessPriority.NORMAL,
                     overrideConditions: true,
                     conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == DELTA_CHANGE_LABEL)
-            ).Execute(this, _manager);
+            ).Execute(this);
     }
 
     public void Cleanup() {

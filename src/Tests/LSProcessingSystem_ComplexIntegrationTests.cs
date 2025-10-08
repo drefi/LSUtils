@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace LSUtils.Processing.Tests;
+namespace LSUtils.ProcessSystem.Tests;
 
 /// <summary>
 /// Complex integration tests with nested structures and advanced scenarios.
@@ -34,27 +34,27 @@ public class LSProcessingSystem_ComplexIntegrationTests {
         _handler2CallCount = 0;
         _handler3CallCount = 0;
 
-        _mockHandler1 = (proc, node) => {
+        _mockHandler1 = (session) => {
             _handler1CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler2 = (proc, node) => {
+        _mockHandler2 = (session) => {
             _handler2CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler3Failure = (proc, node) => {
+        _mockHandler3Failure = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.FAILURE;
         };
 
-        _mockHandler3Cancel = (proc, node) => {
+        _mockHandler3Cancel = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.CANCELLED;
         };
 
-        _mockHandler3Waiting = (proc, node) => {
+        _mockHandler3Waiting = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.WAITING;
         };
@@ -121,7 +121,7 @@ public class LSProcessingSystem_ComplexIntegrationTests {
         for (int i = 0; i < depth; i++) {
             int capturedIndex = i;
             currentBuilder = currentBuilder.Sequence($"level_{capturedIndex}", nested => nested
-                .Handler($"handler_{capturedIndex}", (proc, node) => {
+                .Handler($"handler_{capturedIndex}", (session) => {
                     executionCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }));
@@ -145,7 +145,7 @@ public class LSProcessingSystem_ComplexIntegrationTests {
         var root = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
                 .Selector("selector1", sel => sel
-                    .Handler("fail1", (proc, node) => LSProcessResultStatus.FAILURE)
+                    .Handler("fail1", (session) => LSProcessResultStatus.FAILURE)
                     .Handler("success1", _mockHandler1))
                 .Parallel("parallel1", par => par
                     .Handler("handler1", _mockHandler1)

@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 /// <summary>
@@ -30,12 +30,6 @@ public interface ILSProcess {
     /// When true, no further phase processing will occur.
     /// </summary>
     bool IsCancelled { get; }
-
-    /// <summary>
-    /// Indicates whether the process has failures.
-    /// When true, the process will proceed depending on the phase behaviour.
-    /// </summary>
-    bool HasFailures { get; }
 
     /// <summary>
     /// Indicates whether the process has completed execution through all phases.
@@ -108,7 +102,7 @@ public interface ILSProcess {
     /// <item><description><strong>Asynchronous Support</strong>: Can return WAITING status for async operations</description></item>
     /// </list>
     /// </remarks>
-    LSProcessResultStatus Execute(ILSProcessable? instance = null, LSProcessManager? contextManager = null);
+    LSProcessResultStatus Execute(ILSProcessable? instance = null);
 
     /// <summary>
     /// Resume processing for the specified node IDs. Process context should be stored in the process instance.

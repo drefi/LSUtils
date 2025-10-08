@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace LSUtils.Processing.Tests;
+namespace LSUtils.ProcessSystem.Tests;
 
 /// <summary>
 /// Tests for merge operations and context builder functionality.
@@ -34,27 +34,27 @@ public class LSProcessingSystem_MergeOperationsTests {
         _handler2CallCount = 0;
         _handler3CallCount = 0;
 
-        _mockHandler1 = (proc, node) => {
+        _mockHandler1 = (session) => {
             _handler1CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler2 = (proc, node) => {
+        _mockHandler2 = (session) => {
             _handler2CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler3Failure = (proc, node) => {
+        _mockHandler3Failure = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.FAILURE;
         };
 
-        _mockHandler3Cancel = (proc, node) => {
+        _mockHandler3Cancel = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.CANCELLED;
         };
 
-        _mockHandler3Waiting = (proc, node) => {
+        _mockHandler3Waiting = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.WAITING;
         };
@@ -74,22 +74,16 @@ public class LSProcessingSystem_MergeOperationsTests {
             .Sequence("root", seqBuilder => seqBuilder)
             .Build();
 
-        _logger.Info($"Root builder before merge: {rootContext.NodeID}");
-        _logger.Info($"Root children before: {string.Join(", ", Array.ConvertAll(rootContext.GetChildren(), c => c.NodeID))}");
 
         var subContext = new LSProcessTreeBuilder()
             .Sequence("subContext", seqBuilder => seqBuilder
                 .Handler("handler1", _mockHandler1))
             .Build();
 
-        _logger.Info($"Sub builder: {subContext.NodeID}");
-        _logger.Info($"Sub builder children: {string.Join(", ", Array.ConvertAll(subContext.GetChildren(), c => c.NodeID))}");
 
         var mergedContext = new LSProcessTreeBuilder(rootContext)
             .Merge(subContext)
             .Build();
-        _logger.Info($"Merged builder: {mergedContext.NodeID}");
-        _logger.Info($"Merged children: {string.Join(", ", Array.ConvertAll(mergedContext.GetChildren(), c => c.NodeID))}");
 
         // The merged builder should be the root builder itself, containing the subContext as a child
         Assert.That(mergedContext.NodeID, Is.EqualTo("root")); // The merged builder is the root
@@ -99,8 +93,8 @@ public class LSProcessingSystem_MergeOperationsTests {
         Assert.That(subContextNode.HasChild("handler1"), Is.True);
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, mergedContext);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, mergedContext);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1)); // handler1 should be called once
     }
@@ -133,8 +127,8 @@ public class LSProcessingSystem_MergeOperationsTests {
         Assert.That(seqB?.HasChild("handlerB"), Is.True);
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, root);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, root);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1)); // handlerA should be called once
         Assert.That(_handler2CallCount, Is.EqualTo(1)); // handlerB should be called once
@@ -163,8 +157,8 @@ public class LSProcessingSystem_MergeOperationsTests {
         Assert.That(sequence.GetChildren().Length, Is.EqualTo(1));
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, sequence);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, sequence);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(0)); // First handler should be replaced
         Assert.That(_handler2CallCount, Is.EqualTo(1)); // Second handler should be called
@@ -359,8 +353,8 @@ public class LSProcessingSystem_MergeOperationsTests {
 
         // Since override is always allowed, the second handler should replace the first
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, mergedContext);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, mergedContext);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(0)); // First handler should be replaced
         Assert.That(_handler2CallCount, Is.EqualTo(1)); // Second handler should be called

@@ -57,6 +57,24 @@ public sealed class LSLogger {
             _providers.Add(provider);
         }
     }
+    ConcurrentDictionary<string, bool?> _sources = new();
+    public bool? SetSource((string sourceID, bool? isEnabled)? source, bool dontUpdateSources = false) {
+        // If source is null, return true (meaning no sourceID is enabled by default)
+        if (source == null) return true;
+        string sourceID = source.Value.sourceID;
+        // source.isEnabled always overrides existing value if it has value
+        bool? enabled = _sources.TryGetValue(sourceID, out enabled) ? enabled : null;
+        var isEnabled = source.Value.isEnabled.HasValue ? source.Value.isEnabled : enabled;
+        // If isEnabled has value, add or update the source
+        if (!enabled.HasValue || (isEnabled.HasValue && !dontUpdateSources)) {
+            _sources.AddOrUpdate(sourceID, isEnabled, (key, oldValue) => isEnabled);
+        }
+        return isEnabled;
+    }
+    public bool IsSourceEnabled(string sourceID) {
+        if (string.IsNullOrWhiteSpace(sourceID)) return false;
+        return _sources.TryGetValue(sourceID, out var isEnabled) ? isEnabled ?? false : false;
+    }
 
     /// <summary>
     /// Removes all providers and adds the null provider to disable logging.
@@ -81,6 +99,11 @@ public sealed class LSLogger {
     /// </summary>
     public void Debug(string message, string? source = null, System.Guid? processId = null,
                      IDictionary<string, object>? properties = null) {
+        (string, bool?)? tuple = source == null ? null : (source, null);
+        Log(LSLogLevel.DEBUG, message, tuple, processId: processId, properties: properties);
+    }
+    public void Debug(string message, (string sourceID, bool? isEnabled)? source = null, System.Guid? processId = null,
+                     IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.DEBUG, message, source, processId: processId, properties: properties);
     }
 
@@ -88,6 +111,10 @@ public sealed class LSLogger {
     /// Logs an info message with optional structured data.
     /// </summary>
     public void Info(string message, string? source = null, System.Guid? processId = null,
+                    IDictionary<string, object>? properties = null) {
+        Log(LSLogLevel.INFO, message, source != null ? (source, null) : null, processId: processId, properties: properties);
+    }
+    public void Info(string message, (string sourceID, bool? isEnabled)? source = null, System.Guid? processId = null,
                     IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.INFO, message, source, processId: processId, properties: properties);
     }
@@ -97,6 +124,10 @@ public sealed class LSLogger {
     /// </summary>
     public void Warning(string message, string? source = null, System.Guid? processId = null,
                        IDictionary<string, object>? properties = null) {
+        Log(LSLogLevel.WARNING, message, source != null ? (source, null) : null, processId: processId, properties: properties);
+    }
+    public void Warning(string message, (string sourceID, bool? isEnabled)? source = null, System.Guid? processId = null,
+                       IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.WARNING, message, source, processId: processId, properties: properties);
     }
 
@@ -105,6 +136,10 @@ public sealed class LSLogger {
     /// </summary>
     public void Error(string message, LSException? exception = null, string? source = null,
                      System.Guid? processId = null, IDictionary<string, object>? properties = null) {
+        Log(LSLogLevel.ERROR, message, source != null ? (source, null) : null, exception: exception, processId: processId, properties: properties);
+    }
+    public void Error(string message, (string sourceID, bool? isEnabled)? source = null, LSException? exception = null,
+                     System.Guid? processId = null, IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.ERROR, message, source, exception: exception, processId: processId, properties: properties);
     }
 
@@ -112,6 +147,10 @@ public sealed class LSLogger {
     /// Logs a critical error message with optional exception and structured data.
     /// </summary>
     public void Critical(string message, LSException? exception = null, string? source = null,
+                        System.Guid? processId = null, IDictionary<string, object>? properties = null) {
+        Log(LSLogLevel.CRITICAL, message, source != null ? (source, null) : null, exception: exception, processId: processId, properties: properties);
+    }
+    public void Critical(string message, (string sourceID, bool? isEnabled)? source = null, LSException? exception = null,
                         System.Guid? processId = null, IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.CRITICAL, message, source, exception: exception, processId: processId, properties: properties);
     }
@@ -124,6 +163,11 @@ public sealed class LSLogger {
                            IDictionary<string, object>? properties = null) {
         Critical(message, exception, source, processId, properties);
     }
+    public void LogException(LSException exception, string message = "Unhandled exception occurred",
+                           (string sourceID, bool? isEnabled)? source = null, System.Guid? processId = null,
+                           IDictionary<string, object>? properties = null) {
+        Critical(message, source, exception, processId, properties);
+    }
 
     /// <summary>
     /// Executes an action within a try-catch block and logs any exceptions as critical errors.
@@ -134,6 +178,14 @@ public sealed class LSLogger {
             action?.Invoke();
         } catch (LSException ex) {
             Critical($"Exception in {context}", ex, source, processId);
+        }
+    }
+    public void SafeExecute(LSAction action, (string sourceID, bool? isEnabled)? source = null,
+                          string context = "Unknown operation", System.Guid? processId = null) {
+        try {
+            action?.Invoke();
+        } catch (LSException ex) {
+            Critical($"Exception in {context}", source, ex, processId);
         }
     }
 
@@ -150,21 +202,40 @@ public sealed class LSLogger {
             return defaultValue;
         }
     }
+    public T SafeExecute<T>(System.Func<T> func, T defaultValue = default!, (string sourceID, bool? isEnabled)? source = null,
+                          string context = "Unknown operation", System.Guid? processId = null) {
+        try {
+            return func != null ? func() : defaultValue;
+        } catch (LSException ex) {
+            Critical($"Exception in {context}", source, ex, processId);
+            return defaultValue;
+        }
+    }
 
     /// <summary>
     /// Core logging method that handles level filtering and provider dispatch.
     /// </summary>
-    private void Log(LSLogLevel level, string message, string? source, LSException? exception = null,
+    private void Log(LSLogLevel level, string message, (string sourceID, bool? isEnabled)? source, LSException? exception = null,
                     System.Guid? processId = null, IDictionary<string, object>? properties = null) {
         if (!_isEnabled || level < _minimumLevel) {
             return;
         }
-
+        // source.IsEnabled == true => true
+        // source.IsEnabled == false => false
+        // source.IsEnabled == null => _sources[sourceID] or true if not found
+        //  - _sources[sourceID] == null => true
+        //  - _sources[sourceID] == true => true
+        //  - _sources[sourceID] == false => false
+        var isEnabled = SetSource(source, true); // dontUpdateSources = true to avoid modifying sources
+        if (isEnabled.HasValue && !isEnabled.Value) {
+            return;
+        }
+        string? sourceID = source?.sourceID;
         try {
             var entry = new LSLogEntry(
                 level,
                 message,
-                source,
+                sourceID,
                 exception: exception,
                 processId: processId,
                 properties: properties?.AsReadOnlyDictionary()

@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Utility class providing helper methods for working with LSProcessNodeCondition delegates.
 /// Centralizes condition evaluation logic and provides consistent behavior across the LSProcessing system.

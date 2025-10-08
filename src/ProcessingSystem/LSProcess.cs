@@ -1,6 +1,8 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
+using LSUtils.Logging;
+
 /// <summary>
 /// Abstract base class for all processes in the LSProcessing system.
 /// Provides core functionality for process execution, state management, and data storage.
@@ -28,6 +30,7 @@ using System.Collections.Generic;
 /// <para>the actual processing state and coordinates with the node hierarchy.</para>
 /// </remarks>
 public abstract class LSProcess : ILSProcess {
+    public const string ClassName = nameof(LSProcess);
     /// <summary>
     /// The current execution session for this process. Null until Execute() is called.
     /// </summary>
@@ -55,17 +58,23 @@ public abstract class LSProcess : ILSProcess {
     /// Indicates whether this process has been cancelled.
     /// Set by the Cancel() method and prevents further processing.
     /// </summary>
-    public bool IsCancelled { get; protected set; }
-    /// <summary>
-    /// Indicates whether this process has encountered failures during execution.
-    /// Set during processing based on node execution results.
-    /// </summary>
-    public bool HasFailures { get; protected set; }
+    public bool IsCancelled {
+        get {
+            if (_processSession == null) return false;
+            return _processSession.RootNode.GetNodeStatus() == LSProcessResultStatus.CANCELLED;
+        }
+    }
     /// <summary>
     /// Indicates whether this process has completed execution successfully.
     /// Set when the processing pipeline reaches a terminal success state.
     /// </summary>
-    public bool IsCompleted { get; protected set; }
+    public bool IsCompleted {
+        get {
+            if (_processSession == null) return false;
+            var status = _processSession.RootNode.GetNodeStatus();
+            return status == LSProcessResultStatus.SUCCESS || status == LSProcessResultStatus.FAILURE || status == LSProcessResultStatus.CANCELLED;
+        }
+    }
     /// <summary>
     /// Initializes a new process instance with auto-generated ID and creation timestamp.
     /// </summary>
@@ -106,12 +115,18 @@ public abstract class LSProcess : ILSProcess {
     /// <para>This method can only be called once per process instance. Subsequent calls will throw an exception.</para>
     /// <para>The method merges any custom processing context with the global context before execution.</para>
     /// </remarks>
-    public LSProcessResultStatus Execute(ILSProcessable? instance = null, LSProcessManager? manager = null) {
-        manager ??= LSProcessManager.Singleton;
-        if (_processSession != null) throw new LSException("Process already executed.");
-
-        var globalBuilder = manager.GetRootNode(this.GetType(), instance, _root);
-        _processSession = new LSProcessSession(this, globalBuilder);
+    public LSProcessResultStatus Execute(ILSProcessable? instance = null) {
+        if (_processSession == null) {
+            var root = LSProcessManager.Singleton.GetRootNode(GetType(), instance, _root?.Clone());
+            _processSession = new LSProcessSession(this, root, instance);
+        }
+        LSLogger.Singleton.Info($"Process Execute", ClassName, ID, new Dictionary<string, object>() {
+            ["session"] = _processSession.SessionID.ToString(),
+            ["rootNode"] = _processSession.RootNode.NodeID.ToString(),
+            ["currentNode"] = _processSession.CurrentNode?.NodeID.ToString() ?? "null",
+            ["instance"] = _processSession.Instance?.ID.ToString() ?? "null",
+            ["method"] = nameof(Execute),
+        });
         return _processSession.Execute();
     }
     /// <summary>
@@ -124,6 +139,14 @@ public abstract class LSProcess : ILSProcess {
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
+        LSLogger.Singleton.Info($"Process Resume", ClassName, ID, new Dictionary<string, object>() {
+            ["session"] = _processSession.SessionID.ToString(),
+            ["rootNode"] = _processSession.RootNode.NodeID.ToString(),
+            ["currentNode"] = _processSession.CurrentNode?.NodeID.ToString() ?? "null",
+            ["instance"] = _processSession.Instance?.ID.ToString() ?? "null",
+            ["nodes"] = string.Join(",", nodeIDs),
+            ["method"] = nameof(Resume),
+        });
         return _processSession.Resume(nodeIDs);
     }
     /// <summary>
@@ -139,6 +162,13 @@ public abstract class LSProcess : ILSProcess {
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
+        LSLogger.Singleton.Info($"Process Cancel", ClassName, ID, new Dictionary<string, object>() {
+            ["session"] = _processSession.SessionID.ToString(),
+            ["rootNode"] = _processSession.RootNode.NodeID.ToString(),
+            ["currentNode"] = _processSession.CurrentNode?.NodeID.ToString() ?? "null",
+            ["instance"] = _processSession.Instance?.ID.ToString() ?? "null",
+            ["method"] = nameof(Cancel),
+        });
         _processSession.Cancel();
     }
     /// <summary>
@@ -172,6 +202,10 @@ public abstract class LSProcess : ILSProcess {
         }
         // use the builderAction to modify or extend the root.
         _root = builderAction(builder).Build();
+        LSLogger.Singleton.Info($"Modifying Process Tree", ClassName, ID, new Dictionary<string, object>() {
+            ["rootNode"] = _root.NodeID.ToString(),
+            ["method"] = nameof(WithProcessing),
+        });
         return this;
     }
     /// <summary>
@@ -188,6 +222,14 @@ public abstract class LSProcess : ILSProcess {
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
+        LSLogger.Singleton.Info($"Process Fail", ClassName, ID, new Dictionary<string, object>() {
+            ["session"] = _processSession.SessionID.ToString(),
+            ["rootNode"] = _processSession.RootNode.NodeID.ToString(),
+            ["currentNode"] = _processSession.CurrentNode?.NodeID.ToString() ?? "null",
+            ["instance"] = _processSession.Instance?.ID.ToString() ?? "null",
+            ["nodes"] = string.Join(",", nodeIDs),
+            ["method"] = nameof(Fail),
+        });
         return _processSession.Fail(nodeIDs);
     }
     /// <summary>

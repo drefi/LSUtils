@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Interface for entities that can be processed by the LSProcessing system.
 /// Represents objects that can have processing contexts associated with them and can be initialized
@@ -52,5 +52,5 @@ public interface ILSProcessable {
     /// <param name="initBuilder">Optional tree builder delegate for defining entity-specific processing logic, formally should be used within a Selector during the initialize implementation.</param>
     /// <param name="manager">Optional context manager to register the processing context with. Uses singleton if not provided.</param>
     /// <returns>The initialization status indicating success, failure, or other processing states.</returns>
-    LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null, LSProcessManager? manager = null);
+    LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null);
 }

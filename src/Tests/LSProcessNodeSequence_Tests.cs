@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace LSUtils.Processing.Tests;
+namespace LSUtils.ProcessSystem.Tests;
 
 /// <summary>
 /// Tests for LSProcessNodeSequence functionality.
@@ -34,27 +34,27 @@ public class LSProcessNodeSequence_Tests {
         _handler2CallCount = 0;
         _handler3CallCount = 0;
 
-        _mockHandler1 = (proc, node) => {
+        _mockHandler1 = (session) => {
             _handler1CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler2 = (proc, node) => {
+        _mockHandler2 = (session) => {
             _handler2CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler3Failure = (proc, node) => {
+        _mockHandler3Failure = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.FAILURE;
         };
 
-        _mockHandler3Cancel = (proc, node) => {
+        _mockHandler3Cancel = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.CANCELLED;
         };
 
-        _mockHandler3Waiting = (proc, node) => {
+        _mockHandler3Waiting = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.WAITING;
         };
@@ -192,9 +192,9 @@ public class LSProcessNodeSequence_Tests {
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
         // Simulate external resume
-        session.Cancel();
-
-        Assert.That(session.IsCancelled, Is.True);
+        result = session.Cancel();
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.CANCELLED));
+        Assert.That(session.RootNode.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.CANCELLED));
         Assert.That(root.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.CANCELLED));
         Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
     }
@@ -221,7 +221,7 @@ public class LSProcessNodeSequence_Tests {
     [Test]
     public void Execute_WithConditionsFalse() {
         var root = LSProcessNodeSequence.Create("root", 0);
-        var handler1 = LSProcessNodeHandler.Create("handler1", (proc, session) => {
+        var handler1 = LSProcessNodeHandler.Create("handler1", (session) => {
             _handler1CallCount++;
             return LSProcessResultStatus.SUCCESS;
         }, 0, conditions: (proc, node) => false);

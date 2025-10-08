@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace LSUtils.Processing.Tests;
+namespace LSUtils.ProcessSystem.Tests;
 
 /// <summary>
 /// Tests for LSProcessNodeParallel functionality.
@@ -34,27 +34,27 @@ public class LSProcessingSystem_ParallelNodeTests {
         _handler2CallCount = 0;
         _handler3CallCount = 0;
 
-        _mockHandler1 = (proc, node) => {
+        _mockHandler1 = (session) => {
             _handler1CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler2 = (proc, node) => {
+        _mockHandler2 = (session) => {
             _handler2CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler3Failure = (proc, node) => {
+        _mockHandler3Failure = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.FAILURE;
         };
 
-        _mockHandler3Cancel = (proc, node) => {
+        _mockHandler3Cancel = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.CANCELLED;
         };
 
-        _mockHandler3Waiting = (proc, node) => {
+        _mockHandler3Waiting = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.WAITING;
         };
@@ -78,8 +78,8 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.NodeID, Is.EqualTo("root"));
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
     }
 
@@ -95,8 +95,8 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler1"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1));
     }
@@ -115,8 +115,8 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler2"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1));
         Assert.That(_handler2CallCount, Is.EqualTo(1));
@@ -136,8 +136,8 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler2"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -155,8 +155,8 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler1"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
     }
@@ -174,8 +174,8 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler1"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
         Assert.That(_handler1CallCount, Is.EqualTo(1));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -183,23 +183,23 @@ public class LSProcessingSystem_ParallelNodeTests {
 
     [Test]
     public void TestBuilderParallelWaitingSuccessWithResume() {
-        var builder = new LSProcessTreeBuilder()
+        var root = new LSProcessTreeBuilder()
             .Parallel("root", subBuilder => subBuilder
                 .Handler("handler1", _mockHandler3Waiting)
             , 1)
         .Build();
 
-        Assert.That(builder, Is.Not.Null);
-        Assert.That(builder.NodeID, Is.EqualTo("root"));
-        Assert.That(builder.HasChild("handler1"), Is.True);
+        Assert.That(root, Is.Not.Null);
+        Assert.That(root.NodeID, Is.EqualTo("root"));
+        Assert.That(root.HasChild("handler1"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, root);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
         // Simulate external resume
-        var resumeResult = process.Resume("handler1");
+        var resumeResult = session.Resume("handler1");
         Assert.That(resumeResult, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
     }
@@ -218,14 +218,12 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler2"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        LSLogger.Singleton.Debug("[TestBuilderParallelWaitingSuccessWithFail] Processing...");
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // handler1 should succeed immediately
         Assert.That(_handler3CallCount, Is.EqualTo(1));
         // Simulate external resume
-        LSLogger.Singleton.Debug("[TestBuilderParallelWaitingSuccessWithFail] Failing handler1...");
-        var resumeResult = process.Fail("handler1");
+        var resumeResult = session.Fail("handler1");
         Assert.That(resumeResult, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // handler1 has already succeeded, this should not change anything
         Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
     }
@@ -245,16 +243,16 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler2"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler1CallCount, Is.EqualTo(1));
         Assert.That(_handler3CallCount, Is.EqualTo(2));
         // Simulate external resume
-        var resumeResult = process.Fail("handler1");
+        var resumeResult = session.Fail("handler1");
         Assert.That(resumeResult, Is.EqualTo(LSProcessResultStatus.WAITING)); // we have 1 success, 1 failure and 1 waiting
         Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
-        var resumeResult2 = process.Resume("handler2");
+        var resumeResult2 = session.Resume("handler2");
         Assert.That(resumeResult2, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // now we have 2 successes
         Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
     }
@@ -271,12 +269,12 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler1"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
         // Simulate external resume
-        var resumeResult = process.Fail("handler1");
+        var resumeResult = session.Fail("handler1");
         Assert.That(resumeResult, Is.EqualTo(LSProcessResultStatus.FAILURE));
         Assert.That(_handler3CallCount, Is.EqualTo(1)); //should not call handler again
     }
@@ -295,12 +293,12 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler2"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(2));
         // Simulate external resume
-        var resumeResult1 = process.Resume("handler2");
+        var resumeResult1 = session.Resume("handler2");
         Assert.That(resumeResult1, Is.EqualTo(LSProcessResultStatus.FAILURE)); // handler2 has failed but
         Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
     }
@@ -322,22 +320,22 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler3"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         _logger.Info($"Process result: {result}", sourceStr);
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(3));
         // Simulate external resume
-        var resumeResult1 = process.Resume("handler1");
+        var resumeResult1 = session.Resume("handler1");
         _logger.Info($"Resume handler1 result: {resumeResult1}", sourceStr);
         Assert.That(resumeResult1, Is.EqualTo(LSProcessResultStatus.WAITING)); // the builder is still waiting on handler2
         Assert.That(_handler3CallCount, Is.EqualTo(3)); //should not call handler again
-        var resumeResult2 = process.Resume("handler2");
+        var resumeResult2 = session.Resume("handler2");
         _logger.Info($"Resume handler2 result: {resumeResult2}", sourceStr);
         Assert.That(resumeResult2, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // now two have resumed, which meets the requirement of 2
         Assert.That(_handler3CallCount, Is.EqualTo(3)); //should not call handler again
                                                         // handler3 is still waiting, but the parallel node has already succeeded
-        var resumeResult3 = process.Resume("handler3");
+        var resumeResult3 = session.Resume("handler3");
         Assert.That(resumeResult3, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // handler3 should return SUCCESS as the parallel node has already succeeded
     }
 
@@ -355,15 +353,15 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler2"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(2));
         // Simulate external resume
-        var resumeResult1 = process.Fail("handler1");
+        var resumeResult1 = session.Fail("handler1");
         Assert.That(resumeResult1, Is.EqualTo(LSProcessResultStatus.WAITING)); // the builder is still waiting on handler2
         Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
-        var resumeResult2 = process.Fail("handler2");
+        var resumeResult2 = session.Fail("handler2");
         Assert.That(resumeResult2, Is.EqualTo(LSProcessResultStatus.FAILURE)); // now both have failed
         Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
     }
@@ -382,15 +380,15 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.HasChild("handler2"), Is.True);
         // Test execution
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(2));
         // Simulate external resume
-        var resumeResult1 = process.Fail("handler1");
+        var resumeResult1 = session.Fail("handler1");
         Assert.That(resumeResult1, Is.EqualTo(LSProcessResultStatus.WAITING)); // the builder is still waiting on handler2
         Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
-        var resumeResult2 = process.Fail("handler2");
+        var resumeResult2 = session.Fail("handler2");
         Assert.That(resumeResult2, Is.EqualTo(LSProcessResultStatus.FAILURE)); // now both have failed
         Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
     }
@@ -415,10 +413,10 @@ public class LSProcessingSystem_ParallelNodeTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(mockProcess, builder);
 
         // With 0 required to succeed, should succeed immediately
-        var result = process.Execute();
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
     }
 
@@ -433,9 +431,9 @@ public class LSProcessingSystem_ParallelNodeTests {
         Assert.That(builder.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(mockProcess, builder);
 
-        var result = process.Execute();
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(builder.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
     }
@@ -447,23 +445,23 @@ public class LSProcessingSystem_ParallelNodeTests {
         var builder = new LSProcessTreeBuilder()
             .Sequence("root", root => root
                 .Parallel("parallel1", par => par
-                    .Handler("highParallel", (proc, node) => {
+                    .Handler("highParallel", (session) => {
                         executionOrder.Add("HIGH_PAR");
                         return LSProcessResultStatus.SUCCESS;
                     }, LSProcessPriority.HIGH)
-                    .Handler("lowParallel", (proc, node) => {
+                    .Handler("lowParallel", (session) => {
                         executionOrder.Add("LOW_PAR");
                         return LSProcessResultStatus.SUCCESS;
                     }, LSProcessPriority.LOW), 2) // require both to succeed
-                .Handler("criticalAfter", (proc, node) => {
+                .Handler("criticalAfter", (session) => {
                     executionOrder.Add("CRITICAL_AFTER");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.CRITICAL))
             .Build();
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
 
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(executionOrder.Count, Is.EqualTo(3));
@@ -487,23 +485,23 @@ public class LSProcessingSystem_ParallelNodeTests {
         // Test exact threshold matching
         var context1 = new LSProcessTreeBuilder()
             .Parallel("exactMatch", par => par
-                .Handler("success1", (proc, node) => {
+                .Handler("success1", (session) => {
                     executionResults.Add("S1");
                     return LSProcessResultStatus.SUCCESS;
                 })
-                .Handler("success2", (proc, node) => {
+                .Handler("success2", (session) => {
                     executionResults.Add("S2");
                     return LSProcessResultStatus.SUCCESS;
                 })
-                .Handler("failure1", (proc, node) => {
+                .Handler("failure1", (session) => {
                     executionResults.Add("F1");
                     return LSProcessResultStatus.FAILURE;
                 }), 2, 1) // need 2 success, 1 failure
             .Build();
 
         var mockProcess = new MockProcess();
-        var processContext1 = new LSProcessSession(mockProcess, context1);
-        var result1 = processContext1.Execute();
+        var session = new LSProcessSession(mockProcess, context1);
+        var result1 = session.Execute();
 
         Assert.That(result1, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // since the number of successes is higher than failures it has precedence
         Assert.That(executionResults.Count, Is.GreaterThanOrEqualTo(1));
@@ -513,14 +511,14 @@ public class LSProcessingSystem_ParallelNodeTests {
         executionResults.Clear();
         var context2 = new LSProcessTreeBuilder()
             .Parallel("zeroSuccess", par => par
-                .Handler("willExecute", (proc, node) => {
+                .Handler("willExecute", (session) => {
                     executionResults.Add("EXECUTED");
                     return LSProcessResultStatus.SUCCESS;
                 }), 0, 1) // need 0 success, 1 failure
             .Build();
 
-        var processContext2 = new LSProcessSession(mockProcess, context2);
-        var result2 = processContext2.Execute();
+        var session2 = new LSProcessSession(mockProcess, context2);
+        var result2 = session2.Execute();
 
         Assert.That(result2, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         // With 0 success threshold, it should succeed immediately, but children may still execute
@@ -534,23 +532,23 @@ public class LSProcessingSystem_ParallelNodeTests {
         // Test exact threshold matching
         var context1 = new LSProcessTreeBuilder()
             .Parallel("exactMatch", par => par
-                .Handler("success1", (proc, node) => {
+                .Handler("success1", (session) => {
                     executionResults.Add("S1");
                     return LSProcessResultStatus.SUCCESS;
                 })
-                .Handler("failure1", (proc, node) => {
+                .Handler("failure1", (session) => {
                     executionResults.Add("F1");
                     return LSProcessResultStatus.FAILURE;
                 })
-                .Handler("failure2", (proc, node) => {
+                .Handler("failure2", (session) => {
                     executionResults.Add("F2");
                     return LSProcessResultStatus.FAILURE;
                 }), 1, 2) // need 1 success, 2 failure
             .Build();
 
         var mockProcess = new MockProcess();
-        var processContext1 = new LSProcessSession(mockProcess, context1);
-        var result1 = processContext1.Execute();
+        var session = new LSProcessSession(mockProcess, context1);
+        var result1 = session.Execute();
 
         Assert.That(result1, Is.EqualTo(LSProcessResultStatus.FAILURE)); // since the number of failures is higher than successes it has precedence
         Assert.That(executionResults.Count, Is.GreaterThanOrEqualTo(1));
@@ -567,23 +565,23 @@ public class LSProcessingSystem_ParallelNodeTests {
         var builder = new LSProcessTreeBuilder()
             .Parallel("outer", outer => outer
                 .Parallel("inner1", inner => inner
-                    .Handler("innerExec1", (proc, node) => {
+                    .Handler("innerExec1", (session) => {
                         innerExecutionCount++;
                         return LSProcessResultStatus.SUCCESS;
                     })
-                    .Handler("innerExec2", (proc, node) => {
+                    .Handler("innerExec2", (session) => {
                         innerExecutionCount++;
                         return LSProcessResultStatus.SUCCESS;
                     }), 1) // inner parallel needs 1 success
-                .Handler("outerExec", (proc, node) => {
+                .Handler("outerExec", (session) => {
                     outerExecutionCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }), 2) // outer parallel needs 2 successes
             .Build();
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
 
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(outerExecutionCount, Is.EqualTo(1)); // outer handler executed once
@@ -597,25 +595,25 @@ public class LSProcessingSystem_ParallelNodeTests {
         bool condition2 = false;
         bool condition3 = true;
 
-        var builder = new LSProcessTreeBuilder()
+        var root = new LSProcessTreeBuilder()
             .Parallel("root", par => par
-                .Handler("handler1", (proc, node) => {
+                .Handler("handler1", (session) => {
                     executedHandlers.Add("H1");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, (proc, node) => condition1)
-                .Handler("handler2", (proc, node) => {
+                .Handler("handler2", (session) => {
                     executedHandlers.Add("H2");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, (proc, node) => condition2)
-                .Handler("handler3", (proc, node) => {
+                .Handler("handler3", (session) => {
                     executedHandlers.Add("H3");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, (proc, node) => condition3), 2) // require 2 to succeed
             .Build();
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, root);
+        var result = session.Execute();
 
         // Only handlers 1 and 3 should execute (conditions true)
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -634,7 +632,7 @@ public class LSProcessingSystem_ParallelNodeTests {
         var builder = new LSProcessTreeBuilder().Parallel("massParallel", par => {
             for (int i = 0; i < handlerCount; i++) {
                 int capturedIndex = i; // capture for lambda
-                par.Handler($"handler_{capturedIndex}", (proc, node) => {
+                par.Handler($"handler_{capturedIndex}", (session) => {
                     lock (lockObject) {
                         totalExecutions++;
                     }
@@ -646,8 +644,8 @@ public class LSProcessingSystem_ParallelNodeTests {
 
         var root = builder.Build();
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, root);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, root);
+        var result = session.Execute();
 
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(totalExecutions, Is.EqualTo(handlerCount));

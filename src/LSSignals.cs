@@ -1,7 +1,11 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Provides event-based notifications for printing, warnings, errors, confirmations, and general notifications.
 /// </summary>
+/// TODO: Tests
+/// TODO: Logging according to LSLogger standards
+/// TODO: LSProcess needs review
+
 public static class LSSignals {
     /// <summary>
     /// Gets the class name.
@@ -121,29 +125,29 @@ public static class LSSignals {
     }
     #region Static Methods
 
-    public static LSProcessResultStatus Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f, LSProcessManager? contextManager = null) {
+    public static LSProcessResultStatus Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f) {
         var process = new NotifyProcess(new NotificationSignal(message, description, allowDismiss, timeout));
-        return process.Execute(null, contextManager);
+        return process.Execute(null);
     }
 
-    public static LSProcessResultStatus Notify(NotificationSignal notificationSignal, LSProcessManager? contextManager = null) {
+    public static LSProcessResultStatus Notify(NotificationSignal notificationSignal) {
         var process = new NotifyProcess(notificationSignal);
-        return process.Execute(null, contextManager);
+        return process.Execute(null);
     }
 
-    public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, LSProcessManager? contextManager = null) {
+    public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback) {
         var process = new ConfirmationProcess(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
-        return process.Execute(null, contextManager);
+        return process.Execute(null);
     }
 
-    public static LSProcessResultStatus Confirmation(ConfirmationSignal confirmationSignal, LSProcessManager? contextManager = null) {
+    public static LSProcessResultStatus Confirmation(ConfirmationSignal confirmationSignal) {
         var process = new ConfirmationProcess(confirmationSignal);
-        return process.Execute(null, contextManager);
+        return process.Execute(null);
     }
 
-    public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback, LSProcessManager? contextManager = null) {
+    public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback) {
         var process = new ConfirmationProcess(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
-        return process.Execute(null, contextManager);
+        return process.Execute(null);
     }
 
     #endregion

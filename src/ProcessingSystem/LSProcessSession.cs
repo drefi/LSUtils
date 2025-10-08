@@ -1,7 +1,8 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 using System.Linq;
+using LSUtils.Logging;
 
 /// <summary>
 /// Simplified processing context that holds the process being executed and provides delegation methods for node operations.
@@ -21,21 +22,7 @@ using System.Linq;
 /// The cancellation state is managed using volatile fields to ensure visibility across threads without requiring locks.
 /// </remarks>
 public class LSProcessSession {
-
-    // NOTE: The node-based architecture eliminates the need for callbacks;
-    // any desired behavior can be implemented using nodes and their composition.
-    /// <summary>
-    /// Thread-safe cancellation flag indicating whether processing has been cancelled.
-    /// </summary>
-    /// <value>True if processing has been cancelled, false otherwise.</value>
-    /// <remarks>
-    /// <b>Thread Safety:</b><br/>
-    /// This field is volatile to ensure visibility across threads without requiring locks.<br/>
-    /// <br/>
-    /// <b>State Persistence:</b><br/>
-    /// Once set to true, it remains true for the lifetime of the session. Cancellation is irreversible.
-    /// </remarks>
-    private volatile bool _isCancelled = false;
+    public const string ClassName = nameof(LSProcessSession);
 
     /// <summary>
     /// The root node of the processing hierarchy.
@@ -48,9 +35,9 @@ public class LSProcessSession {
     /// <b>Access Control:</b><br/>
     /// This field is internal as external code should use the delegation methods (Execute, Resume, Fail, Cancel) rather than direct node access.
     /// </remarks>
-    ILSProcessNode _rootNode;
+    public ILSProcessNode RootNode { get; }
 
-    /// <summary>
+    public System.Guid SessionID { get; } = System.Guid.NewGuid();
 
     /// <summary>
     /// The process being executed by this session.
@@ -62,19 +49,10 @@ public class LSProcessSession {
     /// Nodes can access process data through this property during Execute, Resume, Fail, and Cancel operations. The process instance provides context for condition evaluation and processing logic.
     /// </remarks>
     public ILSProcess Process { get; }
+    public ILSProcessable? Instance { get; }
     internal Stack<ILSProcessNode> _sessionStack = new Stack<ILSProcessNode>();
     public ILSProcessNode? CurrentNode => _sessionStack.Count > 0 ? _sessionStack.Peek() : null;
-    /// Gets the current cancellation state of this processing session.
-    /// </summary>
-    /// <value>True if processing has been cancelled, false otherwise.</value>
-    /// <remarks>
-    /// <b>Thread Safety:</b><br/>
-    /// This property provides thread-safe read access to the cancellation state without requiring locks.<br/>
-    /// <br/>
-    /// <b>Usage by Nodes:</b><br/>
-    /// Nodes can check this during processing to determine if they should terminate early and return CANCELLED status.
-    /// </remarks>
-    public bool IsCancelled => _isCancelled;
+
     /// <summary>
     /// Initializes a new processing session for the specified process and root node.
     /// </summary>
@@ -87,9 +65,10 @@ public class LSProcessSession {
     /// <b>Initial State:</b><br/>
     /// The session starts in a non-cancelled state with the provided process and root node ready for execution.
     /// </remarks>
-    internal LSProcessSession(ILSProcess process, ILSProcessNode rootNode) {
+    internal LSProcessSession(ILSProcess process, ILSProcessNode rootNode, ILSProcessable? instance = null) {
         Process = process;
-        _rootNode = rootNode;
+        RootNode = rootNode;
+        Instance = instance;
     }
 
     /// <summary>
@@ -108,19 +87,17 @@ public class LSProcessSession {
     /// • <b>SUCCESS/FAILURE:</b> Terminal states indicating completion
     /// </remarks>
     internal LSProcessResultStatus Execute() {
-        //System.Console.WriteLine($"[LSEventProcessContext] Processing root node '{_rootNode.NodeID}'...");
-        if (IsCompleted()) throw new LSException("ProcessSession is already completed.");
-        _sessionStack.Push(_rootNode);
-        var result = _rootNode.Execute(this);
+        var rootStatus = RootNode.GetNodeStatus();
+        if (rootStatus != LSProcessResultStatus.UNKNOWN && rootStatus != LSProcessResultStatus.WAITING)
+            return rootStatus;
+        LSLogger.Singleton.Info($"Session Execute", ClassName, Process.ID, new Dictionary<string, object>() {
+            ["sessionID"] = SessionID,
+            ["rootNodeID"] = RootNode.NodeID,
+            ["method"] = nameof(Execute)
+        });
+        _sessionStack.Push(RootNode);
+        var result = RootNode.Execute(this);
         _sessionStack.Pop();
-
-        if (result == LSProcessResultStatus.CANCELLED) {
-            _isCancelled = true;
-            //System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");
-        }
-        if (result == LSProcessResultStatus.WAITING) {
-            //System.Console.WriteLine($"[LSEventProcessContext] Root node is waiting.");
-        }
         return result;
     }
 
@@ -138,7 +115,13 @@ public class LSProcessSession {
     /// • <b>All Waiting:</b> When no IDs are provided, all waiting nodes in the hierarchy are resumed
     /// </remarks>
     public LSProcessResultStatus Resume(params string[]? nodes) {
-        return _rootNode.Resume(this, nodes);
+        LSLogger.Singleton.Info($"{nameof(Resume)}", ClassName, Process.ID, new Dictionary<string, object>() {
+            ["sessionID"] = SessionID,
+            ["rootNodeID"] = RootNode.NodeID,
+            ["resumedNodeIDs"] = nodes == null ? "null" : string.Join(",", nodes),
+            ["method"] = nameof(Resume)
+        });
+        return RootNode.Resume(this, nodes);
     }
 
     /// <summary>
@@ -156,7 +139,14 @@ public class LSProcessSession {
     /// Failing nodes may trigger status changes in parent nodes based on their aggregation logic (sequence, selector, parallel).
     /// </remarks>
     public LSProcessResultStatus Fail(params string[]? nodes) {
-        return _rootNode.Fail(this, nodes);
+        LSLogger.Singleton.Info($"Session Failure", ClassName, Process.ID, new Dictionary<string, object>() {
+            ["session"] = SessionID,
+            ["rootNode"] = RootNode.NodeID,
+            ["currentNode"] = CurrentNode?.NodeID ?? "null",
+            ["nodes"] = nodes == null ? "null" : string.Join(",", nodes),
+            ["method"] = nameof(Fail)
+        });
+        return RootNode.Fail(this, nodes);
     }
 
     /// <summary>
@@ -175,17 +165,23 @@ public class LSProcessSession {
     /// <b>Error Handling:</b><br/>
     /// If the root node's Cancel method doesn't return CANCELLED status, a warning is logged, but the session cancellation state is still set to ensure consistency.
     /// </remarks>
-    public void Cancel() {
-        var result = _rootNode.Cancel(this);
+    public LSProcessResultStatus Cancel() {
+        LSLogger.Singleton.Info($"Session Cancel", ClassName, Process.ID, new Dictionary<string, object>() {
+            ["session"] = SessionID,
+            ["rootNode"] = RootNode.NodeID,
+            ["currentNode"] = CurrentNode?.NodeID ?? "null",
+            ["method"] = nameof(Cancel)
+        });
+        var result = RootNode.Cancel(this);
         if (result != LSProcessResultStatus.CANCELLED) {
-            //System.Console.WriteLine($"[LSEventProcessContext] Warning: Root node Cancel() did not return CANCELLED status.");
+            LSLogger.Singleton.Warning($"Root node Cancel did not return CANCELLED status.", ClassName, Process.ID, new Dictionary<string, object>() {
+                ["session"] = SessionID,
+                ["rootNode"] = RootNode.NodeID,
+                ["currentNode"] = CurrentNode?.NodeID ?? "null",
+                ["result"] = result.ToString(),
+                ["method"] = nameof(Cancel)
+            });
         }
-        _isCancelled = true;
-        //System.Console.WriteLine($"[LSEventProcessContext] Root node processing was cancelled.");
-    }
-
-    public bool IsCompleted() {
-        var status = _rootNode.GetNodeStatus();
-        return status == LSProcessResultStatus.SUCCESS || status == LSProcessResultStatus.FAILURE || status == LSProcessResultStatus.CANCELLED;
+        return result;
     }
 }

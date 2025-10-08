@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
 public enum LSProcessLayerNodeType { 
     SEQUENCE,

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace LSUtils.Processing.Tests;
+namespace LSUtils.ProcessSystem.Tests;
 
 /// <summary>
 /// Tests for LSProcessNodeHandler functionality and conditions.
@@ -34,27 +34,27 @@ public class LSProcessingSystem_HandlerNodeTests {
         _handler2CallCount = 0;
         _handler3CallCount = 0;
 
-        _mockHandler1 = (proc, node) => {
+        _mockHandler1 = (session) => {
             _handler1CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler2 = (proc, node) => {
+        _mockHandler2 = (session) => {
             _handler2CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler3Failure = (proc, node) => {
+        _mockHandler3Failure = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.FAILURE;
         };
 
-        _mockHandler3Cancel = (proc, node) => {
+        _mockHandler3Cancel = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.CANCELLED;
         };
 
-        _mockHandler3Waiting = (proc, node) => {
+        _mockHandler3Waiting = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.WAITING;
         };
@@ -72,16 +72,16 @@ public class LSProcessingSystem_HandlerNodeTests {
     public void TestHandlerWithConditionsFalse() {
         var builder = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Handler("conditionalHandler", (ctx, node) => {
+                .Handler("conditionalHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.FAILURE;
                 }, LSProcessPriority.NORMAL, (proc, node) => false)) // skip the handler
             .Build();
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(mockProcess, builder);
 
-        var result = process.Execute();
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // since we skipped the handler that would return FAILURE the result is SUCCESS
         Assert.That(_handler1CallCount, Is.EqualTo(0)); // handler should not be called because conditionMet == false
     }
@@ -90,7 +90,7 @@ public class LSProcessingSystem_HandlerNodeTests {
     public void TestHandlerWithConditionsTrue() {
         var builder = new LSProcessTreeBuilder()
                     .Sequence("root", seq => seq
-                        .Handler("conditionalHandler", (ctx, node) => {
+                        .Handler("conditionalHandler", (session) => {
                             _handler1CallCount++;
                             return LSProcessResultStatus.FAILURE;
                         }, LSProcessPriority.NORMAL, (proc, node) => true)) // condition met
@@ -171,7 +171,7 @@ public class LSProcessingSystem_HandlerNodeTests {
         // Test case 1: Both conditions true - should execute
         var root = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Handler("conditionalHandler", (proc, node) => {
+                .Handler("conditionalHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL,
@@ -194,7 +194,7 @@ public class LSProcessingSystem_HandlerNodeTests {
         // Test case 2: First condition false - should not execute
         var root2 = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Handler("conditionalHandler", (proc, node) => {
+                .Handler("conditionalHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL,
@@ -215,9 +215,9 @@ public class LSProcessingSystem_HandlerNodeTests {
         Assert.That(conditionCallCount, Is.EqualTo(1)); // only first condition evaluated (short-circuit)
 
         // Test case 3: Second condition false - should not execute
-        var context3 = new LSProcessTreeBuilder()
+        var root3 = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Handler("conditionalHandler", (proc, node) => {
+                .Handler("conditionalHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL,
@@ -231,8 +231,8 @@ public class LSProcessingSystem_HandlerNodeTests {
         _handler1CallCount = 0;
 
         var mockProcess3 = new MockProcess();
-        var processContext3 = new LSProcessSession(mockProcess3, context3);
-        var result3 = processContext3.Execute();
+        var session3 = new LSProcessSession(mockProcess3, root3);
+        var result3 = session3.Execute();
         Assert.That(result3, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(0));
         Assert.That(conditionCallCount, Is.EqualTo(2)); // both conditions evaluated
@@ -243,7 +243,7 @@ public class LSProcessingSystem_HandlerNodeTests {
         // Test with data-based conditions
         var builder = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Handler("dataConditionHandler", (proc, node) => {
+                .Handler("dataConditionHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, (proc, node) => {
@@ -263,9 +263,9 @@ public class LSProcessingSystem_HandlerNodeTests {
     public void TestConditionExceptionHandling() {
         bool throwException = true;
 
-        var builder = new LSProcessTreeBuilder()
+        var root = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Handler("exceptionConditionHandler", (proc, node) => {
+                .Handler("exceptionConditionHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL, (proc, node) => {
@@ -275,20 +275,12 @@ public class LSProcessingSystem_HandlerNodeTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(mockProcess, root);
 
         // Exception in condition should propagate (current implementation behavior)
         throwException = true;
         Assert.Throws<InvalidOperationException>(() => {
             session.Execute();
         });
-
-        // Test that normal conditions still work
-        throwException = false;
-        _handler1CallCount = 0;
-
-        var result2 = session.Execute();
-        Assert.That(result2, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(_handler1CallCount, Is.EqualTo(1)); // handler executed when condition doesn't throw
     }
 }

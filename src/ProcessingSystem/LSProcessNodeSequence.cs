@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +35,7 @@ using LSUtils.Logging;
 /// Once processing begins (_isProcessing = true), child modification is prevented to ensure processing integrity. Resume/Fail operations delegate to waiting children while maintaining the sequential processing contract.
 /// </remarks>
 public class LSProcessNodeSequence : ILSProcessLayerNode {
+    public const string ClassName = nameof(LSProcessNodeSequence);
     /// <summary>
     /// Dictionary storing child nodes keyed by their NodeID for O(1) lookup operations.
     /// </summary>
@@ -161,24 +162,18 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// • <b>Mixed States:</b> CANCELLED and WAITING take precedence over SUCCESS/FAILURE
     /// </remarks>
     public LSProcessResultStatus GetNodeStatus() {
-        if (_isProcessing == false) {
-            return LSProcessResultStatus.UNKNOWN; // not yet processed
+        if (_isProcessing == false) return LSProcessResultStatus.UNKNOWN; // not yet processed
+        var total = _availableChildren.Count();
+        if (total == 0) return LSProcessResultStatus.SUCCESS; // no children to process, we are done
+        int successCount = 0;
+        foreach (var child in _availableChildren) {
+            var status = child.GetNodeStatus();
+            if (status == LSProcessResultStatus.CANCELLED) return LSProcessResultStatus.CANCELLED; // any cancelled child cancels the sequence
+            if (status == LSProcessResultStatus.FAILURE) return LSProcessResultStatus.FAILURE; // any failed child fails the sequence
+            if (status == LSProcessResultStatus.WAITING) return LSProcessResultStatus.WAITING; // any waiting child puts the sequence in waiting state
+            if (status == LSProcessResultStatus.SUCCESS) successCount++;
         }
-        if (!_availableChildren.Any()) {
-            return LSProcessResultStatus.SUCCESS; // no children to process, we are done
-        }
-
-        var childStatuses = _availableChildren.Select(c => c.GetNodeStatus()).ToList();
-        if (childStatuses.Any(c => c == LSProcessResultStatus.CANCELLED)) {
-            return LSProcessResultStatus.CANCELLED;
-        }
-        if (childStatuses.Any(c => c == LSProcessResultStatus.FAILURE)) {
-            return LSProcessResultStatus.FAILURE; // we found a failed child
-        }
-        if (childStatuses.Any(c => c == LSProcessResultStatus.WAITING)) {
-            return LSProcessResultStatus.WAITING; // we have at least one child that is still waiting
-        }
-        return LSProcessResultStatus.SUCCESS; // all children are successful
+        return successCount == total ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.UNKNOWN;
     }
     /// <summary>
     /// Forces waiting children to transition to FAILURE state in sequence processing context.
@@ -192,22 +187,61 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <b>Delegation Pattern:</b> The failure operation is delegated to the waiting child, which then updates its status. The sequence status is recalculated based on child states.
     /// </remarks>
     public LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodes) {
-        // sequence can only fail one node at a time so we don't need to care about nodes we just fail the first 
+        var currentStatus = GetNodeStatus();
+        if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
+            LSLogger.Singleton.Warning($"Node already in final state.", ClassName, context.Process.ID, new Dictionary<string, object>() {
+                ["nodeID"] = NodeID,
+                ["currentStatus"] = currentStatus,
+                ["availableChildren"] = _availableChildren.Count(),
+                ["method"] = nameof(Fail)
+            });
+            return currentStatus; // nothing to fail
+        }
 
-        var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
-        if (waitingChild != null) {
-            //System.Console.WriteLine($"[LSEventSequenceNode] Failing waiting child node {waitingChild.NodeID}.");
+        // conceptually, only the _currentChild should be waiting since sequence is sequential
+        if (_currentChild == null || _currentChild.GetNodeStatus() != LSProcessResultStatus.WAITING) {
+            var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
+            if (waitingChild == null) {
+                LSLogger.Singleton.Warning($"No waiting child found.", ClassName, context.Process.ID, new Dictionary<string, object>() {
+                    ["nodeID"] = NodeID,
+                    ["currentChildID"] = _currentChild?.NodeID ?? "null",
+                    ["currentChildStatus"] = _currentChild?.GetNodeStatus().ToString() ?? "N/A",
+                    ["availableChildren"] = _availableChildren.Count(),
+                    ["method"] = nameof(Fail)
+                });
+                return GetNodeStatus(); // we return the current sequence status.
+            }
             return waitingChild.Fail(context, nodes); //we propagate the fail to the waiting child
         }
-        //System.Console.WriteLine($"[LSEventSequenceNode] No child node is in WAITING state, cannot fail sequence node {NodeID}.");
+        return _currentChild.Fail(context, nodes); //we propagate the fail to the waiting child
 
-
-        return GetNodeStatus(); // we return the current sequence status.
     }
     /// <inheritdoc />
-    LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession context) {
-        //return _currentChild?.Cancel(context) ?? LSProcessResultStatus.CANCELLED;
-        return context.CurrentNode?.Cancel(context) ?? LSProcessResultStatus.CANCELLED;
+    LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
+        if (!_isProcessing) throw new LSException("Cannot cancel before processing.");
+        LSLogger.Singleton.Info($"Sequence Node Cancel.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+            ["nodeID"] = NodeID,
+            ["currentChild"] = _currentChild?.NodeID ?? "null",
+            ["availableChildren"] = _availableChildren.Count(),
+            ["method"] = nameof(ILSProcessNode.Cancel)
+        });
+        // cancel waiting and unknown children
+        _availableChildren.Where(c => {
+            var cstatus = c.GetNodeStatus();
+            return cstatus == LSProcessResultStatus.WAITING || cstatus == LSProcessResultStatus.UNKNOWN;
+        }).ToList().ForEach(c => c.Cancel(session));
+        // update the node status
+        var nodeStatus = GetNodeStatus();
+        if (nodeStatus != LSProcessResultStatus.CANCELLED) {
+            LSLogger.Singleton.Warning($"Sequence Node did not result CANCELLED.", ClassName, session.Process.ID, new Dictionary<string, object>() {
+                ["nodeID"] = NodeID,
+                ["nodeStatus"] = nodeStatus,
+                ["currentChild"] = _currentChild?.NodeID ?? "null",
+                ["availableChildren"] = _availableChildren.Count(),
+                ["method"] = nameof(ILSProcessNode.Cancel)
+            });
+        }
+        return nodeStatus;
     }
     /// <summary>
     /// Resumes waiting children to continue sequence processing.
@@ -221,15 +255,35 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <b>Status Propagation:</b> The resume result affects the overall sequence status based on whether the resumed child succeeds or encounters further issues.
     /// </remarks>
     public LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodes) {
-        // sequence can only resume one node at a time so we don't need to care about nodes we just resume the first 
-
-        var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
-        if (waitingChild != null) {
-            //System.Console.WriteLine($"[LSEventSequenceNode] Resuming waiting child node {waitingChild.NodeID}.");
+        var currentStatus = GetNodeStatus();
+        if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
+            LSLogger.Singleton.Warning($"Node already in final state.", ClassName, context.Process.ID, new Dictionary<string, object>() {
+                ["nodeID"] = NodeID,
+                ["currentStatus"] = currentStatus,
+                ["availableChildren"] = _availableChildren.Count(),
+                ["method"] = nameof(Resume)
+            });
+            return currentStatus; // nothing to resume
+        }
+        // conceptually, only the _currentChild should be waiting since sequence is sequential
+        LSProcessResultStatus currentChildStatus = _currentChild?.GetNodeStatus() ?? LSProcessResultStatus.UNKNOWN;
+        if (_currentChild == null || currentChildStatus != LSProcessResultStatus.WAITING) {
+            // in case the current child is not waiting or null, we try to find a waiting child
+            var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
+            if (waitingChild == null) {
+                LSLogger.Singleton.Warning($"No waiting child found.", ClassName, context.Process.ID, new Dictionary<string, object>() {
+                    ["nodeID"] = NodeID,
+                    ["currentChild"] = _currentChild?.NodeID ?? "null",
+                    ["currentChildStatus"] = currentChildStatus.ToString(),
+                    ["availableChildren"] = _availableChildren.Count(),
+                    ["method"] = nameof(Resume)
+                });
+                // If no waiting child is found, we return the current sequence status
+                return GetNodeStatus(); //we return the current sequence status, it may be SUCCESS if all children are done
+            }
             return waitingChild.Resume(context, nodes); //we propagate the resume to the waiting child
         }
-        //System.Console.WriteLine($"[LSEventSequenceNode] No child node is in WAITING state, cannot resume sequence node {NodeID}.");
-        return GetNodeStatus(); //we return the current sequence status, it may be SUCCESS if all children are done
+        return _currentChild.Resume(context, nodes); //we propagate the resume to the waiting child
     }
     /// <summary>
     /// Processes this sequence node and its children using the unified layer node processing pattern.
@@ -258,74 +312,53 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// Once _isProcessing is set to true, it never resets, ensuring processing consistency and preventing child modification during active processing.
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
-        //System.Console.WriteLine($"[LSEventSequenceNode] Processing sequence node [{NodeID}]");
-        //if (!LSProcessConditions.IsMet(session.Process, this)) return _nodeSuccess;
 
-        // we should not need to check for CANCELLED. this is handled when calling the child.Process
-
-        // create a stack to process children in order, this stack cannot be re-created after the node is processed.
-        // so _isProcessing can never be set to false again after the first initialization
         if (_isProcessing == false) {
-            // will only process children that meet conditions
-            // children ordered by Priority (critical first) and Order (lowest first)
-            _availableChildren = _children.Values.Where(c =>
-                LSProcessConditions.IsMet(session.Process, c))
-            .OrderByDescending(c => c.Priority).ThenBy(c => c.Order).Reverse().ToList();
+            // will only process children that meet conditions, children ordered by Priority (critical first) and Order (lowest first)
+            _availableChildren = _children.Values
+                .Where(c => LSProcessConditions.IsMet(session.Process, c))
+                .OrderByDescending(c => c.Priority)
+                .ThenBy(c => c.Order).Reverse().ToList();
             // Initialize the stack 
             _processStack = new Stack<ILSProcessNode>(_availableChildren);
             _isProcessing = true;
-            if (_processStack.Count > 0) _currentChild = _processStack.Pop(); // set the current node to the first child
-            //System.Console.WriteLine($"[LSEventSequenceNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()} {string.Join(", ", Array.ConvertAll(_availableChildren.ToArray(), c => c.NodeID))} _currentChild: {_currentChild?.NodeID}.");
+            // get the first child to process
+            _currentChild = nextChild();
+            LSLogger.Singleton.Info($"Execute Sequence node", ClassName, session.Process.ID, new Dictionary<string, object>() {
+                ["nodeID"] = NodeID,
+                ["currentChild"] = _currentChild?.NodeID ?? "N/A",
+                ["nodeChildren"] = _children.Count,
+                ["availableChildren"] = _availableChildren.Count(),
+                ["remainingChildren"] = _processStack.Count,
+                ["method"] = nameof(Execute)
+            });
         }
-
         var sequenceStatus = GetNodeStatus();
-        // success condition: all children have been processed, no CurrentNode
-        if (_currentChild == null) {
-            // no children to process, we are done
-            //System.Console.WriteLine($"[LSEventSequenceNode] No children to process for node {NodeID}, marking as SUCCESS.");
-            // we keep processing the CurrentNode if available, otherwise we are done
-            if (sequenceStatus != LSProcessResultStatus.SUCCESS) {
-                // this should never be the case
-                LSLogger.Singleton.Warning($"Sequence node [{NodeID}] has no children to process but status is <{sequenceStatus}>", $"{nameof(LSProcessNodeSequence)}.{nameof(Execute)}");
-            }
-            return LSProcessResultStatus.SUCCESS;
-        }
+        if (_currentChild == null) return LSProcessResultStatus.SUCCESS;
 
         do {
-            //System.Console.WriteLine($"[LSEventSequenceNode] Processing child node [{_currentChild.NodeID}].");
-
-            // process the child
             session._sessionStack.Push(_currentChild);
-            var currentChildStatus = _currentChild.Execute(session);
+            _currentChild.Execute(session);
             session._sessionStack.Pop();
             sequenceStatus = GetNodeStatus();
-            //System.Console.WriteLine($"[LSEventSequenceNode] Child node [{_currentChild.NodeID}] processed with status <{currentChildStatus}> sequenceStatus: <{sequenceStatus}>.");
-            if (currentChildStatus == LSProcessResultStatus.WAITING) return LSProcessResultStatus.WAITING;
-            if (sequenceStatus == LSProcessResultStatus.WAITING) {
-                // this should never happen because childStatus is WAITING should have been caught above
-                //System.Console.WriteLine($"[LSEventSequenceNode] Warning: Sequence node [{NodeID}] is in WAITING state but child [{_currentChild.NodeID}] is not WAITING.");
-                return LSProcessResultStatus.WAITING;
+            if (sequenceStatus == LSProcessResultStatus.FAILURE ||
+                sequenceStatus == LSProcessResultStatus.CANCELLED) {
+                endSequence();
+                return sequenceStatus;
             }
-            if (currentChildStatus == LSProcessResultStatus.FAILURE || sequenceStatus == LSProcessResultStatus.CANCELLED) {
-                // exit condition in this node is clear the stack and current node
-                //System.Console.WriteLine($"[LSEventSequenceNode] Ué Sequence node [{NodeID}] finished processing because child [{_currentChild.NodeID}] returned <{currentChildStatus}>.");
-                _processStack.Clear();
-                _currentChild = null;
-                return sequenceStatus; // propagate the sequence status
-            }
-
-            // get the next node
-            if (_processStack.Count == 0) {
-                //System.Console.WriteLine($"[LSEventSequenceNode] Sequence node [{NodeID}] has processed all children.");
-                _currentChild = null; // we are done
-                break;
-            }
-            _currentChild = _processStack.Pop();
+            if (sequenceStatus == LSProcessResultStatus.WAITING) return LSProcessResultStatus.WAITING;
+            _currentChild = nextChild();
         } while (_currentChild != null);
 
-        //reach this point means that the sequence was successfull
-        //System.Console.WriteLine($"[LSEventSequenceNode] Sequence node [{NodeID}] finished processing all children. Final status: [{sequenceStatus}]");
         return LSProcessResultStatus.SUCCESS;
+    }
+    void endSequence() {
+        _processStack.Clear();
+        _currentChild = null;
+    }
+    ILSProcessNode? nextChild() {
+        // get the next node child
+        return _processStack.Count > 0 ? _processStack.Pop() : null;
     }
     /// <summary>
     /// Factory method for creating a new sequence node with the specified configuration.

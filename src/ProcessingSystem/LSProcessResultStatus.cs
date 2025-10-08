@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
 /// <summary>
 /// Enumeration defining the possible states of processing nodes within the LSProcessing system.

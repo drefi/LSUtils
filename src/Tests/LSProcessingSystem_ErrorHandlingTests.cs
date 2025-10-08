@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace LSUtils.Processing.Tests;
+namespace LSUtils.ProcessSystem.Tests;
 
 /// <summary>
 /// Tests for error handling, exception scenarios, and edge cases.
@@ -34,27 +34,27 @@ public class LSProcessingSystem_ErrorHandlingTests {
         _handler2CallCount = 0;
         _handler3CallCount = 0;
 
-        _mockHandler1 = (proc, node) => {
+        _mockHandler1 = (session) => {
             _handler1CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler2 = (proc, node) => {
+        _mockHandler2 = (session) => {
             _handler2CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler3Failure = (proc, node) => {
+        _mockHandler3Failure = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.FAILURE;
         };
 
-        _mockHandler3Cancel = (proc, node) => {
+        _mockHandler3Cancel = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.CANCELLED;
         };
 
-        _mockHandler3Waiting = (proc, node) => {
+        _mockHandler3Waiting = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.WAITING;
         };
@@ -80,9 +80,9 @@ public class LSProcessingSystem_ErrorHandlingTests {
                 .Build();
             // If build succeeds, test processing
             var mockProcess = new MockProcess();
-            var process = new LSProcessSession(mockProcess, builder);
+            var session = new LSProcessSession(mockProcess, builder);
             try {
-                process.Execute();
+                session.Execute();
             } catch (Exception ex) {
                 caughtException = ex;
             }
@@ -127,8 +127,8 @@ public class LSProcessingSystem_ErrorHandlingTests {
 
             // If this succeeds, let's test the behavior
             var mockProcess = new MockProcess();
-            var process = new LSProcessSession(mockProcess, builder);
-            var result = process.Execute();
+            var session = new LSProcessSession(mockProcess, builder);
+            var result = session.Execute();
 
             // The system might allow duplicates but only use the last one
             Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -156,26 +156,26 @@ public class LSProcessingSystem_ErrorHandlingTests {
 
         var builder = new LSProcessTreeBuilder()
             .Sequence("root", seq => seq
-                .Handler("beforeException", (proc, node) => {
+                .Handler("beforeException", (session) => {
                     executionOrder.Add("BEFORE");
                     return LSProcessResultStatus.SUCCESS;
                 })
-                .Handler("throwsException", (proc, node) => {
+                .Handler("throwsException", (session) => {
                     executionOrder.Add("EXCEPTION");
                     throw new InvalidOperationException("Handler error");
                 })
-                .Handler("afterException", (proc, node) => {
+                .Handler("afterException", (session) => {
                     executionOrder.Add("AFTER");
                     return LSProcessResultStatus.SUCCESS;
                 }))
             .Build();
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(mockProcess, builder);
 
         // Exception should propagate and stop execution
         Assert.Throws<InvalidOperationException>(() => {
-            process.Execute();
+            session.Execute();
         });
 
         // Verify execution stopped at the exception
@@ -192,10 +192,10 @@ public class LSProcessingSystem_ErrorHandlingTests {
 
         // Start processing to set internal state
         var mockProcess = new MockProcess();
-        var builder = new LSProcessSession(mockProcess, sequence);
+        var session = new LSProcessSession(mockProcess, sequence);
 
         // Process first to set internal processing state
-        var result = builder.Execute();
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
 
         // After processing has started, modifications should be restricted
@@ -213,10 +213,10 @@ public class LSProcessingSystem_ErrorHandlingTests {
         // Test null event - system might accept it
         Exception? caughtException = null;
         try {
-            var process = new LSProcessSession(null!, builder);
+            var session = new LSProcessSession(null!, builder);
             // If construction succeeds, test processing
             try {
-                var result = process.Execute();
+                var result = session.Execute();
                 // System might handle null gracefully
                 Assert.That(result, Is.AnyOf(LSProcessResultStatus.SUCCESS, LSProcessResultStatus.FAILURE, LSProcessResultStatus.WAITING, LSProcessResultStatus.CANCELLED));
             } catch (Exception ex) {
@@ -237,9 +237,9 @@ public class LSProcessingSystem_ErrorHandlingTests {
         var mockProcess = new MockProcess();
         Exception? caughtException2 = null;
         try {
-            var process = new LSProcessSession(mockProcess, null!);
+            var session = new LSProcessSession(mockProcess, null!);
             try {
-                var result = process.Execute();
+                var result = session.Execute();
                 Assert.That(result, Is.AnyOf(LSProcessResultStatus.SUCCESS, LSProcessResultStatus.FAILURE, LSProcessResultStatus.WAITING, LSProcessResultStatus.CANCELLED));
             } catch (Exception ex) {
                 caughtException2 = ex;

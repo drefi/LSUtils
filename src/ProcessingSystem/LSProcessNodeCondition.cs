@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Delegate that represents a condition function for determining whether a node should be processed.
 /// Provides pluggable logic for conditional execution based on process data and node context within the LSProcessing system.

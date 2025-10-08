@@ -1,4 +1,4 @@
-namespace LSUtils.Processing;
+namespace LSUtils.ProcessSystem;
 
 /// <summary>
 /// Defines execution priority levels for nodes within the LSProcessing system.

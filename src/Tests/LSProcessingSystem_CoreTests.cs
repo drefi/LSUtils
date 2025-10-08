@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace LSUtils.Processing.Tests;
+namespace LSUtils.ProcessSystem.Tests;
 
 /// <summary>
 /// Core and basic tests for LSProcessingSystem.
@@ -34,27 +34,27 @@ public class LSProcessingSystemCoreTests {
         _handler2CallCount = 0;
         _handler3CallCount = 0;
 
-        _mockHandler1 = (proc, node) => {
+        _mockHandler1 = (session) => {
             _handler1CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler2 = (proc, node) => {
+        _mockHandler2 = (session) => {
             _handler2CallCount++;
             return LSProcessResultStatus.SUCCESS;
         };
 
-        _mockHandler3Failure = (proc, node) => {
+        _mockHandler3Failure = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.FAILURE;
         };
 
-        _mockHandler3Cancel = (proc, node) => {
+        _mockHandler3Cancel = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.CANCELLED;
         };
 
-        _mockHandler3Waiting = (proc, node) => {
+        _mockHandler3Waiting = (session) => {
             _handler3CallCount++;
             return LSProcessResultStatus.WAITING;
         };
@@ -145,27 +145,27 @@ public class LSProcessingSystemCoreTests {
 
         var builder = new LSProcessTreeBuilder()
             .Sequence("root", root => root
-                .Handler("lowPriority", (proc, node) => {
+                .Handler("lowPriority", (session) => {
                     executionOrder.Add("LOW");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.LOW)
-                .Handler("normalPriority", (proc, node) => {
+                .Handler("normalPriority", (session) => {
                     executionOrder.Add("NORMAL");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.NORMAL)
-                .Handler("highPriority", (proc, node) => {
+                .Handler("highPriority", (session) => {
                     executionOrder.Add("HIGH");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.HIGH)
-                .Handler("criticalPriority", (proc, node) => {
+                .Handler("criticalPriority", (session) => {
                     executionOrder.Add("CRITICAL");
                     return LSProcessResultStatus.SUCCESS;
                 }, LSProcessPriority.CRITICAL))
             .Build();
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, builder);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, builder);
+        var result = session.Execute();
 
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
 
@@ -178,7 +178,7 @@ public class LSProcessingSystemCoreTests {
         List<string> executionOrder = new List<string>();
         var seqA = new LSProcessTreeBuilder()
             .Sequence("seqA", seq => seq
-                .Handler("handlerA", (proc, node) => {
+                .Handler("handlerA", (session) => {
                     executionOrder.Add("A");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -186,7 +186,7 @@ public class LSProcessingSystemCoreTests {
 
         var seqB = new LSProcessTreeBuilder()
             .Sequence("seqB", seq => seq
-                .Handler("handlerB", (proc, node) => {
+                .Handler("handlerB", (session) => {
                     executionOrder.Add("B");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -211,7 +211,7 @@ public class LSProcessingSystemCoreTests {
         List<string> executionOrder = new List<string>();
         var seqA = new LSProcessTreeBuilder()
             .Sequence("seqA", seq => seq
-                .Handler("handlerA", (proc, node) => {
+                .Handler("handlerA", (session) => {
                     executionOrder.Add("A");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -219,7 +219,7 @@ public class LSProcessingSystemCoreTests {
 
         var seqB = new LSProcessTreeBuilder()
             .Sequence("seqB", seq => seq
-                .Handler("handlerB", (proc, node) => {
+                .Handler("handlerB", (session) => {
                     executionOrder.Add("B");
                     return LSProcessResultStatus.SUCCESS;
                 }))
@@ -227,7 +227,7 @@ public class LSProcessingSystemCoreTests {
 
         var seqC = new LSProcessTreeBuilder()
             .Sequence("seqC", seq => seq
-                .Handler("handlerC", (proc, node) => {
+                .Handler("handlerC", (session) => {
                     executionOrder.Add("C");
                     return LSProcessResultStatus.SUCCESS;
                 }), LSProcessPriority.HIGH)
@@ -240,8 +240,8 @@ public class LSProcessingSystemCoreTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var process = new LSProcessSession(mockProcess, mergedContextWithPriority);
-        var result = process.Execute();
+        var session = new LSProcessSession(mockProcess, mergedContextWithPriority);
+        var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
 
         Assert.That(executionOrder, Is.EqualTo(new List<string> { "C", "A", "B" }));
