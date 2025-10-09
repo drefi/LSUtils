@@ -32,6 +32,11 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     }
 
     public LSProcessResultStatus Cancel(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeInverter.Cancel",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         LSLogger.Singleton.Debug($"Inverter Node Cancel.",
               source: (ClassName, null),
               processId: session.Process.ID,
@@ -45,6 +50,11 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     }
 
     public ILSProcessLayerNode Clone() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeInverter.Clone",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for node cloning
+
         var clone = new LSProcessNodeInverter(NodeID, Priority, Order, Conditions);
         if (_childNode != null) {
             clone.AddChild(_childNode.Clone());
@@ -53,6 +63,11 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     }
 
     public LSProcessResultStatus Execute(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeInverter.Execute",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         if (_childNode == null) {
             throw new LSException("LSProcessNodeInverter must have a child node!");
         }
@@ -74,6 +89,11 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     }
 
     public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeInverter.Fail",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         LSLogger.Singleton.Debug($"Inverter Node Fail.",
               source: (ClassName, null),
               processId: session.Process.ID,
@@ -125,6 +145,11 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     }
 
     public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeInverter.Resume",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         LSLogger.Singleton.Debug($"Inverter Node Resume.",
               source: (ClassName, null),
               processId: session.Process.ID,

@@ -137,6 +137,11 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     public ILSProcessNode[] GetChildren() => _children.Values.ToArray();
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSequence.Clone",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for node cloning
+
         var cloned = new LSProcessNodeSequence(NodeID, Order, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
@@ -187,6 +192,11 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <b>Delegation Pattern:</b> The failure operation is delegated to the waiting child, which then updates its status. The sequence status is recalculated based on child states.
     /// </remarks>
     public LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSequence.Fail",
+              source: ("LSProcessSystem", null),
+              processId: context.Process.ID);
+
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
             LSLogger.Singleton.Warning($"Node already in final state.",
@@ -224,6 +234,11 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     }
     /// <inheritdoc />
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSequence.Cancel",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         if (!_isProcessing) throw new LSException("Cannot cancel before processing.");
         LSLogger.Singleton.Debug($"Sequence Node Cancel.",
               source: (ClassName, null),
@@ -267,6 +282,11 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <b>Status Propagation:</b> The resume result affects the overall sequence status based on whether the resumed child succeeds or encounters further issues.
     /// </remarks>
     public LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSequence.Resume",
+              source: ("LSProcessSystem", null),
+              processId: context.Process.ID);
+
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
             LSLogger.Singleton.Warning($"Node already in final state.",
@@ -330,6 +350,10 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// Once _isProcessing is set to true, it never resets, ensuring processing consistency and preventing child modification during active processing.
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSequence.Execute",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
 
         if (_isProcessing == false) {
             // will only process children that meet conditions, children ordered by Priority (critical first) and Order (lowest first)

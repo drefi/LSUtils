@@ -87,6 +87,11 @@ public class LSProcessSession {
     /// • <b>SUCCESS/FAILURE:</b> Terminal states indicating completion
     /// </remarks>
     internal LSProcessResultStatus Execute() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessSession.Execute",
+              source: ("LSProcessSystem", null),
+              processId: Process.ID);
+
         var rootStatus = RootNode.GetNodeStatus();
         if (rootStatus != LSProcessResultStatus.UNKNOWN && rootStatus != LSProcessResultStatus.WAITING)
             return rootStatus;
@@ -118,6 +123,11 @@ public class LSProcessSession {
     /// • <b>All Waiting:</b> When no IDs are provided, all waiting nodes in the hierarchy are resumed
     /// </remarks>
     public LSProcessResultStatus Resume(params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessSession.Resume",
+              source: ("LSProcessSystem", null),
+              processId: Process.ID);
+
         LSLogger.Singleton.Debug($"{nameof(Resume)}",
               source: (ClassName, null),
               processId: Process.ID,
@@ -145,6 +155,11 @@ public class LSProcessSession {
     /// Failing nodes may trigger status changes in parent nodes based on their aggregation logic (sequence, selector, parallel).
     /// </remarks>
     public LSProcessResultStatus Fail(params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessSession.Fail",
+              source: ("LSProcessSystem", null),
+              processId: Process.ID);
+
         LSLogger.Singleton.Debug($"Session Failure",
               source: (ClassName, null),
               processId: Process.ID,
@@ -175,6 +190,11 @@ public class LSProcessSession {
     /// If the root node's Cancel method doesn't return CANCELLED status, a warning is logged, but the session cancellation state is still set to ensure consistency.
     /// </remarks>
     public LSProcessResultStatus Cancel() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessSession.Cancel",
+              source: ("LSProcessSystem", null),
+              processId: Process.ID);
+
         LSLogger.Singleton.Debug($"Session Cancel",
               source: (ClassName, null),
               processId: Process.ID,

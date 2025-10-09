@@ -236,6 +236,11 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </para>
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeHandler.Execute",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         if (_hasExecuted) {
             LSLogger.Singleton.Warning($"Handler node already executed.",
                   source: (ClassName, null),
@@ -289,6 +294,11 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para>allowing the handler to transition from WAITING to SUCCESS without re-executing the handler delegate.</para>
     /// </remarks>
     public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeHandler.Resume",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         // execute if we never executed before
         if (!_hasExecuted) {
             // pre-set to SUCCESS, this prevents Execute to return WAITING
@@ -321,6 +331,11 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <param name="nodes">Optional node ID array for targeting (not used by handler nodes as they are leaf nodes).</param>
     /// <returns>Node status FAILURE unless node already CANCELLED.</returns>
     public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeHandler.Fail",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         // execute if we never executed before
         if (!_hasExecuted) {
             // pre-set to FAILURE, this prevents Execute to return WAITING
@@ -356,6 +371,11 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para><strong>Scope:</strong> Only affects this individual handler node (leaf nodes have no children).</para>
     /// </remarks>
     public LSProcessResultStatus Cancel(LSProcessSession context) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeHandler.Cancel",
+              source: ("LSProcessSystem", null),
+              processId: context.Process.ID);
+
         // prevent executing if we never executed before
         _hasExecuted = true;
         // Set status to CANCELLED (terminal state, always succeeds)
@@ -385,6 +405,11 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para>executed multiple times while maintaining global execution statistics.</para>
     /// </remarks>
     public ILSProcessNode Clone() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeHandler.Clone",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for node cloning
+
         return new LSProcessNodeHandler(NodeID, _handler, Order, Priority, _baseNode == null ? this : _baseNode, Conditions);
     }
     /// <summary>

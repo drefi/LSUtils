@@ -117,6 +117,11 @@ public abstract class LSProcess : ILSProcess {
     /// <para>The method merges any custom processing context with the global context before execution.</para>
     /// </remarks>
     public LSProcessResultStatus Execute(ILSProcessable? instance = null, LSProcessManager? manager = null) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcess.Execute",
+              source: ("LSProcessSystem", null),
+              processId: ID);
+
         _manager = manager ?? LSProcessManager.Singleton;
         if (_processSession == null) {
             var root = _manager.GetRootNode(GetType(), instance, _root?.Clone());
@@ -141,6 +146,11 @@ public abstract class LSProcess : ILSProcess {
     /// <returns>The processing status after resume attempt.</returns>
     /// <exception cref="LSException">Thrown if the process has not been executed yet.</exception>
     public LSProcessResultStatus Resume(params string[] nodeIDs) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcess.Resume",
+              source: ("LSProcessSystem", null),
+              processId: ID);
+
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
@@ -167,6 +177,11 @@ public abstract class LSProcess : ILSProcess {
     /// the process cannot be resumed or continued.
     /// </remarks>
     public void Cancel() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcess.Cancel",
+              source: ("LSProcessSystem", null),
+              processId: ID);
+
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
@@ -201,6 +216,11 @@ public abstract class LSProcess : ILSProcess {
     /// <para>prefixed with the process type name for clarity in debugging.</para>
     /// </remarks>
     public ILSProcess WithProcessing(LSProcessBuilderAction builderAction, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcess.WithProcessing",
+              source: ("LSProcessSystem", null),
+              processId: ID);
+
         LSProcessTreeBuilder builder;
         if (_root == null) {
             builder = layerType switch {
@@ -233,6 +253,11 @@ public abstract class LSProcess : ILSProcess {
     /// May trigger cascading status changes in parent nodes based on their aggregation logic.
     /// </remarks>
     public LSProcessResultStatus Fail(params string[] nodeIDs) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcess.Fail",
+              source: ("LSProcessSystem", null),
+              processId: ID);
+
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }

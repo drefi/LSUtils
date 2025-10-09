@@ -154,6 +154,22 @@ public class LSProcessManager {
     /// <para>All contexts are cloned before merging to ensure the original registered contexts remain unmodified.</para>
     /// </remarks>
     public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localNode = null) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessManager.GetRootNode",
+              source: ("LSProcessSystem", null),
+              processId: instance?.ID ?? System.Guid.Empty);
+
+        // Detailed debug logging
+        LSLogger.Singleton.Debug("Getting root node for process type",
+              source: (ClassName, null),
+              processId: instance?.ID ?? System.Guid.Empty,
+              properties: new (string, object)[] {
+                ("processType", processType.Name),
+                ("hasInstance", instance != null),
+                ("hasLocalNode", localNode != null),
+                ("method", nameof(GetRootNode))
+            });
+
         // if processType is not registered, create a new process dictionary for this type.
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();

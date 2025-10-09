@@ -134,6 +134,11 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     public ILSProcessNode[] GetChildren() => _children.Values.ToArray();
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSelector.Clone",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for node cloning
+
         var cloned = new LSProcessNodeSelector(NodeID, Order, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
@@ -205,6 +210,11 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// If no children are waiting, returns the current selector status without modification.
     /// </remarks>
     public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSelector.Fail",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         if (!_isProcessing) throw new LSException("Cannot fail before processing.");
         if (_currentChild == null) return LSProcessResultStatus.SUCCESS;
         var currentStatus = GetNodeStatus();
@@ -252,6 +262,11 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// If no children are waiting, returns the current selector status which may be SUCCESS if any child succeeded.
     /// </remarks>
     public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSelector.Resume",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         if (!_isProcessing) return LSProcessResultStatus.UNKNOWN;
         var currentStatus = GetNodeStatus();
         if (_currentChild == null) return currentStatus;
@@ -292,6 +307,11 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         return session.Execute();
     }
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSelector.Cancel",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         if (!_isProcessing) throw new LSException("Cannot cancel before processing.");
         LSLogger.Singleton.Debug($"Selector Node Cancel.",
               source: (ClassName, null),
@@ -355,6 +375,11 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// • <b>State Preservation:</b> Processing state maintained across multiple calls
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeSelector.Execute",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         if (_isProcessing == false) {
             // will only process children that meet conditions, children ordered by Priority (critical first) and Order (lowest first)
             _availableChildren = _children.Values

@@ -130,6 +130,22 @@ public class LSProcessTreeBuilder {
     /// </list>
     /// </remarks>
     public LSProcessTreeBuilder Handler(string nodeID, LSProcessHandler handler, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessTreeBuilder.Handler",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for tree building
+
+        // Detailed debug logging
+        LSLogger.Singleton.Debug("Tree Builder Handler Node creation",
+              source: (ClassName, null),
+              processId: System.Guid.Empty,
+              properties: new (string, object)[] {
+                ("nodeID", nodeID),
+                ("priority", priority.ToString()),
+                ("hasConditions", conditions != null && conditions.Length > 0),
+                ("method", nameof(Handler))
+            });
+
         if (_currentNode == null) {
             _currentNode = LSProcessNodeSequence.Create($"sequence[{nodeID}]", 0); // create a root sequence node if none exists
         }
@@ -209,6 +225,11 @@ public class LSProcessTreeBuilder {
             LSProcessPriority? priority = LSProcessPriority.NORMAL,
             bool overrideConditions = false,
             params LSProcessNodeCondition?[] conditions) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessTreeBuilder.Sequence",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for tree building
+
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
         getChild(nodeID, out ILSProcessNode? existingNode);
@@ -295,6 +316,22 @@ public class LSProcessTreeBuilder {
             LSProcessPriority? priority = LSProcessPriority.NORMAL,
             bool overrideConditions = false,
             params LSProcessNodeCondition?[] conditions) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessTreeBuilder.Selector",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for tree building
+
+        // Detailed debug logging
+        LSLogger.Singleton.Debug("Tree Builder Selector Node creation",
+              source: (ClassName, null),
+              processId: System.Guid.Empty,
+              properties: new (string, object)[] {
+                ("nodeID", nodeID),
+                ("hasBuilder", selectorBuilder != null),
+                ("priority", priority?.ToString() ?? "null"),
+                ("overrideConditions", overrideConditions),
+                ("method", nameof(Selector))
+            });
 
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -380,6 +417,25 @@ public class LSProcessTreeBuilder {
             LSProcessPriority? priority = null,
             bool overrideConditions = false,
             params LSProcessNodeCondition?[] conditions) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessTreeBuilder.Parallel",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for tree building
+
+        // Detailed debug logging
+        LSLogger.Singleton.Debug("Tree Builder Parallel Node creation",
+              source: (ClassName, null),
+              processId: System.Guid.Empty,
+              properties: new (string, object)[] {
+                ("nodeID", nodeID),
+                ("hasBuilder", parallelBuilder != null),
+                ("numRequiredToSucceed", numRequiredToSucceed?.ToString() ?? "null"),
+                ("numRequiredToFailure", numRequiredToFailure?.ToString() ?? "null"),
+                ("priority", priority?.ToString() ?? "null"),
+                ("overrideConditions", overrideConditions),
+                ("method", nameof(Parallel))
+            });
+
         ILSProcessNode? existingNode = null;
         var parentBefore = _currentNode;
         int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
@@ -610,6 +666,11 @@ public class LSProcessTreeBuilder {
     /// </list>
     /// </remarks>
     public ILSProcessLayerNode Build() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessTreeBuilder.Build",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for tree building
+
         if (_hasBuilt) throw new LSException("Build can only be called once per builder instance.");
         _hasBuilt = true;
         if (_rootNode != null) return _rootNode;

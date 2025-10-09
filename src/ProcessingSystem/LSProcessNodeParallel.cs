@@ -211,6 +211,11 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     }
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeParallel.Clone",
+              source: ("LSProcessSystem", null),
+              processId: System.Guid.Empty); // No specific process context for node cloning
+
         var cloned = new LSProcessNodeParallel(NodeID, Order, NumRequiredToSucceed, NumRequiredToFailure, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
@@ -318,6 +323,11 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </para>
     /// </remarks>
     public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeParallel.Fail",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         if (!_isProcessing) throw new LSException("Cannot fail before processing.");
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
@@ -401,6 +411,11 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </para>
     /// </remarks>
     public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeParallel.Resume",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         if (!_isProcessing) return LSProcessResultStatus.UNKNOWN;
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
@@ -477,6 +492,11 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </para>
     /// </remarks>
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeParallel.Cancel",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         // parallel always cancel all waiting childs.
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
@@ -547,6 +567,11 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </para>
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug("LSProcessNodeParallel.Execute",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID);
+
         // Initialize available children list if not done yet
         if (_isProcessing == false) {
             // will only process children that meet conditions
