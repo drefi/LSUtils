@@ -237,14 +237,16 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
         if (_hasExecuted) {
-            LSLogger.Singleton.Warning($"Handler node already executed.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["nodeStatus"] = _nodeStatus,
-                ["ExecutionCount"] = ExecutionCount,
-                ["isClone"] = _baseNode != null,
-                ["class"] = ClassName,
-                ["method"] = nameof(Execute)
-            });
+            LSLogger.Singleton.Warning($"Handler node already executed.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodeStatus", _nodeStatus),
+                    ("ExecutionCount", ExecutionCount),
+                    ("isClone", _baseNode != null),
+                    ("method", nameof(Execute))
+                });
             return _nodeStatus;
         }
         _hasExecuted = true;
@@ -252,14 +254,16 @@ public class LSProcessNodeHandler : ILSProcessNode {
         var handlerResult = _handler(session);
         // Increment execution count for analytics (shared across clones via base node)
         ExecutionCount++;
-        LSLogger.Singleton.Info($"Handler node executed.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-            ["nodeID"] = NodeID,
-            ["nodeStatus"] = handlerResult,
-            ["ExecutionCount"] = ExecutionCount,
-            ["isClone"] = _baseNode != null,
-            ["class"] = ClassName,
-            ["method"] = nameof(Execute)
-        });
+        LSLogger.Singleton.Debug($"Handler node executed.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("nodeStatus", handlerResult),
+                ("ExecutionCount", ExecutionCount),
+                ("isClone", _baseNode != null),
+                ("method", nameof(Execute))
+            });
         // update status if handlerResult is CANCELLED
         // otherwise is SUCCESS or FAILURE because of Resume/Fail
         _nodeStatus = handlerResult == LSProcessResultStatus.CANCELLED ? handlerResult : _nodeStatus == LSProcessResultStatus.UNKNOWN ? handlerResult : _nodeStatus;
@@ -292,18 +296,21 @@ public class LSProcessNodeHandler : ILSProcessNode {
             // execute the handler, since we handler can still cancel or fail by itself we return the Execute result
             return Execute(session);
         }
-
         if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Handler node not waiting.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["nodeStatus"] = _nodeStatus,
-                ["ExecutionCount"] = ExecutionCount,
-                ["isClone"] = _baseNode != null,
-                ["class"] = ClassName,
-                ["method"] = nameof(Resume)
-            });
+            LSLogger.Singleton.Warning($"Handler node not waiting.",
+                source: (ClassName, null),
+                processId: session.Process.ID,
+                properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodeStatus", _nodeStatus),
+                    ("ExecutionCount", ExecutionCount),
+                    ("isClone", _baseNode != null),
+                    ("method", nameof(Resume))
+                }
+            );
             return _nodeStatus;
         }
+
         _nodeStatus = LSProcessResultStatus.SUCCESS;
         return _nodeStatus;
     }
@@ -322,14 +329,16 @@ public class LSProcessNodeHandler : ILSProcessNode {
             return Execute(session);
         }
         if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Handler node not waiting.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["nodeStatus"] = _nodeStatus,
-                ["ExecutionCount"] = ExecutionCount,
-                ["isClone"] = _baseNode != null,
-                ["class"] = ClassName,
-                ["method"] = nameof(Fail)
-            });
+            LSLogger.Singleton.Warning($"Handler node not waiting.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodeStatus", _nodeStatus),
+                    ("ExecutionCount", ExecutionCount),
+                    ("isClone", _baseNode != null),
+                    ("method", nameof(Fail))
+                });
             return _nodeStatus;
         }
         _nodeStatus = LSProcessResultStatus.FAILURE;

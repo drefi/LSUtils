@@ -90,11 +90,14 @@ public class LSProcessSession {
         var rootStatus = RootNode.GetNodeStatus();
         if (rootStatus != LSProcessResultStatus.UNKNOWN && rootStatus != LSProcessResultStatus.WAITING)
             return rootStatus;
-        LSLogger.Singleton.Info($"Session Execute", ClassName, Process.ID, new Dictionary<string, object>() {
-            ["sessionID"] = SessionID,
-            ["rootNodeID"] = RootNode.NodeID,
-            ["method"] = nameof(Execute)
-        });
+        LSLogger.Singleton.Debug($"Session Execute",
+              source: (ClassName, null),
+              processId: Process.ID,
+              properties: new (string, object)[] {
+                ("sessionID", SessionID),
+                ("rootNodeID", RootNode.NodeID),
+                ("method", nameof(Execute))
+            });
         _sessionStack.Push(RootNode);
         var result = RootNode.Execute(this);
         _sessionStack.Pop();
@@ -115,12 +118,15 @@ public class LSProcessSession {
     /// • <b>All Waiting:</b> When no IDs are provided, all waiting nodes in the hierarchy are resumed
     /// </remarks>
     public LSProcessResultStatus Resume(params string[]? nodes) {
-        LSLogger.Singleton.Info($"{nameof(Resume)}", ClassName, Process.ID, new Dictionary<string, object>() {
-            ["sessionID"] = SessionID,
-            ["rootNodeID"] = RootNode.NodeID,
-            ["resumedNodeIDs"] = nodes == null ? "null" : string.Join(",", nodes),
-            ["method"] = nameof(Resume)
-        });
+        LSLogger.Singleton.Debug($"{nameof(Resume)}",
+              source: (ClassName, null),
+              processId: Process.ID,
+              properties: new (string, object)[] {
+                ("sessionID", SessionID),
+                ("rootNodeID", RootNode.NodeID),
+                ("resumedNodeIDs", nodes == null ? "null" : string.Join(",", nodes)),
+                ("method", nameof(Resume))
+            });
         return RootNode.Resume(this, nodes);
     }
 
@@ -139,13 +145,16 @@ public class LSProcessSession {
     /// Failing nodes may trigger status changes in parent nodes based on their aggregation logic (sequence, selector, parallel).
     /// </remarks>
     public LSProcessResultStatus Fail(params string[]? nodes) {
-        LSLogger.Singleton.Info($"Session Failure", ClassName, Process.ID, new Dictionary<string, object>() {
-            ["session"] = SessionID,
-            ["rootNode"] = RootNode.NodeID,
-            ["currentNode"] = CurrentNode?.NodeID ?? "null",
-            ["nodes"] = nodes == null ? "null" : string.Join(",", nodes),
-            ["method"] = nameof(Fail)
-        });
+        LSLogger.Singleton.Debug($"Session Failure",
+              source: (ClassName, null),
+              processId: Process.ID,
+              properties: new (string, object)[] {
+                ("session", SessionID),
+                ("rootNode", RootNode.NodeID),
+                ("currentNode", CurrentNode?.NodeID ?? "null"),
+                ("nodes", nodes == null ? "null" : string.Join(",", nodes)),
+                ("method", nameof(Fail))
+            });
         return RootNode.Fail(this, nodes);
     }
 
@@ -166,21 +175,27 @@ public class LSProcessSession {
     /// If the root node's Cancel method doesn't return CANCELLED status, a warning is logged, but the session cancellation state is still set to ensure consistency.
     /// </remarks>
     public LSProcessResultStatus Cancel() {
-        LSLogger.Singleton.Info($"Session Cancel", ClassName, Process.ID, new Dictionary<string, object>() {
-            ["session"] = SessionID,
-            ["rootNode"] = RootNode.NodeID,
-            ["currentNode"] = CurrentNode?.NodeID ?? "null",
-            ["method"] = nameof(Cancel)
-        });
+        LSLogger.Singleton.Debug($"Session Cancel",
+              source: (ClassName, null),
+              processId: Process.ID,
+              properties: new (string, object)[] {
+                ("session", SessionID),
+                ("rootNode", RootNode.NodeID),
+                ("currentNode", CurrentNode?.NodeID ?? "null"),
+                ("method", nameof(Cancel))
+            });
         var result = RootNode.Cancel(this);
         if (result != LSProcessResultStatus.CANCELLED) {
-            LSLogger.Singleton.Warning($"Root node Cancel did not return CANCELLED status.", ClassName, Process.ID, new Dictionary<string, object>() {
-                ["session"] = SessionID,
-                ["rootNode"] = RootNode.NodeID,
-                ["currentNode"] = CurrentNode?.NodeID ?? "null",
-                ["result"] = result.ToString(),
-                ["method"] = nameof(Cancel)
-            });
+            LSLogger.Singleton.Warning($"Root node Cancel did not return CANCELLED status.",
+                  source: (ClassName, null),
+                  processId: Process.ID,
+                  properties: new (string, object)[] {
+                    ("session", SessionID),
+                    ("rootNode", RootNode.NodeID),
+                    ("currentNode", CurrentNode?.NodeID ?? "null"),
+                    ("result", result.ToString()),
+                    ("method", nameof(Cancel))
+                });
         }
         return result;
     }

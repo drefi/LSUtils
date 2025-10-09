@@ -1,16 +1,15 @@
-using LSUtils.Logging;
+namespace LSUtils.ProcessSystem.Tests;
+
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-namespace LSUtils.ProcessSystem.Tests;
-
+using LSUtils.Logging;
 /// <summary>
 /// Tests for LSProcessNodeSelector functionality.
 /// </summary>
 [TestFixture]
-public class LSProcessNodeSelector_Tests {
+public class NodeSelector_Tests {
     public class MockProcess : LSProcess {
         public MockProcess() { }
     }
@@ -30,6 +29,7 @@ public class LSProcessNodeSelector_Tests {
         _logger = LSLogger.Singleton;
         _logger.ClearProviders();
         _logger.AddProvider(new LSConsoleLogProvider());
+        LSProcessManager.DebugLogging();
         _handler1CallCount = 0;
         _handler2CallCount = 0;
         _handler3CallCount = 0;
@@ -97,7 +97,7 @@ public class LSProcessNodeSelector_Tests {
         Assert.That(_handler1CallCount, Is.EqualTo(1));
         Assert.That(_handler2CallCount, Is.EqualTo(0)); // should not be called because handler1 succeeds
     }
-[Test]
+    [Test]
     public void Execute_Success_2() {
         var root = LSProcessNodeSelector.Create("root", 0);
         var handler1 = LSProcessNodeHandler.Create("handler1", _mockHandler3Failure, 0);
@@ -244,7 +244,7 @@ public class LSProcessNodeSelector_Tests {
         Assert.That(selector.HasChild("handler1"), Is.True);
 
         // Start processing
-        var session = new LSProcessSession( new MockProcess(), selector);
+        var session = new LSProcessSession(new MockProcess(), selector);
         var result = session.Execute();
 
         var handler2 = LSProcessNodeHandler.Create("handler2", _mockHandler2, 1);

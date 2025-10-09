@@ -122,13 +122,16 @@ public abstract class LSProcess : ILSProcess {
             var root = _manager.GetRootNode(GetType(), instance, _root?.Clone());
             _processSession = new LSProcessSession(this, root, instance);
         }
-        LSLogger.Singleton.Info($"Process Execute", ClassName, ID, new Dictionary<string, object>() {
-            ["session"] = _processSession.SessionID.ToString(),
-            ["rootNode"] = _processSession.RootNode.NodeID.ToString(),
-            ["currentNode"] = _processSession.CurrentNode?.NodeID.ToString() ?? "null",
-            ["instance"] = _processSession.Instance?.ID.ToString() ?? "null",
-            ["method"] = nameof(Execute),
-        });
+        LSLogger.Singleton.Debug($"Process Execute",
+              source: (ClassName, null),
+              processId: ID,
+              properties: new (string, object)[] {
+                ("session", _processSession.SessionID.ToString()),
+                ("rootNode", _processSession.RootNode.NodeID.ToString()),
+                ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
+                ("instance", _processSession.Instance?.ID.ToString() ?? "null"),
+                ("method", nameof(Execute))
+            });
         return _processSession.Execute();
     }
     /// <summary>
@@ -141,14 +144,17 @@ public abstract class LSProcess : ILSProcess {
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
-        LSLogger.Singleton.Info($"Process Resume", ClassName, ID, new Dictionary<string, object>() {
-            ["session"] = _processSession.SessionID.ToString(),
-            ["rootNode"] = _processSession.RootNode.NodeID.ToString(),
-            ["currentNode"] = _processSession.CurrentNode?.NodeID.ToString() ?? "null",
-            ["instance"] = _processSession.Instance?.ID.ToString() ?? "null",
-            ["nodes"] = string.Join(",", nodeIDs),
-            ["method"] = nameof(Resume),
-        });
+        LSLogger.Singleton.Debug($"Process Resume",
+              source: (ClassName, null),
+              processId: ID,
+              properties: new (string, object)[] {
+                ("session", _processSession.SessionID.ToString()),
+                ("rootNode", _processSession.RootNode.NodeID.ToString()),
+                ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
+                ("instance", _processSession.Instance?.ID.ToString() ?? "null"),
+                ("nodes", string.Join(",", nodeIDs)),
+                ("method", nameof(Resume))
+            });
         return _processSession.Resume(nodeIDs);
     }
     /// <summary>
@@ -164,13 +170,16 @@ public abstract class LSProcess : ILSProcess {
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
-        LSLogger.Singleton.Info($"Process Cancel", ClassName, ID, new Dictionary<string, object>() {
-            ["session"] = _processSession.SessionID.ToString(),
-            ["rootNode"] = _processSession.RootNode.NodeID.ToString(),
-            ["currentNode"] = _processSession.CurrentNode?.NodeID.ToString() ?? "null",
-            ["instance"] = _processSession.Instance?.ID.ToString() ?? "null",
-            ["method"] = nameof(Cancel),
-        });
+        LSLogger.Singleton.Debug($"Process Cancel",
+              source: (ClassName, null),
+              processId: ID,
+              properties: new (string, object)[] {
+                ("session", _processSession.SessionID.ToString()),
+                ("rootNode", _processSession.RootNode.NodeID.ToString()),
+                ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
+                ("instance", _processSession.Instance?.ID.ToString() ?? "null"),
+                ("method", nameof(Cancel))
+            });
         _processSession.Cancel();
     }
     /// <summary>
@@ -204,10 +213,13 @@ public abstract class LSProcess : ILSProcess {
         }
         // use the builderAction to modify or extend the root.
         _root = builderAction(builder).Build();
-        LSLogger.Singleton.Info($"Modifying Process Tree", ClassName, ID, new Dictionary<string, object>() {
-            ["rootNode"] = _root.NodeID.ToString(),
-            ["method"] = nameof(WithProcessing),
-        });
+        LSLogger.Singleton.Debug($"Modifying Process Tree",
+              source: (ClassName, null),
+              processId: ID,
+              properties: new (string, object)[] {
+                ("rootNode", _root.NodeID.ToString()),
+                ("method", nameof(WithProcessing))
+            });
         return this;
     }
     /// <summary>
@@ -224,14 +236,17 @@ public abstract class LSProcess : ILSProcess {
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
-        LSLogger.Singleton.Info($"Process Fail", ClassName, ID, new Dictionary<string, object>() {
-            ["session"] = _processSession.SessionID.ToString(),
-            ["rootNode"] = _processSession.RootNode.NodeID.ToString(),
-            ["currentNode"] = _processSession.CurrentNode?.NodeID.ToString() ?? "null",
-            ["instance"] = _processSession.Instance?.ID.ToString() ?? "null",
-            ["nodes"] = string.Join(",", nodeIDs),
-            ["method"] = nameof(Fail),
-        });
+        LSLogger.Singleton.Debug($"Process Fail",
+              source: (ClassName, null),
+              processId: ID,
+              properties: new (string, object)[] {
+                ("session", _processSession.SessionID.ToString()),
+                ("rootNode", _processSession.RootNode.NodeID.ToString()),
+                ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
+                ("instance", _processSession.Instance?.ID.ToString() ?? "null"),
+                ("nodes", string.Join(",", nodeIDs)),
+                ("method", nameof(Fail))
+            });
         return _processSession.Fail(nodeIDs);
     }
     /// <summary>

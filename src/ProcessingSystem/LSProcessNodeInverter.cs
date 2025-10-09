@@ -32,12 +32,14 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     }
 
     public LSProcessResultStatus Cancel(LSProcessSession session) {
-        LSLogger.Singleton.Info($"Cancelling node {NodeID}.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-            ["nodeID"] = NodeID,
-            ["nodeChild"] = _childNode?.NodeID ?? "null",
-            ["class"] = ClassName,
-            ["method"] = nameof(Cancel)
-        });
+        LSLogger.Singleton.Debug($"Inverter Node Cancel.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("nodeChild", _childNode?.NodeID ?? "null"),
+                ("method", nameof(Cancel))
+            });
         if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
         return _childNode.Cancel(session);
     }
@@ -54,12 +56,14 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         if (_childNode == null) {
             throw new LSException("LSProcessNodeInverter must have a child node!");
         }
-        LSLogger.Singleton.Info($"Inverter Node Execute.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-            ["nodeID"] = NodeID,
-            ["nodeChild"] = _childNode.NodeID,
-            ["class"] = ClassName,
-            ["method"] = nameof(Execute)
-        });
+        LSLogger.Singleton.Debug($"Inverter Node Execute.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("nodeChild", _childNode.NodeID),
+                ("method", nameof(Execute))
+            });
 
         var result = _childNode.Execute(session);
         return result switch {
@@ -70,13 +74,15 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     }
 
     public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
-        LSLogger.Singleton.Info($"Inverter Node Fail.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-            ["nodeID"] = NodeID,
-            ["nodeChild"] = _childNode?.NodeID ?? "null",
-            ["nodes"] = nodes != null ? string.Join(",", nodes) : "null",
-            ["class"] = ClassName,
-            ["method"] = nameof(Fail)
-        });
+        LSLogger.Singleton.Debug($"Inverter Node Fail.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("nodeChild", _childNode?.NodeID ?? "null"),
+                ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
+                ("method", nameof(Fail))
+            });
         if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
         return _childNode.Fail(session, nodes);
     }
@@ -119,13 +125,15 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     }
 
     public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
-        LSLogger.Singleton.Info($"Inverter Node Resume.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-            ["nodeID"] = NodeID,
-            ["nodeChild"] = _childNode?.NodeID ?? "null",
-            ["nodes"] = nodes != null ? string.Join(",", nodes) : "null",
-            ["class"] = ClassName,
-            ["method"] = nameof(Resume)
-        });
+        LSLogger.Singleton.Debug($"Inverter Node Resume.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("nodeChild", _childNode?.NodeID ?? "null"),
+                ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
+                ("method", nameof(Resume))
+            });
         if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
         return _childNode.Resume(session, nodes);
     }

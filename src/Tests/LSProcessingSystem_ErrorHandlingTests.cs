@@ -1,16 +1,15 @@
-using LSUtils.Logging;
+namespace LSUtils.ProcessSystem.Tests;
+
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-namespace LSUtils.ProcessSystem.Tests;
-
+using LSUtils.Logging;
 /// <summary>
 /// Tests for error handling, exception scenarios, and edge cases.
 /// </summary>
 [TestFixture]
-public class LSProcessingSystem_ErrorHandlingTests {
+public class ErrorHandlingTests {
     public class MockProcess : LSProcess {
         public MockProcess() { }
     }
@@ -30,6 +29,7 @@ public class LSProcessingSystem_ErrorHandlingTests {
         _logger = LSLogger.Singleton;
         _logger.ClearProviders();
         _logger.AddProvider(new LSConsoleLogProvider());
+        LSProcessManager.DebugLogging();
         _handler1CallCount = 0;
         _handler2CallCount = 0;
         _handler3CallCount = 0;

@@ -189,12 +189,15 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     public LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodes) {
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Node already in final state.", ClassName, context.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["currentStatus"] = currentStatus,
-                ["availableChildren"] = _availableChildren.Count(),
-                ["method"] = nameof(Fail)
-            });
+            LSLogger.Singleton.Warning($"Node already in final state.",
+                  source: (ClassName, null),
+                  processId: context.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("currentStatus", currentStatus),
+                    ("availableChildren", _availableChildren.Count()),
+                    ("method", nameof(Fail))
+                });
             return currentStatus; // nothing to fail
         }
 
@@ -202,13 +205,16 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
         if (_currentChild == null || _currentChild.GetNodeStatus() != LSProcessResultStatus.WAITING) {
             var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
             if (waitingChild == null) {
-                LSLogger.Singleton.Warning($"No waiting child found.", ClassName, context.Process.ID, new Dictionary<string, object>() {
-                    ["nodeID"] = NodeID,
-                    ["currentChildID"] = _currentChild?.NodeID ?? "null",
-                    ["currentChildStatus"] = _currentChild?.GetNodeStatus().ToString() ?? "N/A",
-                    ["availableChildren"] = _availableChildren.Count(),
-                    ["method"] = nameof(Fail)
-                });
+                LSLogger.Singleton.Warning($"No waiting child found.",
+                      source: (ClassName, null),
+                      processId: context.Process.ID,
+                      properties: new (string, object)[] {
+                        ("nodeID", NodeID),
+                        ("currentChildID", _currentChild?.NodeID ?? "null"),
+                        ("currentChildStatus", _currentChild?.GetNodeStatus().ToString() ?? "N/A"),
+                        ("availableChildren", _availableChildren.Count()),
+                        ("method", nameof(Fail))
+                    });
                 return GetNodeStatus(); // we return the current sequence status.
             }
             return waitingChild.Fail(context, nodes); //we propagate the fail to the waiting child
@@ -219,12 +225,15 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <inheritdoc />
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
         if (!_isProcessing) throw new LSException("Cannot cancel before processing.");
-        LSLogger.Singleton.Info($"Sequence Node Cancel.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-            ["nodeID"] = NodeID,
-            ["currentChild"] = _currentChild?.NodeID ?? "null",
-            ["availableChildren"] = _availableChildren.Count(),
-            ["method"] = nameof(ILSProcessNode.Cancel)
-        });
+        LSLogger.Singleton.Debug($"Sequence Node Cancel.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("currentChild", _currentChild?.NodeID ?? "null"),
+                ("availableChildren", _availableChildren.Count()),
+                ("method", nameof(ILSProcessNode.Cancel))
+            });
         // cancel waiting and unknown children
         _availableChildren.Where(c => {
             var cstatus = c.GetNodeStatus();
@@ -233,13 +242,16 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
         // update the node status
         var nodeStatus = GetNodeStatus();
         if (nodeStatus != LSProcessResultStatus.CANCELLED) {
-            LSLogger.Singleton.Warning($"Sequence Node did not result CANCELLED.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["nodeStatus"] = nodeStatus,
-                ["currentChild"] = _currentChild?.NodeID ?? "null",
-                ["availableChildren"] = _availableChildren.Count(),
-                ["method"] = nameof(ILSProcessNode.Cancel)
-            });
+            LSLogger.Singleton.Warning($"Sequence Node did not result CANCELLED.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodeStatus", nodeStatus),
+                    ("currentChild", _currentChild?.NodeID ?? "null"),
+                    ("availableChildren", _availableChildren.Count()),
+                    ("method", nameof(ILSProcessNode.Cancel))
+                });
         }
         return nodeStatus;
     }
@@ -257,12 +269,15 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     public LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodes) {
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Node already in final state.", ClassName, context.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["currentStatus"] = currentStatus,
-                ["availableChildren"] = _availableChildren.Count(),
-                ["method"] = nameof(Resume)
-            });
+            LSLogger.Singleton.Warning($"Node already in final state.",
+                  source: (ClassName, null),
+                  processId: context.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("currentStatus", currentStatus),
+                    ("availableChildren", _availableChildren.Count()),
+                    ("method", nameof(Resume))
+                });
             return currentStatus; // nothing to resume
         }
         // conceptually, only the _currentChild should be waiting since sequence is sequential
@@ -271,13 +286,16 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
             // in case the current child is not waiting or null, we try to find a waiting child
             var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
             if (waitingChild == null) {
-                LSLogger.Singleton.Warning($"No waiting child found.", ClassName, context.Process.ID, new Dictionary<string, object>() {
-                    ["nodeID"] = NodeID,
-                    ["currentChild"] = _currentChild?.NodeID ?? "null",
-                    ["currentChildStatus"] = currentChildStatus.ToString(),
-                    ["availableChildren"] = _availableChildren.Count(),
-                    ["method"] = nameof(Resume)
-                });
+                LSLogger.Singleton.Warning($"No waiting child found.",
+                      source: (ClassName, null),
+                      processId: context.Process.ID,
+                      properties: new (string, object)[] {
+                        ("nodeID", NodeID),
+                        ("currentChild", _currentChild?.NodeID ?? "null"),
+                        ("currentChildStatus", currentChildStatus.ToString()),
+                        ("availableChildren", _availableChildren.Count()),
+                        ("method", nameof(Resume))
+                    });
                 // If no waiting child is found, we return the current sequence status
                 return GetNodeStatus(); //we return the current sequence status, it may be SUCCESS if all children are done
             }
@@ -324,14 +342,17 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
             _isProcessing = true;
             // get the first child to process
             _currentChild = nextChild();
-            LSLogger.Singleton.Info($"Execute Sequence node", ClassName, session.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["currentChild"] = _currentChild?.NodeID ?? "N/A",
-                ["nodeChildren"] = _children.Count,
-                ["availableChildren"] = _availableChildren.Count(),
-                ["remainingChildren"] = _processStack.Count,
-                ["method"] = nameof(Execute)
-            });
+            LSLogger.Singleton.Debug($"Execute Sequence node",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("currentChild", _currentChild?.NodeID ?? "N/A"),
+                    ("nodeChildren", _children.Count),
+                    ("availableChildren", _availableChildren.Count()),
+                    ("remainingChildren", _processStack.Count),
+                    ("method", nameof(Execute))
+                });
         }
         var sequenceStatus = GetNodeStatus();
         if (_currentChild == null) return LSProcessResultStatus.SUCCESS;

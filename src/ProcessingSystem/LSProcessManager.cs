@@ -45,28 +45,27 @@ using LSUtils.Logging;
 public class LSProcessManager {
     public const string ClassName = nameof(LSProcessManager);
     public static LSProcessManager Singleton { get; } = new LSProcessManager();
-    public static void ToggleLogging() {
-        var logger = LSLogger.Singleton;
-        var current = logger.IsSourceEnabled(ClassName);
-        logger.SetSource((ClassName, !current));
+
+    public static void DebugLogging(bool status = true, LSLogLevel level = LSLogLevel.DEBUG) {
+        LSLogger.Singleton.MinimumLevel = level;
+        LSLogger.Singleton.SetSource((sourceID: ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSource((sourceID: LSProcess.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSource((sourceID: LSProcessManager.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeHandler.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSequence.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSelector.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeParallel.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSource((sourceID: LSProcessSession.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSource((sourceID: LSProcessTreeBuilder.ClassName, isEnabled: status));
     }
+
     /// <summary>
     /// Internal storage for registered processing contexts, organized by process type and processable instance.
     /// Maps process types to dictionaries containing instance-specific and global contexts.
     /// </summary>
     private readonly ConcurrentDictionary<System.Type, ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>> _globalNodes = new();
 
-    public LSProcessManager(bool debug = false) {
-        LSLogger.Singleton.SetSource((sourceID: ClassName, isEnabled: debug), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcess.ClassName, isEnabled: debug), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeHandler.ClassName, isEnabled: debug), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSequence.ClassName, isEnabled: debug), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSelector.ClassName, isEnabled: debug), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeParallel.ClassName, isEnabled: debug), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessSession.ClassName, isEnabled: debug), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessTreeBuilder.ClassName, isEnabled: debug), true);
-
-    }
+    public LSProcessManager() { }
     /// <summary>
     /// Registers a processing context for a specific process type using a fluent builder pattern.
     /// </summary>
@@ -98,11 +97,14 @@ public class LSProcessManager {
     /// </list>
     /// </remarks>
     public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null) {
-        LSLogger.Singleton.Info("Register tree", ClassName, null, new Dictionary<string, object>() {
-            ["processType"] = processType.Name,
-            ["instance"] = instance?.ID.ToString() ?? "null",
-            ["method"] = nameof(Register)
-        });
+        LSLogger.Singleton.Debug("Register tree",
+              source: (ClassName, null),
+              processId: null,
+              properties: new (string, object)[] {
+                ("processType", processType.Name),
+                ("instance", instance?.ID.ToString() ?? "null"),
+                ("method", nameof(Register))
+            });
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");

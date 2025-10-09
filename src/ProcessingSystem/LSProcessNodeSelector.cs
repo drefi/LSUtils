@@ -209,14 +209,17 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         if (_currentChild == null) return LSProcessResultStatus.SUCCESS;
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Node already in final state.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["currentChild"] = _currentChild?.NodeID ?? "null",
-                ["currentStatus"] = currentStatus,
-                ["availableChildren"] = _availableChildren.Count(),
-                ["nodes"] = nodes == null ? "null" : string.Join(",", nodes),
-                ["method"] = nameof(Fail)
-            });
+            LSLogger.Singleton.Warning($"Node already in final state.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("currentChild", _currentChild?.NodeID ?? "null"),
+                    ("currentStatus", currentStatus),
+                    ("availableChildren", _availableChildren.Count()),
+                    ("nodes", nodes == null ? "null" : string.Join(",", nodes)),
+                    ("method", nameof(Fail))
+                });
             return currentStatus; // nothing to fail
         }
         // NOTE: only a handler node actually fails, a layer node just propagates the fail, this is why when Fail a layer node can have any result
@@ -253,23 +256,29 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         var currentStatus = GetNodeStatus();
         if (_currentChild == null) return currentStatus;
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Node already in terminal state.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["currentChild"] = _currentChild.NodeID,
-                ["currentStatus"] = currentStatus,
-                ["availableChildren"] = _availableChildren.Count(),
-                ["nodes"] = nodes == null ? "null" : string.Join(",", nodes),
-                ["method"] = nameof(Resume)
-            });
+            LSLogger.Singleton.Warning($"Node already in terminal state.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("currentChild", _currentChild.NodeID),
+                    ("currentStatus", currentStatus),
+                    ("availableChildren", _availableChildren.Count()),
+                    ("nodes", nodes == null ? "null" : string.Join(",", nodes)),
+                    ("method", nameof(Resume))
+                });
             return currentStatus;
         }
         // NOTE: only a handler node actually resumes, a layer node just propagates the resume, this is why when Resume a layer node can have any result
-        LSLogger.Singleton.Info($"Node Selector Resume.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-            ["nodeID"] = NodeID,
-            ["currentChild"] = _currentChild.NodeID,
-            ["availableChildren"] = _availableChildren.Count(),
-            ["method"] = nameof(Resume)
-        });
+        LSLogger.Singleton.Debug($"Node Selector Resume.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("currentChild", _currentChild.NodeID),
+                ("availableChildren", _availableChildren.Count()),
+                ("method", nameof(Resume))
+            });
         var childStatus = _currentChild.Resume(session, nodes);
         if (childStatus == LSProcessResultStatus.SUCCESS || childStatus == LSProcessResultStatus.CANCELLED) {
             endSelector();
@@ -284,12 +293,15 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     }
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
         if (!_isProcessing) throw new LSException("Cannot cancel before processing.");
-        LSLogger.Singleton.Info($"Selector Node Cancel.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-            ["nodeID"] = NodeID,
-            ["currentChild"] = _currentChild?.NodeID ?? "null",
-            ["availableChildren"] = _availableChildren.Count(),
-            ["method"] = nameof(ILSProcessNode.Cancel)
-        });
+        LSLogger.Singleton.Debug($"Selector Node Cancel.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("currentChild", _currentChild?.NodeID ?? "null"),
+                ("availableChildren", _availableChildren.Count()),
+                ("method", nameof(ILSProcessNode.Cancel))
+            });
         // cancel waiting and unknown children
         _availableChildren.Where(c => {
             var cstatus = c.GetNodeStatus();
@@ -298,13 +310,16 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         // update the node status
         var nodeStatus = GetNodeStatus();
         if (nodeStatus != LSProcessResultStatus.CANCELLED) {
-            LSLogger.Singleton.Warning($"Selector Node did not result CANCELLED.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["nodeStatus"] = nodeStatus,
-                ["currentChild"] = _currentChild?.NodeID ?? "null",
-                ["availableChildren"] = _availableChildren.Count(),
-                ["method"] = nameof(ILSProcessNode.Cancel)
-            });
+            LSLogger.Singleton.Warning($"Selector Node did not result CANCELLED.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodeStatus", nodeStatus),
+                    ("currentChild", _currentChild?.NodeID ?? "null"),
+                    ("availableChildren", _availableChildren.Count()),
+                    ("method", nameof(ILSProcessNode.Cancel))
+                });
         }
         // we return cancelled because it should always be cancelled
         return LSProcessResultStatus.CANCELLED;
@@ -351,13 +366,16 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
             _isProcessing = true;
             // get the first child to process
             _currentChild = nextChild();
-            LSLogger.Singleton.Info($"Executing Selector Node.", ClassName, session.Process.ID, new Dictionary<string, object>() {
-                ["nodeID"] = NodeID,
-                ["currentChild"] = _currentChild?.NodeID ?? "null",
-                ["childrens"] = _children.Count,
-                ["remainingChildren"] = _processStack.Count,
-                ["method"] = nameof(Execute)
-            });
+            LSLogger.Singleton.Debug($"Executing Selector Node.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("currentChild", _currentChild?.NodeID ?? "null"),
+                    ("childrens", _children.Count),
+                    ("remainingChildren", _processStack.Count),
+                    ("method", nameof(Execute))
+                });
         }
         var selectorStatus = GetNodeStatus();
         if (_currentChild == null) return selectorStatus;

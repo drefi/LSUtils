@@ -1,16 +1,15 @@
+namespace LSUtils.ProcessSystem.Tests;
+
 using LSUtils.Logging;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-namespace LSUtils.ProcessSystem.Tests;
-
 /// <summary>
 /// Complex integration tests with nested structures and advanced scenarios.
 /// </summary>
 [TestFixture]
-public class LSProcessingSystem_ComplexIntegrationTests {
+public class ComplexIntegrationTests {
     public class MockProcess : LSProcess {
         public MockProcess() { }
     }
@@ -30,6 +29,7 @@ public class LSProcessingSystem_ComplexIntegrationTests {
         _logger = LSLogger.Singleton;
         _logger.ClearProviders();
         _logger.AddProvider(new LSConsoleLogProvider());
+        LSProcessManager.DebugLogging();
         _handler1CallCount = 0;
         _handler2CallCount = 0;
         _handler3CallCount = 0;

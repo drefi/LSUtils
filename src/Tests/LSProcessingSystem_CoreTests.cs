@@ -1,16 +1,12 @@
-using LSUtils.Logging;
+namespace LSUtils.ProcessSystem.Tests;
+
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-namespace LSUtils.ProcessSystem.Tests;
-
-/// <summary>
-/// Core and basic tests for LSProcessingSystem.
-/// </summary>
+using LSUtils.Logging;
 [TestFixture]
-public class LSProcessingSystemCoreTests {
+public class CoreTests {
     public class MockProcess : LSProcess {
         public MockProcess() { }
     }
@@ -30,6 +26,7 @@ public class LSProcessingSystemCoreTests {
         _logger = LSLogger.Singleton;
         _logger.ClearProviders();
         _logger.AddProvider(new LSConsoleLogProvider());
+        LSProcessManager.DebugLogging();
         _handler1CallCount = 0;
         _handler2CallCount = 0;
         _handler3CallCount = 0;

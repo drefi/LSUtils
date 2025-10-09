@@ -241,15 +241,18 @@ public class LSProcessTreeBuilder {
         // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
         _currentNode = (parentBefore == null || sequenceBuilderAction == null) ? node : parentBefore;
 
-        LSLogger.Singleton.Info($"Tree Builder Sequence Node created/updated.", ClassName, null, new Dictionary<string, object>() {
-            ["nodeID"] = nodeID,
-            ["isNewNode"] = existingNode == null,
-            ["order"] = order,
-            ["priority"] = priority,
-            ["hasConditions"] = conditions != null && conditions.Length > 0,
-            ["currentContext"] = _currentNode?.NodeID ?? "null",
-            ["rootNode"] = _rootNode?.NodeID ?? "null"
-        });
+        LSLogger.Singleton.Debug($"Tree Builder Sequence Node created/updated.",
+              source: (ClassName, null),
+              processId: null,
+              properties: new (string, object)[] {
+                ("nodeID", nodeID),
+                ("isNewNode", existingNode == null),
+                ("order", order),
+                ("priority", priority),
+                ("hasConditions", conditions != null && conditions.Length > 0),
+                ("currentContext", _currentNode?.NodeID ?? "null"),
+                ("rootNode", _rootNode?.NodeID ?? "null")
+            });
 
         return this;
     }

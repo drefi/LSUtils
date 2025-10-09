@@ -66,9 +66,10 @@ public sealed class LSLogger {
         bool? enabled = _sources.TryGetValue(sourceID, out enabled) ? enabled : null;
         var isEnabled = source.Value.isEnabled.HasValue ? source.Value.isEnabled : enabled;
         // If isEnabled has value, add or update the source
-        if (!enabled.HasValue || (isEnabled.HasValue && !dontUpdateSources)) {
+        if ((isEnabled.HasValue && !dontUpdateSources)) {
             _sources.AddOrUpdate(sourceID, isEnabled, (key, oldValue) => isEnabled);
         }
+        isEnabled = isEnabled ?? false; // default to false if no value is set
         return isEnabled;
     }
     public bool IsSourceEnabled(string sourceID) {
@@ -99,12 +100,23 @@ public sealed class LSLogger {
     /// </summary>
     public void Debug(string message, string? source = null, System.Guid? processId = null,
                      IDictionary<string, object>? properties = null) {
-        (string, bool?)? tuple = source == null ? null : (source, null);
-        Log(LSLogLevel.DEBUG, message, tuple, processId: processId, properties: properties);
+        Log(LSLogLevel.DEBUG, message, source != null ? (source, null) : null, processId: processId, properties: properties);
     }
-    public void Debug(string message, (string sourceID, bool? isEnabled)? source = null, System.Guid? processId = null,
-                     IDictionary<string, object>? properties = null) {
-        Log(LSLogLevel.DEBUG, message, source, processId: processId, properties: properties);
+    public void Debug(string message,
+                (string sourceID, bool? isEnabled)? source = null,
+                System.Guid? processId = null,
+                params (string, object)[] properties) {
+
+        IDictionary<string, object>? props = null;
+        if (properties != null && properties.Length > 0) {
+            props = new Dictionary<string, object>();
+            foreach (var (key, value) in properties) {
+                if (!string.IsNullOrWhiteSpace(key)) {
+                    props[key] = value;
+                }
+            }
+        }
+        Log(LSLogLevel.DEBUG, message, source, processId: processId, properties: props);
     }
 
     /// <summary>
@@ -114,9 +126,21 @@ public sealed class LSLogger {
                     IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.INFO, message, source != null ? (source, null) : null, processId: processId, properties: properties);
     }
-    public void Info(string message, (string sourceID, bool? isEnabled)? source = null, System.Guid? processId = null,
-                    IDictionary<string, object>? properties = null) {
-        Log(LSLogLevel.INFO, message, source, processId: processId, properties: properties);
+    public void Info(string message,
+                (string sourceID, bool? isEnabled)? source = null,
+                System.Guid? processId = null,
+                params (string, object)[] properties) {
+
+        IDictionary<string, object>? props = null;
+        if (properties != null && properties.Length > 0) {
+            props = new Dictionary<string, object>();
+            foreach (var (key, value) in properties) {
+                if (!string.IsNullOrWhiteSpace(key)) {
+                    props[key] = value;
+                }
+            }
+        }
+        Log(LSLogLevel.INFO, message, source, processId: processId, properties: props);
     }
 
     /// <summary>
@@ -126,9 +150,21 @@ public sealed class LSLogger {
                        IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.WARNING, message, source != null ? (source, null) : null, processId: processId, properties: properties);
     }
-    public void Warning(string message, (string sourceID, bool? isEnabled)? source = null, System.Guid? processId = null,
-                       IDictionary<string, object>? properties = null) {
-        Log(LSLogLevel.WARNING, message, source, processId: processId, properties: properties);
+    public void Warning(string message,
+                    (string sourceID, bool? isEnabled)? source = null,
+                    System.Guid? processId = null,
+                    params (string, object)[] properties) {
+
+        IDictionary<string, object>? props = null;
+        if (properties != null && properties.Length > 0) {
+            props = new Dictionary<string, object>();
+            foreach (var (key, value) in properties) {
+                if (!string.IsNullOrWhiteSpace(key)) {
+                    props[key] = value;
+                }
+            }
+        }
+        Log(LSLogLevel.WARNING, message, source, processId: processId, properties: props);
     }
 
     /// <summary>
@@ -138,9 +174,22 @@ public sealed class LSLogger {
                      System.Guid? processId = null, IDictionary<string, object>? properties = null) {
         Log(LSLogLevel.ERROR, message, source != null ? (source, null) : null, exception: exception, processId: processId, properties: properties);
     }
-    public void Error(string message, (string sourceID, bool? isEnabled)? source = null, LSException? exception = null,
-                     System.Guid? processId = null, IDictionary<string, object>? properties = null) {
-        Log(LSLogLevel.ERROR, message, source, exception: exception, processId: processId, properties: properties);
+    public void Error(string message,
+                    LSException? exception = null,
+                    (string sourceID, bool? isEnabled)? source = null,
+                    System.Guid? processId = null,
+                    params (string, object)[] properties) {
+
+        IDictionary<string, object>? props = null;
+        if (properties != null && properties.Length > 0) {
+            props = new Dictionary<string, object>();
+            foreach (var (key, value) in properties) {
+                if (!string.IsNullOrWhiteSpace(key)) {
+                    props[key] = value;
+                }
+            }
+        }
+        Log(LSLogLevel.ERROR, message, source, exception: exception, processId: processId, properties: props);
     }
 
     /// <summary>
@@ -223,7 +272,7 @@ public sealed class LSLogger {
         // source.IsEnabled == true => true
         // source.IsEnabled == false => false
         // source.IsEnabled == null => _sources[sourceID] or true if not found
-        //  - _sources[sourceID] == null => true
+        //  - _sources[sourceID] == null => false
         //  - _sources[sourceID] == true => true
         //  - _sources[sourceID] == false => false
         var isEnabled = SetSource(source, true); // dontUpdateSources = true to avoid modifying sources

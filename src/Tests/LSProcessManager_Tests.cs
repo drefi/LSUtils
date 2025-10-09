@@ -1,11 +1,9 @@
-using LSUtils.Logging;
+namespace LSUtils.ProcessSystem.Tests;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
-namespace LSUtils.ProcessSystem.Tests;
-
+using LSUtils.Logging;
 /// <summary>
 /// Tests for context manager functionality and registration.
 /// </summary>
@@ -30,10 +28,7 @@ public class LSProcessManager_Tests {
         _logger = LSLogger.Singleton;
         _logger.ClearProviders();
         _logger.AddProvider(new LSConsoleLogProvider());
-        _logger.SetSource((LSProcessManager.ClassName, true), false);
-        _logger.SetSource((LSProcess.ClassName, true), false);
-        _logger.SetSource((LSProcessNodeSequence.ClassName, true), false);
-        _logger.SetSource((LSProcessNodeSelector.ClassName, true), false);
+        LSProcessManager.DebugLogging();
         _handler1CallCount = 0;
         _handler2CallCount = 0;
         _handler3CallCount = 0;
