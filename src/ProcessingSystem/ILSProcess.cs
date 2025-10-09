@@ -102,7 +102,7 @@ public interface ILSProcess {
     /// <item><description><strong>Asynchronous Support</strong>: Can return WAITING status for async operations</description></item>
     /// </list>
     /// </remarks>
-    LSProcessResultStatus Execute(ILSProcessable? instance = null);
+    LSProcessResultStatus Execute(ILSProcessable? instance = null, LSProcessManager? manager = null);
 
     /// <summary>
     /// Resume processing for the specified node IDs. Process context should be stored in the process instance.

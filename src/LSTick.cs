@@ -31,7 +31,7 @@ public class LSTick : ILSProcessable {
         ID = System.Guid.NewGuid();
     }
 
-    public LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null) {
+    public LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null, LSProcessManager? manager = null) {
         var process = new TickProcess(this, ILSProcessable.INITIALIZE_LABEL);
         return process
             .WithProcessing(builder => builder

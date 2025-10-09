@@ -42,7 +42,7 @@ using LSUtils.Logging;
 /// var context = LSProcessManager.Singleton.GetContext&lt;UserLoginProcess&gt;(premiumUser);
 /// </code>
 /// </remarks>
-public sealed class LSProcessManager {
+public class LSProcessManager {
     public const string ClassName = nameof(LSProcessManager);
     public static LSProcessManager Singleton { get; } = new LSProcessManager();
     public static void ToggleLogging() {
@@ -56,16 +56,15 @@ public sealed class LSProcessManager {
     /// </summary>
     private readonly ConcurrentDictionary<System.Type, ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>> _globalNodes = new();
 
-    private LSProcessManager() {
-        // private constructor to enforce singleton pattern
-        // disable logging for all classes, if they are not explicitly enabled.
-        LSLogger.Singleton.SetSource((sourceID: ClassName, isEnabled: false), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcess.ClassName, isEnabled: false), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeHandler.ClassName, isEnabled: false), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSequence.ClassName, isEnabled: false), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSelector.ClassName, isEnabled: false), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeParallel.ClassName, isEnabled: false), true);
-        LSLogger.Singleton.SetSource((sourceID: LSProcessSession.ClassName, isEnabled: false), true);
+    public LSProcessManager(bool debug = false) {
+        LSLogger.Singleton.SetSource((sourceID: ClassName, isEnabled: debug), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcess.ClassName, isEnabled: debug), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeHandler.ClassName, isEnabled: debug), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSequence.ClassName, isEnabled: debug), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSelector.ClassName, isEnabled: debug), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeParallel.ClassName, isEnabled: debug), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessSession.ClassName, isEnabled: debug), true);
+        LSLogger.Singleton.SetSource((sourceID: LSProcessTreeBuilder.ClassName, isEnabled: debug), true);
 
     }
     /// <summary>
@@ -201,7 +200,7 @@ public sealed class LSProcessManager {
         /// <param name="manager">Ignored parameter</param>
         /// <returns>Never returns as method throws NotImplementedException</returns>
         /// <exception cref="NotImplementedException">Always thrown as this is a placeholder implementation</exception>
-        LSProcessResultStatus ILSProcessable.Initialize(LSProcessBuilderAction? initBuilder) {
+        LSProcessResultStatus ILSProcessable.Initialize(LSProcessBuilderAction? initBuilder, LSProcessManager? manager) {
             throw new System.NotImplementedException("GlobalProcessable is a placeholder class and should never be initialized in the processing pipeline.");
         }
     }

@@ -48,7 +48,7 @@ namespace LSUtils.ProcessSystem;
 /// </list>
 /// </remarks>
 public class LSProcessTreeBuilder {
-    private const string ClassName = nameof(LSProcessTreeBuilder);
+    public const string ClassName = nameof(LSProcessTreeBuilder);
     /// <summary>
     /// The current node context for hierarchy operations. Null when in global mode before first layer node creation.
     /// </summary>

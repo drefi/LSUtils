@@ -44,6 +44,7 @@ public abstract class LSProcess : ILSProcess {
     /// Merged with global context during execution.
     /// </summary>
     private ILSProcessLayerNode? _root;
+    private LSProcessManager? _manager;
     /// <summary>
     /// Unique identifier for this process instance.
     /// Generated automatically when the process is created.
@@ -115,9 +116,10 @@ public abstract class LSProcess : ILSProcess {
     /// <para>This method can only be called once per process instance. Subsequent calls will throw an exception.</para>
     /// <para>The method merges any custom processing context with the global context before execution.</para>
     /// </remarks>
-    public LSProcessResultStatus Execute(ILSProcessable? instance = null) {
+    public LSProcessResultStatus Execute(ILSProcessable? instance = null, LSProcessManager? manager = null) {
+        _manager = manager ?? LSProcessManager.Singleton;
         if (_processSession == null) {
-            var root = LSProcessManager.Singleton.GetRootNode(GetType(), instance, _root?.Clone());
+            var root = _manager.GetRootNode(GetType(), instance, _root?.Clone());
             _processSession = new LSProcessSession(this, root, instance);
         }
         LSLogger.Singleton.Info($"Process Execute", ClassName, ID, new Dictionary<string, object>() {
