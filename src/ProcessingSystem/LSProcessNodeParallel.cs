@@ -142,8 +142,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
         Priority = priority;
         NumRequiredToSucceed = numRequiredToSucceed;
         NumRequiredToFailure = numRequiredToFailure;
-        //WithInverter = withInverter;
-        Conditions = LSProcessConditions.UpdateConditions(true, Conditions, conditions);
+        Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
     }
     /// <summary>
     /// Adds a child node to this parallel node's collection.
@@ -212,14 +211,22 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeParallel.Clone",
+        LSLogger.Singleton.Debug($"{ClassName}.Clone",
               source: ("LSProcessSystem", null),
-              processId: System.Guid.Empty); // No specific process context for node cloning
+              properties: ("hideNodeID", true));
 
         var cloned = new LSProcessNodeParallel(NodeID, Order, NumRequiredToSucceed, NumRequiredToFailure, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
+        // debug log with details
+        LSLogger.Singleton.Debug($"Parallel node cloned.",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("childrenCount", _children.Count),
+                ("method", nameof(Clone))
+            });
         return cloned;
     }
     ILSProcessNode ILSProcessNode.Clone() => Clone();
@@ -324,68 +331,84 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </remarks>
     public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeParallel.Fail",
+        LSLogger.Singleton.Debug($"{ClassName}.Fail [{NodeID}] nodes: [{(nodes != null ? string.Join(",", nodes) : "all")}]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
 
-        if (!_isProcessing) throw new LSException("Cannot fail before processing.");
+        if (!_isProcessing) {
+            LSLogger.Singleton.Warning($"Parallel Node is not processing.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("_children", _children.Count()),
+                    ("availableChildren", _availableChildren.Count()),
+                    ("nodes", nodes == null ? "null" : string.Join(",", nodes)),
+                    ("method", nameof(Fail))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Node {NodeID} already in state {currentStatus}.",
+            LSLogger.Singleton.Warning($"Parallel Node could continue fail.",
                   source: (ClassName, null),
                   processId: session.Process.ID,
                   properties: new (string, object)[] {
                     ("nodeID", NodeID),
                     ("availableChildren", _availableChildren.Count()),
+                    ("currentStatus", currentStatus),
                     ("nodes", nodes == null ? "null" : string.Join(",", nodes)),
                     ("method", nameof(Fail))
                 });
             return currentStatus; // nothing to fail
         }
-        // parallel can fail multiple nodes at a time so we need to care about nodes we want to fail.
+        string debugMessage = "";
+        Dictionary<string, LSProcessResultStatus> failedResults = new();
         if (nodes == null || nodes.Length == 0) {
-            LSLogger.Singleton.Debug($"Failing all childs in node {NodeID}.",
-                  source: (ClassName, null),
-                  processId: session.Process.ID,
-                  properties: new (string, object)[] {
-                    ("nodeID", NodeID),
-                    ("availableChildren", _availableChildren.Count()),
-                    ("method", nameof(Fail))
-                });
+            debugMessage = $"Parallel node failing all waiting and unknown children.";
             foreach (var child in _availableChildren) {
                 var childStatus = child.GetNodeStatus();
                 if (childStatus == LSProcessResultStatus.WAITING || childStatus == LSProcessResultStatus.UNKNOWN) {
-                    child.Fail(session, nodes);
-                }
+                    failedResults[child.NodeID] = child.Fail(session, null);
+                } else failedResults[child.NodeID] = childStatus;
             }
-            return GetNodeStatus(); // we return the current parallel status.
+        } else {
+            debugMessage = $"Parallel node failing specific children.";
+            foreach (var node in nodes) {
+                LSProcessHelpers.SplitNode(node, out var childNodeID, out var grandChildrenNodes);
+                var failedChild = _availableChildren.FirstOrDefault(c => c.NodeID == childNodeID);
+                if (failedChild == null) {
+                    LSLogger.Singleton.Warning($"Parallel Node could not find child node.",
+                          source: (ClassName, null),
+                          processId: session.Process.ID,
+                          properties: new (string, object)[] {
+                        ("nodeID", NodeID),
+                        ("availableChildren", _availableChildren.Count()),
+                        ("childNodeID", childNodeID),
+                        ("grandChildrenNodes", grandChildrenNodes == null ? "none" : string.Join('.', grandChildrenNodes)),
+                        ("method", nameof(Fail))
+                        });
+                    continue;
+                }
+                failedResults[failedChild.NodeID] = failedChild.Fail(session, grandChildrenNodes);
+            }
         }
-        LSLogger.Singleton.Debug($"Failing childs in node {NodeID}.",
+        // nodes specified, fail only those childs.
+        var parallelStatus = GetNodeStatus();
+        LSLogger.Singleton.Debug(debugMessage,
               source: (ClassName, null),
               processId: session.Process.ID,
               properties: new (string, object)[] {
                 ("nodeID", NodeID),
-                ("nodes", string.Join(",", nodes)),
+                ("nodes", nodes == null ? "none" : string.Join(",", nodes)),
+                ("children", _children.Count()),
                 ("availableChildren", _availableChildren.Count()),
+                ("failedResults", string.Join(",", failedResults.Select(kv => $"{kv.Key}:{kv.Value}"))),
+                ("parallelStatus", parallelStatus),
                 ("method", nameof(Fail))
             });
-        foreach (var node in nodes) {
-            var failedChild = _availableChildren.FirstOrDefault(c => c.NodeID == node);
-            if (failedChild == null) {
-                LSLogger.Singleton.Warning($"Node {NodeID} does not have a child with ID {node} to fail.",
-                      source: (ClassName, null),
-                      processId: session.Process.ID,
-                      properties: new (string, object)[] {
-                        ("nodeID", NodeID),
-                        ("availableChildren", _availableChildren.Count()),
-                        ("nodes", nodes == null ? "null" : string.Join(",", nodes)),
-                        ("method", nameof(Fail))
-                    });
-                continue;
-            }
-            failedChild.Fail(session, nodes);
-        }
-        return GetNodeStatus();
+        return parallelStatus;
     }
     /// <summary>
     /// Propagates resumption to specified children or all waiting children according to parallel logic.
@@ -412,14 +435,15 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </remarks>
     public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeParallel.Resume",
+        LSLogger.Singleton.Debug($"{ClassName}.Resume [{NodeID}] nodes: [{(nodes != null ? string.Join(",", nodes) : "all")}]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
 
         if (!_isProcessing) return LSProcessResultStatus.UNKNOWN;
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Node already in terminal state.",
+            LSLogger.Singleton.Warning($"Parallel Node could not continue resume.",
                   source: (ClassName, null),
                   processId: session.Process.ID,
                   properties: new (string, object)[] {
@@ -431,50 +455,52 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
                 });
             return currentStatus;
         }
-        // nodes not specified we resume all waiting childs.
+        string debugMessage = "";
+        Dictionary<string, LSProcessResultStatus> resumedResults = new();
         if (nodes == null || nodes.Length == 0) {
-            LSLogger.Singleton.Debug($"Resuming all childs in node {NodeID}.",
-                  source: (ClassName, null),
-                  processId: session.Process.ID,
-                  properties: new (string, object)[] {
-                    ("nodeID", NodeID),
-                    ("availableChildren", _availableChildren.Count()),
-                    ("method", nameof(Resume))
-                });
+            debugMessage = $"Parallel node resuming all waiting and unknown children.";
             foreach (var child in _availableChildren) {
                 var childStatus = child.GetNodeStatus();
                 if (childStatus == LSProcessResultStatus.WAITING || childStatus == LSProcessResultStatus.UNKNOWN) {
-                    child.Resume(session, nodes);
-                }
+                    resumedResults[child.NodeID] = child.Resume(session, null);
+                } else resumedResults[child.NodeID] = childStatus;
             }
-            return GetNodeStatus();
+        } else {
+            debugMessage = $"Parallel node resuming specific children.";
+            foreach (var node in nodes) {
+                LSProcessHelpers.SplitNode(node, out var childNodeID, out var grandChildrenNodes);
+                var resumedChild = _availableChildren.FirstOrDefault(c => c.NodeID == childNodeID);
+                if (resumedChild == null) {
+                    LSLogger.Singleton.Warning($"Parallel Node could not find child node.",
+                          source: (ClassName, null),
+                          processId: session.Process.ID,
+                          properties: new (string, object)[] {
+                        ("nodeID", NodeID),
+                        ("availableChildren", _availableChildren.Count()),
+                        ("childNodeID", childNodeID),
+                        ("grandChildrenNodes", grandChildrenNodes == null ? "none" : string.Join('.', grandChildrenNodes)),
+                        ("method", nameof(Resume))
+                        });
+                    continue;
+                }
+                resumedResults[resumedChild.NodeID] = resumedChild.Resume(session, grandChildrenNodes);
+            }
         }
         // nodes specified, resume only those childs.
-        LSLogger.Singleton.Debug($"Resuming childs in node {NodeID}.",
+        var parallelStatus = GetNodeStatus();
+        LSLogger.Singleton.Debug(debugMessage,
               source: (ClassName, null),
               processId: session.Process.ID,
               properties: new (string, object)[] {
                 ("nodeID", NodeID),
-                ("nodes", string.Join(",", nodes)),
+                ("nodes", nodes == null ? "none" : string.Join(",", nodes)),
+                ("children", _children.Count()),
                 ("availableChildren", _availableChildren.Count()),
+                ("resumedResults", string.Join(",", resumedResults.Select(kv => $"{kv.Key}:{kv.Value}"))),
+                ("parallelStatus", parallelStatus),
                 ("method", nameof(Resume))
             });
-        foreach (var node in nodes) {
-            var resumedChild = _availableChildren.FirstOrDefault(c => c.NodeID == node);
-            if (resumedChild == null) {
-                LSLogger.Singleton.Warning($"Node {NodeID} has no child {node}.",
-                      source: (ClassName, null),
-                      processId: session.Process.ID,
-                      properties: new (string, object)[] {
-                        ("nodeID", NodeID),
-                        ("availableChildren", _availableChildren.Count()),
-                        ("method", nameof(Resume))
-                    });
-                continue;
-            }
-            resumedChild.Resume(session, nodes);
-        }
-        return GetNodeStatus(); // we return the current parallel status.
+        return parallelStatus;
     }
     /// <summary>
     /// Cancels all waiting children in this parallel node.
@@ -493,14 +519,15 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </remarks>
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeParallel.Cancel",
+        LSLogger.Singleton.Debug($"{ClassName}.Cancel [{NodeID}] nodes: [all]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
 
         // parallel always cancel all waiting childs.
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Node {NodeID} already in state {currentStatus}.",
+            LSLogger.Singleton.Warning($"Parallel Node could not continue cancel.",
                   source: (ClassName, null),
                   processId: session.Process.ID,
                   properties: new (string, object)[] {
@@ -510,20 +537,23 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
                 });
             return currentStatus; // nothing to cancel
         }
-        LSLogger.Singleton.Debug($"Cancelling all childs in node {NodeID}.",
+
+        Dictionary<string, LSProcessResultStatus> cancelledResults = new();
+        foreach (var child in _availableChildren) {
+            var childStatus = child.GetNodeStatus();
+            if (childStatus == LSProcessResultStatus.WAITING || childStatus == LSProcessResultStatus.UNKNOWN) {
+                cancelledResults[child.NodeID] = child.Cancel(session);
+            } else cancelledResults[child.NodeID] = childStatus;
+        }
+        LSLogger.Singleton.Debug($"Parallel Node cancelled all waiting and unknown children.",
               source: (ClassName, null),
               processId: session.Process.ID,
               properties: new (string, object)[] {
                 ("nodeID", NodeID),
                 ("availableChildren", _availableChildren.Count()),
+                ("results", string.Join(",", cancelledResults.Select(kv => $"{kv.Key}:{kv.Value}"))),
                 ("method", nameof(ILSProcessNode.Cancel))
             });
-        foreach (var child in _availableChildren) {
-            var childStatus = child.GetNodeStatus();
-            if (childStatus == LSProcessResultStatus.WAITING || childStatus == LSProcessResultStatus.UNKNOWN) {
-                child.Cancel(session);
-            }
-        }
         return LSProcessResultStatus.CANCELLED;
     }
     /// <summary>
@@ -568,7 +598,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeParallel.Execute",
+        LSLogger.Singleton.Debug($"{ClassName}.Execute [{NodeID}]",
               source: ("LSProcessSystem", null),
               processId: session.Process.ID);
 
@@ -577,33 +607,11 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
             // will only process children that meet conditions
             // children ordered by Priority (critical first) and Order (lowest first), since _availableChildren in parallel is processed as a list and not as a stack
             // we do not use reverse.
-            _availableChildren = _children.Values.Where(c => LSProcessConditions.IsMet(session.Process, c)).OrderByDescending(c => c.Priority).ThenBy(c => c.Order);
+            _availableChildren = _children.Values.Where(c => LSProcessHelpers.IsMet(session.Process, c)).OrderByDescending(c => c.Priority).ThenBy(c => c.Order);
             _isProcessing = true;
-            //System.Console.WriteLine($"[LSEventParallelNode] Initialized processing for node {NodeID}, children: {_availableChildren.Count()}.");
         }
         var parallelStatus = GetNodeStatus();
-        LSLogger.Singleton.Debug($"Executing parallel node {NodeID}.",
-              source: (ClassName, null),
-              processId: session.Process.ID,
-              properties: new (string, object)[] {
-                ("nodeID", NodeID),
-                ("nodeChildren", _children.Count),
-                ("metChildren", _availableChildren.Count()),
-                ("nodeStatus", parallelStatus),
-                ("method", nameof(Execute))
-            });
-        // exit condition for parallel is if all children are processed
         if (parallelStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Parallel node {NodeID} already in final state: {parallelStatus}.",
-                  source: (ClassName, null),
-                  processId: session.Process.ID,
-                  properties: new (string, object)[] {
-                    ("nodeID", NodeID),
-                    ("nodeChildren", _children.Count),
-                    ("metChildren", _availableChildren.Count()),
-                    ("nodeStatus", parallelStatus),
-                    ("method", nameof(Execute))
-                });
             return parallelStatus;
         }
         // Process each available child in parallel
@@ -613,11 +621,21 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
             // Push the child to the session stack
             session._sessionStack.Push(child);
             // Process the child
-            var childStatus = child.Execute(session);
+            child.Execute(session);
             session._sessionStack.Pop();
         }
 
         parallelStatus = GetNodeStatus();
+        LSLogger.Singleton.Debug($"Parallel node executed.",
+            source: (ClassName, null),
+            processId: session.Process.ID,
+            properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("nodeChildren", _children.Count),
+                ("metChildren", _availableChildren.Count()),
+                ("nodeStatus", parallelStatus),
+                ("method", nameof(Execute))
+        });
         return parallelStatus;
     }
     /// <summary>

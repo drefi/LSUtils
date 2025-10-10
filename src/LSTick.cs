@@ -46,7 +46,7 @@ public class LSTick : ILSProcessable {
                     return LSProcessResultStatus.SUCCESS;
                 }, priority: LSProcessPriority.CRITICAL)
                 .Selector(ILSProcessable.INITIALIZE_LABEL,
-                selectorBuilder: initBuilder)
+                selectorBuilderAction: initBuilder)
         ).Execute(this);
     }
     /// <summary>
@@ -71,7 +71,7 @@ public class LSTick : ILSProcessable {
             var process = new TickProcess(this, UPDATE_LABEL);
             process.SetData("tickCount", _tickCount);
             process.WithProcessing(builder => builder
-                .Selector(UPDATE_LABEL, selectorBuilder: builder => builder,
+                .Selector(UPDATE_LABEL, selectorBuilderAction: builder => builder,
                 priority: LSProcessPriority.LOW,
                 overrideConditions: true,
                 conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == UPDATE_LABEL)
@@ -116,7 +116,7 @@ public class LSTick : ILSProcessable {
                     },
                     priority: LSProcessPriority.CRITICAL)
                 .Selector(START_LABEL,
-                    selectorBuilder: builder => builder,
+                    selectorBuilderAction: builder => builder,
                     priority: LSProcessPriority.NORMAL,
                     overrideConditions: true,
                     conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == START_LABEL)
@@ -148,7 +148,7 @@ public class LSTick : ILSProcessable {
                     },
                     priority: LSProcessPriority.CRITICAL)
                 .Selector(START_LABEL,
-                    selectorBuilder: builder => builder,
+                    selectorBuilderAction: builder => builder,
                     priority: LSProcessPriority.NORMAL,
                     overrideConditions: true,
                     conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == START_LABEL)
@@ -192,7 +192,7 @@ public class LSTick : ILSProcessable {
                     },
                     priority: LSProcessPriority.CRITICAL)
                 .Selector(DELTA_CHANGE_LABEL,
-                    selectorBuilder: builder => builder,
+                    selectorBuilderAction: builder => builder,
                     priority: LSProcessPriority.NORMAL,
                     overrideConditions: true,
                     conditions: (proc, node) => proc is TickProcess tickProc && tickProc.Action == DELTA_CHANGE_LABEL)

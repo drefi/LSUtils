@@ -58,7 +58,7 @@ public sealed class LSLogger {
         }
     }
     ConcurrentDictionary<string, bool?> _sources = new();
-    public bool? SetSource((string sourceID, bool? isEnabled)? source, bool dontUpdateSources = false) {
+    public bool? SetSourceStatus((string sourceID, bool? isEnabled)? source, bool dontUpdateSources = false) {
         // If source is null, return true (meaning no sourceID is enabled by default)
         if (source == null) return true;
         string sourceID = source.Value.sourceID;
@@ -71,6 +71,10 @@ public sealed class LSLogger {
         }
         isEnabled = isEnabled ?? false; // default to false if no value is set
         return isEnabled;
+    }
+    public bool? GetSourceStatus(string sourceID) {
+        if (string.IsNullOrWhiteSpace(sourceID)) return null;
+        return _sources.TryGetValue(sourceID, out var isEnabled) ? isEnabled : null;
     }
     public bool IsSourceEnabled(string sourceID) {
         if (string.IsNullOrWhiteSpace(sourceID)) return false;
@@ -275,11 +279,17 @@ public sealed class LSLogger {
         //  - _sources[sourceID] == null => false
         //  - _sources[sourceID] == true => true
         //  - _sources[sourceID] == false => false
-        var isEnabled = SetSource(source, true); // dontUpdateSources = true to avoid modifying sources
+        var isEnabled = SetSourceStatus(source, true); // dontUpdateSources = true to avoid modifying sources
         if (isEnabled.HasValue && !isEnabled.Value) {
             return;
         }
         string? sourceID = source?.sourceID;
+        // hide sourceID if properties contains "hideNodeID" set to true
+        if (properties != null && properties.ContainsKey("hideNodeID") && properties["hideNodeID"] is bool hideNodeID && hideNodeID) {
+            properties.Remove("hideNodeID");
+            sourceID = null;
+        }
+
         try {
             var entry = new LSLogEntry(
                 level,

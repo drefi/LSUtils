@@ -365,6 +365,7 @@ public class NodeParallelTests {
         Assert.That(resumeResult2, Is.EqualTo(LSProcessResultStatus.FAILURE)); // now both have failed
         Assert.That(_handler3CallCount, Is.EqualTo(2)); //should not call handler again
     }
+    //TODO: test parallel node with grandchildren using the pattern: <childNodeID>.<grandchildrenNodeID>
 
     [Test]
     public void TestBuilderBasicParallelMultipleWaitingFail2() {

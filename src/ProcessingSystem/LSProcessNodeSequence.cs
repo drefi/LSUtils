@@ -95,7 +95,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
         Order = order;
         Priority = priority;
         //WithInverter = withInverter;
-        Conditions = LSProcessConditions.UpdateConditions(true, Conditions, conditions);
+        Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
     }
     /// <summary>
     /// Adds a child node to this sequence node's collection.
@@ -183,7 +183,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <summary>
     /// Forces waiting children to transition to FAILURE state in sequence processing context.
     /// </summary>
-    /// <param name="context">Processing context for the failure operation.</param>
+    /// <param name="session">Processing context for the failure operation.</param>
     /// <param name="nodes">Optional node IDs to target (unused as sequence processes one child at a time).</param>
     /// <returns>The sequence status after the failure operation.</returns>
     /// <remarks>
@@ -191,33 +191,45 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <br/>
     /// <b>Delegation Pattern:</b> The failure operation is delegated to the waiting child, which then updates its status. The sequence status is recalculated based on child states.
     /// </remarks>
-    public LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodes) {
+    public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeSequence.Fail",
+        LSLogger.Singleton.Debug($"{ClassName}.Fail [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: context.Process.ID);
-
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
+        if (!_isProcessing) {
+            //log warning
+            LSLogger.Singleton.Warning($"Cannot fail before processing.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
+                    ("method", nameof(Fail))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Node already in final state.",
+            LSLogger.Singleton.Warning($"Sequence Node cannot continue fail.",
                   source: (ClassName, null),
-                  processId: context.Process.ID,
+                  processId: session.Process.ID,
                   properties: new (string, object)[] {
                     ("nodeID", NodeID),
                     ("currentStatus", currentStatus),
+                    ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
                     ("availableChildren", _availableChildren.Count()),
                     ("method", nameof(Fail))
                 });
             return currentStatus; // nothing to fail
         }
-
-        // conceptually, only the _currentChild should be waiting since sequence is sequential
-        if (_currentChild == null || _currentChild.GetNodeStatus() != LSProcessResultStatus.WAITING) {
-            var waitingChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
-            if (waitingChild == null) {
-                LSLogger.Singleton.Warning($"No waiting child found.",
+        // conceptually only _currentChild should be waiting since sequence is, well... sequential
+        if (_currentChild == null) {
+            _currentChild = _availableChildren.Where(c => c.GetNodeStatus() == LSProcessResultStatus.WAITING).ToList().FirstOrDefault();
+            if (_currentChild == null || _currentChild.GetNodeStatus() != LSProcessResultStatus.WAITING) {
+                LSLogger.Singleton.Warning($"Sequence Node has no waiting child.",
                       source: (ClassName, null),
-                      processId: context.Process.ID,
+                      processId: session.Process.ID,
                       properties: new (string, object)[] {
                         ("nodeID", NodeID),
                         ("currentChildID", _currentChild?.NodeID ?? "null"),
@@ -227,9 +239,10 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
                     });
                 return GetNodeStatus(); // we return the current sequence status.
             }
-            return waitingChild.Fail(context, nodes); //we propagate the fail to the waiting child
         }
-        return _currentChild.Fail(context, nodes); //we propagate the fail to the waiting child
+        var childStatus = _currentChild.Fail(session, nodes);
+
+        return childStatus;
 
     }
     /// <inheritdoc />
@@ -358,7 +371,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
         if (_isProcessing == false) {
             // will only process children that meet conditions, children ordered by Priority (critical first) and Order (lowest first)
             _availableChildren = _children.Values
-                .Where(c => LSProcessConditions.IsMet(session.Process, c))
+                .Where(c => LSProcessHelpers.IsMet(session.Process, c))
                 .OrderByDescending(c => c.Priority)
                 .ThenBy(c => c.Order).Reverse().ToList();
             // Initialize the stack 

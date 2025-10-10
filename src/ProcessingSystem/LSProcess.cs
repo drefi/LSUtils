@@ -117,16 +117,17 @@ public abstract class LSProcess : ILSProcess {
     /// <para>The method merges any custom processing context with the global context before execution.</para>
     /// </remarks>
     public LSProcessResultStatus Execute(ILSProcessable? instance = null, LSProcessManager? manager = null) {
-        // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcess.Execute",
-              source: ("LSProcessSystem", null),
-              processId: ID);
-
         _manager = manager ?? LSProcessManager.Singleton;
+
         if (_processSession == null) {
-            var root = _manager.GetRootNode(GetType(), instance, _root?.Clone());
-            _processSession = new LSProcessSession(this, root, instance);
+            var sessionRoot = _manager.GetRootNode(GetType(), instance, _root?.Clone());
+            _processSession = new LSProcessSession(this, sessionRoot, instance);
         }
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"LSProcess.Execute [{_processSession.RootNode.NodeID}] {(_processSession.Instance == null ? "global" : $"instance {_processSession.Instance.ID}")}.",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
+        // Detailed debug logging
         LSLogger.Singleton.Debug($"Process Execute",
               source: (ClassName, null),
               processId: ID,
@@ -134,7 +135,7 @@ public abstract class LSProcess : ILSProcess {
                 ("session", _processSession.SessionID.ToString()),
                 ("rootNode", _processSession.RootNode.NodeID.ToString()),
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                ("instance", _processSession.Instance?.ID.ToString() ?? "null"),
+                ("instance", _processSession.Instance?.ID.ToString() ?? "global"),
                 ("method", nameof(Execute))
             });
         return _processSession.Execute();
@@ -146,14 +147,14 @@ public abstract class LSProcess : ILSProcess {
     /// <returns>The processing status after resume attempt.</returns>
     /// <exception cref="LSException">Thrown if the process has not been executed yet.</exception>
     public LSProcessResultStatus Resume(params string[] nodeIDs) {
-        // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcess.Resume",
-              source: ("LSProcessSystem", null),
-              processId: ID);
 
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"LSProcess.Resume [{_processSession.RootNode.NodeID}] {(_processSession.Instance == null ? "global" : $"instance {_processSession.Instance.ID}")}.",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
         LSLogger.Singleton.Debug($"Process Resume",
               source: (ClassName, null),
               processId: ID,
@@ -177,14 +178,14 @@ public abstract class LSProcess : ILSProcess {
     /// the process cannot be resumed or continued.
     /// </remarks>
     public void Cancel() {
-        // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcess.Cancel",
-              source: ("LSProcessSystem", null),
-              processId: ID);
 
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
         }
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"LSProcess.Cancel [{_processSession.RootNode.NodeID}] {(_processSession.Instance == null ? "global" : $"instance {_processSession.Instance.ID}")}.",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
         LSLogger.Singleton.Debug($"Process Cancel",
               source: (ClassName, null),
               processId: ID,
@@ -216,10 +217,6 @@ public abstract class LSProcess : ILSProcess {
     /// <para>prefixed with the process type name for clarity in debugging.</para>
     /// </remarks>
     public ILSProcess WithProcessing(LSProcessBuilderAction builderAction, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) {
-        // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcess.WithProcessing",
-              source: ("LSProcessSystem", null),
-              processId: ID);
 
         LSProcessTreeBuilder builder;
         if (_root == null) {
@@ -233,11 +230,17 @@ public abstract class LSProcess : ILSProcess {
         }
         // use the builderAction to modify or extend the root.
         _root = builderAction(builder).Build();
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"LSProcess.WithProcessing [{_root.NodeID}].",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
+
         LSLogger.Singleton.Debug($"Modifying Process Tree",
               source: (ClassName, null),
               processId: ID,
               properties: new (string, object)[] {
                 ("rootNode", _root.NodeID.ToString()),
+                ("layerType", layerType.ToString()),
                 ("method", nameof(WithProcessing))
             });
         return this;

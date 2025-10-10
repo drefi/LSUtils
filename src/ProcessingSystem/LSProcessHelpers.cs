@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Utility class providing helper methods for working with LSProcessNodeCondition delegates.
@@ -18,7 +20,20 @@ namespace LSUtils.ProcessSystem;
 /// • Maintainability: Single point of truth for condition evaluation behavior
 /// </para>
 /// </remarks>
-public static class LSProcessConditions {
+public static class LSProcessHelpers {
+    public static bool SplitNode(string node, out string child, out string[]? grandChildren) {
+        var parts = node.Split('.');
+        // No grandchildren
+        if (parts.Length <= 1) {
+            child = node;
+            grandChildren = null;
+            return false;
+        }
+        child = parts[0];
+        //join grandchildren
+        grandChildren = parts.Length > 1 ? parts.Skip(1).ToArray() : null;
+        return true;
+    }
     /// <summary>
     /// Evaluates all conditions in a node's condition delegate chain.
     /// All conditions must return true for the node to be considered eligible for processing.
@@ -63,15 +78,12 @@ public static class LSProcessConditions {
     public static bool IsMet(ILSProcess process, ILSProcessNode node) {
         if (node.Conditions == null) return true; // No conditions means always true
 
-        try {
-            foreach (LSProcessNodeCondition condition in node.Conditions.GetInvocationList()) {
-                if (!condition(process, node)) return false;
-            }
-            return true;
-        } catch {
-            throw;
+        foreach (LSProcessNodeCondition condition in node.Conditions.GetInvocationList()) {
+            if (!condition(process, node)) return false;
         }
+        return true;
     }
+
     /// <summary>
     /// Updates or combines node conditions based on the specified override behavior.
     /// Handles delegate composition and provides default condition fallback logic.

@@ -313,17 +313,17 @@ public class MergeOperationsTests {
 
     [Test]
     public void TestMergeEmptyContext() {
-        var emptyContext = new LSProcessTreeBuilder()
+        var emptySequenceRoot = new LSProcessTreeBuilder()
             .Sequence("empty")
             .Build();
 
-        var populatedContext = new LSProcessTreeBuilder()
+        var populatedRoot = new LSProcessTreeBuilder()
             .Sequence("populated", seq => seq
                 .Handler("handler1", _mockHandler1))
             .Build();
 
-        var mergedContext = new LSProcessTreeBuilder(populatedContext)
-            .Merge(emptyContext)
+        var mergedContext = new LSProcessTreeBuilder(populatedRoot)
+            .Merge(emptySequenceRoot)
             .Build();
 
         Assert.That(mergedContext.HasChild("handler1"), Is.True);

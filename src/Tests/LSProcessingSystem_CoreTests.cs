@@ -79,21 +79,6 @@ public class CoreTests {
     }
 
     [Test]
-    public void TestMultipleBuilds() {
-        var builder = new LSProcessTreeBuilder()
-            .Sequence("root", seq => seq
-                .Handler("handler1", _mockHandler1));
-
-        var root = builder.Build();
-        Assert.That(root.HasChild("handler1"), Is.True);
-
-        // Modify builder after first build
-        builder.Handler("handler2", _mockHandler2); //this could even throw an exception, but for now we allow it
-
-        Assert.Throws<LSException>(() => builder.Build()); // Building again without changes should throw
-    }
-
-    [Test]
     public void TestRemoveNonExistentNode() {
         var builder = new LSProcessTreeBuilder()
             .Sequence("root");

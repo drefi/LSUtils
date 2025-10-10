@@ -179,7 +179,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
         _handler = handler;
         Order = order;
         //WithInverter = withInverter;
-        Conditions = LSProcessConditions.UpdateConditions(true, null, conditions);
+        Conditions = LSProcessHelpers.UpdateConditions(true, null, conditions);
     }
     /// <inheritdoc />
     public LSProcessResultStatus GetNodeStatus() {
@@ -237,21 +237,11 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeHandler.Execute",
+        LSLogger.Singleton.Debug($"{ClassName}.Execute [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              properties: ("hideNodeID", true));
 
         if (_hasExecuted) {
-            LSLogger.Singleton.Warning($"Handler node already executed.",
-                  source: (ClassName, null),
-                  processId: session.Process.ID,
-                  properties: new (string, object)[] {
-                    ("nodeID", NodeID),
-                    ("nodeStatus", _nodeStatus),
-                    ("ExecutionCount", ExecutionCount),
-                    ("isClone", _baseNode != null),
-                    ("method", nameof(Execute))
-                });
             return _nodeStatus;
         }
         _hasExecuted = true;
@@ -259,19 +249,21 @@ public class LSProcessNodeHandler : ILSProcessNode {
         var handlerResult = _handler(session);
         // Increment execution count for analytics (shared across clones via base node)
         ExecutionCount++;
+        // update status if handlerResult is CANCELLED
+        // otherwise is SUCCESS or FAILURE because of Resume/Fail
+        _nodeStatus = handlerResult == LSProcessResultStatus.CANCELLED ? handlerResult : _nodeStatus == LSProcessResultStatus.UNKNOWN ? handlerResult : _nodeStatus;
+        // Debug log with details
         LSLogger.Singleton.Debug($"Handler node executed.",
               source: (ClassName, null),
               processId: session.Process.ID,
               properties: new (string, object)[] {
                 ("nodeID", NodeID),
-                ("nodeStatus", handlerResult),
+                ("handlerResult", handlerResult),
+                ("nodeStatus", _nodeStatus),
                 ("ExecutionCount", ExecutionCount),
                 ("isClone", _baseNode != null),
                 ("method", nameof(Execute))
             });
-        // update status if handlerResult is CANCELLED
-        // otherwise is SUCCESS or FAILURE because of Resume/Fail
-        _nodeStatus = handlerResult == LSProcessResultStatus.CANCELLED ? handlerResult : _nodeStatus == LSProcessResultStatus.UNKNOWN ? handlerResult : _nodeStatus;
         return _nodeStatus;
     }
     /// <summary>
@@ -295,20 +287,19 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </remarks>
     public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeHandler.Resume",
+        LSLogger.Singleton.Debug($"{ClassName}.Resume [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
-
-        // execute if we never executed before
+              properties: ("hideNodeID", true));
+        // execute if we never executed before, this can happen if Resume is called directly.
         if (!_hasExecuted) {
-            // pre-set to SUCCESS, this prevents Execute to return WAITING
+            // set _nodeStatus to SUCCESS to prevent Execute return WAITING
             _nodeStatus = LSProcessResultStatus.SUCCESS;
-            // execute the handler, since we handler can still cancel or fail by itself we return the Execute result
+            // execute the handler, since handler can still cancel or fail we return the Execute result
             return Execute(session);
         }
         if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
             LSLogger.Singleton.Warning($"Handler node not waiting.",
-                source: (ClassName, null),
+                source: (ClassName, true),
                 processId: session.Process.ID,
                 properties: new (string, object)[] {
                     ("nodeID", NodeID),
@@ -322,6 +313,14 @@ public class LSProcessNodeHandler : ILSProcessNode {
         }
 
         _nodeStatus = LSProcessResultStatus.SUCCESS;
+        // Debug log with details
+        LSLogger.Singleton.Debug($"Handler node resumed.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("method", nameof(Resume))
+            });
         return _nodeStatus;
     }
     /// <summary>
@@ -332,9 +331,9 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <returns>Node status FAILURE unless node already CANCELLED.</returns>
     public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeHandler.Fail",
+        LSLogger.Singleton.Debug($"{ClassName}.Fail [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              properties: ("hideNodeID", true));
 
         // execute if we never executed before
         if (!_hasExecuted) {
@@ -345,7 +344,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
         }
         if (_nodeStatus != LSProcessResultStatus.WAITING && _nodeStatus != LSProcessResultStatus.UNKNOWN) {
             LSLogger.Singleton.Warning($"Handler node not waiting.",
-                  source: (ClassName, null),
+                  source: (ClassName, true),
                   processId: session.Process.ID,
                   properties: new (string, object)[] {
                     ("nodeID", NodeID),
@@ -357,29 +356,61 @@ public class LSProcessNodeHandler : ILSProcessNode {
             return _nodeStatus;
         }
         _nodeStatus = LSProcessResultStatus.FAILURE;
+        // Debug log with details
+        LSLogger.Singleton.Debug($"Handler node failed.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("method", nameof(Fail))
+            });
+
         return _nodeStatus;
     }
     /// <summary>
     /// Cancels processing for this handler node, setting its status to CANCELLED.
     /// This operation is always successful and provides a terminal state.
     /// </summary>
-    /// <param name="context">The processing context (not used by handler nodes).</param>
+    /// <param name="session">The processing context (not used by handler nodes).</param>
     /// <returns>CANCELLED status after the operation.</returns>
     /// <remarks>
     /// <para><strong>Finality:</strong> CANCELLED is a terminal state that cannot be resumed or changed.</para>
     /// <para><strong>Idempotency:</strong> Safe to call multiple times, always results in CANCELLED status.</para>
     /// <para><strong>Scope:</strong> Only affects this individual handler node (leaf nodes have no children).</para>
     /// </remarks>
-    public LSProcessResultStatus Cancel(LSProcessSession context) {
+    public LSProcessResultStatus Cancel(LSProcessSession session) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeHandler.Cancel",
+        LSLogger.Singleton.Debug($"{ClassName}.Cancel [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: context.Process.ID);
+              properties: ("hideNodeID", true));
 
         // prevent executing if we never executed before
+        var wasExecuted = _hasExecuted;
         _hasExecuted = true;
-        // Set status to CANCELLED (terminal state, always succeeds)
+        if (_nodeStatus == LSProcessResultStatus.CANCELLED) {
+            LSLogger.Singleton.Warning($"Handler node already cancelled.",
+                  source: (ClassName, true),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("executionCount", ExecutionCount),
+                    ("isClone", _baseNode != null),
+                    ("method", nameof(Cancel))
+                });
+            return _nodeStatus;
+        }
+        // Set handler to CANCELLED (terminal state)
         _nodeStatus = LSProcessResultStatus.CANCELLED;
+        // Debug log with details
+        LSLogger.Singleton.Debug($"Handler node cancelled.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("wasExecuted", wasExecuted),
+                ("method", nameof(Cancel))
+            });
+
         return _nodeStatus;
     }
     /// <summary>
@@ -406,11 +437,14 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </remarks>
     public ILSProcessNode Clone() {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeHandler.Clone",
+        LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: System.Guid.Empty); // No specific process context for node cloning
-
-        return new LSProcessNodeHandler(NodeID, _handler, Order, Priority, _baseNode == null ? this : _baseNode, Conditions);
+              properties: ("hideNodeID", true));
+        var clone = new LSProcessNodeHandler(NodeID, _handler, Order, Priority, _baseNode == null ? this : _baseNode, Conditions);
+        // Debug log with details
+        LSLogger.Singleton.Debug($"Handler node [{NodeID}] cloned.",
+              source: (ClassName, null));
+        return clone;
     }
     /// <summary>
     /// Factory method for creating a new handler node with the specified configuration.

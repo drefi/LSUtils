@@ -97,7 +97,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         Order = order;
         Priority = priority;
         //WithInverter = withInverter;
-        Conditions = LSProcessConditions.UpdateConditions(true, Conditions, conditions);
+        Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
     }
     /// <summary>
     /// Adds a child node to this selector node's collection.
@@ -243,7 +243,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         }
         _currentChild = nextChild();
         // continue executing the session
-        
+
         return session.Execute();
     }
     /// <summary>
@@ -263,15 +263,27 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// </remarks>
     public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeSelector.Resume",
+        LSLogger.Singleton.Debug($"{ClassName}.Resume [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
 
-        if (!_isProcessing) return LSProcessResultStatus.UNKNOWN;
+        if (!_isProcessing) {
+            //log warning
+            LSLogger.Singleton.Warning($"Cannot resume before processing.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
+                    ("method", nameof(Resume))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
         var currentStatus = GetNodeStatus();
         if (_currentChild == null) return currentStatus;
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
-            LSLogger.Singleton.Warning($"Node already in terminal state.",
+            LSLogger.Singleton.Warning($"Selector Node cannot continue resume.",
                   source: (ClassName, null),
                   processId: session.Process.ID,
                   properties: new (string, object)[] {
@@ -285,25 +297,31 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
             return currentStatus;
         }
         // NOTE: only a handler node actually resumes, a layer node just propagates the resume, this is why when Resume a layer node can have any result
-        LSLogger.Singleton.Debug($"Node Selector Resume.",
-              source: (ClassName, null),
-              processId: session.Process.ID,
-              properties: new (string, object)[] {
-                ("nodeID", NodeID),
-                ("currentChild", _currentChild.NodeID),
-                ("availableChildren", _availableChildren.Count()),
-                ("method", nameof(Resume))
-            });
         var childStatus = _currentChild.Resume(session, nodes);
+        // this is a gambiarra because I can't figure out the logic to do all operations and then log once, since I want log before exit the method
+        // why this is a gambiarra? because the properties in the log should also have the updated _currentChild after nextChild() call
+        var dribleDaVaca = () => LSLogger.Singleton.Debug($"Node Selector Resume.",
+            source: (ClassName, null),
+            processId: session.Process.ID,
+            properties: new (string, object)[] {
+                        ("nodeID", NodeID),
+                        ("currentChild", _currentChild.NodeID),
+                        ("availableChildren", _availableChildren.Count()),
+                        ("method", nameof(Resume))
+            });
+
         if (childStatus == LSProcessResultStatus.SUCCESS || childStatus == LSProcessResultStatus.CANCELLED) {
             endSelector();
+            dribleDaVaca();
             return childStatus;
         }
         if (childStatus == LSProcessResultStatus.WAITING) {
+            dribleDaVaca();
             return LSProcessResultStatus.WAITING; // still waiting
         }
         _currentChild = nextChild();
         // continue executing the session
+        dribleDaVaca();
         return session.Execute();
     }
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
@@ -383,7 +401,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         if (_isProcessing == false) {
             // will only process children that meet conditions, children ordered by Priority (critical first) and Order (lowest first)
             _availableChildren = _children.Values
-                .Where(c => LSProcessConditions.IsMet(session.Process, c))
+                .Where(c => LSProcessHelpers.IsMet(session.Process, c))
                 .OrderByDescending(c => c.Priority)
                 .ThenBy(c => c.Order).Reverse().ToList();
             // Initialize the stack 

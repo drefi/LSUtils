@@ -48,15 +48,15 @@ public class LSProcessManager {
 
     public static void DebugLogging(bool status = true, LSLogLevel level = LSLogLevel.DEBUG) {
         LSLogger.Singleton.MinimumLevel = level;
-        LSLogger.Singleton.SetSource((sourceID: ClassName, isEnabled: status));
-        LSLogger.Singleton.SetSource((sourceID: LSProcess.ClassName, isEnabled: status));
-        LSLogger.Singleton.SetSource((sourceID: LSProcessManager.ClassName, isEnabled: status));
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeHandler.ClassName, isEnabled: status));
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSequence.ClassName, isEnabled: status));
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeSelector.ClassName, isEnabled: status));
-        LSLogger.Singleton.SetSource((sourceID: LSProcessNodeParallel.ClassName, isEnabled: status));
-        LSLogger.Singleton.SetSource((sourceID: LSProcessSession.ClassName, isEnabled: status));
-        LSLogger.Singleton.SetSource((sourceID: LSProcessTreeBuilder.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSourceStatus((sourceID: LSProcess.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessManager.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessNodeHandler.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessNodeSequence.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessNodeSelector.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessNodeParallel.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessSession.ClassName, isEnabled: status));
+        LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessTreeBuilder.ClassName, isEnabled: status));
     }
 
     /// <summary>
@@ -97,14 +97,6 @@ public class LSProcessManager {
     /// </list>
     /// </remarks>
     public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null) {
-        LSLogger.Singleton.Debug("Register tree",
-              source: (ClassName, null),
-              processId: null,
-              properties: new (string, object)[] {
-                ("processType", processType.Name),
-                ("instance", instance?.ID.ToString() ?? "null"),
-                ("method", nameof(Register))
-            });
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
@@ -113,12 +105,23 @@ public class LSProcessManager {
         if (!processDict.TryGetValue(instance, out var instanceNode)) {
             instanceNode = new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build();
         }
-        var localBuilder = new LSProcessTreeBuilder(instanceNode);
-        var result = builder(localBuilder);
-        if (result == null) {
-            throw new LSArgumentNullException(nameof(builder), "The context builder delegate returned null.");
-        }
-        processDict[instance ?? GlobalProcessable.Instance] = result.Build();
+        var instanceBuilder = new LSProcessTreeBuilder(instanceNode);
+        // Build the root node using the provided builder action
+        var root = builder(instanceBuilder).Build();
+        processDict[instance ?? GlobalProcessable.Instance] = root;
+
+        LSLogger.Singleton.Debug($"LSProcessManager.Register<{processType.Name}> [{root.NodeID}] in {(instance != null ? instance.ID.ToString() : "global")}",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
+        LSLogger.Singleton.Debug("Manager Register Tree",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
+                ("processType", processType.Name),
+                ("rootNodeID", root.NodeID),
+                ("instance", instance?.ID.ToString() ?? "global"),
+                ("method", nameof(Register))
+    });
+
 
     }
     /// <summary>
@@ -154,45 +157,46 @@ public class LSProcessManager {
     /// <para>All contexts are cloned before merging to ensure the original registered contexts remain unmodified.</para>
     /// </remarks>
     public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localNode = null) {
-        // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessManager.GetRootNode",
-              source: ("LSProcessSystem", null),
-              processId: instance?.ID ?? System.Guid.Empty);
-
-        // Detailed debug logging
-        LSLogger.Singleton.Debug("Getting root node for process type",
-              source: (ClassName, null),
-              processId: instance?.ID ?? System.Guid.Empty,
-              properties: new (string, object)[] {
-                ("processType", processType.Name),
-                ("hasInstance", instance != null),
-                ("hasLocalNode", localNode != null),
-                ("method", nameof(GetRootNode))
-            });
-
+        var previousLoggerStatus = LSLogger.Singleton.GetSourceStatus(ClassName);
+        //disable detailed logging during get node (avoid unnecessary logging), flow logging remains active
+        LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: false)); 
         // if processType is not registered, create a new process dictionary for this type.
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
         }
-        LSProcessTreeBuilder builder = new LSProcessTreeBuilder();//.Parallel($"{processType.Name}");
-        // LSProcessTreeBuilder builder = new LSProcessTreeBuilder().Sequence($"root");
+        LSProcessTreeBuilder builder = new LSProcessTreeBuilder();
         if (processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
             // we have a global node to merge. We clone the global node to avoid modifying the original.
             //builder.Merge(globalNode.Clone());
             builder.Merge(globalNode.Clone());
         }
         // merge instance specific node if available. We clone the instance node to avoid modifying the original.
-        if (instance != null && processDict.TryGetValue(instance, out var instanceNode)) {
-            //builder.Parallel($"{processType.Name}");
+        ILSProcessLayerNode? instanceNode = null;
+        if (instance != null && processDict.TryGetValue(instance, out instanceNode)) {
             builder.Merge(instanceNode.Clone());
         }
         // local context is merged last, so it has priority over global and instance contexts.
         if (localNode != null) {
             builder.Merge(localNode);
         }
-
-        return builder.Build();
+        var root = builder.Build();
+        //restore detailed logger status
+        LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: previousLoggerStatus));
+        //flow debug logging
+        LSLogger.Singleton.Debug($"Retrieving root [{root.NodeID}]", ("LSProcessSystem", null), properties: ("hideNodeID", true));
+        // debug log with details
+        LSLogger.Singleton.Debug("Manager Get Root Tree",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
+                ("processType", processType.Name),
+                ("rootNodeID", root.NodeID),
+                ("global", globalNode?.GetType().Name ?? "n/a"), ("globalNodeID", globalNode?.NodeID ?? "null"),
+                ("instance", instanceNode?.GetType().Name ?? "n/a"), ("instanceNodeID", instanceNode?.NodeID ?? "null"),
+                ("local", localNode?.GetType().Name ?? "n/a"), ("localNodeID", localNode?.NodeID ?? "null"),
+                ("method", nameof(GetRootNode))
+            });
+        return root;
     }
     /// <summary>
     /// Internal placeholder class representing global processable contexts.

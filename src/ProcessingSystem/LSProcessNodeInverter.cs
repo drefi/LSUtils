@@ -19,7 +19,7 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         NodeID = nodeID;
         Priority = priority;
         Order = order;
-        Conditions = LSProcessConditions.UpdateConditions(true, Conditions, conditions);
+        Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
     }
 
     // inverter should not be able to change child after creation
@@ -31,56 +31,35 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         _childNode = child;
     }
 
-    public LSProcessResultStatus Cancel(LSProcessSession session) {
-        // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeInverter.Cancel",
-              source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
-
-        LSLogger.Singleton.Debug($"Inverter Node Cancel.",
-              source: (ClassName, null),
-              processId: session.Process.ID,
-              properties: new (string, object)[] {
-                ("nodeID", NodeID),
-                ("nodeChild", _childNode?.NodeID ?? "null"),
-                ("method", nameof(Cancel))
-            });
-        if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
-        return _childNode.Cancel(session);
-    }
-
-    public ILSProcessLayerNode Clone() {
-        // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeInverter.Clone",
-              source: ("LSProcessSystem", null),
-              processId: System.Guid.Empty); // No specific process context for node cloning
-
-        var clone = new LSProcessNodeInverter(NodeID, Priority, Order, Conditions);
-        if (_childNode != null) {
-            clone.AddChild(_childNode.Clone());
-        }
-        return clone;
-    }
-
     public LSProcessResultStatus Execute(LSProcessSession session) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeInverter.Execute",
+        LSLogger.Singleton.Debug($"{ClassName}.Execute [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
 
         if (_childNode == null) {
-            throw new LSException("LSProcessNodeInverter must have a child node!");
+            //log warning
+            LSLogger.Singleton.Warning($"Inverter does not have child.",
+                source: (ClassName, null),
+                processId: session.Process.ID,
+                properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("method", nameof(Execute))
+                });
+            return LSProcessResultStatus.UNKNOWN;
         }
+
+        var result = _childNode.Execute(session);
         LSLogger.Singleton.Debug($"Inverter Node Execute.",
               source: (ClassName, null),
               processId: session.Process.ID,
               properties: new (string, object)[] {
                 ("nodeID", NodeID),
                 ("nodeChild", _childNode.NodeID),
+                ("result", result.ToString()),
                 ("method", nameof(Execute))
             });
-
-        var result = _childNode.Execute(session);
         return result switch {
             LSProcessResultStatus.SUCCESS => LSProcessResultStatus.FAILURE,
             LSProcessResultStatus.FAILURE => LSProcessResultStatus.SUCCESS,
@@ -90,22 +69,110 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
 
     public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeInverter.Fail",
+        LSLogger.Singleton.Debug($"{ClassName}.Fail [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
 
+        if (_childNode == null) {
+            //log warning
+            LSLogger.Singleton.Warning($"Inverter does not have child.",
+                source: (ClassName, null),
+                processId: session.Process.ID,
+                properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
+                    ("method", nameof(Fail))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
         LSLogger.Singleton.Debug($"Inverter Node Fail.",
               source: (ClassName, null),
               processId: session.Process.ID,
               properties: new (string, object)[] {
                 ("nodeID", NodeID),
-                ("nodeChild", _childNode?.NodeID ?? "null"),
+                ("nodeChild", _childNode.NodeID),
                 ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
                 ("method", nameof(Fail))
             });
-        if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
         return _childNode.Fail(session, nodes);
     }
+
+    public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"{ClassName}.Resume [{NodeID}]",
+              source: ("LSProcessSystem", null),
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
+        if (_childNode == null) {
+            //log warning
+            LSLogger.Singleton.Warning($"Inverter does not have child.",
+                source: (ClassName, null),
+                processId: session.Process.ID, properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
+                    ("method", nameof(Resume))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
+        // Debug log with details
+        LSLogger.Singleton.Debug($"Inverter Node Resume.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("nodeChild", _childNode.NodeID),
+                ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
+                ("method", nameof(Resume))
+            });
+        return _childNode.Resume(session, nodes);
+    }
+    public LSProcessResultStatus Cancel(LSProcessSession session) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"{ClassName}.Cancel [{NodeID}]",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
+        if (_childNode == null) {
+            //log warning
+            LSLogger.Singleton.Warning($"Inverter does not have child.",
+                source: (ClassName, null),
+                processId: session.Process.ID,
+                properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("method", nameof(Cancel))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
+
+        LSLogger.Singleton.Debug($"Inverter Node Cancel.",
+              source: (ClassName, null),
+              processId: session.Process.ID,
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("nodeChild", _childNode.NodeID),
+                ("method", nameof(Cancel))
+            });
+        return _childNode.Cancel(session);
+    }
+    public ILSProcessLayerNode Clone() {
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true)); // No specific process context for node cloning
+
+        var clone = new LSProcessNodeInverter(NodeID, Priority, Order, Conditions);
+        if (_childNode != null) clone.AddChild(_childNode.Clone());
+        // Debug log with details
+        LSLogger.Singleton.Debug($"Inverter node cloned.",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("nodeChild", _childNode?.NodeID ?? "null"),
+                ("method", nameof(Clone))
+            });
+        return clone;
+    }
+    ILSProcessNode ILSProcessNode.Clone() => (ILSProcessLayerNode)Clone();
 
     public ILSProcessNode? GetChild(string nodeID) {
         if (_childNode != null && _childNode.NodeID == nodeID) {
@@ -144,28 +211,6 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         return false;
     }
 
-    public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
-        // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeInverter.Resume",
-              source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
-
-        LSLogger.Singleton.Debug($"Inverter Node Resume.",
-              source: (ClassName, null),
-              processId: session.Process.ID,
-              properties: new (string, object)[] {
-                ("nodeID", NodeID),
-                ("nodeChild", _childNode?.NodeID ?? "null"),
-                ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
-                ("method", nameof(Resume))
-            });
-        if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
-        return _childNode.Resume(session, nodes);
-    }
-
-    ILSProcessNode ILSProcessNode.Clone() {
-        return Clone();
-    }
     public static LSProcessNodeInverter Create(string nodeID, LSProcessPriority priority = LSProcessPriority.NORMAL, int order = 0, params LSProcessNodeCondition?[] conditions) {
         var node = new LSProcessNodeInverter(nodeID, priority, order, conditions);
         return node;

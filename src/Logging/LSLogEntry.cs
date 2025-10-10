@@ -110,7 +110,7 @@ public readonly struct LSLogEntry {
         var result = $"{timeStr} [{levelStr}]{sourceStr}: {Message}";
 
         if (ProcessId.HasValue) {
-            result += $" [Process: {ProcessId.Value:N}]";
+            result += $"[Process: {ProcessId.Value:N}]";
         }
 
         if (Exception != null) {
