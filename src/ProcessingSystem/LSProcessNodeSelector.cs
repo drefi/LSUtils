@@ -135,10 +135,9 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeSelector.Clone",
+        LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: System.Guid.Empty); // No specific process context for node cloning
-
+              properties: ("hideNodeID", true));
         var cloned = new LSProcessNodeSelector(NodeID, Order, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
@@ -311,8 +310,8 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
             });
 
         if (childStatus == LSProcessResultStatus.SUCCESS || childStatus == LSProcessResultStatus.CANCELLED) {
-            endSelector();
             dribleDaVaca();
+            endSelector();
             return childStatus;
         }
         if (childStatus == LSProcessResultStatus.WAITING) {
@@ -394,9 +393,10 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeSelector.Execute",
+        LSLogger.Singleton.Debug($"{ClassName}.Execute [{NodeID}]. ",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
 
         if (_isProcessing == false) {
             // will only process children that meet conditions, children ordered by Priority (critical first) and Order (lowest first)

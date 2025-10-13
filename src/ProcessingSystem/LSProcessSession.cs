@@ -88,9 +88,9 @@ public class LSProcessSession {
     /// </remarks>
     internal LSProcessResultStatus Execute() {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessSession.Execute",
+        LSLogger.Singleton.Debug($"{ClassName}.Execute RootNode: [{RootNode.NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: Process.ID);
+              properties: ("hideNodeID", true));
 
         var rootStatus = RootNode.GetNodeStatus();
         if (rootStatus != LSProcessResultStatus.UNKNOWN && rootStatus != LSProcessResultStatus.WAITING)
@@ -124,19 +124,20 @@ public class LSProcessSession {
     /// </remarks>
     public LSProcessResultStatus Resume(params string[]? nodes) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessSession.Resume",
+        LSLogger.Singleton.Debug($"{ClassName}.Resume",
               source: ("LSProcessSystem", null),
-              processId: Process.ID);
-
-        LSLogger.Singleton.Debug($"{nameof(Resume)}",
-              source: (ClassName, null),
-              processId: Process.ID,
-              properties: new (string, object)[] {
-                ("sessionID", SessionID),
-                ("rootNodeID", RootNode.NodeID),
-                ("resumedNodeIDs", nodes == null ? "null" : string.Join(",", nodes)),
-                ("method", nameof(Resume))
-            });
+              properties: ("hideNodeID", true));
+        if (RootNode == null) {
+            //log warning
+            LSLogger.Singleton.Warning($"Session does not have root node.",
+                source: (ClassName, null),
+                processId: Process.ID,
+                properties: new (string, object)[] {
+                    ("sessionID", SessionID),
+                    ("method", nameof(Resume))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
         return RootNode.Resume(this, nodes);
     }
 
@@ -156,20 +157,21 @@ public class LSProcessSession {
     /// </remarks>
     public LSProcessResultStatus Fail(params string[]? nodes) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessSession.Fail",
+        LSLogger.Singleton.Debug($"{ClassName}.Fail",
               source: ("LSProcessSystem", null),
-              processId: Process.ID);
+              properties: ("hideNodeID", true));
 
-        LSLogger.Singleton.Debug($"Session Failure",
-              source: (ClassName, null),
-              processId: Process.ID,
-              properties: new (string, object)[] {
-                ("session", SessionID),
-                ("rootNode", RootNode.NodeID),
-                ("currentNode", CurrentNode?.NodeID ?? "null"),
-                ("nodes", nodes == null ? "null" : string.Join(",", nodes)),
-                ("method", nameof(Fail))
-            });
+        if (RootNode == null) {
+            //log warning
+            LSLogger.Singleton.Warning($"Session does not have root node.",
+                source: (ClassName, null),
+                processId: Process.ID,
+                properties: new (string, object)[] {
+                    ("sessionID", SessionID),
+                    ("method", nameof(Fail))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
         return RootNode.Fail(this, nodes);
     }
 
@@ -191,19 +193,21 @@ public class LSProcessSession {
     /// </remarks>
     public LSProcessResultStatus Cancel() {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessSession.Cancel",
+        LSLogger.Singleton.Debug($"{ClassName}.Cancel",
               source: ("LSProcessSystem", null),
-              processId: Process.ID);
+              properties: ("hideNodeID", true));
 
-        LSLogger.Singleton.Debug($"Session Cancel",
-              source: (ClassName, null),
-              processId: Process.ID,
-              properties: new (string, object)[] {
-                ("session", SessionID),
-                ("rootNode", RootNode.NodeID),
-                ("currentNode", CurrentNode?.NodeID ?? "null"),
-                ("method", nameof(Cancel))
-            });
+        if (RootNode == null) {
+            //log warning
+            LSLogger.Singleton.Warning($"Session does not have root node.",
+                source: (ClassName, null),
+                processId: Process.ID,
+                properties: new (string, object)[] {
+                        ("sessionID", SessionID),
+                        ("method", nameof(Cancel))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
         var result = RootNode.Cancel(this);
         if (result != LSProcessResultStatus.CANCELLED) {
             LSLogger.Singleton.Warning($"Root node Cancel did not return CANCELLED status.",

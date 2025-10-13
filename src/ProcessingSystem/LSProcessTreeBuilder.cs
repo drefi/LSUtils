@@ -101,7 +101,7 @@ public class LSProcessTreeBuilder {
         _currentNode.AddChild(handlerNode);
         // Flow debug logging
         var actionDebug = isNewHandler ? "created" : "replaced";
-        LSLogger.Singleton.Debug($"NodeHandler [{nodeID}] {actionDebug}.",
+        LSLogger.Singleton.Debug($"{ClassName}.Handler: [{nodeID}] {actionDebug}.",
               source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
 
         // Detailed debug logging
@@ -217,10 +217,10 @@ public class LSProcessTreeBuilder {
         _currentNode = (parentBefore == null || sequenceBuilderAction == null) ? node : parentBefore;
         // Flow debug logging
         var actionDebug = existingNode == null ? "created" : "updated";
-        LSLogger.Singleton.Debug($"NodeSequence [{nodeID}] {actionDebug}.",
+        LSLogger.Singleton.Debug($"{ClassName}.Sequence: [{nodeID}] {actionDebug}.",
               source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
 
-        LSLogger.Singleton.Debug($"Sequence Node",
+        LSLogger.Singleton.Debug($"Node Sequence {actionDebug}.",
               source: (ClassName, null),
               processId: null,
               properties: new (string, object)[] {
@@ -311,14 +311,14 @@ public class LSProcessTreeBuilder {
         _currentNode = (parentBefore == null || selectorBuilderAction == null) ? node : parentBefore;
         // Flow debug logging
         var actionDebug = existingNode == null ? "created" : "updated";
-        LSLogger.Singleton.Debug($"NodeSelector [{nodeID}] {actionDebug}.",
-              source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
+        LSLogger.Singleton.Debug($"{ClassName}.Selector: [{nodeID}] {actionDebug}.",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
 
         // Detailed debug logging
-        LSLogger.Singleton.Debug("Selector Node",
-              source: (ClassName, null),
-
-              properties: new (string, object)[] {
+        LSLogger.Singleton.Debug($"Node Selector {actionDebug}.",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
                 ("nodeID", nodeID),
                 ("action", actionDebug),
                 ("builderProvided", selectorBuilderAction != null),
@@ -423,13 +423,14 @@ public class LSProcessTreeBuilder {
         _currentNode = (parentBefore == null || parallelBuilderAction == null) ? node : parentBefore;
         // Flow debug logging
         var actionDebug = existingNode == null ? "created" : "updated";
-        LSLogger.Singleton.Debug($"Parallel Node {nodeID} {actionDebug}.",
-              source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
+        LSLogger.Singleton.Debug($"{ClassName}.Parallel: [{nodeID}] {actionDebug}.",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
 
         // Detailed debug logging
-        LSLogger.Singleton.Debug("Parallel Node",
-              source: (ClassName, null),
-              properties: new (string, object)[] {
+        LSLogger.Singleton.Debug($"Node Parallel {actionDebug}.",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
                 ("nodeID", nodeID),
                 ("action", actionDebug),
                 ("builderProvided", parallelBuilderAction != null),
@@ -528,12 +529,12 @@ public class LSProcessTreeBuilder {
         }
         // Flow debug logging
         var actionDebug = parentBefore == null ? "as root" : $"into [{parentBefore.NodeID}]";
-        LSLogger.Singleton.Debug($"Node [{subLayer.NodeID}] merged {actionDebug}.",
+        LSLogger.Singleton.Debug($"{ClassName}.Merge: [{subLayer.NodeID}] merged {actionDebug}.",
             source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
         // Detailed debug logging
-        LSLogger.Singleton.Debug("Merger Sub-Layer",
-              source: (ClassName, null),
-              properties: new (string, object)[] {
+        LSLogger.Singleton.Debug($"Merged Sub-Layer {actionDebug}",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
                 ("subLayerID", subLayer.NodeID),
                 ("action", actionDebug),
                 ("builderProvided", mergeBuilder != null),
@@ -633,12 +634,13 @@ public class LSProcessTreeBuilder {
         }
         // Flow debug logging
         string actionDebug = $"{(existingNode == null ? "created" : (existingNode is LSProcessNodeInverter ? "updated" : "replaced"))}";
-        LSLogger.Singleton.Debug($"NodeInverter [{nodeID}] {actionDebug}.",
-              source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
+        LSLogger.Singleton.Debug($"{ClassName}.Inverter: [{nodeID}] {actionDebug}.",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
         // Detailed debug logging
-        LSLogger.Singleton.Debug("Inverter Node",
-              source: (ClassName, null),
-              properties: new (string, object)[] {
+        LSLogger.Singleton.Debug($"Node Inverter {actionDebug}",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
                 ("nodeID", nodeID),
                 ("action", actionDebug),
                 ("builderProvided", builder != null),
@@ -683,13 +685,15 @@ public class LSProcessTreeBuilder {
         if (_rootNode == null) {
             // Flow debug logging
             if (_currentNode == null) throw new LSException("No root or current node to build.");
-            LSLogger.Singleton.Debug($"Build currentNode [{_currentNode.NodeID}]",
-                  source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
+            LSLogger.Singleton.Debug($"{ClassName}.Build: currentNode [{_currentNode.NodeID}].",
+                source: ("LSProcessSystem", null),
+                properties: ("hideNodeID", true));
             return _currentNode;
         }
         // Flow debug logging
-        LSLogger.Singleton.Debug($"Build rootNode [{_rootNode.NodeID}]",
-              source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
+        LSLogger.Singleton.Debug($"{ClassName}.Build: rootNode [{_rootNode.NodeID}].",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
         return _rootNode;
     }
 

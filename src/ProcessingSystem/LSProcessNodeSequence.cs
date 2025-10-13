@@ -138,9 +138,9 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeSequence.Clone",
+        LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: System.Guid.Empty); // No specific process context for node cloning
+              properties: ("hideNodeID", true));
 
         var cloned = new LSProcessNodeSequence(NodeID, Order, Priority, Conditions);
         foreach (var child in _children.Values) {
@@ -364,9 +364,10 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// </remarks>
     public LSProcessResultStatus Execute(LSProcessSession session) {
         // Flow debug logging
-        LSLogger.Singleton.Debug("LSProcessNodeSequence.Execute",
+        LSLogger.Singleton.Debug($"{ClassName}.Execute: [{NodeID}]. ",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
 
         if (_isProcessing == false) {
             // will only process children that meet conditions, children ordered by Priority (critical first) and Order (lowest first)

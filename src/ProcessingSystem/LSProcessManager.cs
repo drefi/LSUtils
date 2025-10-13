@@ -101,6 +101,9 @@ public class LSProcessManager {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
         }
+        LSLogger.Singleton.Debug($"{ClassName}.Register<{processType.Name}>: {(instance != null ? instance.ID.ToString() : "global")}",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
         instance ??= GlobalProcessable.Instance;
         if (!processDict.TryGetValue(instance, out var instanceNode)) {
             instanceNode = new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build();
@@ -110,9 +113,6 @@ public class LSProcessManager {
         var root = builder(instanceBuilder).Build();
         processDict[instance ?? GlobalProcessable.Instance] = root;
 
-        LSLogger.Singleton.Debug($"LSProcessManager.Register<{processType.Name}> [{root.NodeID}] in {(instance != null ? instance.ID.ToString() : "global")}",
-              source: ("LSProcessSystem", null),
-              properties: ("hideNodeID", true));
         LSLogger.Singleton.Debug("Manager Register Tree",
             source: (ClassName, null),
             properties: new (string, object)[] {
@@ -159,7 +159,7 @@ public class LSProcessManager {
     public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localNode = null) {
         var previousLoggerStatus = LSLogger.Singleton.GetSourceStatus(ClassName);
         //disable detailed logging during get node (avoid unnecessary logging), flow logging remains active
-        LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: false)); 
+        LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: false));
         // if processType is not registered, create a new process dictionary for this type.
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
@@ -184,7 +184,9 @@ public class LSProcessManager {
         //restore detailed logger status
         LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: previousLoggerStatus));
         //flow debug logging
-        LSLogger.Singleton.Debug($"Retrieving root [{root.NodeID}]", ("LSProcessSystem", null), properties: ("hideNodeID", true));
+        LSLogger.Singleton.Debug($"{ClassName}.GetRootNode<{processType.Name}>: [{root.NodeID}]",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
         // debug log with details
         LSLogger.Singleton.Debug("Manager Get Root Tree",
             source: (ClassName, null),

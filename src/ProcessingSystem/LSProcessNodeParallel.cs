@@ -211,7 +211,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// <inheritdoc />
     public ILSProcessLayerNode Clone() {
         // Flow debug logging
-        LSLogger.Singleton.Debug($"{ClassName}.Clone",
+        LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
 
@@ -600,7 +600,8 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.Execute [{NodeID}]",
               source: ("LSProcessSystem", null),
-              processId: session.Process.ID);
+              processId: session.Process.ID,
+              properties: ("hideNodeID", true));
 
         // Initialize available children list if not done yet
         if (_isProcessing == false) {
