@@ -123,28 +123,28 @@ public static class LSProcessHelpers {
     /// </code>
     /// </example>
     internal static LSProcessNodeCondition? UpdateConditions(bool overrideExisting, LSProcessNodeCondition? existingConditions, params LSProcessNodeCondition?[] conditions) {
-        // Default condition that always returns true - used as base when overriding
+        // Default condition always returns true - used as base when overriding
         var defaultCondition = (LSProcessNodeCondition)((process, node) => true);
+        if (overrideExisting) {
+            // when overriding, always start with default condition
+            // if no conditions is provided, assume that the user want to use the default condition
+            existingConditions = defaultCondition;
+        }
 
+        // no conditions provided
         if (conditions == null || conditions.Length == 0) {
-            // No conditions provided - set default condition only if overriding
-            if (overrideExisting) {
-                existingConditions = defaultCondition;
-            }
-        } else {
-            // Conditions provided - handle override vs combine logic
-            if (overrideExisting) {
-                // Override mode: start fresh with default condition
-                existingConditions = defaultCondition;
-            }
+            // If overriding, return default condition; else keep existing conditions
+            return existingConditions;
+        }
+        // Conditions provided - handle override vs combine logic
 
-            // Add all non-null conditions to the delegate chain
-            foreach (var condition in conditions) {
-                if (condition != null) {
-                    existingConditions += condition;
-                }
+        // Add all non-null conditions to the delegate chain
+        foreach (var condition in conditions) {
+            if (condition != null) {
+                existingConditions += condition;
             }
         }
+
 
         return existingConditions;
     }

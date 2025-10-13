@@ -238,10 +238,22 @@ public class LSProcessNodeHandler : ILSProcessNode {
     public LSProcessResultStatus Execute(LSProcessSession session) {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.Execute [{NodeID}]",
-              source: ("LSProcessSystem", null),
-              properties: ("hideNodeID", true));
+                source: ("LSProcessSystem", null),
+                processId: session.Process.ID,
+                properties: ("hideNodeID", true));
 
         if (_hasExecuted) {
+            //log warning (handler should not run again)
+            LSLogger.Singleton.Warning($"Handler node already executed.",
+                source: (ClassName, true),
+                processId: session.Process.ID,
+                properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("nodeStatus", _nodeStatus),
+                    ("ExecutionCount", ExecutionCount),
+                    ("isClone", _baseNode != null),
+                    ("method", nameof(Execute))
+                });
             return _nodeStatus;
         }
         _hasExecuted = true;

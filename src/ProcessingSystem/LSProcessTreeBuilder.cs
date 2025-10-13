@@ -11,7 +11,7 @@ public class LSProcessTreeBuilder {
     /// <summary>
     /// The current node context for hierarchy operations. Null when in global mode before first layer node creation.
     /// </summary>
-    private ILSProcessLayerNode? _currentNode;
+    //private ILSProcessLayerNode? _currentNode;
 
     /// <summary>
     /// The root node of the hierarchy being built. Used to return the complete hierarchy from Build().
@@ -44,7 +44,7 @@ public class LSProcessTreeBuilder {
     /// </list>
     /// </remarks>
     internal LSProcessTreeBuilder(ILSProcessLayerNode rootNode) {
-        _currentNode = _rootNode = rootNode;
+        _rootNode = rootNode;
     }
 
     /// <summary>
@@ -81,41 +81,64 @@ public class LSProcessTreeBuilder {
     /// </remarks>
     public LSProcessTreeBuilder Handler(string nodeID, LSProcessHandler handler, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
 
-        if (_rootNode == null || _currentNode == null) {
+        if (_rootNode == null) {
             // NOTE: in theory this should not be needed because register and WithProcessing should create the root node
-            LSLogger.Singleton.Warning($"{ClassName}.Handler created root sequence node.", ClassName);
-            _rootNode = _currentNode = LSProcessNodeSequence.Create($"sequence[{nodeID}]", 0);
+            LSLogger.Singleton.Warning($"{ClassName}.Handler created root sequence node.",
+                source: (ClassName, true),
+                properties: new (string, object)[] {
+                    ("nodeID", nodeID),
+                    ("order", "n/a"),
+                    ("priority", priority.ToString()),
+                    ("conditions", conditions.Length.ToString()),
+                    ("method", nameof(Handler))
+                });
+            _rootNode = LSProcessNodeSequence.Create($"sequence[{nodeID}]", 0);
         }
-        bool isNewHandler = true;
+        int order = _rootNode.GetChildren().Length; // Order is based on the number of existing children
+        var actionDebug = "create";
+
         // Check if a node with the same ID already exists
         if (getChild(nodeID, out var existingNode)) {
             // Node with same ID already exists
-            // If the existing node is not a handler node, we cannot override it with a handler node
-            if (existingNode is not LSProcessNodeHandler) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a handler node.");
+            if (existingNode is not LSProcessNodeHandler) {
+                // does not make sense to replace a node that is not a handler                
+                LSLogger.Singleton.Warning($"Node [{nodeID}] already exists, but is not a NodeHandler.",
+                    source: (ClassName, true),
+                    properties: new (string, object)[] {
+                        ("nodeID", nodeID),
+                        ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                        ("existingNode", existingNode?.GetType().Name ?? "n/a"),
+                        ("nodeOrder", existingNode?.Order.ToString() ?? "n/a"),
+                        ("nodePriority", existingNode?.Priority.ToString() ?? "n/a"),
+                        ("order", order.ToString()),
+                        ("priority", priority.ToString()),
+                        ("conditions", conditions.Length.ToString()),
+                        ("method", nameof(Handler))
+                    });
+                return this;
+            }
             // remove the previous handler node
-            _currentNode.RemoveChild(nodeID);
-            isNewHandler = false;
+            _rootNode.RemoveChild(nodeID);
+            actionDebug = "replace";
         }
-        int order = _currentNode.GetChildren().Length; // Order is based on the number of existing children
-        LSProcessNodeHandler handlerNode = LSProcessNodeHandler.Create(nodeID, handler, order, priority, conditions);
-        _currentNode.AddChild(handlerNode);
         // Flow debug logging
-        var actionDebug = isNewHandler ? "created" : "replaced";
-        LSLogger.Singleton.Debug($"{ClassName}.Handler: [{nodeID}] {actionDebug}.",
-              source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
+        LSLogger.Singleton.Debug($"{ClassName}.Handler: {actionDebug} [{nodeID}]",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
+
+        LSProcessNodeHandler handlerNode = LSProcessNodeHandler.Create(nodeID, handler, order, priority, conditions);
+        _rootNode.AddChild(handlerNode);
 
         // Detailed debug logging
-        LSLogger.Singleton.Debug("Handler Node",
-              source: (ClassName, null),
-
-              properties: new (string, object)[] {
+        LSLogger.Singleton.Debug($"Handler Node {actionDebug} [{nodeID}]",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
                 ("nodeID", nodeID),
                 ("action", actionDebug),
                 ("rootNode", _rootNode?.NodeID ?? "null"),
-                ("currentNode", _currentNode?.NodeID ?? "null"),
-                ("order", order),
+                ("order", order.ToString()),
                 ("priority", priority.ToString()),
-                ("hasConditions", conditions.Length > 0),
+                ("conditions", conditions.Length.ToString()),
                 ("method", nameof(Handler))
             });
 
@@ -137,9 +160,42 @@ public class LSProcessTreeBuilder {
     /// </list>
     /// </remarks>
     public LSProcessTreeBuilder RemoveChild(string nodeID) {
-        if (_currentNode == null) throw new LSException("No current context to remove the node from. Make sure to start with a layer node (Sequence, Selector, Parallel).");
-        // Removing a non-existent node should be a no-op (no exception)
-        _currentNode.RemoveChild(nodeID);
+        if (_rootNode == null) {
+            LSLogger.Singleton.Warning($"Cannot remove child node [{nodeID}] because root node does not exist.",
+                source: (ClassName, true),
+                properties: new (string, object)[] {
+                    ("nodeID", nodeID),
+                    ("rootNode", "n/a"),
+                    ("method", nameof(RemoveChild))
+                });
+            return this;
+        }
+        var found = _rootNode.GetChild(nodeID);
+        LSLogger.Singleton.Debug($"{ClassName}.RemoveChild [{nodeID}] [{(found != null ? "exists" : "n/a")}]",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
+
+        if (found == null) {
+            //log warning
+            LSLogger.Singleton.Warning($"No child with ID '{nodeID}' exists.",
+                source: (ClassName, null),
+                properties: new (string, object)[] {
+                    ("nodeID", nodeID),
+                    ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                    ("method", nameof(RemoveChild))
+                });
+            return this;
+        }
+        _rootNode.RemoveChild(nodeID);
+
+        // Detailed debug logging
+        LSLogger.Singleton.Debug($"Removed Child [{nodeID}] from [{_rootNode.NodeID}].",
+            source: (ClassName, null),
+            properties: new (string, object)[] {
+                ("nodeID", nodeID),
+                ("rootNode", _rootNode.NodeID),
+                ("method", nameof(RemoveChild))
+            });
 
         return this;
     }
@@ -184,54 +240,54 @@ public class LSProcessTreeBuilder {
             bool overrideConditions = false,
             params LSProcessNodeCondition?[] conditions) {
 
-        var parentBefore = _currentNode;
-        int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        getChild(nodeID, out ILSProcessNode? existingNode);
-
-        if (existingNode is not LSProcessNodeSequence sequenceNode) {
-            //if existingNode is not null it means is not a sequence node
-            if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a sequence node.");
-            // we keep the original order of the existing node
-            priority ??= LSProcessPriority.NORMAL; // default priority
-            // no current node exists, so we are creating the root node or node does not exist or node exists but is not sequence
-            sequenceNode = LSProcessNodeSequence.Create(nodeID, order, priority.Value, conditions);
-            // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSequenceNode we should throw an exception.
-            _currentNode?.RemoveChild(nodeID); // remove existing node if exists
-        } else {
-            // existing node is a sequence node
-            // if fields are not provided keep the existing values
-            priority ??= sequenceNode.Priority;
-
-            // update values
-            sequenceNode.Priority = priority.Value;
-            sequenceNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, sequenceNode.Conditions, conditions);
-        }
-        var builder = new LSProcessTreeBuilder(sequenceNode);
-        // when we reach this point, sequenceNode is either a new node or the existing sequence node
-        ILSProcessLayerNode node = sequenceBuilderAction?.Invoke(builder).Build() ?? sequenceNode;
-        // we only add the node if it was newly created and we had a current context
-        if (parentBefore != null && existingNode == null) parentBefore.AddChild(node);
-        // If there was no root yet, this node becomes the root
-        if (_rootNode == null) _rootNode = node;
-        // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
-        _currentNode = (parentBefore == null || sequenceBuilderAction == null) ? node : parentBefore;
+        var childExists = getChild(nodeID, out ILSProcessNode? existingNode);
         // Flow debug logging
-        var actionDebug = existingNode == null ? "created" : "updated";
-        LSLogger.Singleton.Debug($"{ClassName}.Sequence: [{nodeID}] {actionDebug}.",
-              source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
+        var actionDebug = childExists ? "update" : "create";
+        LSLogger.Singleton.Debug($"{ClassName}.Sequence: {actionDebug} [{nodeID}]",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
+        int order = _rootNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
 
-        LSLogger.Singleton.Debug($"Node Sequence {actionDebug}.",
-              source: (ClassName, null),
-              processId: null,
-              properties: new (string, object)[] {
+        if (existingNode is LSProcessNodeSequence sequenceNode) {
+            // if fields are not provided keep the existing values
+            sequenceNode.Priority = priority ?? sequenceNode.Priority;
+            sequenceNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, sequenceNode.Conditions, conditions);
+        } else if (childExists) {
+            // it does not make sense to modify a sequence with a selector or parallel children
+            LSLogger.Singleton.Warning($"Node [{nodeID}] exists but is not a sequence node, builder not processed.",
+                source: (ClassName, null),
+                properties: new (string, object)[] {
+                    ("nodeID", nodeID),
+                    ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                    ("existingNode", existingNode?.GetType().Name ?? "n/a"),
+                    ("nodeOrder", existingNode?.Order.ToString() ?? "n/a"),
+                    ("nodePriority", existingNode?.Priority.ToString() ?? "n/a"),
+                    ("order", order),
+                    ("priority", priority?.ToString() ?? "n/a"),
+                    ("overrideConditions", overrideConditions),
+                    ("conditions", conditions != null ? conditions.Length.ToString() : "n/a"),
+                    ("method", nameof(Sequence))
+                });
+            return this;
+        } else {
+            // no current node exists, so we are creating the root node or node does not exist or node exists but is not sequence
+            priority ??= LSProcessPriority.NORMAL; // default priority
+            sequenceNode = LSProcessNodeSequence.Create(nodeID, order, priority.Value, conditions);
+            if (_rootNode == null) _rootNode = sequenceNode;
+            else _rootNode.AddChild(sequenceNode);
+        }
+        // since we are passing a reference to the node, the builder will modify the node directly
+        sequenceBuilderAction?.Invoke(new LSProcessTreeBuilder(sequenceNode));
+
+        LSLogger.Singleton.Debug($"Sequence Node {actionDebug} [{nodeID}]",
+            source: (ClassName, null),
+            processId: null,
+            properties: new (string, object)[] {
                 ("nodeID", nodeID),
-                ("action", actionDebug),
                 ("builderProvided", sequenceBuilderAction != null),
-                ("parentBefore", parentBefore?.NodeID ?? "null"),
-                ("currentNode", _currentNode?.NodeID ?? "null"),
                 ("rootNode", _rootNode?.NodeID ?? "null"),
-                ("order", order),
-                ("priority", priority),
+                ("order", sequenceNode.Order),
+                ("priority", sequenceNode.Priority),
                 ("hasConditions", conditions != null && conditions.Length > 0),
                 ("overrideConditions", overrideConditions),
                 ("method", nameof(Sequence))
@@ -279,55 +335,55 @@ public class LSProcessTreeBuilder {
             bool overrideConditions = false,
             params LSProcessNodeCondition?[] conditions) {
 
-        var parentBefore = _currentNode;
-        int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        getChild(nodeID, out ILSProcessNode? existingNode);
-
-        if (existingNode is not LSProcessNodeSelector selectorNode) {
-            //if existingNode is not null here is means is not a selector node
-            if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a selector node.");
-            // we keep the original order of the existing node
-            // no current node exists, so we are creating the root node or node does not exist or node exists but is not selector
-            priority ??= LSProcessPriority.NORMAL; // default priority
-            selectorNode = LSProcessNodeSelector.Create(nodeID, order, priority.Value, conditions);
-            // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventSelectorNode we should throw an exception.
-            _currentNode?.RemoveChild(nodeID);
-        } else {
-            // existing node is a selector node
-            // if fields are not provided keep the existing values
-            priority ??= selectorNode.Priority;
-
-            // update values
-            selectorNode.Priority = priority.Value;
-            selectorNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, selectorNode.Conditions, conditions);
-        }
-        // when we reach this point, selectorNode is either a new node or the existing selector node
-        ILSProcessLayerNode node = selectorBuilderAction?.Invoke(new LSProcessTreeBuilder(selectorNode)).Build() ?? selectorNode;
-        // we only add the node if it was newly created and we had a current context
-        if (parentBefore != null && existingNode == null) parentBefore.AddChild(node);
-        // If there was no root yet, this node becomes the root
-        if (_rootNode == null) _rootNode = node;
-        // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
-        _currentNode = (parentBefore == null || selectorBuilderAction == null) ? node : parentBefore;
+        var childFound = getChild(nodeID, out ILSProcessNode? existingNode);
         // Flow debug logging
-        var actionDebug = existingNode == null ? "created" : "updated";
-        LSLogger.Singleton.Debug($"{ClassName}.Selector: [{nodeID}] {actionDebug}.",
+        var actionDebug = childFound ? "update" : "create";
+        LSLogger.Singleton.Debug($"{ClassName}.Selector: {actionDebug} [{nodeID}]",
             source: ("LSProcessSystem", null),
             properties: ("hideNodeID", true));
+        int order = _rootNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
 
-        // Detailed debug logging
-        LSLogger.Singleton.Debug($"Node Selector {actionDebug}.",
+        if (existingNode is LSProcessNodeSelector selectorNode) {
+            // if fields are not provided keep the existing values
+            selectorNode.Priority = priority ?? selectorNode.Priority;
+            selectorNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, selectorNode.Conditions, conditions);
+        } else if (childFound) {
+            // it does not make sense to modify a selector child when the existing node is a sequence, parallel or handler.
+            LSLogger.Singleton.Warning($"Node [{nodeID}] exists but is not a selector node, builder not processed.",
+                source: (ClassName, null),
+                properties: new (string, object)[] {
+                    ("nodeID", nodeID),
+                    ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                    ("existingNode", existingNode?.GetType().Name ?? "n/a"),
+                    ("nodeOrder", existingNode?.Order.ToString() ?? "n/a"),
+                    ("nodePriority", existingNode?.Priority.ToString() ?? "n/a"),
+                    ("order", order),
+                    ("priority", priority?.ToString() ?? "n/a"),
+                    ("overrideConditions", overrideConditions),
+                    ("conditions", conditions != null ? conditions.Length.ToString() : "n/a"),
+                    ("method", nameof(Sequence))
+                });
+            return this;
+        } else {
+            priority ??= LSProcessPriority.NORMAL; // default priority
+            selectorNode = LSProcessNodeSelector.Create(nodeID, order, priority.Value, conditions);
+            // If there is no root node, this becomes the root, otherwise add to root node as child
+            if (_rootNode == null) _rootNode = selectorNode;
+            else _rootNode.AddChild(selectorNode);
+        }
+        // since we are passing a reference to the node, the builder will modify the node directly
+        selectorBuilderAction?.Invoke(new LSProcessTreeBuilder(selectorNode));
+
+        LSLogger.Singleton.Debug($"Selector Node {actionDebug} [{nodeID}].",
             source: (ClassName, null),
+            processId: null,
             properties: new (string, object)[] {
                 ("nodeID", nodeID),
-                ("action", actionDebug),
                 ("builderProvided", selectorBuilderAction != null),
-                ("parentBefore", parentBefore?.NodeID ?? "null"),
-                ("currentNode", _currentNode?.NodeID ?? "null"),
-                ("rootNode", _rootNode?.NodeID ?? "null"),
-                ("order", order),
-                ("priority", priority),
-                ("hasConditions", conditions != null && conditions.Length > 0),
+                ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                ("order", selectorNode.Order.ToString()),
+                ("priority", selectorNode.Priority.ToString()),
+                ("conditions", conditions.Length.ToString()),
                 ("overrideConditions", overrideConditions),
                 ("method", nameof(Selector))
             });
@@ -387,61 +443,64 @@ public class LSProcessTreeBuilder {
             params LSProcessNodeCondition?[] conditions) {
 
         ILSProcessNode? existingNode = null;
-        var parentBefore = _currentNode;
-        int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        if (_currentNode == null || !getChild(nodeID, out existingNode) || existingNode is not LSProcessNodeParallel parallelNode) {
-            // we keep the original order of the existing node
-            order = existingNode?.Order ?? order;
-            // no current node exists, so we are creating the root node or node does not exist or node exists but is not parallel
-            priority ??= LSProcessPriority.NORMAL;
+        int order = _rootNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
+        var childFound = getChild(nodeID, out existingNode);
+        //flow debug logging
+        var actionDebug = childFound ? "update" : "create";
+        LSLogger.Singleton.Debug($"{ClassName}.Parallel: {actionDebug} [{nodeID}]",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
+        if (existingNode is LSProcessNodeParallel parallelNode) {
+            // if fields are not provided keep the existing values
+            parallelNode.NumRequiredToSucceed = numRequiredToSucceed ?? parallelNode.NumRequiredToSucceed;
+            parallelNode.NumRequiredToFailure = numRequiredToFailure ?? parallelNode.NumRequiredToFailure;
+            parallelNode.Priority = priority ?? parallelNode.Priority;
+            parallelNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, parallelNode.Conditions, conditions);
+        } else if (childFound) {
+            // it does not make sense to modify a parallel child when the existing node is a sequence, selector or handler.
+            LSLogger.Singleton.Warning($"Node [{nodeID}] exists but is not a parallel node.",
+                source: (ClassName, null),
+                properties: new (string, object)[] {
+                    ("nodeID", nodeID),
+                    ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                    ("existingNode", existingNode?.GetType().Name ?? "n/a"),
+                    ("nodeOrder", existingNode?.Order.ToString() ?? "n/a"),
+                    ("nodePriority", existingNode?.Priority.ToString() ?? "n/a"),
+                    ("order", order),
+                    ("priority", priority?.ToString() ?? "n/a"),
+                    ("numRequiredToSucceed", numRequiredToSucceed?.ToString() ?? "n/a"),
+                    ("numRequiredToFailure", numRequiredToFailure?.ToString() ?? "n/a"),
+                    ("overrideConditions", overrideConditions),
+                    ("conditions", conditions != null ? conditions.Length.ToString() : "n/a"),
+                    ("method", nameof(Parallel))
+                });
+            return this;
+        } else {
+            //new parallel node
+            priority ??= LSProcessPriority.NORMAL; // default priority
             numRequiredToSucceed ??= 0;
             numRequiredToFailure ??= 0;
             parallelNode = LSProcessNodeParallel.Create(nodeID, order, numRequiredToSucceed.Value, numRequiredToFailure.Value, priority.Value, conditions);
-            // If we are overriding the node, we need to remove the existing one, but if the existingNode is not LSEventParallelNode we should throw an exception.
-            //if existingNode is not null here is means is not a parallel node
-            if (existingNode != null) throw new LSException($"Node with ID '{nodeID}' already exists in the current context and is not a parallel node.");
-            _currentNode?.RemoveChild(nodeID);
-        } else {
-            // node exists and is a parallel node
-            // if fields are not provided, keep existing values
-            numRequiredToSucceed ??= parallelNode.NumRequiredToSucceed;
-            numRequiredToFailure ??= parallelNode.NumRequiredToFailure;
-            priority ??= parallelNode.Priority;
-            // update values
-            parallelNode.NumRequiredToSucceed = numRequiredToSucceed.Value;
-            parallelNode.NumRequiredToFailure = numRequiredToFailure.Value;
-            parallelNode.Priority = priority.Value;
-            parallelNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, parallelNode.Conditions, conditions);
+            // If there is no root node, this becomes the root, otherwise add to root node
+            if (_rootNode == null) _rootNode = parallelNode;
+            else _rootNode.AddChild(parallelNode);
         }
-        // when we reach this point, parallelNode is either a new node or the existing parallel node
-        ILSProcessLayerNode node = parallelBuilderAction?.Invoke(new LSProcessTreeBuilder(parallelNode)).Build() ?? parallelNode;
-        // we only add the node if it was newly created and we had a current context
-        if (parentBefore != null && existingNode == null) parentBefore.AddChild(node);
-        // If there was no root yet, this node becomes the root
-        if (_rootNode == null) _rootNode = node;
-        // Navigation: if we created a root (no parent) or no sub-builder provided, navigate into the node; otherwise keep the parent to allow siblings
-        _currentNode = (parentBefore == null || parallelBuilderAction == null) ? node : parentBefore;
-        // Flow debug logging
-        var actionDebug = existingNode == null ? "created" : "updated";
-        LSLogger.Singleton.Debug($"{ClassName}.Parallel: [{nodeID}] {actionDebug}.",
-            source: ("LSProcessSystem", null),
-            properties: ("hideNodeID", true));
-
-        // Detailed debug logging
-        LSLogger.Singleton.Debug($"Node Parallel {actionDebug}.",
+        // since we are passing a reference to the node, the builder will modify the node directly
+        parallelBuilderAction?.Invoke(new LSProcessTreeBuilder(parallelNode));
+        // detailed debug logging
+        LSLogger.Singleton.Debug($"Parallel Node {actionDebug} [{nodeID}].",
             source: (ClassName, null),
+            processId: null,
             properties: new (string, object)[] {
                 ("nodeID", nodeID),
                 ("action", actionDebug),
                 ("builderProvided", parallelBuilderAction != null),
-                ("rootNode", _rootNode?.NodeID ?? "null"),
-                ("parentBefore", parentBefore?.NodeID ?? "null"),
-                ("currentNode", _currentNode?.NodeID ?? "null"),
-                ("numRequiredToSucceed", numRequiredToSucceed?.ToString() ?? "null"),
-                ("numRequiredToFailure", numRequiredToFailure?.ToString() ?? "null"),
-                ("order", order),
-                ("priority", priority?.ToString() ?? "null"),
-                ("hasConditions", conditions != null && conditions.Length > 0),
+                ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                ("order", parallelNode.Order.ToString()),
+                ("priority", parallelNode.Priority.ToString()),
+                ("numRequiredToSucceed", parallelNode.NumRequiredToSucceed.ToString()),
+                ("numRequiredToFailure", parallelNode.NumRequiredToFailure.ToString()),
+                ("conditions", conditions.Length.ToString()),
                 ("overrideConditions", overrideConditions),
                 ("method", nameof(Parallel))
             });
@@ -453,7 +512,6 @@ public class LSProcessTreeBuilder {
     /// Merges a sub-layer node hierarchy into the current context with intelligent conflict resolution.
     /// </summary>
     /// <param name="subLayer">The sub-layer node hierarchy to merge into the current context.</param>
-    /// <param name="mergeBuilder">Optional delegate for building additional content within the merged hierarchy before integration.</param>
     /// <returns>The current builder instance for method chaining.</returns>
     /// <exception cref="LSArgumentNullException">Thrown when subLayer is null.</exception>
     /// <exception cref="LSException">Thrown when no current context exists and subLayer is empty.</exception>
@@ -488,69 +546,102 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Seamless Integration</strong>: Built result is integrated using standard merge logic</description></item>
     /// </list>
     /// </remarks>
-    public LSProcessTreeBuilder Merge(ILSProcessLayerNode subLayer, LSProcessBuilderAction? mergeBuilder = null) {
-        if (subLayer == null) throw new LSArgumentNullException(nameof(subLayer), "Sublayer null.");
-        // apply the optional builder to the sub-layer before merging
-        var parentBefore = _currentNode;
-        ILSProcessLayerNode subLayerRootNode = mergeBuilder?.Invoke(new LSProcessTreeBuilder(subLayer)).Build() ?? subLayer;
-        if (_currentNode == null) {
-            if (subLayer.GetChildren().Length == 0) throw new LSException("Provided sublayer invalid.");
-            // no current node, merge as root
-            _currentNode = subLayerRootNode;
-            _rootNode = subLayerRootNode;
-        } else if (_currentNode.NodeID == subLayer.NodeID) {
-            // merging into root itself
-            if (_currentNode.GetType() == subLayerRootNode.GetType()) {
-                // same type: merge contents
-                mergeRecursive(_currentNode, subLayerRootNode);
-            } else {
-                // different types: replace root container
-                _currentNode = subLayerRootNode;
-                _rootNode = subLayerRootNode;
-            }
-        } else {
-            // merging into current node
-            var existing = _currentNode.GetChild(subLayerRootNode.NodeID);
-            if (existing == null) {
-                _currentNode.AddChild(subLayerRootNode);
-            } else if (existing is ILSProcessLayerNode existingLayer && subLayerRootNode is ILSProcessLayerNode subLayerNode) {
-                // If container types differ, replace; otherwise merge recursively
-                if (existing.GetType() != subLayerRootNode.GetType()) {
-                    _currentNode.RemoveChild(subLayerRootNode.NodeID);
-                    _currentNode.AddChild(subLayerRootNode);
-                } else {
-                    mergeRecursive(existingLayer, subLayerNode);
-                }
-            } else {
-                // Different types or non-layer nodes: replace
-                _currentNode.RemoveChild(subLayerRootNode.NodeID);
-                _currentNode.AddChild(subLayerRootNode);
-            }
-        }
-        // Flow debug logging
-        var actionDebug = parentBefore == null ? "as root" : $"into [{parentBefore.NodeID}]";
-        LSLogger.Singleton.Debug($"{ClassName}.Merge: [{subLayer.NodeID}] merged {actionDebug}.",
-            source: ("LSProcessSystem", null), properties: ("hideNodeID", true));
-        // Detailed debug logging
-        LSLogger.Singleton.Debug($"Merged Sub-Layer {actionDebug}",
-            source: (ClassName, null),
+    public LSProcessTreeBuilder Merge(ILSProcessLayerNode subLayer) {
+        if (subLayer == null) {
+            //log warning
+            LSLogger.Singleton.Warning($"Cannot merge an invalid node", (ClassName, true),
             properties: new (string, object)[] {
-                ("subLayerID", subLayer.NodeID),
-                ("action", actionDebug),
-                ("builderProvided", mergeBuilder != null),
-                ("rootNode", _rootNode?.NodeID ?? "null"),
-                ("parentBefore", parentBefore?.NodeID ?? "null"),
-                ("currentNode", _currentNode?.NodeID ?? "null"),
+                ("subLayer", "n/a"),
+                ("rootNode", _rootNode?.NodeID ?? "n/a"),
                 ("method", nameof(Merge))
             });
-        return this; // Return the builder for method chaining
+            throw new LSArgumentNullException(nameof(subLayer), "Provided subLayer is null.");
+        }
+        LSLogger.Singleton.Debug($"{ClassName}.Merge: [{subLayer.NodeID}] into [{_rootNode?.NodeID ?? "n/a"}]",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
+        if (_rootNode == null) {
+            //NOTE: we don't need to merge recursive if the root is null, but maybe we need to check if the subLayer has children?
+            //if (subLayer.GetChildren().Length == 0) throw new LSException("Provided sublayer invalid.");
+            _rootNode = subLayer;
+            LSLogger.Singleton.Debug($"Root node set to [{subLayer.NodeID}]",
+                source: ("LSProcessSystem", null),
+                properties: ("hideNodeID", true));
+        } else if (_rootNode.NodeID == subLayer.NodeID) { // merging into root node if they have the same ID
+            if (_rootNode.GetType() != subLayer.GetType()) {
+                // different types log warning
+                LSLogger.Singleton.Warning($"Node [{subLayer.NodeID}] is different from the root node.",
+                    source: (ClassName, true),
+                    properties: new (string, object)[] {
+                        ("nodeID", subLayer.NodeID),
+                        ("subLayerType", subLayer.GetType().Name),
+                        ("rootType", _rootNode.GetType().Name),
+                        ("method", nameof(Merge))
+                    });
+                return this;
+            }
+            LSLogger.Singleton.Debug($"Root and subLayer have the same ID [{subLayer.NodeID}], merging contents.",
+                source: ("LSProcessSystem", null),
+                properties: ("hideNodeID", true));
+            mergeRecursive(_rootNode, subLayer);
+        } else {
+            var existingLayer = _rootNode.GetChild(subLayer.NodeID) as ILSProcessLayerNode;
+            if (existingLayer == null) {
+                // no existing node with the same ID, just add the entire subLayer directly
+                LSLogger.Singleton.Debug($"Merge: [{subLayer.NodeID}] [{_rootNode.NodeID}]",
+                    source: ("LSProcessSystem", null),
+                    properties: ("hideNodeID", true));
+                _rootNode.AddChild(subLayer);
+                return this;
+            } else mergeNode(_rootNode, subLayer);
+        }
+
+        return this;
+    }
+    private void mergeNode(ILSProcessLayerNode targetLayerNode, ILSProcessNode sourceNode) {
+        var existingChild = targetLayerNode.GetChild(sourceNode.NodeID);
+        if (existingChild == null) {
+            LSLogger.Singleton.Debug($"mergeNode no existing child found for: [{sourceNode.NodeID}] in [{targetLayerNode.NodeID}]",
+                source: ("LSProcessSystem", null),
+                properties: ("hideNodeID", true));
+            targetLayerNode.AddChild(sourceNode);
+            return;
+        }
+
+        // Node exists, check if both are layer nodes for recursive merging
+        if (existingChild is ILSProcessLayerNode existingLayer && sourceNode is ILSProcessLayerNode subNodeLayer) {
+            // Both are layer nodes - merge recursively
+            LSLogger.Singleton.Debug($"mergeNode  merging recursively: [{existingLayer.NodeID}] [{subNodeLayer.NodeID}]",
+                source: ("LSProcessSystem", null),
+                properties: ("hideNodeID", true));
+            mergeRecursive(existingLayer, subNodeLayer);
+        } else if (existingChild.GetType() == sourceNode.GetType()) {
+            // Same type but not layer nodes (e.g., both handlers) - replace with sourceNode
+            LSLogger.Singleton.Debug($"mergeNode  replacing same type node: [{existingChild.NodeID}]",
+                source: ("LSProcessSystem", null),
+                properties: ("hideNodeID", true));
+            targetLayerNode.RemoveChild(sourceNode.NodeID);
+            targetLayerNode.AddChild(sourceNode);
+        } else {
+            // Different types - log warning and continue
+            LSLogger.Singleton.Warning($"Node [{sourceNode.NodeID}] already exists but is different type.",
+                source: (ClassName, true),
+                properties: new (string, object)[] {
+                            ("nodeID", sourceNode.NodeID),
+                            ("subNodeType", sourceNode.GetType().Name),
+                            ("existingType", existingChild.GetType().Name),
+                            ("method", nameof(mergeNode))
+                });
+        }
+
+
     }
 
     /// <summary>
     /// Recursively merges the contents of a source node hierarchy into a target node hierarchy.
     /// </summary>
-    /// <param name="currentNode">The target layer node that will receive merged content.</param>
-    /// <param name="subNode">The source layer node whose content will be merged into the target.</param>
+    /// <param name="targetNode">The target layer node that will receive merged content.</param>
+    /// <param name="sourceNode">The source layer node whose content will be merged into the target.</param>
     /// <remarks>
     /// <para><strong>Recursive Merge Logic:</strong></para>
     /// <list type="bullet">
@@ -575,80 +666,72 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Reference Integrity</strong>: Maintains proper parent-child relationships</description></item>
     /// </list>
     /// </remarks>
-    private void mergeRecursive(ILSProcessLayerNode currentNode, ILSProcessLayerNode subNode) {
+    private void mergeRecursive(ILSProcessLayerNode targetNode, ILSProcessLayerNode sourceNode) {
         // Iterate through all children of the source node
-        foreach (var subNodeChild in subNode.GetChildren()) {
-            var existingChild = currentNode.GetChild(subNodeChild.NodeID);
-
-            if (existingChild != null) {
-                // Node exists, check if both are layer nodes for recursive merging
-                if (existingChild is ILSProcessLayerNode existingLayer && subNodeChild is ILSProcessLayerNode subNodeLayer) {
-                    // Both are layer nodes - merge recursively
-                    mergeRecursive(existingLayer, subNodeLayer);
-                } else if (existingChild.GetType() == subNodeChild.GetType()) {
-                    // Same type but not layer nodes (e.g., both handlers) - replace with subNodeChild
-                    currentNode.RemoveChild(subNodeChild.NodeID);
-                    currentNode.AddChild(subNodeChild);
-                } else {
-                    // Different types - replace with subNodeChild
-                    currentNode.RemoveChild(subNodeChild.NodeID);
-                    currentNode.AddChild(subNodeChild);
-                }
-            } else {
-                // Node doesn't exist
-                // Add the entire subNodeChild directly
-                // I don't think this should be cloned, when builder is used it should assume that all nodes are already either clones of global nodes or new nodes
-                currentNode.AddChild(subNodeChild);
-            }
+        foreach (var sourceChild in sourceNode.GetChildren()) {
+            mergeNode(targetNode, sourceChild);
         }
     }
 
-    public LSProcessTreeBuilder Inverter(string nodeID, LSProcessBuilderAction builder, LSProcessPriority? priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
+    /// <summary>
+    /// Differently from others, a inverter node always has one child, so the builder action is required.
+    /// </summary>
+    /// <param name="nodeID"></param>
+    /// <param name="builder"></param>
+    /// <param name="priority"></param>
+    /// <param name="conditions"></param>
+    /// <returns></returns>
+    public LSProcessTreeBuilder Inverter(string nodeID, LSProcessBuilderAction builder, LSProcessPriority? priority = LSProcessPriority.NORMAL, bool overrideConditions = false, params LSProcessNodeCondition?[] conditions) {
         ILSProcessNode? existingNode = null;
-        var parentBefore = _currentNode;
-        int order = _currentNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
-        if (getChild(nodeID, out existingNode) && existingNode is LSProcessNodeInverter inverterNode) {
+        int order = _rootNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
+        var childFound = getChild(nodeID, out existingNode);
+        // Flow debug logging
+        var actionDebug = childFound ? "create" : "update";
+        LSLogger.Singleton.Debug($"{ClassName}.Inverter: [{nodeID}] {actionDebug}.",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
+
+        if (existingNode is LSProcessNodeInverter inverterNode) {
             // existing node is a inverter node
             // if fields are not provided keep the existing values
             priority ??= existingNode.Priority;
             // update values
             inverterNode.Priority = priority.Value;
-            inverterNode.Conditions = LSProcessHelpers.UpdateConditions(true, inverterNode.Conditions, conditions);
+            inverterNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, inverterNode.Conditions, conditions);
         } else {
-            // existingNode is null or is not a inverter node, we will replace existing one
-            //TODO: choose behaviour when existingNode is not inverter (exception/replace/navigate)
+            if (childFound) {
+                //child is not an inverter node, log warning
+                LSLogger.Singleton.Warning($"Node [{nodeID}] exists but is not an inverter node.",
+                    source: (ClassName, null),
+                    properties: new (string, object)[] {
+                        ("nodeID", nodeID),
+                        ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                        ("existingNode", existingNode?.GetType().Name ?? "n/a"),
+                        ("nodeOrder", existingNode?.Order.ToString() ?? "n/a"),
+                        ("nodePriority", existingNode?.Priority.ToString() ?? "n/a"),
+                        ("order", order),
+                        ("priority", priority?.ToString() ?? "n/a"),
+                        ("conditions", conditions.Length.ToString()),
+                        ("method", nameof(Inverter))
+                    });
+                return this;
+            }
             priority ??= LSProcessPriority.NORMAL; // default priority
             inverterNode = LSProcessNodeInverter.Create(nodeID, priority.Value, order, conditions);
-            _currentNode?.RemoveChild(nodeID); // remove existing node if exists
+            if (_rootNode == null) _rootNode = inverterNode;
+            else _rootNode.AddChild(inverterNode);
         }
-
-        // Create the inverter node
-        var inverterTreeBuilder = new LSProcessTreeBuilder(inverterNode);
-        if (builder(inverterTreeBuilder).Build() != inverterNode) {
-            throw new LSException("Builder should return the created inverter node.");
-        }
-        if (parentBefore != null) parentBefore.AddChild(inverterNode);
-        else {
-            _currentNode = inverterNode;
-            _rootNode = inverterNode;
-        }
-        // Flow debug logging
-        string actionDebug = $"{(existingNode == null ? "created" : (existingNode is LSProcessNodeInverter ? "updated" : "replaced"))}";
-        LSLogger.Singleton.Debug($"{ClassName}.Inverter: [{nodeID}] {actionDebug}.",
-            source: ("LSProcessSystem", null),
-            properties: ("hideNodeID", true));
+        builder(new LSProcessTreeBuilder(inverterNode));
         // Detailed debug logging
         LSLogger.Singleton.Debug($"Node Inverter {actionDebug}",
             source: (ClassName, null),
             properties: new (string, object)[] {
                 ("nodeID", nodeID),
-                ("action", actionDebug),
-                ("builderProvided", builder != null),
-                ("rootNode", _rootNode?.NodeID ?? "null"),
-                ("parentBefore", parentBefore?.NodeID ?? "null"),
-                ("currentNode", _currentNode?.NodeID ?? "null"),
-                ("order", order),
-                ("priority", priority.HasValue ? priority.Value.ToString() : "null"),
+                ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                ("nodeOrder", inverterNode.Order.ToString()),
+                ("nodePriority", inverterNode.Priority.ToString()),
+                ("conditions", conditions.Length.ToString()),
+                ("overrideConditions", true),
                 ("method", nameof(Inverter))
             });
         return this;
@@ -683,22 +766,17 @@ public class LSProcessTreeBuilder {
     /// </remarks>
     public ILSProcessLayerNode Build() {
         if (_rootNode == null) {
-            // Flow debug logging
-            if (_currentNode == null) throw new LSException("No root or current node to build.");
-            LSLogger.Singleton.Debug($"{ClassName}.Build: currentNode [{_currentNode.NodeID}].",
-                source: ("LSProcessSystem", null),
-                properties: ("hideNodeID", true));
-            return _currentNode;
+            throw new LSException("No root node cannot build.");
         }
         // Flow debug logging
-        LSLogger.Singleton.Debug($"{ClassName}.Build: rootNode [{_rootNode.NodeID}].",
-            source: ("LSProcessSystem", null),
-            properties: ("hideNodeID", true));
+        // LSLogger.Singleton.Debug($"{ClassName}.Build: rootNode [{_rootNode.NodeID}].",
+        //     source: ("LSProcessSystem", null),
+        //     properties: ("hideNodeID", true));
         return _rootNode;
     }
 
     /// <summary>
-    /// Attempts to retrieve a child node from the current context by its identifier.
+    /// Attempts to retrieve a child node from the root node by its identifier.
     /// </summary>
     /// <param name="nodeID">The unique identifier of the child node to locate.</param>
     /// <param name="child">When this method returns, contains the found child node if successful, or null if not found.</param>
@@ -721,8 +799,8 @@ public class LSProcessTreeBuilder {
     /// </remarks>
     private bool getChild(string nodeID, out ILSProcessNode? child) {
         child = null;
-        if (_currentNode == null) return false;
-        child = _currentNode.GetChild(nodeID);
+        if (_rootNode == null) return false;
+        child = _rootNode.GetChild(nodeID);
         return child != null;
     }
 }

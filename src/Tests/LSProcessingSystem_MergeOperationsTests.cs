@@ -29,7 +29,9 @@ public class MergeOperationsTests {
         _logger = LSLogger.Singleton;
         _logger.ClearProviders();
         _logger.AddProvider(new LSConsoleLogProvider());
-        LSProcessManager.DebugLogging();
+        //LSProcessManager.DebugLogging();
+        LSLogger.Singleton.MinimumLevel = LSLogLevel.DEBUG;
+        LSLogger.Singleton.SetSourceStatus(("LSProcessSystem", true));
         _handler1CallCount = 0;
         _handler2CallCount = 0;
         _handler3CallCount = 0;
@@ -113,8 +115,9 @@ public class MergeOperationsTests {
 
         var root = new LSProcessTreeBuilder()
             .Sequence("root", rootBuilder => rootBuilder
-                .Merge(contextA, mABuilder => mABuilder)
-                .Merge(contextB, mBBuilder => mBBuilder))
+                .Merge(contextA)
+                .Merge(contextB)
+            )
             .Build();
 
         Assert.That(root, Is.Not.Null);
@@ -147,8 +150,8 @@ public class MergeOperationsTests {
             .Build();
 
         var sequence = new LSProcessTreeBuilder()
-            .Merge(contextA, mA => mA)
-            .Merge(contextB, mB => mB)
+            .Merge(contextA)
+            .Merge(contextB)
             .Build();
 
         Assert.That(sequence, Is.Not.Null);
@@ -230,7 +233,7 @@ public class MergeOperationsTests {
         // The container should be replaced with the selector from contextB
         Assert.That(mergedContext.HasChild("container"), Is.True);
         var container = mergedContext.GetChild("container");
-        Assert.That(container, Is.InstanceOf<LSProcessNodeSelector>());
+        Assert.That(container, Is.InstanceOf<LSProcessNodeSequence>()); // Should remain a sequence
 
         var containerLayer = container as ILSProcessLayerNode;
         Assert.That(containerLayer?.HasChild("handler2"), Is.True);

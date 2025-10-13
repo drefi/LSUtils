@@ -157,9 +157,14 @@ public class LSProcessManager {
     /// <para>All contexts are cloned before merging to ensure the original registered contexts remain unmodified.</para>
     /// </remarks>
     public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localNode = null) {
-        var previousLoggerStatus = LSLogger.Singleton.GetSourceStatus(ClassName);
+        LSLogger.Singleton.Debug($"{ClassName}.GetRootNode<{processType.Name}>: [{localNode?.NodeID ?? "n/a"}] instance: {instance?.ID.ToString() ?? "n/a"}",
+            source: ("LSProcessSystem", null),
+            properties: ("hideNodeID", true));
+        var previousClassNameStatus = LSLogger.Singleton.GetSourceStatus(ClassName);
+        var previousLSProcessSystemStatus = LSLogger.Singleton.GetSourceStatus("LSProcessSystem");
         //disable detailed logging during get node (avoid unnecessary logging), flow logging remains active
         LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: false));
+        LSLogger.Singleton.SetSourceStatus((sourceID: "LSProcessSystem", isEnabled: false));
         // if processType is not registered, create a new process dictionary for this type.
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
@@ -168,25 +173,23 @@ public class LSProcessManager {
         LSProcessTreeBuilder builder = new LSProcessTreeBuilder();
         if (processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
             // we have a global node to merge. We clone the global node to avoid modifying the original.
-            //builder.Merge(globalNode.Clone());
-            builder.Merge(globalNode.Clone());
+            var clone = globalNode.Clone();
+            builder.Merge(clone);
         }
         // merge instance specific node if available. We clone the instance node to avoid modifying the original.
         ILSProcessLayerNode? instanceNode = null;
         if (instance != null && processDict.TryGetValue(instance, out instanceNode)) {
-            builder.Merge(instanceNode.Clone());
+            var clone = instanceNode.Clone();
+            builder.Merge(clone);
         }
         // local context is merged last, so it has priority over global and instance contexts.
         if (localNode != null) {
             builder.Merge(localNode);
         }
-        var root = builder.Build();
         //restore detailed logger status
-        LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: previousLoggerStatus));
-        //flow debug logging
-        LSLogger.Singleton.Debug($"{ClassName}.GetRootNode<{processType.Name}>: [{root.NodeID}]",
-            source: ("LSProcessSystem", null),
-            properties: ("hideNodeID", true));
+        LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: previousClassNameStatus));
+        LSLogger.Singleton.SetSourceStatus((sourceID: "LSProcessSystem", isEnabled: previousLSProcessSystemStatus));
+        var root = builder.Build();
         // debug log with details
         LSLogger.Singleton.Debug("Manager Get Root Tree",
             source: (ClassName, null),
