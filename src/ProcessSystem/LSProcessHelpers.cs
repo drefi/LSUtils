@@ -2,24 +2,26 @@ using System.Linq;
 
 namespace LSUtils.ProcessSystem;
 /// <summary>
-/// Utility class providing helper methods for working with LSProcessNodeCondition delegates.
-/// Centralizes condition evaluation logic and provides consistent behavior across the LSProcessing system.
+/// Static utility class providing helper methods for LSProcessing system operations.
+/// <para>
+/// LSProcessHelpers centralizes common processing operations including condition evaluation,
+/// node path parsing, and condition delegate management. This class ensures consistent
+/// behavior across all processing scenarios and simplifies condition handling throughout
+/// the system architecture.
+/// </para>
+/// <para>
+/// <b>Core Capabilities:</b><br/>
+/// - Condition evaluation with short-circuit logic and exception safety<br/>
+/// - Node path parsing for hierarchical node addressing<br/>
+/// - Condition delegate composition and update management<br/>
+/// - Standardized evaluation patterns used by all node types
+/// </para>
+/// <para>
+/// <b>Integration Points:</b><br/>
+/// Used extensively by all layer nodes during child filtering, by the builder system
+/// for condition management, and by the processing pipeline for path resolution.
+/// </para>
 /// </summary>
-/// <remarks>
-/// <para>
-/// <b>Centralized Condition Management:</b><br/>
-/// This static utility class provides standardized methods for evaluating node conditions, ensuring 
-/// consistent behavior across all processing scenarios and simplifying condition handling throughout 
-/// the LSProcessing system architecture.
-/// </para>
-/// <para>
-/// <b>Design Benefits:</b><br/>
-/// • Consistency: Uniform condition evaluation logic across all node types<br/>
-/// • Error Handling: Centralized exception handling for condition failures<br/>
-/// • Performance: Optimized evaluation with short-circuit logic<br/>
-/// • Maintainability: Single point of truth for condition evaluation behavior
-/// </para>
-/// </remarks>
 public static class LSProcessHelpers {
     public static bool SplitNode(string node, out string child, out string[]? grandChildren) {
         var parts = node.Split('.');

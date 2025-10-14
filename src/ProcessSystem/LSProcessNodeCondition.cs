@@ -1,65 +1,51 @@
 namespace LSUtils.ProcessSystem;
 /// <summary>
-/// Delegate that represents a condition function for determining whether a node should be processed.
-/// Provides pluggable logic for conditional execution based on process data and node context within the LSProcessing system.
+/// Delegate for conditional node execution based on process state and node context.
+/// <para>
+/// LSProcessNodeCondition provides the foundation for implementing conditional execution
+/// within the processing system. Multiple conditions can be composed using delegate
+/// composition (+=) to create complex conditional logic, where ALL conditions must
+/// return true for the node to be eligible for processing.
+/// </para>
+/// <para>
+/// <b>Evaluation Strategy:</b><br/>
+/// - Short-circuit evaluation: stops at the first failing condition<br/>
+/// - AND logic: all conditions in the chain must pass<br/>
+/// - Exception safety: thrown exceptions are treated as failed conditions<br/>
+/// - Null handling: nodes without conditions are always eligible
+/// </para>
+/// <para>
+/// <b>Performance Guidelines:</b><br/>
+/// Conditions should be lightweight, deterministic functions without side effects.
+/// They are evaluated before every processing cycle and should return consistent
+/// results for the same inputs.
+/// </para>
 /// </summary>
-/// <param name="process">The process being executed, containing data for condition evaluation.</param>
-/// <param name="node">The node being evaluated, providing access to node metadata for condition logic.</param>
-/// <returns>True if the condition is met and the node should be processed, false otherwise.</returns>
-/// <remarks>
-/// <para>
-/// <b>Conditional Processing Framework:</b><br/>
-/// This delegate serves as the foundation for implementing conditional logic within the LSProcessing system,
-/// enabling fine-grained control over when nodes are eligible for execution based on runtime conditions.
-/// </para>
-/// <para>
-/// <b>Delegate Composition:</b><br/>
-/// Multiple conditions can be combined using delegate composition (+=). All conditions in the delegate 
-/// chain must return true for the node to be eligible for processing. This provides a powerful mechanism 
-/// for creating complex conditional logic through composition of simpler conditions.
-/// </para>
-/// <para>
-/// <b>Performance Considerations:</b><br/>
-/// • Execution Efficiency: Conditions are evaluated before processing, so they should be fast and lightweight<br/>
-/// • Pure Functions: Conditions should be pure functions without side effects to ensure predictable behavior<br/>
-/// • Deterministic Results: Conditions should return consistent results for the same inputs across multiple evaluations<br/>
-/// • Short-Circuit Evaluation: Evaluation stops at the first failing condition for optimal performance
-/// </para>
-/// <para>
-/// <b>Common Usage Patterns:</b><br/>
-/// • Process Type Filtering: Only execute nodes for specific process types or hierarchies<br/>
-/// • State Validation: Check preconditions and process state before allowing execution<br/>
-/// • Authorization Checks: Verify permissions and security constraints before processing<br/>
-/// • Resource Availability: Ensure required resources, services, or dependencies are available<br/>
-/// • Business Rules: Implement domain-specific business logic for conditional execution
-/// </para>
-/// <para>
-/// <b>Default Behavior:</b><br/>
-/// If no conditions are specified (null Conditions property), nodes use implicit default behavior 
-/// that makes them eligible for processing in all scenarios, equivalent to a condition that always returns true.
-/// </para>
+/// <param name="process">Process instance containing data and context for evaluation.</param>
+/// <param name="node">Node being evaluated, providing access to metadata and configuration.</param>
+/// <returns>True if the condition is satisfied and the node should be processed, false otherwise.</returns>
 /// <example>
-/// Simple condition example:
+/// Common condition patterns:
 /// <code>
-/// LSProcessNodeCondition userTypeCheck = (process, node) => 
-///     process.Data.ContainsKey("UserType") &amp;&amp; 
-///     process.Data["UserType"].ToString() == "Premium";
-/// </code>
+/// // Data presence check
+/// LSProcessNodeCondition hasUserData = (process, node) => 
+///     process.TryGetData&lt;string&gt;("userId", out _);
+///
+/// // Business logic condition  
+/// LSProcessNodeCondition isPremiumUser = (process, node) =>
+///     process.TryGetData&lt;string&gt;("userType", out var type) &amp;&amp; type == "Premium";
+///
+/// // Time-based condition
+/// LSProcessNodeCondition isBusinessHours = (process, node) => {
+///     var now = DateTime.Now;
+///     return now.Hour >= 9 &amp;&amp; now.Hour &lt;= 17 &amp;&amp; now.DayOfWeek != DayOfWeek.Weekend;
+/// };
+///
+/// // Combining conditions (ALL must pass)
+/// LSProcessNodeCondition combined = hasUserData + isPremiumUser + isBusinessHours;
 /// 
-/// Composite condition example:
-/// <code>
-/// LSProcessNodeCondition timeCheck = (process, node) => 
-///     DateTime.Now.Hour >= 9 &amp;&amp; DateTime.Now.Hour &lt;= 17;
-/// </code>
-/// 
-/// Combining conditions:
-/// <code>
-/// LSProcessNodeCondition combined = userTypeCheck + timeCheck;
-/// 
-/// // Usage in node creation
-/// builder.Handler("premium-handler", PremiumLogic)
-///        .WithCondition(combined);
+/// // Usage in builder
+/// builder.Handler("premium-handler", PremiumHandler, conditions: combined);
 /// </code>
 /// </example>
-/// </remarks>
 public delegate bool LSProcessNodeCondition(ILSProcess process, ILSProcessNode node);

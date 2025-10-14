@@ -2,147 +2,231 @@ namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 /// <summary>
-/// Core process interface representing an immutable data container with comprehensive state tracking.
-/// Processes serve as data carriers throughout the processing pipeline, providing access to 
-/// process metadata, processing state information, and associated data while maintaining clean 
-/// separation between process data and processing logic.
-/// 
-/// Processes are designed to be self-contained units of work that can be processed through 
-/// multiple phases without requiring external state management. All state properties are 
-/// read-only from the handler perspective to ensure immutability.
+/// Defines the contract for executable processes within the LSProcessSystem.
+/// <para>
+/// A process represents a unit of work that carries data through a configurable processing pipeline.
+/// Processes are state containers that can be executed against registered node hierarchies,
+/// supporting complex workflows with branching, parallel execution, and async operations.
+/// </para>
+/// <para>
+/// <b>Key Characteristics:</b><br/>
+/// - Immutable metadata (ID, CreatedAt) with mutable execution state<br/>
+/// - Internal key-value data store for inter-handler communication<br/>
+/// - Optional custom processing tree that merges with registered global contexts<br/>
+/// - Single execution model with support for Resume/Fail operations on waiting nodes<br/>
+/// - Built-in cancellation and completion tracking
+/// </para>
+/// <para>
+/// <b>Execution Flow:</b><br/>
+/// 1. Process created with auto-generated ID and timestamp<br/>
+/// 2. Optional WithProcessing() call to define custom processing logic<br/>
+/// 3. Execute() creates session and runs through merged node hierarchy<br/>
+/// 4. Process may enter WAITING state for external events<br/>
+/// 5. Resume()/Fail() methods handle asynchronous continuation<br/>
+/// 6. Process reaches terminal state (SUCCESS, FAILURE, CANCELLED)
+/// </para>
 /// </summary>
+/// <example>
+/// Basic process usage with custom processing logic:
+/// <code>
+/// public class MyCustomProcess : LSProcess {
+///     public string ProcessData { get; set; }
+/// }
+/// 
+/// var process = new MyCustomProcess { ProcessData = "test" };
+/// 
+/// // Optional: Add custom processing logic
+/// process.WithProcessing(builder => builder
+///     .Sequence("main", seq => seq
+///         .Handler("validate-data", session => {
+///             var data = session.Process.GetData&lt;string&gt;("processData");
+///             return string.IsNullOrEmpty(data) ? 
+///                 LSProcessResultStatus.FAILURE : 
+///                 LSProcessResultStatus.SUCCESS;
+///         })
+///         .Handler("process-data", session => {
+///             // Process the data
+///             return LSProcessResultStatus.SUCCESS;
+///         })
+///     )
+/// );
+/// 
+/// // Execute the process
+/// var result = process.Execute();
+/// </code>
+/// </example>
 public interface ILSProcess {
     /// <summary>
-    /// Unique identifier for this process instance.
-    /// Generated automatically when the process is created and remains constant throughout
-    /// the process's entire lifecycle.
+    /// Unique identifier automatically assigned at process creation.
+    /// Used for tracking, debugging, and associating processes with execution sessions.
     /// </summary>
     System.Guid ID { get; }
 
     /// <summary>
-    /// UTC timestamp when this process was created.
-    /// Provides timing information for process execution analytics, debugging, and audit trails.
+    /// UTC timestamp when this process instance was created.
+    /// Used for execution timing analysis, debugging, and audit trails.
     /// </summary>
     System.DateTime CreatedAt { get; }
 
     /// <summary>
-    /// Indicates whether the process execution was cancelled by a handler.
-    /// When true, no further phase processing will occur.
+    /// Indicates if the process has been cancelled and cannot continue execution.
+    /// 
+    /// Implementation Note: Determined by checking the root node status of the current
+    /// execution session. Returns false if no session exists (process not yet executed).
     /// </summary>
     bool IsCancelled { get; }
 
     /// <summary>
-    /// Indicates whether the process has completed execution through all phases.
-    /// A process is considered completed when the processing lifecycle is finished.
+    /// Indicates if the process has reached a terminal execution state.
+    /// 
+    /// Returns true when the root node status is SUCCESS, FAILURE, or CANCELLED.
+    /// Returns false if no execution session exists or if still in UNKNOWN/WAITING state.
     /// </summary>
     bool IsCompleted { get; }
 
     /// <summary>
-    /// Associates data with this process using a string key.
-    /// Allows handlers to store information that persists for the lifetime of the process
-    /// and can be accessed by subsequent handlers in the processing pipeline.
+    /// Stores typed data in the process's internal dictionary for inter-handler communication.
+    /// 
+    /// Data persists for the lifetime of the process and can be accessed by any handler
+    /// in the processing pipeline. Overwrites existing values with the same key.
     /// </summary>
-    /// <param name="key">The unique key to store the data under.</param>
-    /// <param name="value">The data value to store.</param>
+    /// <param name="key">String key for the data (case-sensitive)</param>
+    /// <param name="value">Typed value to store</param>
     void SetData<T>(string key, T value);
 
     /// <summary>
-    /// Retrieves strongly-typed data associated with this process.
-    /// Provides type-safe access to stored process data with compile-time type checking.
+    /// Retrieves strongly-typed data from the process's internal dictionary.
+    /// 
+    /// Throws exceptions for missing keys or type mismatches to ensure data integrity
+    /// in controlled environments where data presence is guaranteed.
     /// </summary>
-    /// <typeparam name="T">The expected type of the stored data.</typeparam>
-    /// <param name="key">The key used to store the data.</param>
-    /// <returns>The data cast to the specified type.</returns>
-    /// <exception cref="KeyNotFoundException">Thrown when the specified key is not found.</exception>
-    /// <exception cref="InvalidCastException">Thrown when the stored data cannot be cast to the specified type.</exception>
+    /// <typeparam name="T">Expected type of the stored data</typeparam>
+    /// <param name="key">String key for the data</param>
+    /// <returns>The stored value cast to type T</returns>
+    /// <exception cref="KeyNotFoundException">Key not found in internal dictionary</exception>
+    /// <exception cref="LSException">Stored value cannot be cast to type T</exception>
     T? GetData<T>(string key);
 
     /// <summary>
-    /// Attempts to retrieve strongly-typed data associated with this process.
-    /// Provides safe access to stored process data without throwing exceptions for missing keys or type mismatches.
+    /// Safely attempts to retrieve typed data without throwing exceptions.
+    /// 
+    /// Preferred method for optional data access or when data presence is uncertain.
+    /// Returns false for both missing keys and type conversion failures.
     /// </summary>
-    /// <typeparam name="T">The expected type of the stored data.</typeparam>
-    /// <param name="key">The key used to store the data.</param>
-    /// <param name="value">When this method returns, contains the retrieved value if successful, or the default value for T if unsuccessful.</param>
-    /// <returns>true if the data was found and successfully cast to the specified type; otherwise, false.</returns>
+    /// <typeparam name="T">Expected type of the stored data</typeparam>
+    /// <param name="key">String key for the data</param>
+    /// <param name="value">Output parameter containing the value or default(T)</param>
+    /// <returns>True if key exists and value can be cast to T, otherwise false</returns>
     bool TryGetData<T>(string key, out T? value);
 
     /// <summary>
-    /// Configures or extends the processing tree for this process using a builder action.
-    /// This will be merged with the root context before processing.
-    /// <see cref="LSProcessManager"/> root context is a parallel root node with no number.
-    /// Returns the process instance to allow chaining.
+    /// Defines custom processing logic specific to this process instance.
+    /// <para>
+    /// The provided builder creates a local processing tree that will be merged with
+    /// global and instance-specific contexts during execution. This enables process-specific
+    /// workflow customization while leveraging shared processing infrastructure.
+    /// </para>
+    /// <para>
+    /// <b>Context Merge Priority (highest to lowest):</b><br/>
+    /// 1. Local context (this method)<br/>
+    /// 2. Instance-specific context (registered with LSProcessManager)<br/>
+    /// 3. Global context (registered with LSProcessManager)
+    /// </para>
+    /// <para>
+    /// Can be called multiple times - subsequent calls extend the existing tree.
+    /// </para>
     /// </summary>
-    /// <param name="builder">Process tree builder action that defines the processing hierarchy.</param>
-    /// <param name="instance">Optional instance to associate with the process context.</param>
-    /// <returns>This process instance to enable method chaining.</returns>
-    /// <remarks>
-    /// <para><strong>Context Merging:</strong></para>
-    /// <list type="bullet">
-    /// <item><description>Custom processing trees are merged with global context during execution</description></item>
-    /// <item><description>Allows process-specific workflow customization while maintaining system consistency</description></item>
-    /// <item><description>Can be called multiple times to build complex hierarchies incrementally</description></item>
-    /// </list>
-    /// </remarks>
+    /// <param name="builder">Delegate that builds the processing node hierarchy</param>
+    /// <param name="layerType">Type of root layer node (PARALLEL, SEQUENCE, SELECTOR)</param>
+    /// <returns>This process instance for method chaining</returns>
+    /// <example>
+    /// Adding process-specific validation and processing logic:
+    /// <code>
+    /// var process = new MyCustomProcess();
+    /// 
+    /// process.WithProcessing(builder => builder
+    ///     .Sequence("validation-and-processing", seq => seq
+    ///         .Handler("validate-input", session => {
+    ///             var input = session.Process.TryGetData&lt;string&gt;("input", out var value) ? value : "";
+    ///             return string.IsNullOrEmpty(input) ? 
+    ///                 LSProcessResultStatus.FAILURE : 
+    ///                 LSProcessResultStatus.SUCCESS;
+    ///         })
+    ///         .Handler("transform-data", session => {
+    ///             // Process and transform the data
+    ///             session.Process.SetData("result", "processed_data");
+    ///             return LSProcessResultStatus.SUCCESS;
+    ///         })
+    ///     )
+    /// );
+    /// 
+    /// var result = process.Execute();
+    /// </code>
+    /// </example>
     ILSProcess WithProcessing(LSProcessBuilderAction builder, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL);
 
     /// <summary>
-    /// Execute the process through a context manager (or Singleton if not provided).
-    /// Creates an execution session and processes through the node hierarchy.
+    /// Executes the process through the registered processing pipeline.
+    /// 
+    /// Creates an execution session and processes through the merged node hierarchy
+    /// (local + instance-specific + global contexts). This is a single-use operation -
+    /// subsequent calls return the cached result from the first execution.
+    /// 
+    /// Execution Steps:
+    /// 1. Get merged root node from LSProcessManager
+    /// 2. Create LSProcessSession with this process as data carrier
+    /// 3. Execute session through node hierarchy
+    /// 4. Return final status (may be WAITING for async operations)
+    /// 
+    /// The process serves as the data container while the session manages execution state.
     /// </summary>
-    /// <param name="instance">Optional processable instance to use as context target for execution.</param>
-    /// <param name="contextManager">Optional context manager to use for processing. Uses singleton if not provided.</param>
-    /// <returns>The result status of the process execution (SUCCESS, FAILURE, WAITING, CANCELLED).</returns>
-    /// <remarks>
-    /// <para><strong>Execution Behavior:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Single Execution</strong>: Can only be called once per process instance</description></item>
-    /// <item><description><strong>Context Merging</strong>: Combines custom processing trees with global context</description></item>
-    /// <item><description><strong>Session Management</strong>: Creates internal session for state tracking</description></item>
-    /// <item><description><strong>Asynchronous Support</strong>: Can return WAITING status for async operations</description></item>
-    /// </list>
-    /// </remarks>
+    /// <param name="instance">Target processable instance (affects context resolution)</param>
+    /// <param name="manager">Process manager for context resolution (uses singleton if null)</param>
+    /// <returns>Final execution status or WAITING if async operations are pending</returns>
+    /// <exception cref="LSException">Thrown if called multiple times on the same process</exception>
     LSProcessResultStatus Execute(ILSProcessable? instance = null, LSProcessManager? manager = null);
 
     /// <summary>
-    /// Resume processing for the specified node IDs. Process context should be stored in the process instance.
+    /// Resumes execution of nodes currently in WAITING state.
+    /// 
+    /// Used for asynchronous operations where handlers return WAITING and external
+    /// events later trigger continuation. Delegates to the execution session's
+    /// Resume method to locate and transition waiting nodes.
+    /// 
+    /// Behavior:
+    /// - Empty nodeIDs array: Resume all nodes currently in WAITING state
+    /// - Specific nodeIDs: Resume only the specified nodes if they are waiting
+    /// - Invalid/non-waiting nodeIDs are ignored
     /// </summary>
-    /// <param name="nodeIDs">Array of specific node IDs to resume. If empty, resumes all waiting nodes.</param>
-    /// <returns>The result status after attempting to resume processing (SUCCESS, FAILURE, WAITING, CANCELLED).</returns>
-    /// <remarks>
-    /// <para><strong>Resumption Logic:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Targeted Resume</strong>: When node IDs provided, only those nodes are resumed</description></item>
-    /// <item><description><strong>Global Resume</strong>: When no IDs provided, all waiting nodes are resumed</description></item>
-    /// <item><description><strong>State Validation</strong>: Only WAITING nodes can be resumed</description></item>
-    /// <item><description><strong>Cascading Effects</strong>: May trigger parent node status changes</description></item>
-    /// </list>
-    /// </remarks>
+    /// <param name="nodeIDs">Specific node identifiers to resume (empty = all waiting)</param>
+    /// <returns>Updated process status after resumption attempt</returns>
+    /// <exception cref="LSException">Thrown if process has not been executed yet</exception>
     LSProcessResultStatus Resume(params string[] nodeIDs);
 
     /// <summary>
-    /// Fail processing for the specified node IDs. Process context should be stored in the process instance.
+    /// Forces nodes in WAITING state to transition to FAILURE.
+    /// 
+    /// Used for timeout handling, error conditions, or explicit cancellation of
+    /// waiting operations. Delegates to the execution session's Fail method.
+    /// 
+    /// Behavior:
+    /// - Empty nodeIDs array: Fail all nodes currently in WAITING state
+    /// - Specific nodeIDs: Fail only the specified nodes if they are waiting
+    /// - May trigger cascading failures in parent nodes based on their logic
     /// </summary>
-    /// <param name="nodeIDs">Array of specific node IDs to fail. If empty, fails all waiting nodes.</param>
-    /// <returns>The result status after forcing failure on the specified nodes (typically FAILURE).</returns>
-    /// <remarks>
-    /// <para><strong>Failure Injection:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Targeted Failure</strong>: When node IDs provided, only those nodes are failed</description></item>
-    /// <item><description><strong>Global Failure</strong>: When no IDs provided, all waiting nodes are failed</description></item>
-    /// <item><description><strong>Use Cases</strong>: Timeout handling, error conditions, resource constraints</description></item>
-    /// <item><description><strong>Cascading Effects</strong>: May trigger parent node status changes based on aggregation logic</description></item>
-    /// </list>
-    /// </remarks>
+    /// <param name="nodeIDs">Specific node identifiers to fail (empty = all waiting)</param>
+    /// <returns>Updated process status after failure injection</returns>
+    /// <exception cref="LSException">Thrown if process has not been executed yet</exception>
     LSProcessResultStatus Fail(params string[] nodeIDs);
 
     /// <summary>
-    /// Cancels the entire process execution immediately.
-    /// Sets the process to CANCELLED state and prevents any further processing.
+    /// Immediately cancels the entire process execution tree.
+    /// 
+    /// Sets the root node to CANCELLED state, which cascades through all child nodes.
+    /// This is a terminal operation - cancelled processes cannot be resumed.
+    /// 
+    /// Implementation delegates to the execution session's Cancel method.
     /// </summary>
-    /// <remarks>
-    /// <para>This is a terminal operation that cannot be undone. Once cancelled, the process</para>
-    /// <para>cannot be resumed or continued through any means.</para>
-    /// </remarks>
+    /// <exception cref="LSException">Thrown if process has not been executed yet</exception>
     void Cancel();
 }

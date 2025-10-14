@@ -1,27 +1,33 @@
 namespace LSUtils.ProcessSystem;
 
 /// <summary>
-/// Enumeration defining the possible states of processing nodes within the LSProcessing system.
-/// Represents the lifecycle stages and outcomes of processing operations across all node types.
-/// </summary>
-/// <remarks>
+/// Enumeration defining the execution status of processing nodes in the LSProcessing system.
+/// <para>
+/// LSProcessResultStatus represents the lifecycle stages and outcomes of node execution,
+/// providing consistent status semantics across all node types. Status values control
+/// processing flow, parent node aggregation logic, and determine whether operations
+/// can continue or require external intervention.
+/// </para>
+/// <para>
 /// <b>State Transitions:</b><br/>
-/// • <b>UNKNOWN</b> → [SUCCESS|FAILURE|WAITING|CANCELLED] (via Execute)<br/>
-/// • <b>WAITING</b> → [SUCCESS|FAILURE|CANCELLED] (via Resume/Fail/Cancel)<br/>
-/// • <b>[SUCCESS|FAILURE|CANCELLED]</b> → [unchanged] (terminal states)<br/>
-/// <br/>
-/// <b>Terminal States:</b><br/>
-/// SUCCESS, FAILURE, and CANCELLED are terminal states that typically do not transition to other states once reached.<br/>
-/// <br/>
-/// <b>Processing Logic by Node Type:</b><br/>
-/// • <b>Handler Nodes:</b> Return status based on delegate execution result<br/>
-/// • <b>Sequence Nodes:</b> Aggregate using AND logic (all children must succeed)<br/>
-/// • <b>Selector Nodes:</b> Aggregate using OR logic (any child success succeeds)<br/>
-/// • <b>Parallel Nodes:</b> Aggregate using threshold-based logic (configurable success/failure counts)<br/>
-/// <br/>
-/// <b>Status Priority in Aggregation:</b><br/>
-/// When multiple children have different statuses, layer nodes typically prioritize: CANCELLED > WAITING > FAILURE > SUCCESS
-/// </remarks>
+/// - UNKNOWN → {SUCCESS, FAILURE, WAITING, CANCELLED} via Execute()<br/>
+/// - WAITING → {SUCCESS, FAILURE, CANCELLED} via Resume()/Fail()/Cancel()<br/>
+/// - SUCCESS, FAILURE, CANCELLED → no change (terminal states)
+/// </para>
+/// <para>
+/// <b>Aggregation Semantics by Node Type:</b><br/>
+/// - Handler nodes: return delegate execution result directly<br/>
+/// - Sequence nodes: AND logic (all children must succeed)<br/>
+/// - Selector nodes: OR logic (any child success succeeds)<br/>  
+/// - Parallel nodes: threshold-based logic (configurable success/failure counts)<br/>
+/// - Inverter nodes: SUCCESS↔FAILURE inversion, others pass through
+/// </para>
+/// <para>
+/// <b>Priority in Status Aggregation:</b><br/>
+/// When layer nodes aggregate multiple child statuses, they typically prioritize:
+/// CANCELLED > WAITING > FAILURE > SUCCESS > UNKNOWN
+/// </para>
+/// </summary>
 public enum LSProcessResultStatus {
     /// <summary>
     /// Initial state before any processing has occurred.

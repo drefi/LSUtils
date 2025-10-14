@@ -5,43 +5,59 @@ using System.Collections.Generic;
 using LSUtils.Logging;
 
 /// <summary>
-/// Manages global processing contexts for different process types and optional processable instances.
-/// Provides centralized registration and retrieval of processing hierarchies within the LSProcessing system.
-/// Only the manager should be able to register and provide contexts for the system.
+/// Central registry and orchestrator for processing contexts in the LSProcessSystem.
+/// <para>
+/// The LSProcessManager maintains a two-level dictionary structure that maps process types
+/// to processable instances (or global contexts), storing registered node hierarchies that
+/// define processing behavior. During process execution, it merges contexts from multiple
+/// sources to create the final processing tree.
+/// </para>
+/// <para>
+/// <b>Core Architecture:</b><br/>
+/// - Thread-safe ConcurrentDictionary storage for registered contexts<br/>
+/// - Singleton pattern for system-wide access and coordination<br/>
+/// - Context cloning to preserve original registrations during merging<br/>
+/// - Three-tier priority system for context resolution
+/// </para>
+/// <para>
+/// <b>Context Priority Order (highest to lowest):</b><br/>
+/// 1. Local contexts (provided via WithProcessing)<br/>
+/// 2. Instance-specific contexts (registered for specific ILSProcessable instances)<br/>
+/// 3. Global contexts (registered without specific instance)
+/// </para>
+/// <para>
+/// <b>Internal Storage:</b><br/>
+/// Uses GlobalProcessable.Instance as a sentinel key for global contexts,
+/// distinguishing them from instance-specific registrations in the same dictionary.
+/// </para>
 /// </summary>
-/// <remarks>
-/// <para><strong>Manager Responsibilities:</strong></para>
-/// <list type="bullet">
-/// <item><description><strong>Context Registration</strong>: Allows registration of processing hierarchies for specific process types</description></item>
-/// <item><description><strong>Instance-Specific Contexts</strong>: Supports both global and instance-specific processing contexts</description></item>
-/// <item><description><strong>Context Merging</strong>: Automatically merges global, instance-specific, and local contexts in priority order</description></item>
-/// <item><description><strong>Singleton Access</strong>: Provides centralized access through singleton pattern for system-wide coordination</description></item>
-/// </list>
-/// 
-/// <para><strong>Context Priority Order (highest to lowest):</strong></para>
-/// <list type="number">
-/// <item><description>Local contexts (passed directly to GetContext)</description></item>
-/// <item><description>Instance-specific contexts (registered for specific ILSProcessable instances)</description></item>
-/// <item><description>Global contexts (registered without specific instance)</description></item>
-/// </list>
-/// 
-/// <para><strong>Usage Patterns:</strong></para>
+/// <example>
+/// Registering and using different context levels:
 /// <code>
-/// // Register global context for all UserLoginProcess instances
-/// LSProcessManager.Singleton.Register&lt;UserLoginProcess&gt;(builder => 
-///     builder.Sequence("login-validation")
-///            .Handler("validate-credentials", ValidateCredentials)
-///            .Handler("update-last-login", UpdateLastLogin));
+/// // Register global context for all MockProcess instances
+/// LSProcessManager.Singleton.Register&lt;MockProcess&gt;(builder => builder
+///     .Sequence("global-sequence", seq => seq
+///         .Handler("global-handler1", session => LSProcessResultStatus.SUCCESS)
+///         .Handler("global-handler2", session => LSProcessResultStatus.SUCCESS)
+///     )
+/// );
 /// 
-/// // Register instance-specific context for premium users
-/// var premiumUser = new PremiumUser();
-/// LSProcessManager.Singleton.Register&lt;UserLoginProcess&gt;(builder => 
-///     builder.Handler("premium-benefits", ApplyPremiumBenefits), premiumUser);
+/// // Register instance-specific context
+/// var entity = new GameEntity(Guid.NewGuid(), "Player");
+/// LSProcessManager.Singleton.Register&lt;MockProcess&gt;(builder => builder
+///     .Handler("player-specific-logic", session => LSProcessResultStatus.SUCCESS),
+///     instance: entity
+/// );
 /// 
-/// // Retrieve merged context for processing
-/// var context = LSProcessManager.Singleton.GetContext&lt;UserLoginProcess&gt;(premiumUser);
+/// // Process execution merges all applicable contexts
+/// var process = new MockProcess();
+/// process.WithProcessing(builder => builder  // Local context (highest priority)
+///     .Handler("local-validation", session => LSProcessResultStatus.SUCCESS)
+/// );
+/// 
+/// var result = process.Execute(entity); // Merges local + instance + global contexts
 /// </code>
-/// </remarks>
+/// </example>
 public class LSProcessManager {
     public const string ClassName = nameof(LSProcessManager);
     public static LSProcessManager Singleton { get; } = new LSProcessManager();
@@ -60,42 +76,69 @@ public class LSProcessManager {
     }
 
     /// <summary>
-    /// Internal storage for registered processing contexts, organized by process type and processable instance.
-    /// Maps process types to dictionaries containing instance-specific and global contexts.
+    /// Two-level concurrent dictionary storing registered processing contexts.
+    /// <para>
+    /// Structure: ProcessType -> (ILSProcessable -> ILSProcessLayerNode)<br/>
+    /// - Outer key: The concrete process type (e.g., typeof(MyCustomProcess))<br/>
+    /// - Inner key: ILSProcessable instance or GlobalProcessable.Instance for global contexts<br/>
+    /// - Value: The registered processing node hierarchy for that type+instance combination
+    /// </para>
+    /// <para>
+    /// Thread-safe for concurrent registration and retrieval operations across multiple threads.
+    /// </para>
     /// </summary>
     private readonly ConcurrentDictionary<System.Type, ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>> _globalNodes = new();
 
     public LSProcessManager() { }
     /// <summary>
     /// Registers a processing context for a specific process type using a fluent builder pattern.
+    /// <para>
+    /// Creates or extends the processing hierarchy for the given process type and instance.
+    /// If the type+instance combination already exists, the builder extends the existing tree.
+    /// </para>
     /// </summary>
-    /// <typeparam name="TProcess">The process type to register the context for</typeparam>
-    /// <param name="builder">Builder action that defines the processing hierarchy</param>
-    /// <param name="instance">Optional processable instance for instance-specific registration</param>
-    /// <remarks>
-    /// If no instance is provided, registers a global context that applies to all instances of the process type.
-    /// If an instance is provided, registers a context specific to that instance with higher priority than global contexts.
-    /// </remarks>
+    /// <typeparam name="TProcess">The process type to register the context for (must implement ILSProcess)</typeparam>
+    /// <param name="builder">Builder action that defines the processing hierarchy to add</param>
+    /// <param name="instance">Optional processable instance for instance-specific registration (null = global)</param>
+    /// <param name="layerType">Root layer type for new registrations (PARALLEL, SEQUENCE, SELECTOR)</param>
+    /// <example>
+    /// Registering global and instance-specific contexts:
+    /// <code>
+    /// // Global context - applies to all MockProcess instances
+    /// LSProcessManager.Singleton.Register&lt;MockProcess&gt;(root => root
+    ///     .Sequence("global-logic", seq => seq
+    ///         .Handler("validate", session => LSProcessResultStatus.SUCCESS)
+    ///         .Handler("execute", session => LSProcessResultStatus.SUCCESS)
+    ///     )
+    /// );
+    /// 
+    /// // Instance-specific context - only for this particular entity
+    /// var playerEntity = new PlayerEntity(Guid.NewGuid(), "Player");
+    /// LSProcessManager.Singleton.Register&lt;MockProcess&gt;(root => root
+    ///     .Handler("player-bonus-logic", session => LSProcessResultStatus.SUCCESS),
+    ///     instance: playerEntity
+    /// );
+    /// </code>
+    /// </example>
     public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) where TProcess : ILSProcess {
         Register(typeof(TProcess), builder, instance, layerType);
     }
     /// <summary>
-    /// Registers a processing context for a specific process type using a fluent builder pattern.
+    /// Core registration method that handles the actual context storage and tree building.
+    /// <para>
+    /// Implementation Details:<br/>
+    /// 1. Thread-safe dictionary access with TryAdd fallback for new process types<br/>
+    /// 2. Uses GlobalProcessable.Instance as key for global (instance-less) registrations<br/>
+    /// 3. Creates new root nodes based on layerType for first-time registrations<br/>
+    /// 4. Extends existing trees when type+instance combination already exists<br/>
+    /// 5. Stores the built result back to the concurrent dictionary
+    /// </para>
     /// </summary>
-    /// <param name="processType">The process type to register the context for</param>
-    /// <param name="builder">Builder action that defines the processing hierarchy</param>
-    /// <param name="instance">Optional processable instance for instance-specific registration</param>
-    /// <exception cref="ArgumentNullException">Thrown when the builder delegate returns null</exception>
-    /// <remarks>
-    /// <para>The registration process follows these steps:</para>
-    /// <list type="number">
-    /// <item><description>Creates or retrieves the event dictionary for the process type</description></item>
-    /// <item><description>Determines if this is a global or instance-specific registration</description></item>
-    /// <item><description>Creates or extends existing context using LSProcessTreeBuilder</description></item>
-    /// <item><description>Executes the builder action to define the processing hierarchy</description></item>
-    /// <item><description>Stores the built context for future retrieval</description></item>
-    /// </list>
-    /// </remarks>
+    /// <param name="processType">The concrete process type (e.g., typeof(MyCustomProcess))</param>
+    /// <param name="builder">Builder action that defines the processing hierarchy to add</param>
+    /// <param name="instance">Processable instance for targeted registration (null = global context)</param>
+    /// <param name="layerType">Root layer node type for new context creation</param>
+    /// <exception cref="LSException">Thrown if concurrent dictionary operations fail</exception>
     public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) {
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
@@ -129,37 +172,40 @@ public class LSProcessManager {
 
     }
     /// <summary>
-    /// Retrieves a merged processing context for the specified process type and optional instance.
+    /// Generic wrapper for GetRootNode that provides type-safe access for specific process types.
+    /// <para>
+    /// This is the primary method used by LSProcess.Execute() to obtain the merged processing
+    /// hierarchy before creating an execution session.
+    /// </para>
     /// </summary>
-    /// <typeparam name="TProcess">The process type to retrieve the context for</typeparam>
-    /// <param name="instance">Optional processable instance for instance-specific context merging</param>
-    /// <param name="localContext">Optional local context to merge with highest priority</param>
-    /// <returns>Merged processing hierarchy containing global, instance-specific, and local contexts</returns>
-    /// <remarks>
-    /// Contexts are merged in priority order: local context (highest) → instance-specific → global (lowest).
-    /// Each context is cloned before merging to preserve the original registered contexts.
-    /// </remarks>
+    /// <typeparam name="TProcess">The process type to retrieve contexts for (must implement ILSProcess)</typeparam>
+    /// <param name="instance">Optional processable instance for context targeting (null = global only)</param>
+    /// <param name="localContext">Optional local context tree with highest merge priority</param>
+    /// <returns>Merged root node containing all applicable contexts in priority order</returns>
     public ILSProcessLayerNode GetRootNode<TProcess>(ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) where TProcess : ILSProcess {
         return GetRootNode(typeof(TProcess), instance, localContext);
     }
     /// <summary>
-    /// Retrieves a merged processing context for the specified process type and optional instance.
+    /// Core context resolution method that implements the three-tier merging strategy.
+    /// <para>
+    /// <b>Merging Algorithm:</b><br/>
+    /// 1. Start with LSProcessTreeBuilder using localNode as base (if provided)<br/>
+    /// 2. Clone and merge global context for the process type (if registered)<br/>
+    /// 3. Clone and merge instance-specific context (if registered and instance provided)<br/>
+    /// 4. Build final merged tree with proper node IDs and hierarchy
+    /// </para>
+    /// <para>
+    /// <b>Performance Notes:</b><br/>
+    /// - Temporarily disables detailed logging during context resolution to avoid noise<br/>
+    /// - Creates new process type dictionaries on-demand for unregistered types<br/>
+    /// - All contexts are cloned before merging to preserve original registrations
+    /// </para>
     /// </summary>
-    /// <param name="processType">The process type to retrieve the context for</param>
-    /// <param name="instance">Optional processable instance for instance-specific context merging</param>
-    /// <param name="localNode">Optional local context to merge with highest priority</param>
-    /// <returns>Merged processing hierarchy containing global, instance-specific, and local contexts</returns>
-    /// <remarks>
-    /// <para><strong>Context Merging Strategy:</strong></para>
-    /// <list type="number">
-    /// <item><description>Creates a root sequence node as the base hierarchy</description></item>
-    /// <item><description>Merges global context (if registered) for the process type</description></item>
-    /// <item><description>Merges instance-specific context (if registered and instance provided)</description></item>
-    /// <item><description>Merges local context (if provided) with highest priority</description></item>
-    /// </list>
-    /// 
-    /// <para>All contexts are cloned before merging to ensure the original registered contexts remain unmodified.</para>
-    /// </remarks>
+    /// <param name="processType">The concrete process type to resolve contexts for</param>
+    /// <param name="instance">Optional processable instance for targeted context resolution</param>
+    /// <param name="localNode">Optional local context tree to merge with highest priority</param>
+    /// <returns>Fully merged root node ready for process execution</returns>
+    /// <exception cref="LSException">Thrown if process type dictionary creation fails</exception>
     public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localNode = null) {
         LSLogger.Singleton.Debug($"{ClassName}.GetRootNode<{processType.Name}>: [{localNode?.NodeID ?? "n/a"}] instance: {instance?.ID.ToString() ?? "n/a"}",
             source: ("LSProcessSystem", null),
@@ -205,29 +251,40 @@ public class LSProcessManager {
         return root;
     }
     /// <summary>
-    /// Internal placeholder class representing global processable contexts.
-    /// Used as a key for storing process contexts that apply globally rather than to specific instances.
+    /// Sentinel object used as dictionary key for global (instance-less) context registrations.
+    /// <para>
+    /// This internal class implements ILSProcessable to satisfy the dictionary key requirements
+    /// while clearly indicating that the associated context applies globally rather than to
+    /// a specific processable instance.
+    /// </para>
+    /// <para>
+    /// <b>Design Pattern:</b><br/>
+    /// Uses the Null Object pattern to provide a valid ILSProcessable key while indicating
+    /// the absence of a specific instance. This allows the same dictionary structure to handle
+    /// both global and instance-specific contexts without additional complexity.
+    /// </para>
     /// </summary>
-    /// <remarks>
-    /// This class serves as a sentinel value in the context dictionary to distinguish between
-    /// global contexts (registered without a specific instance) and instance-specific contexts.
-    /// It should never be used directly outside of the LSProcessManager implementation.
-    /// </remarks>
     private class GlobalProcessable : ILSProcessable {
         static GlobalProcessable _instance = new();
         internal static GlobalProcessable Instance => _instance;
+        
         /// <summary>
-        /// Gets a new GUID for each access. This ensures the global processable is treated uniquely
-        /// but should not be used for identity comparison in the processing system.
+        /// Returns a new GUID each time to ensure this sentinel is never used for actual identity comparison.
+        /// The changing ID prevents accidental reliance on this placeholder for real processable operations.
         /// </summary>
         public System.Guid ID => System.Guid.NewGuid();
+        
         /// <summary>
-        /// Not implemented as this placeholder class should never be initialized in the processing pipeline.
+        /// Throws NotImplementedException as this sentinel should never participate in actual processing.
+        /// <para>
+        /// This method exists only to satisfy the ILSProcessable interface contract.
+        /// If called, it indicates a design error where the sentinel is being used as a real processable.
+        /// </para>
         /// </summary>
-        /// <param name="ctxBuilder">Ignored parameter</param>
-        /// <param name="manager">Ignored parameter</param>
-        /// <returns>Never returns as method throws NotImplementedException</returns>
-        /// <exception cref="NotImplementedException">Always thrown as this is a placeholder implementation</exception>
+        /// <param name="initBuilder">Ignored - not used by sentinel implementation</param>
+        /// <param name="manager">Ignored - not used by sentinel implementation</param>
+        /// <returns>Never returns - always throws exception</returns>
+        /// <exception cref="NotImplementedException">Always thrown to prevent misuse of this sentinel object</exception>
         LSProcessResultStatus ILSProcessable.Initialize(LSProcessBuilderAction? initBuilder, LSProcessManager? manager) {
             throw new System.NotImplementedException("GlobalProcessable is a placeholder class and should never be initialized in the processing pipeline.");
         }

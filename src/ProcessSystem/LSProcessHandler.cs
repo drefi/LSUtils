@@ -1,58 +1,62 @@
 namespace LSUtils.ProcessSystem;
 /// <summary>
-/// Delegate that represents a process handler function in the LSProcessing system.
-/// Encapsulates the business logic to be executed when a process is executed within the processing pipeline.
+/// Delegate representing executable business logic within the LSProcessing system.
+/// <para>
+/// LSProcessHandler encapsulates the core execution units that perform actual business
+/// operations within the processing pipeline. Handlers receive execution context through
+/// LSProcessSession and return status codes to control processing flow. They serve as
+/// the bridge between the abstract processing tree structure and concrete business logic.
+/// </para>
+/// <para>
+/// <b>Design Guidelines:</b><br/>
+/// - Stateless and idempotent when possible for predictable behavior<br/>
+/// - Exception-safe with graceful error handling and appropriate status returns<br/>
+/// - Performance-conscious to avoid blocking the processing pipeline<br/>
+/// - Pure business logic focused on single responsibility
+/// </para>
+/// <para>
+/// <b>Session Context:</b><br/>
+/// Handlers access process data, node metadata, and execution statistics through the
+/// session parameter. This provides access to process state, execution count (shared
+/// across clones), and contextual information for conditional logic.
+/// </para>
+/// <para>
+/// <b>Status Semantics:</b><br/>
+/// Return values control processing flow - SUCCESS continues processing, FAILURE
+/// may terminate sequences, WAITING requires external Resume/Fail, and CANCELLED
+/// stops processing entirely.
+/// </para>
 /// </summary>
-/// <param name="session">The processing session executing this handler, providing access to session metadata and state.</param>
-/// <returns>Processing status indicating the outcome of the handler execution.</returns>
-/// <remarks>
-/// <para><strong>Handler Function Design:</strong></para>
-/// <para>This delegate serves as the core execution unit within the LSProcessing system, providing a standardized
-/// interface for implementing business logic that can be composed into complex processing pipelines through
-/// the hierarchical node structure.</para>
-/// 
-/// <para><strong>Implementation Guidelines:</strong></para>
-/// <list type="bullet">
-/// <item><description><strong>Stateless Design</strong>: Handlers should be stateless and idempotent when possible to ensure predictable behavior</description></item>
-/// <item><description><strong>Exception Safety</strong>: Handlers should handle exceptions gracefully and return appropriate status codes</description></item>
-/// <item><description><strong>Performance Considerations</strong>: Handlers should be reasonably fast to avoid blocking the processing pipeline</description></item>
-/// <item><description><strong>Session Access</strong>: Use the session parameter to access NodeID, Priority, Conditions, and ExecutionCount</description></item>
-/// <item><description><strong>Data Access</strong>: Access process-specific data and context through the process parameter</description></item>
-/// </list>
-/// 
-/// <para><strong>Return Value Semantics:</strong></para>
-/// <list type="bullet">
-/// <item><description><strong>SUCCESS</strong>: Handler completed successfully, processing can continue</description></item>
-/// <item><description><strong>FAILURE</strong>: Handler encountered an error or business rule violation</description></item>
-/// <item><description><strong>WAITING</strong>: Handler initiated asynchronous operation, requires external Resume/Fail</description></item>
-/// <item><description><strong>CANCELLED</strong>: Handler was cancelled or determined processing should stop</description></item>
-/// </list>
-/// 
-/// <para><strong>Execution Context:</strong></para>
-/// <para>Handlers are executed within LSProcessHandlerNode and have access to:</para>
-/// <list type="bullet">
-/// <item><description>Process data and context through the process parameter</description></item>
-/// <item><description>Session metadata (ID, priority, conditions) through the session parameter</description></item>
-/// <item><description>Execution statistics through session.ExecutionCount (shared across node clones)</description></item>
-/// <item><description>Processing pipeline state and hierarchy navigation capabilities</description></item>
-/// </list>
-/// 
-/// <para><strong>Usage Patterns:</strong></para>
+/// <param name="session">Processing session providing access to process data, node context, and execution statistics.</param>
+/// <returns>Execution status indicating the outcome and controlling subsequent processing flow.</returns>
+/// <example>
+/// Common handler patterns:
 /// <code>
-/// LSProcessHandler simpleHandler = (session) => {
-///     // Perform business logic
-///     if (BusinessRule.IsValid(session.process.Data))
-///         return LSProcessResultStatus.SUCCESS;
-///     return LSProcessResultStatus.FAILURE;
+/// // Simple validation handler
+/// LSProcessHandler validateInput = (session) => {
+///     if (!session.Process.TryGetData&lt;string&gt;("input", out var input) || string.IsNullOrEmpty(input)) {
+///         session.Process.SetData("error", "Input is required");
+///         return LSProcessResultStatus.FAILURE;
+///     }
+///     return LSProcessResultStatus.SUCCESS;
+/// };
+///
+/// // Async operation handler
+/// LSProcessHandler asyncOperation = (session) => {
+///     var taskId = StartAsyncTask(session.Process.GetData&lt;object&gt;("taskData"));
+///     session.Process.SetData("asyncTaskId", taskId);
+///     return LSProcessResultStatus.WAITING; // Will be resumed when task completes
+/// };
+///
+/// // Conditional business logic
+/// LSProcessHandler conditionalLogic = (session) => {
+///     var userType = session.Process.GetData&lt;string&gt;("userType");
+///     if (userType == "Premium") {
+///         return ProcessPremiumUser(session);
+///     } else {
+///         return ProcessStandardUser(session);
+///     }
 /// };
 /// </code>
-/// 
-/// <para><strong>Integration Benefits:</strong></para>
-/// <list type="bullet">
-/// <item><description><strong>Composability</strong>: Handlers can be easily combined into complex processing trees</description></item>
-/// <item><description><strong>Testability</strong>: Individual handlers can be unit tested in isolation</description></item>
-/// <item><description><strong>Reusability</strong>: Handlers can be reused across different processing contexts</description></item>
-/// <item><description><strong>Maintainability</strong>: Business logic is encapsulated in focused, single-responsibility functions</description></item>
-/// </list>
-/// </remarks>
+/// </example>
 public delegate LSProcessResultStatus LSProcessHandler(LSProcessSession session);

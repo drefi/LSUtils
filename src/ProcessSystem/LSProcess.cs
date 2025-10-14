@@ -4,60 +4,72 @@ using System.Collections.Generic;
 using LSUtils.Logging;
 
 /// <summary>
-/// Abstract base class for all processes in the LSProcessing system.
-/// Provides core functionality for process execution, state management, and data storage.
+/// Base implementation of ILSProcess providing data storage, execution orchestration, and session management.
+/// 
+/// LSProcess serves as a data container that flows through processing pipelines, carrying state
+/// between handlers while the execution logic resides in the node hierarchy. This separation
+/// enables flexible workflow design where the same process type can have different behaviors
+/// based on registered contexts.
+/// 
+/// Architecture:
+/// - Process = Data container with minimal behavior
+/// - LSProcessSession = Execution state management and node coordination
+/// - ILSProcessLayerNode hierarchy = Actual processing logic and flow control
+/// 
+/// Implementation Details:
+/// - Single execution model: Execute() can only be called once per instance
+/// - Lazy session creation: Session created only when Execute() is called
+/// - Status delegation: IsCancelled/IsCompleted delegate to session root node status
+/// - Context merging: Local _root merges with registered contexts during execution
+/// - Data isolation: Each process has independent dictionary for inter-handler communication
+/// 
+/// Typical Subclass Pattern:
+/// ```csharp
+/// public class MyCustomProcess : LSProcess {
+///     public string ProcessSpecificData { get; set; }
+///     // No need to override Execute() - base class handles orchestration
+/// }
+/// ```
 /// </summary>
-/// <remarks>
-/// <para><strong>Process Lifecycle:</strong></para>
-/// <list type="bullet">
-/// <item><description><strong>Creation</strong>: Process is instantiated with unique ID and timestamp</description></item>
-/// <item><description><strong>Configuration</strong>: Optional processing tree setup via WithProcessing()</description></item>
-/// <item><description><strong>Execution</strong>: Process is executed through Execute() method</description></item>
-/// <item><description><strong>State Management</strong>: Process can be resumed, failed, or cancelled during execution</description></item>
-/// </list>
-/// 
-/// <para><strong>Data Management:</strong></para>
-/// <para>Processes include a built-in key-value data store for carrying information throughout</para>
-/// <para>the processing pipeline. Data is strongly typed and provides both exception-based</para>
-/// <para>and try-pattern access methods.</para>
-/// 
-/// <para><strong>Processing Tree Integration:</strong></para>
-/// <para>Processes can have custom processing trees defined via WithProcessing(), which are</para>
-/// <para>merged with global context during execution for flexible workflow customization.</para>
-/// 
-/// <para><strong>Execution Sessions:</strong></para>
-/// <para>Each process maintains an internal execution session (_processSession) that manages</para>
-/// <para>the actual processing state and coordinates with the node hierarchy.</para>
-/// </remarks>
 public abstract class LSProcess : ILSProcess {
     public const string ClassName = nameof(LSProcess);
     /// <summary>
-    /// The current execution session for this process. Null until Execute() is called.
+    /// Execution session created when Execute() is called. Manages actual processing state
+    /// and coordinates with the node hierarchy. Remains null until first execution.
     /// </summary>
     private LSProcessSession? _processSession;
+    
     /// <summary>
-    /// Internal data store for process-specific key-value pairs.
+    /// Internal key-value store for inter-handler communication during processing.
+    /// Isolated per process instance and persists throughout execution lifecycle.
     /// </summary>
     private Dictionary<string, object> _data = new();
+    
     /// <summary>
-    /// Custom processing context/tree defined for this specific process instance.
-    /// Merged with global context during execution.
+    /// Local processing tree defined via WithProcessing(). Merged with registered
+    /// contexts during execution, with local context taking highest priority.
     /// </summary>
     private ILSProcessLayerNode? _root;
-    private LSProcessManager? _manager;
+    
     /// <summary>
-    /// Unique identifier for this process instance.
-    /// Generated automatically when the process is created.
+    /// Reference to the process manager used for execution. Cached from Execute() call.
+    /// </summary>
+    private LSProcessManager? _manager;
+    
+    /// <summary>
+    /// Auto-generated unique identifier assigned at construction.
+    /// Used for debugging, logging, and session association.
     /// </summary>
     public System.Guid ID { get; }
+    
     /// <summary>
-    /// UTC timestamp when this process was created.
-    /// Used for timing analysis and audit trails.
+    /// UTC timestamp of process creation for timing analysis and audit trails.
+    /// Set once at construction and never changes.
     /// </summary>
     public System.DateTime CreatedAt { get; }
     /// <summary>
-    /// Indicates whether this process has been cancelled.
-    /// Set by the Cancel() method and prevents further processing.
+    /// Delegates to the session's root node status to determine cancellation state.
+    /// Returns false if no execution session exists (process not yet executed).
     /// </summary>
     public bool IsCancelled {
         get {
@@ -65,9 +77,12 @@ public abstract class LSProcess : ILSProcess {
             return _processSession.RootNode.GetNodeStatus() == LSProcessResultStatus.CANCELLED;
         }
     }
+    
     /// <summary>
-    /// Indicates whether this process has completed execution successfully.
-    /// Set when the processing pipeline reaches a terminal success state.
+    /// Determines completion by checking if the session's root node has reached any terminal state.
+    /// Returns false if no execution session exists (process not yet executed).
+    /// Terminal states: SUCCESS, FAILURE, CANCELLED
+    /// Non-terminal states: UNKNOWN, WAITING
     /// </summary>
     public bool IsCompleted {
         get {
@@ -77,24 +92,26 @@ public abstract class LSProcess : ILSProcess {
         }
     }
     /// <summary>
-    /// Initializes a new process instance with auto-generated ID and creation timestamp.
+    /// Protected constructor enforcing abstract class pattern. Concrete process types
+    /// should inherit from this class and add domain-specific properties/methods.
+    /// 
+    /// Automatically generates unique ID and creation timestamp for tracking purposes.
     /// </summary>
-    /// <remarks>
-    /// This constructor is protected to enforce the abstract nature of the class.
-    /// Derived classes should implement specific process types.
-    /// </remarks>
     protected LSProcess() {
         ID = System.Guid.NewGuid();
         CreatedAt = System.DateTime.UtcNow;
     }
+    
     /// <summary>
-    /// Retrieves strongly-typed data associated with the specified key.
+    /// Exception-throwing data retrieval from the internal dictionary.
+    /// Validates both key existence and type compatibility before returning.
+    /// Virtual to allow subclasses to override data access behavior if needed.
     /// </summary>
-    /// <typeparam name="T">The expected type of the stored data.</typeparam>
-    /// <param name="key">The key used to store the data.</param>
-    /// <returns>The data cast to the specified type.</returns>
-    /// <exception cref="KeyNotFoundException">Thrown when the specified key is not found.</exception>
-    /// <exception cref="LSException">Thrown when the stored data cannot be cast to the specified type.</exception>
+    /// <typeparam name="T">Expected data type</typeparam>
+    /// <param name="key">Case-sensitive string key</param>
+    /// <returns>Stored value cast to type T</returns>
+    /// <exception cref="KeyNotFoundException">Key not found in internal dictionary</exception>
+    /// <exception cref="LSException">Value exists but cannot be cast to T</exception>
     public virtual T? GetData<T>(string key) {
         if (_data.TryGetValue(key, out var value)) {
             if (value is T tValue) {
@@ -105,17 +122,22 @@ public abstract class LSProcess : ILSProcess {
         throw new KeyNotFoundException($"No data found for key '{key}'.");
     }
     /// <summary>
-    /// Executes this process through the processing pipeline.
-    /// Creates a new execution session and processes through the node hierarchy.
+    /// Executes the process through the registered processing pipeline (single-use operation).
+    /// 
+    /// Creates LSProcessSession, retrieves merged context from LSProcessManager, and delegates
+    /// execution to the session. Subsequent calls return cached status from first execution.
+    /// 
+    /// Execution Flow:
+    /// 1. Check if already executed (return cached status if so)
+    /// 2. Get merged root node from manager (local + instance + global contexts)
+    /// 3. Create execution session with this process as data container
+    /// 4. Delegate to session.Execute() for actual processing
+    /// 
+    /// The process serves as a passive data container while the session manages execution state.
     /// </summary>
-    /// <param name="instance">Optional processable instance to use as context target.</param>
-    /// <param name="manager">Optional process manager to use. Uses singleton if not provided.</param>
-    /// <returns>The final processing status (SUCCESS, FAILURE, WAITING, CANCELLED).</returns>
-    /// <exception cref="LSException">Thrown if the process has already been executed.</exception>
-    /// <remarks>
-    /// <para>This method can only be called once per process instance. Subsequent calls will throw an exception.</para>
-    /// <para>The method merges any custom processing context with the global context before execution.</para>
-    /// </remarks>
+    /// <param name="instance">Target entity for context resolution (may be null for global context)</param>
+    /// <param name="manager">Process manager for context merging (uses singleton if null)</param>
+    /// <returns>Final execution status (may be WAITING if contains async operations)</returns>
     public LSProcessResultStatus Execute(ILSProcessable? instance = null, LSProcessManager? manager = null) {
         // Flow debug logging LSProcessSystem
         LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root?.NodeID ?? "n/a"}] instance: {(instance == null ? "n/a" : $"{instance.ID}")}.",

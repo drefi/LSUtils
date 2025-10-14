@@ -5,51 +5,56 @@ using System.Linq;
 using LSUtils.Logging;
 
 /// <summary>
-/// Leaf node implementation that executes process handler delegates in the LSProcessing system hierarchy.
-/// Represents the concrete processing units that perform actual business logic within the processing pipeline.
+/// Terminal execution node that wraps LSProcessHandler delegates within the processing hierarchy.
+/// <para>
+/// LSProcessNodeHandler serves as the leaf node in the Composite Pattern, providing the bridge
+/// between the abstract processing tree structure and concrete business logic execution.
+/// Each handler node encapsulates a single operation that can access process data and return
+/// execution status to control processing flow.
+/// </para>
+/// <para>
+/// <b>Execution Model:</b><br/>
+/// - Single-shot execution for terminal states (SUCCESS, FAILURE, CANCELLED)<br/>
+/// - Re-execution allowed for WAITING states via Resume/Fail operations<br/>
+/// - Condition evaluation before handler invocation<br/>
+/// - Shared execution counting across clones for analytics
+/// </para>
+/// <para>
+/// <b>Handler Delegate Signature:</b><br/>
+/// LSProcessHandler receives LSProcessSession containing the process data and execution context,
+/// allowing handlers to access/modify process state and return appropriate status codes.
+/// </para>
+/// <para>
+/// <b>Cloning Behavior:</b><br/>
+/// Cloned nodes maintain independent processing state while sharing execution count
+/// through _baseNode reference, enabling parallel processing with centralized statistics.
+/// </para>
 /// </summary>
-/// <remarks>
-/// <para>
-/// <b>Handler Node Architecture:</b><br/>
-/// This class serves as the terminal execution point in the LSProcessing system's composite hierarchy,
-/// implementing the leaf node pattern where actual business logic is executed through handler delegates.
-/// It provides the bridge between the abstract processing tree and concrete business operations.
-/// </para>
-/// <para>
-/// <b>Design Patterns:</b><br/>
-/// • Leaf Node: Terminal node in the Composite Pattern that executes actual logic<br/>
-/// • Strategy Pattern: Encapsulates handler logic through LSProcessHandler delegate<br/>
-/// • Flyweight Pattern: Shares execution count across clones through base node reference<br/>
-/// • Template Method: Implements standard processing lifecycle with customizable handler logic
-/// </para>
-/// <para>
-/// <b>Execution Semantics:</b><br/>
-/// • Single Execution: Terminal states (SUCCESS, FAILURE, CANCELLED) are cached to prevent re-execution<br/>
-/// • Waiting Continuation: WAITING nodes can be re-processed via Resume/Fail operations<br/>
-/// • Execution Counting: Tracks handler invocations across all clones for analytics<br/>
-/// • Conditional Evaluation: Respects node conditions before allowing handler execution
-/// </para>
-/// <para>
-/// <b>State Management:</b><br/>
-/// • Status Caching: Terminal statuses are cached to ensure idempotency<br/>
-/// • Independent Processing: Each clone maintains its own processing state<br/>
-/// • Shared Statistics: Execution count is shared among clones through base node reference<br/>
-/// • Inversion Support: WithInverter property allows success/failure logic inversion
-/// </para>
-/// <para>
-/// <b>Cloning Strategy:</b><br/>
-/// When cloned, new instances reference the original node as a base node to share execution count
-/// while maintaining independent processing state. This allows global execution tracking while
-/// supporting parallel processing scenarios and concurrent handler execution.
-/// </para>
-/// <para>
-/// <b>Integration Benefits:</b><br/>
-/// • Composability: Seamlessly integrates with layer nodes in processing hierarchies<br/>
-/// • Testability: Individual handlers can be tested in isolation from the processing tree<br/>
-/// • Reusability: Handler logic can be reused across different processing contexts<br/>
-/// • Monitoring: Built-in execution tracking for performance analysis and debugging
-/// </para>
-/// </remarks>
+/// <example>
+/// Creating and using handler nodes:
+/// <code>
+/// // Handler that validates input data
+/// LSProcessHandler validateInput = (session) => {
+///     var input = session.Process.TryGetData&lt;string&gt;("input", out var value) ? value : "";
+///     if (string.IsNullOrEmpty(input)) {
+///         session.Process.SetData("error", "Input is required");
+///         return LSProcessResultStatus.FAILURE;
+///     }
+///     return LSProcessResultStatus.SUCCESS;
+/// };
+/// 
+/// // Handler that waits for external completion
+/// LSProcessHandler waitForCallback = (session) => {
+///     // Register for external callback
+///     RegisterExternalCallback(session.Process.ID);
+///     return LSProcessResultStatus.WAITING; // Will be resumed later
+/// };
+/// 
+/// // Used in builder pattern
+/// builder.Handler("validate-input", validateInput)
+///        .Handler("wait-for-callback", waitForCallback);
+/// </code>
+/// </example>
 public class LSProcessNodeHandler : ILSProcessNode {
     public const string ClassName = nameof(LSProcessNodeHandler);
     /// <summary>

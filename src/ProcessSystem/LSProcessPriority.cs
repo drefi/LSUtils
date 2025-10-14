@@ -1,23 +1,33 @@
 namespace LSUtils.ProcessSystem;
 
 /// <summary>
-/// Defines execution priority levels for nodes within the LSProcessing system.
-/// Priority determines processing order within the same execution phase - higher priority values execute first.
+/// Execution priority levels for processing nodes, controlling execution order within hierarchies.
+/// <para>
+/// LSProcessPriority determines the processing sequence within layer nodes - higher priority
+/// values execute first. Within the same priority level, nodes are processed by ascending
+/// Order values, providing fine-grained control over execution sequences while maintaining
+/// predictable priority-based ordering.
+/// </para>
+/// <para>
+/// <b>Execution Order:</b><br/>
+/// Nodes process in descending priority order: CRITICAL (4) → HIGH (3) → NORMAL (2) → LOW (1) → MINIMAL (0)<br/>
+/// Within same priority: ascending Order values (0, 1, 2, ...)
+/// </para>
+/// <para>
+/// <b>Priority Guidelines:</b><br/>
+/// - CRITICAL: security validation, system integrity, essential prerequisites<br/>
+/// - HIGH: core business logic, important state updates, primary workflows<br/>
+/// - NORMAL: standard operations, typical business processing (default)<br/>
+/// - LOW: optional features, convenience functions, enhancements<br/>
+/// - MINIMAL: background tasks, logging, cleanup operations
+/// </para>
+/// <para>
+/// <b>Implementation Notes:</b><br/>
+/// All layer nodes (Sequence, Selector, Parallel) sort their children by this priority
+/// system before processing, ensuring consistent execution patterns across different
+/// node types and processing scenarios.
+/// </para>
 /// </summary>
-/// <remarks>
-/// <b>Priority Execution Order:</b><br/>
-/// Nodes are processed in descending priority order (CRITICAL → BACKGROUND), then by ascending Order value within the same priority.<br/>
-/// <br/>
-/// <b>Use Cases by Priority Level:</b><br/>
-/// • <b>CRITICAL:</b> Security validation, system integrity checks, essential initialization<br/>
-/// • <b>HIGH:</b> Core business logic, primary workflows, important state updates<br/>
-/// • <b>NORMAL:</b> Standard processing, typical business operations, default behavior<br/>
-/// • <b>LOW:</b> Optional enhancements, convenience features, non-essential processing<br/>
-/// • <b>BACKGROUND:</b> Logging, metrics collection, cleanup tasks, maintenance operations<br/>
-/// <br/>
-/// <b>Processing Pattern:</b><br/>
-/// Within layer nodes (Sequence, Selector, Parallel), children are sorted by Priority (descending) then Order (ascending) to ensure predictable execution sequences while allowing fine-grained control within priority levels.
-/// </remarks>
 public enum LSProcessPriority {
     MINIMAL = 0,
 

@@ -4,8 +4,52 @@ using LSUtils.Logging;
 namespace LSUtils.ProcessSystem;
 
 /// <summary>
-/// Provides a fluent API for building event processing hierarchies using the builder pattern.
+/// Fluent API builder for constructing hierarchical process trees with complex execution patterns.
+/// <para>
+/// LSProcessTreeBuilder implements the Builder Pattern to provide an intuitive, declarative syntax
+/// for constructing complex process hierarchies. It supports all node types (handlers, sequences,
+/// selectors, parallel nodes, and inverters) with automatic node management, type validation,
+/// and hierarchical composition through nested builder actions.
+/// </para>
+/// <para>
+/// <b>Core Concepts:</b><br/>
+/// - Single root node management with automatic initialization<br/>
+/// - Node replacement and merging with type safety validation<br/>
+/// - Fluent method chaining for readable hierarchy definition<br/>
+/// - Nested builder actions for complex hierarchical structures<br/>
+/// - Order-based and priority-based node management
+/// </para>
+/// <para>
+/// <b>Builder Lifecycle:</b><br/>
+/// Builders operate on a single root node context, automatically creating sequence roots
+/// when needed. The Build() method finalizes construction and returns the complete hierarchy.
+/// Each builder instance supports single-use semantics for clean lifecycle management.
+/// </para>
 /// </summary>
+/// <example>
+/// Common builder patterns:
+/// <code>
+/// // Simple handler sequence
+/// var builder = new LSProcessTreeBuilder();
+/// builder.Handler("validate", ValidateHandler)
+///        .Handler("process", ProcessHandler)
+///        .Handler("cleanup", CleanupHandler);
+///
+/// // Nested hierarchy with mixed node types
+/// builder.Sequence("main-flow", seq => seq
+///     .Handler("init", InitHandler)
+///     .Selector("strategy", sel => sel
+///         .Handler("primary", PrimaryHandler)
+///         .Handler("fallback", FallbackHandler))
+///     .Parallel("concurrent", par => par
+///         .Handler("task-a", TaskAHandler)
+///         .Handler("task-b", TaskBHandler)));
+///
+/// // Building and using the tree
+/// ILSProcessLayerNode tree = builder.Build();
+/// LSProcessManager.Register("my-process", tree);
+/// </code>
+/// </example>
 public class LSProcessTreeBuilder {
     public const string ClassName = nameof(LSProcessTreeBuilder);
     /// <summary>
