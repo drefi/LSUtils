@@ -261,11 +261,11 @@ public class NodeSelector_Tests {
         var handler1 = LSProcessNodeHandler.Create("alwaysFailCondition", (session) => {
             executionPath.Add("SHOULD_NOT_EXECUTE");
             return LSProcessResultStatus.SUCCESS;
-        }, 1, LSProcessPriority.HIGH, (proc, node) => false); // condition always false
+        }, 1, LSProcessPriority.HIGH, conditions: (proc, node) => false); // condition always false
         var handler2 = LSProcessNodeHandler.Create("conditionalSuccess", (session) => {
             executionPath.Add("CONDITIONAL_SUCCESS");
             return LSProcessResultStatus.SUCCESS;
-        }, 2, LSProcessPriority.NORMAL, (proc, node) => true); // condition always true
+        }, 2, LSProcessPriority.NORMAL, conditions: (proc, node) => true); // condition always true
         var handler3 = LSProcessNodeHandler.Create("fallback", (session) => {
             executionPath.Add("FALLBACK");
             return LSProcessResultStatus.SUCCESS;

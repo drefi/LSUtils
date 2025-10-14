@@ -77,7 +77,8 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     public int Order { get; internal set; }
     /// <inheritdoc />
     public LSProcessNodeCondition? Conditions { get; internal set; }
-    //public bool WithInverter { get; internal set; }
+    public bool ReadOnly { get; internal set; } = false;
+
     /// <summary>
     /// Initializes a new selector node with the specified configuration.
     /// </summary>
@@ -92,11 +93,11 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// • <b>Composition:</b> Multiple conditions are combined using delegate composition (+=)<br/>
     /// • <b>Null Safety:</b> Null conditions in the array are automatically filtered out
     /// </remarks>
-    protected LSProcessNodeSelector(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
+    protected LSProcessNodeSelector(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeId;
         Order = order;
         Priority = priority;
-        //WithInverter = withInverter;
+        ReadOnly = readOnly;
         Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
     }
     /// <summary>
@@ -138,7 +139,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
-        var cloned = new LSProcessNodeSelector(NodeID, Order, Priority, Conditions);
+        var cloned = new LSProcessNodeSelector(NodeID, Order, Priority, ReadOnly, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -466,7 +467,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// • <b>Clarity:</b> Explicit factory method name indicates intent<br/>
     /// • <b>Consistency:</b> Matches factory pattern used across the framework
     /// </remarks>
-    public static LSProcessNodeSelector Create(string nodeID, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
-        return new LSProcessNodeSelector(nodeID, order, priority, conditions);
+    public static LSProcessNodeSelector Create(string nodeID, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
+        return new LSProcessNodeSelector(nodeID, order, priority, readOnly, conditions);
     }
 }

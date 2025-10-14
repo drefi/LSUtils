@@ -75,7 +75,8 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     public int Order { get; internal set; }
     /// <inheritdoc />
     public LSProcessNodeCondition? Conditions { get; internal set; }
-    //public bool WithInverter { get; internal set; }
+    public bool ReadOnly { get; internal set; } = false;
+
     /// <summary>
     /// Initializes a new sequence node with the specified configuration.
     /// </summary>
@@ -90,11 +91,11 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// • <b>Composition:</b> Multiple conditions are combined using delegate composition (+=)<br/>
     /// • <b>Null Safety:</b> Null conditions in the array are automatically filtered out
     /// </remarks>
-    protected LSProcessNodeSequence(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
+    protected LSProcessNodeSequence(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeId;
         Order = order;
         Priority = priority;
-        //WithInverter = withInverter;
+        ReadOnly = readOnly;
         Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
     }
     /// <summary>
@@ -142,7 +143,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
 
-        var cloned = new LSProcessNodeSequence(NodeID, Order, Priority, Conditions);
+        var cloned = new LSProcessNodeSequence(NodeID, Order, Priority, ReadOnly, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -432,7 +433,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <b>Factory Method Benefits:</b><br/>
     /// This factory method provides a convenient way to create sequence nodes without directly invoking the protected constructor. The created node implements AND logic semantics.
     /// </remarks>
-    public static LSProcessNodeSequence Create(string nodeID, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
-        return new LSProcessNodeSequence(nodeID, order, priority, conditions);
+    public static LSProcessNodeSequence Create(string nodeID, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
+        return new LSProcessNodeSequence(nodeID, order, priority, readOnly, conditions);
     }
 }

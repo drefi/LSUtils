@@ -75,7 +75,7 @@ public class HandlerNodeTests {
                 .Handler("conditionalHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.FAILURE;
-                }, LSProcessPriority.NORMAL, (proc, node) => false)) // skip the handler
+                }, LSProcessPriority.NORMAL, conditions: (proc, node) => false)) // skip the handler
             .Build();
 
         var mockProcess = new MockProcess();
@@ -93,7 +93,7 @@ public class HandlerNodeTests {
                         .Handler("conditionalHandler", (session) => {
                             _handler1CallCount++;
                             return LSProcessResultStatus.FAILURE;
-                        }, LSProcessPriority.NORMAL, (proc, node) => true)) // condition met
+                        }, LSProcessPriority.NORMAL, conditions: (proc, node) => true)) // condition met
                     .Build();
 
         var mockProcess = new MockProcess();
@@ -174,7 +174,7 @@ public class HandlerNodeTests {
                 .Handler("conditionalHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
-                }, LSProcessPriority.NORMAL,
+                }, LSProcessPriority.NORMAL, false,
                    (proc, node) => { conditionCallCount++; return eventTypeCondition; },
                    (proc, node) => { conditionCallCount++; return stateCondition; }))
             .Build();
@@ -197,7 +197,7 @@ public class HandlerNodeTests {
                 .Handler("conditionalHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
-                }, LSProcessPriority.NORMAL,
+                }, LSProcessPriority.NORMAL, false,
                    (proc, node) => { conditionCallCount++; return eventTypeCondition; },
                    (proc, node) => { conditionCallCount++; return stateCondition; }))
             .Build();
@@ -220,7 +220,7 @@ public class HandlerNodeTests {
                 .Handler("conditionalHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
-                }, LSProcessPriority.NORMAL,
+                }, LSProcessPriority.NORMAL, false,
                    (proc, node) => { conditionCallCount++; return eventTypeCondition; },
                    (proc, node) => { conditionCallCount++; return stateCondition; }))
             .Build();
@@ -246,7 +246,7 @@ public class HandlerNodeTests {
                 .Handler("dataConditionHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
-                }, LSProcessPriority.NORMAL, (proc, node) => {
+                }, LSProcessPriority.NORMAL, conditions: (proc, node) => {
                     return true;
                 }))
             .Build();
@@ -268,7 +268,7 @@ public class HandlerNodeTests {
                 .Handler("exceptionConditionHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
-                }, LSProcessPriority.NORMAL, (proc, node) => {
+                }, LSProcessPriority.NORMAL, conditions: (proc, node) => {
                     if (throwException) throw new InvalidOperationException("Condition error");
                     return true;
                 }))

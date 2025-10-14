@@ -66,6 +66,7 @@ public interface ILSProcessNode {
     /// <value>Order value set during node registration, typically incremented sequentially.</value>
     /// <remarks>This provides deterministic execution order for nodes with identical priorities.</remarks>
     int Order { get; }
+    bool ReadOnly { get; }
     /// <summary>
     /// Creates an independent copy of this node for parallel processing or tree manipulation.
     /// </summary>

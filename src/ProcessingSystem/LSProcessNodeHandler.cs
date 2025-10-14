@@ -90,35 +90,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <inheritdoc />
     public LSProcessNodeCondition? Conditions { get; }
     /// <summary>
-    /// Gets a value indicating whether this handler node inverts success/failure logic.
-    /// When true, SUCCESS results from the handler are treated as FAILURE and vice versa.
-    /// </summary>
-    /// <value>
-    /// True if the node inverts success/failure logic; false for normal behavior.
-    /// </value>
-    /// <remarks>
-    /// <para>
-    /// This property enables logical inversion patterns where the desired outcome is the opposite
-    /// of what the handler naturally returns. Common use cases include:
-    /// </para>
-    /// <para>
-    /// • Validation handlers where failure indicates success (e.g., "user is not banned")<br/>
-    /// • Condition checks where false results should proceed (e.g., "cache miss" handlers)<br/>
-    /// • Error detection where finding no errors is the success condition
-    /// </para>
-    /// </remarks>
-    //public bool WithInverter { get; } = false;
-    /// <summary>
-    /// Gets the effective SUCCESS status considering the WithInverter property.
-    /// Returns FAILURE when WithInverter is true, SUCCESS otherwise.
-    /// </summary>
-    //protected LSProcessResultStatus _nodeSuccess => WithInverter ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS;
-    /// <summary>
-    /// Gets the effective FAILURE status considering the WithInverter property.
-    /// Returns SUCCESS when WithInverter is true, FAILURE otherwise.
-    /// </summary>
-    //protected LSProcessResultStatus _nodeFailure => WithInverter ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
-    /// <summary>
     /// Gets or sets the execution count, automatically delegating to the base node if this is a clone.
     /// Provides shared execution statistics across all clones of a handler node.
     /// </summary>
@@ -149,6 +120,8 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// sibling nodes with the same priority level.
     /// </remarks>
     public int Order { get; }
+    public bool ReadOnly { get; } = false;
+
     /// <summary>
     /// Initializes a new handler node with the specified configuration.
     /// </summary>
@@ -171,13 +144,19 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para>When baseNode is provided, this instance becomes a clone that shares execution count</para>
     /// <para>with the original node while maintaining independent processing state.</para>
     /// </remarks>
-    protected LSProcessNodeHandler(string nodeID, LSProcessHandler handler,
-                      int order, LSProcessPriority priority = LSProcessPriority.NORMAL, LSProcessNodeHandler? baseNode = null, params LSProcessNodeCondition?[] conditions) {
+    protected LSProcessNodeHandler(string nodeID,
+            LSProcessHandler handler,
+            int order,
+            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessNodeHandler? baseNode = null,
+            bool readOnly = false,
+            params LSProcessNodeCondition?[] conditions) {
         _baseNode = baseNode;
         NodeID = nodeID;
         Priority = priority;
         _handler = handler;
         Order = order;
+        ReadOnly = readOnly;
         //WithInverter = withInverter;
         Conditions = LSProcessHelpers.UpdateConditions(true, null, conditions);
     }
@@ -452,7 +431,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
         LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
-        var clone = new LSProcessNodeHandler(NodeID, _handler, Order, Priority, _baseNode == null ? this : _baseNode, Conditions);
+        var clone = new LSProcessNodeHandler(NodeID, _handler, Order, Priority, _baseNode == null ? this : _baseNode, ReadOnly, Conditions);
         // Debug log with details
         LSLogger.Singleton.Debug($"Handler node [{NodeID}] cloned.",
               source: (ClassName, null));
@@ -481,7 +460,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </para>
     /// </remarks>
     public static LSProcessNodeHandler Create(string nodeID, LSProcessHandler handler,
-                      int order, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
-        return new LSProcessNodeHandler(nodeID, handler, order, priority, null, conditions);
+                      int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
+        return new LSProcessNodeHandler(nodeID, handler, order, priority, null, readOnly, conditions);
     }
 }

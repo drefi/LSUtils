@@ -79,8 +79,7 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Condition Attachment</strong>: Optional conditions control when handler executes</description></item>
     /// </list>
     /// </remarks>
-    public LSProcessTreeBuilder Handler(string nodeID, LSProcessHandler handler, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition?[] conditions) {
-
+    public LSProcessTreeBuilder Handler(string nodeID, LSProcessHandler handler, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
         if (_rootNode == null) {
             // NOTE: in theory this should not be needed because register and WithProcessing should create the root node
             LSLogger.Singleton.Warning($"{ClassName}.Handler created root sequence node.",
@@ -117,6 +116,23 @@ public class LSProcessTreeBuilder {
                     });
                 return this;
             }
+            if (existingNode.ReadOnly) {
+                // does not make sense to replace a read-only node
+                LSLogger.Singleton.Warning($"Node [{nodeID}] already exists and is read-only, cannot replace.",
+                    source: (ClassName, true),
+                    properties: new (string, object)[] {
+                        ("nodeID", nodeID),
+                        ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                        ("existingNode", existingNode?.GetType().Name ?? "n/a"),
+                        ("nodeOrder", existingNode?.Order.ToString() ?? "n/a"),
+                        ("nodePriority", existingNode?.Priority.ToString() ?? "n/a"),
+                        ("order", order.ToString()),
+                        ("priority", priority.ToString()),
+                        ("conditions", conditions.Length.ToString()),
+                        ("method", nameof(Handler))
+                    });
+                return this;
+            }
             // remove the previous handler node
             _rootNode.RemoveChild(nodeID);
             actionDebug = "replace";
@@ -126,7 +142,7 @@ public class LSProcessTreeBuilder {
             source: ("LSProcessSystem", null),
             properties: ("hideNodeID", true));
 
-        LSProcessNodeHandler handlerNode = LSProcessNodeHandler.Create(nodeID, handler, order, priority, conditions);
+        LSProcessNodeHandler handlerNode = LSProcessNodeHandler.Create(nodeID, handler, order, priority, readOnly, conditions);
         _rootNode.AddChild(handlerNode);
 
         // Detailed debug logging
@@ -238,6 +254,7 @@ public class LSProcessTreeBuilder {
             LSProcessBuilderAction? sequenceBuilderAction = null,
             LSProcessPriority? priority = LSProcessPriority.NORMAL,
             bool overrideConditions = false,
+            bool readOnly = false,
             params LSProcessNodeCondition?[] conditions) {
 
         var childExists = getChild(nodeID, out ILSProcessNode? existingNode);
@@ -249,9 +266,13 @@ public class LSProcessTreeBuilder {
         int order = _rootNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
 
         if (existingNode is LSProcessNodeSequence sequenceNode) {
-            // if fields are not provided keep the existing values
-            sequenceNode.Priority = priority ?? sequenceNode.Priority;
-            sequenceNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, sequenceNode.Conditions, conditions);
+            //update only if the node is not read-only
+            if (!existingNode.ReadOnly) {
+                // if fields are not provided keep the existing values
+                sequenceNode.Priority = priority ?? sequenceNode.Priority;
+                sequenceNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, sequenceNode.Conditions, conditions);
+            }
+            //continue to build children if builder provided even if the node is read-only
         } else if (childExists) {
             // it does not make sense to modify a sequence with a selector or parallel children
             LSLogger.Singleton.Warning($"Node [{nodeID}] exists but is not a sequence node, builder not processed.",
@@ -272,7 +293,7 @@ public class LSProcessTreeBuilder {
         } else {
             // no current node exists, so we are creating the root node or node does not exist or node exists but is not sequence
             priority ??= LSProcessPriority.NORMAL; // default priority
-            sequenceNode = LSProcessNodeSequence.Create(nodeID, order, priority.Value, conditions);
+            sequenceNode = LSProcessNodeSequence.Create(nodeID, order, priority.Value, readOnly, conditions);
             if (_rootNode == null) _rootNode = sequenceNode;
             else _rootNode.AddChild(sequenceNode);
         }
@@ -286,10 +307,11 @@ public class LSProcessTreeBuilder {
                 ("nodeID", nodeID),
                 ("builderProvided", sequenceBuilderAction != null),
                 ("rootNode", _rootNode?.NodeID ?? "null"),
-                ("order", sequenceNode.Order),
-                ("priority", sequenceNode.Priority),
-                ("hasConditions", conditions != null && conditions.Length > 0),
-                ("overrideConditions", overrideConditions),
+                ("order", sequenceNode.Order.ToString()),
+                ("priority", sequenceNode.Priority.ToString()),
+                ("readOnly", sequenceNode.ReadOnly.ToString()),
+                ("conditions", conditions.Length.ToString()),
+                ("overrideConditions", overrideConditions.ToString()),
                 ("method", nameof(Sequence))
             });
 
@@ -333,6 +355,7 @@ public class LSProcessTreeBuilder {
             LSProcessBuilderAction? selectorBuilderAction = null,
             LSProcessPriority? priority = LSProcessPriority.NORMAL,
             bool overrideConditions = false,
+            bool readOnly = false,
             params LSProcessNodeCondition?[] conditions) {
 
         var childFound = getChild(nodeID, out ILSProcessNode? existingNode);
@@ -344,9 +367,13 @@ public class LSProcessTreeBuilder {
         int order = _rootNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
 
         if (existingNode is LSProcessNodeSelector selectorNode) {
-            // if fields are not provided keep the existing values
-            selectorNode.Priority = priority ?? selectorNode.Priority;
-            selectorNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, selectorNode.Conditions, conditions);
+            // update only if the node is not read-only
+            if (!existingNode.ReadOnly) {
+                // if fields are not provided keep the existing values
+                selectorNode.Priority = priority ?? selectorNode.Priority;
+                selectorNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, selectorNode.Conditions, conditions);
+            }
+            //continue to build children if builder provided even if the node is read-only
         } else if (childFound) {
             // it does not make sense to modify a selector child when the existing node is a sequence, parallel or handler.
             LSLogger.Singleton.Warning($"Node [{nodeID}] exists but is not a selector node, builder not processed.",
@@ -366,25 +393,27 @@ public class LSProcessTreeBuilder {
             return this;
         } else {
             priority ??= LSProcessPriority.NORMAL; // default priority
-            selectorNode = LSProcessNodeSelector.Create(nodeID, order, priority.Value, conditions);
+            selectorNode = LSProcessNodeSelector.Create(nodeID, order, priority.Value, readOnly, conditions);
             // If there is no root node, this becomes the root, otherwise add to root node as child
             if (_rootNode == null) _rootNode = selectorNode;
             else _rootNode.AddChild(selectorNode);
         }
+
         // since we are passing a reference to the node, the builder will modify the node directly
         selectorBuilderAction?.Invoke(new LSProcessTreeBuilder(selectorNode));
 
+        // Detailed debug logging
         LSLogger.Singleton.Debug($"Selector Node {actionDebug} [{nodeID}].",
             source: (ClassName, null),
-            processId: null,
             properties: new (string, object)[] {
                 ("nodeID", nodeID),
                 ("builderProvided", selectorBuilderAction != null),
                 ("rootNode", _rootNode?.NodeID ?? "n/a"),
                 ("order", selectorNode.Order.ToString()),
                 ("priority", selectorNode.Priority.ToString()),
+                ("readOnly", selectorNode.ReadOnly.ToString()),
                 ("conditions", conditions.Length.ToString()),
-                ("overrideConditions", overrideConditions),
+                ("overrideConditions", overrideConditions.ToString()),
                 ("method", nameof(Selector))
             });
 
@@ -392,46 +421,38 @@ public class LSProcessTreeBuilder {
     }
 
     /// <summary>
-    /// Creates or navigates to a parallel node in the current context with support for nested hierarchy construction.
+    /// Creates or navigates to a parallel node in the root node with support for nested hierarchy construction.
     /// </summary>
     /// <param name="nodeID">Unique identifier for the parallel node within the current context.</param>
     /// <param name="parallelBuilderAction">Optional delegate for building nested children within this parallel node. If provided, the parallel node is built completely and the builder stays at the parent level.</param>
     /// <param name="numRequiredToSucceed">The number of child nodes that must succeed for the parallel node to succeed (default: 0 - all must succeed).</param>
     /// <param name="numRequiredToFailure">The number of child nodes that must fail for the parallel node to fail (default: 0 - any failure causes parallel failure).</param>
     /// <param name="priority">Processing priority level for this parallel node (default: NORMAL).</param>
+    /// <param name="overrideConditions">If true, replaces existing conditions; if false, merges with existing conditions.</param>
+    /// <param name="readOnly">If true, the node cannot be modified after creation.</param>
     /// <param name="conditions">Optional array of conditions that must be met before this parallel node processes.</param>
     /// <returns>The current builder instance for method chaining.</returns>
-    /// <exception cref="LSException">Thrown when attempting to override a non-parallel node with the same ID.</exception>
     /// <remarks>
     /// <para><strong>Parallel Node Behavior:</strong></para>
     /// <list type="bullet">
-    /// <item><description><strong>Concurrent Processing</strong>: All eligible children are processed simultaneously</description></item>
+    /// <item><description><strong>Concurrent Processing</strong>: All eligible children are processed sequentially</description></item>
     /// <item><description><strong>Threshold-Based Success</strong>: Success determined by numRequiredToSucceed threshold</description></item>
     /// <item><description><strong>Threshold-Based Failure</strong>: Failure determined by numRequiredToFailure threshold</description></item>
-    /// <item><description><strong>Flexible Logic</strong>: Supports various parallel processing patterns through threshold configuration</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Threshold Configuration:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Success Threshold</strong>: 0 means all children must succeed; positive value sets minimum success count</description></item>
-    /// <item><description><strong>Failure Threshold</strong>: 0 means any failure causes parallel failure; positive value sets maximum failure tolerance</description></item>
-    /// <item><description><strong>Dynamic Updates</strong>: Existing parallel nodes can have their success threshold updated</description></item>
-    /// <item><description><strong>Validation</strong>: Thresholds are validated against actual child count during processing</description></item>
+    /// <item><description><strong>Non-Blocking</strong>: All child nodes are executed, even when cancelling.</description></item>
     /// </list>
     /// 
     /// <para><strong>Waiting and Resume Behavior:</strong></para>
     /// <list type="bullet">
     /// <item><description><strong>Individual Resume</strong>: Parallel nodes in WAITING state can be resumed individually</description></item>
     /// <item><description><strong>Child State Aggregation</strong>: Overall parallel status depends on child states and thresholds</description></item>
-    /// <item><description><strong>Partial Completion</strong>: Can succeed even if some children are still waiting</description></item>
+    /// <item><description><strong>Partial Completion</strong>: Can succeed even if some children are still waiting (NOTE: this probably is not yet fully implemented)</description></item>
     /// </list>
     /// 
     /// <para><strong>Node Creation and Replacement:</strong></para>
     /// <list type="bullet">
     /// <item><description><strong>New Node Creation</strong>: Creates a new parallel node if none exists with the given ID</description></item>
-    /// <item><description><strong>Existing Node Updates</strong>: Updates success threshold of existing parallel nodes when specified</description></item>
-    /// <item><description><strong>Type Safety</strong>: Throws exception if attempting to replace non-parallel node</description></item>
-    /// <item><description><strong>Order Preservation</strong>: Maintains original order when replacing existing nodes</description></item>
+    /// <item><description><strong>Existing Node Updates</strong>: Updates success or failure thresholds of existing parallel nodes if they are not read-only</description></item>
+    /// <item><description><strong>Order Preservation</strong>: Maintains original order (NOTE: this may not be the desired behavior, but would require to have another parameter)</description></item>
     /// </list>
     /// </remarks>
     public LSProcessTreeBuilder Parallel(string nodeID,
@@ -440,6 +461,7 @@ public class LSProcessTreeBuilder {
             int? numRequiredToFailure = 0,
             LSProcessPriority? priority = null,
             bool overrideConditions = false,
+            bool readOnly = false,
             params LSProcessNodeCondition?[] conditions) {
 
         ILSProcessNode? existingNode = null;
@@ -451,11 +473,15 @@ public class LSProcessTreeBuilder {
             source: ("LSProcessSystem", null),
             properties: ("hideNodeID", true));
         if (existingNode is LSProcessNodeParallel parallelNode) {
-            // if fields are not provided keep the existing values
-            parallelNode.NumRequiredToSucceed = numRequiredToSucceed ?? parallelNode.NumRequiredToSucceed;
-            parallelNode.NumRequiredToFailure = numRequiredToFailure ?? parallelNode.NumRequiredToFailure;
-            parallelNode.Priority = priority ?? parallelNode.Priority;
-            parallelNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, parallelNode.Conditions, conditions);
+            // update only if the node is not read-only
+            if (existingNode.ReadOnly) {
+                // if fields are not provided keep the existing values
+                parallelNode.NumRequiredToSucceed = numRequiredToSucceed ?? parallelNode.NumRequiredToSucceed;
+                parallelNode.NumRequiredToFailure = numRequiredToFailure ?? parallelNode.NumRequiredToFailure;
+                parallelNode.Priority = priority ?? parallelNode.Priority;
+                parallelNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, parallelNode.Conditions, conditions);
+            }
+            //continue to build children if builder provided even if the node is read-only
         } else if (childFound) {
             // it does not make sense to modify a parallel child when the existing node is a sequence, selector or handler.
             LSLogger.Singleton.Warning($"Node [{nodeID}] exists but is not a parallel node.",
@@ -480,7 +506,7 @@ public class LSProcessTreeBuilder {
             priority ??= LSProcessPriority.NORMAL; // default priority
             numRequiredToSucceed ??= 0;
             numRequiredToFailure ??= 0;
-            parallelNode = LSProcessNodeParallel.Create(nodeID, order, numRequiredToSucceed.Value, numRequiredToFailure.Value, priority.Value, conditions);
+            parallelNode = LSProcessNodeParallel.Create(nodeID, order, numRequiredToSucceed.Value, numRequiredToFailure.Value, priority.Value, readOnly, conditions);
             // If there is no root node, this becomes the root, otherwise add to root node
             if (_rootNode == null) _rootNode = parallelNode;
             else _rootNode.AddChild(parallelNode);
@@ -509,52 +535,29 @@ public class LSProcessTreeBuilder {
     }
 
     /// <summary>
-    /// Merges a sub-layer node hierarchy into the current context with intelligent conflict resolution.
+    /// Merges a sub-layer node hierarchy into the current root node.
     /// </summary>
-    /// <param name="subLayer">The sub-layer node hierarchy to merge into the current context.</param>
+    /// <param name="subLayer">The sub-layer node hierarchy to merge into the root node.</param>
     /// <returns>The current builder instance for method chaining.</returns>
     /// <exception cref="LSArgumentNullException">Thrown when subLayer is null.</exception>
     /// <exception cref="LSException">Thrown when no current context exists and subLayer is empty.</exception>
     /// <remarks>
     /// <para><strong>Merge Strategies:</strong></para>
     /// <list type="bullet">
-    /// <item><description><strong>Root Seeding</strong>: If no current context exists, non-empty subLayer becomes the root</description></item>
-    /// <item><description><strong>Type-Based Merging</strong>: Same-type layer nodes are merged recursively</description></item>
-    /// <item><description><strong>Node Replacement</strong>: Different-type nodes or handler nodes are replaced</description></item>
-    /// <item><description><strong>Additive Integration</strong>: Non-conflicting nodes are added directly</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Conflict Resolution Rules:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Same Type Layer Nodes</strong>: Merged recursively, preserving both hierarchies</description></item>
-    /// <item><description><strong>Different Type Nodes</strong>: SubLayer node replaces existing node</description></item>
-    /// <item><description><strong>Handler Node Conflicts</strong>: SubLayer handler replaces existing handler</description></item>
-    /// <item><description><strong>Root Container Conflicts</strong>: SubLayer container replaces root if types differ</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Entry-Level Merging:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Root Identity Check</strong>: Special handling when merging into root node with same ID</description></item>
-    /// <item><description><strong>Root Type Compatibility</strong>: Same-type roots are content-merged, different types replace</description></item>
-    /// <item><description><strong>Context Preservation</strong>: Current context and root references updated appropriately</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Sub-Context Integration:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Pre-Build Processing</strong>: subContextBuilder can modify the subLayer before merging</description></item>
-    /// <item><description><strong>Isolated Operations</strong>: subContextBuilder operates on cloned copy to prevent side effects</description></item>
-    /// <item><description><strong>Seamless Integration</strong>: Built result is integrated using standard merge logic</description></item>
+    /// <item><description><strong>Root Seeding</strong>: If no root context exists, subLayer becomes the root</description></item>
+    /// <item><description><strong>Type-Based Merging</strong>: Layer nodes with same nodeID and the same layer type are merged recursively, handlers are replaced if the target is not read-only.</description></item>
     /// </list>
     /// </remarks>
     public LSProcessTreeBuilder Merge(ILSProcessLayerNode subLayer) {
         if (subLayer == null) {
             //log warning
-            LSLogger.Singleton.Warning($"Cannot merge an invalid node", (ClassName, true),
-            properties: new (string, object)[] {
-                ("subLayer", "n/a"),
-                ("rootNode", _rootNode?.NodeID ?? "n/a"),
-                ("method", nameof(Merge))
-            });
+            LSLogger.Singleton.Warning($"Cannot merge an invalid node",
+                source: (ClassName, true),
+                properties: new (string, object)[] {
+                    ("subLayer", "n/a"),
+                    ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                    ("method", nameof(Merge))
+                });
             throw new LSArgumentNullException(nameof(subLayer), "Provided subLayer is null.");
         }
         LSLogger.Singleton.Debug($"{ClassName}.Merge: [{subLayer.NodeID}] into [{_rootNode?.NodeID ?? "n/a"}]",
@@ -598,12 +601,14 @@ public class LSProcessTreeBuilder {
 
         return this;
     }
+    /// <summary>
+    /// Merges a source node into a target layer node with conflict resolution based on node types.
+    /// </summary>
+    /// <param name="targetLayerNode"></param>
+    /// <param name="sourceNode"></param>
     private void mergeNode(ILSProcessLayerNode targetLayerNode, ILSProcessNode sourceNode) {
         var existingChild = targetLayerNode.GetChild(sourceNode.NodeID);
         if (existingChild == null) {
-            LSLogger.Singleton.Debug($"mergeNode no existing child found for: [{sourceNode.NodeID}] in [{targetLayerNode.NodeID}]",
-                source: ("LSProcessSystem", null),
-                properties: ("hideNodeID", true));
             targetLayerNode.AddChild(sourceNode);
             return;
         }
@@ -611,15 +616,21 @@ public class LSProcessTreeBuilder {
         // Node exists, check if both are layer nodes for recursive merging
         if (existingChild is ILSProcessLayerNode existingLayer && sourceNode is ILSProcessLayerNode subNodeLayer) {
             // Both are layer nodes - merge recursively
-            LSLogger.Singleton.Debug($"mergeNode  merging recursively: [{existingLayer.NodeID}] [{subNodeLayer.NodeID}]",
-                source: ("LSProcessSystem", null),
-                properties: ("hideNodeID", true));
             mergeRecursive(existingLayer, subNodeLayer);
         } else if (existingChild.GetType() == sourceNode.GetType()) {
-            // Same type but not layer nodes (e.g., both handlers) - replace with sourceNode
-            LSLogger.Singleton.Debug($"mergeNode  replacing same type node: [{existingChild.NodeID}]",
-                source: ("LSProcessSystem", null),
-                properties: ("hideNodeID", true));
+            // Same type but not layer nodes (e.g., both handlers)
+            if (existingChild.ReadOnly) {
+                LSLogger.Singleton.Warning($"Node [{sourceNode.NodeID}] exists but is read-only, cannot replace.",
+                    source: (ClassName, true),
+                    properties: new (string, object)[] {
+                            ("nodeID", sourceNode.NodeID),
+                            ("subNodeType", sourceNode.GetType().Name),
+                            ("existingType", existingChild.GetType().Name),
+                            ("method", nameof(mergeNode))
+                });
+                return;
+            }
+
             targetLayerNode.RemoveChild(sourceNode.NodeID);
             targetLayerNode.AddChild(sourceNode);
         } else {
@@ -633,39 +644,15 @@ public class LSProcessTreeBuilder {
                             ("method", nameof(mergeNode))
                 });
         }
-
-
     }
 
     /// <summary>
     /// Recursively merges the contents of a source node hierarchy into a target node hierarchy.
+    /// In merge targetNode is always treated as readOnly so sourceNode cannot change priority or conditions.
+    /// To make this work otherwise, sourceNode would have to be cast as a concrete node or the change the interface.
     /// </summary>
     /// <param name="targetNode">The target layer node that will receive merged content.</param>
     /// <param name="sourceNode">The source layer node whose content will be merged into the target.</param>
-    /// <remarks>
-    /// <para><strong>Recursive Merge Logic:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Deep Traversal</strong>: Recursively processes all children in the source hierarchy</description></item>
-    /// <item><description><strong>Conflict Detection</strong>: Identifies existing children with same IDs in target hierarchy</description></item>
-    /// <item><description><strong>Type-Aware Merging</strong>: Different merge strategies based on node types</description></item>
-    /// <item><description><strong>Preservation Logic</strong>: Maintains existing structure while integrating new content</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Merge Resolution Strategy:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Both Layer Nodes</strong>: Recursive merge to combine both hierarchies</description></item>
-    /// <item><description><strong>Same Type Non-Layer</strong>: Source node replaces target node (e.g., handler replacement)</description></item>
-    /// <item><description><strong>Different Types</strong>: Source node replaces target node regardless of type</description></item>
-    /// <item><description><strong>No Conflict</strong>: Source node added directly to target</description></item>
-    /// </list>
-    /// 
-    /// <para><strong>Node Reference Handling:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>Direct Addition</strong>: Non-conflicting nodes are added without cloning</description></item>
-    /// <item><description><strong>Builder Assumption</strong>: Assumes all nodes are already properly cloned or new</description></item>
-    /// <item><description><strong>Reference Integrity</strong>: Maintains proper parent-child relationships</description></item>
-    /// </list>
-    /// </remarks>
     private void mergeRecursive(ILSProcessLayerNode targetNode, ILSProcessLayerNode sourceNode) {
         // Iterate through all children of the source node
         foreach (var sourceChild in sourceNode.GetChildren()) {
@@ -681,7 +668,12 @@ public class LSProcessTreeBuilder {
     /// <param name="priority"></param>
     /// <param name="conditions"></param>
     /// <returns></returns>
-    public LSProcessTreeBuilder Inverter(string nodeID, LSProcessBuilderAction builder, LSProcessPriority? priority = LSProcessPriority.NORMAL, bool overrideConditions = false, params LSProcessNodeCondition?[] conditions) {
+    public LSProcessTreeBuilder Inverter(string nodeID,
+            LSProcessBuilderAction builder,
+            LSProcessPriority? priority = LSProcessPriority.NORMAL,
+            bool overrideConditions = false,
+            bool readOnly = false,
+            params LSProcessNodeCondition?[] conditions) {
         ILSProcessNode? existingNode = null;
         int order = _rootNode?.GetChildren().Length ?? 0; // Order is based on the number of existing children, or 0 if root
         var childFound = getChild(nodeID, out existingNode);
@@ -692,12 +684,15 @@ public class LSProcessTreeBuilder {
             properties: ("hideNodeID", true));
 
         if (existingNode is LSProcessNodeInverter inverterNode) {
-            // existing node is a inverter node
-            // if fields are not provided keep the existing values
-            priority ??= existingNode.Priority;
-            // update values
-            inverterNode.Priority = priority.Value;
-            inverterNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, inverterNode.Conditions, conditions);
+            // update only if the node is not read-only
+            if (!existingNode.ReadOnly) {
+                // if fields are not provided keep the existing values
+                priority ??= existingNode.Priority;
+                // update values
+                inverterNode.Priority = priority.Value;
+                inverterNode.Conditions = LSProcessHelpers.UpdateConditions(overrideConditions, inverterNode.Conditions, conditions);
+            }
+            // continue to build children if builder provided even if the node is read-only
         } else {
             if (childFound) {
                 //child is not an inverter node, log warning
@@ -717,7 +712,7 @@ public class LSProcessTreeBuilder {
                 return this;
             }
             priority ??= LSProcessPriority.NORMAL; // default priority
-            inverterNode = LSProcessNodeInverter.Create(nodeID, priority.Value, order, conditions);
+            inverterNode = LSProcessNodeInverter.Create(nodeID, priority.Value, order, readOnly, conditions);
             if (_rootNode == null) _rootNode = inverterNode;
             else _rootNode.AddChild(inverterNode);
         }
@@ -731,6 +726,7 @@ public class LSProcessTreeBuilder {
                 ("nodeOrder", inverterNode.Order.ToString()),
                 ("nodePriority", inverterNode.Priority.ToString()),
                 ("conditions", conditions.Length.ToString()),
+                ("readOnly", readOnly.ToString()),
                 ("overrideConditions", true),
                 ("method", nameof(Inverter))
             });

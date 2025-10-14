@@ -15,11 +15,14 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
 
     public int Order { get; internal set; }
 
-    protected LSProcessNodeInverter(string nodeID, LSProcessPriority priority = LSProcessPriority.NORMAL, int order = 0, params LSProcessNodeCondition?[] conditions) {
+    public bool ReadOnly { get; internal set; } = false;
+
+    protected LSProcessNodeInverter(string nodeID, LSProcessPriority priority = LSProcessPriority.NORMAL, int order = 0, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeID;
         Priority = priority;
         Order = order;
         Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
+        ReadOnly = readOnly;
     }
 
     // inverter should not be able to change child after creation
@@ -160,7 +163,7 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true)); // No specific process context for node cloning
 
-        var clone = new LSProcessNodeInverter(NodeID, Priority, Order, Conditions);
+        var clone = new LSProcessNodeInverter(NodeID, Priority, Order, ReadOnly, Conditions);
         if (_childNode != null) clone.AddChild(_childNode.Clone());
         // Debug log with details
         LSLogger.Singleton.Debug($"Inverter node cloned.",
@@ -211,8 +214,8 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         return false;
     }
 
-    public static LSProcessNodeInverter Create(string nodeID, LSProcessPriority priority = LSProcessPriority.NORMAL, int order = 0, params LSProcessNodeCondition?[] conditions) {
-        var node = new LSProcessNodeInverter(nodeID, priority, order, conditions);
+    public static LSProcessNodeInverter Create(string nodeID, LSProcessPriority priority = LSProcessPriority.NORMAL, int order = 0, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
+        var node = new LSProcessNodeInverter(nodeID, priority, order, readOnly, conditions);
         return node;
     }
 }
