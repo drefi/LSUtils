@@ -19,20 +19,6 @@ public class LSProcessTreeBuilder {
     private ILSProcessLayerNode? _rootNode; // Tracks the root node to return on Build()
 
     /// <summary>
-    /// Initializes a new builder in global mode with no existing hierarchy.
-    /// </summary>
-    /// <remarks>
-    /// <para><strong>Global Mode Construction:</strong></para>
-    /// <list type="bullet">
-    /// <item><description><strong>No Root Context</strong>: Starts with null current and root nodes</description></item>
-    /// <item><description><strong>First Layer Node</strong>: The first Sequence/Selector/Parallel call establishes the root</description></item>
-    /// <item><description><strong>Clean Slate</strong>: Provides completely fresh hierarchy construction</description></item>
-    /// </list>
-    /// </remarks>
-    internal LSProcessTreeBuilder() {
-    }
-
-    /// <summary>
     /// Initializes a new builder in event mode with an existing root node hierarchy.
     /// </summary>
     /// <param name="rootNode">The existing root node to use as the base for building. Will be referenced directly to the node, this allows global context manipulation.</param>
@@ -43,7 +29,7 @@ public class LSProcessTreeBuilder {
     /// <item><description><strong>Extension Ready</strong>: Ready to add children or navigate into existing structure</description></item>
     /// </list>
     /// </remarks>
-    internal LSProcessTreeBuilder(ILSProcessLayerNode rootNode) {
+    internal LSProcessTreeBuilder(ILSProcessLayerNode? rootNode = null) {
         _rootNode = rootNode;
     }
 

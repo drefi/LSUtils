@@ -19,22 +19,7 @@ namespace LSUtils.ProcessSystem;
 /// Within layer nodes (Sequence, Selector, Parallel), children are sorted by Priority (descending) then Order (ascending) to ensure predictable execution sequences while allowing fine-grained control within priority levels.
 /// </remarks>
 public enum LSProcessPriority {
-    /// <summary>
-    /// Background operations like logging, metrics, and non-critical cleanup.
-    /// Lowest priority - executes last in processing order.
-    /// </summary>
-    /// <remarks>
-    /// <b>Typical Use Cases:</b><br/>
-    /// • Performance metrics collection and telemetry reporting<br/>
-    /// • Debug logging and trace information recording<br/>
-    /// • Memory cleanup and garbage collection hints<br/>
-    /// • Cache maintenance and optimization tasks<br/>
-    /// • Non-essential file I/O operations<br/>
-    /// <br/>
-    /// <b>Processing Characteristics:</b><br/>
-    /// Background tasks should never affect core application functionality and can be safely delayed or skipped if system resources are constrained.
-    /// </remarks>
-    BACKGROUND = 0,
+    MINIMAL = 0,
 
     /// <summary>
     /// Nice-to-have features and optional functionality.

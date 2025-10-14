@@ -76,8 +76,8 @@ public class LSProcessManager {
     /// If no instance is provided, registers a global context that applies to all instances of the process type.
     /// If an instance is provided, registers a context specific to that instance with higher priority than global contexts.
     /// </remarks>
-    public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null) where TProcess : ILSProcess {
-        Register(typeof(TProcess), builder, instance);
+    public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) where TProcess : ILSProcess {
+        Register(typeof(TProcess), builder, instance, layerType);
     }
     /// <summary>
     /// Registers a processing context for a specific process type using a fluent builder pattern.
@@ -96,7 +96,7 @@ public class LSProcessManager {
     /// <item><description>Stores the built context for future retrieval</description></item>
     /// </list>
     /// </remarks>
-    public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null) {
+    public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) {
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
@@ -106,7 +106,11 @@ public class LSProcessManager {
               properties: ("hideNodeID", true));
         instance ??= GlobalProcessable.Instance;
         if (!processDict.TryGetValue(instance, out var instanceNode)) {
-            instanceNode = new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build();
+            instanceNode = layerType switch {
+                LSProcessLayerNodeType.SEQUENCE => new LSProcessTreeBuilder().Sequence($"{processType.Name}").Build(),
+                LSProcessLayerNodeType.SELECTOR => new LSProcessTreeBuilder().Selector($"{processType.Name}").Build(),
+                _ => new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build()
+            };
         }
         var instanceBuilder = new LSProcessTreeBuilder(instanceNode);
         // Build the root node using the provided builder action
@@ -170,7 +174,8 @@ public class LSProcessManager {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
         }
-        LSProcessTreeBuilder builder = new LSProcessTreeBuilder();
+        // Create a new builder starting with the localNode as root node
+        LSProcessTreeBuilder builder = new LSProcessTreeBuilder(localNode);
         if (processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
             // we have a global node to merge. We clone the global node to avoid modifying the original.
             var clone = globalNode.Clone();
@@ -181,10 +186,6 @@ public class LSProcessManager {
         if (instance != null && processDict.TryGetValue(instance, out instanceNode)) {
             var clone = instanceNode.Clone();
             builder.Merge(clone);
-        }
-        // local context is merged last, so it has priority over global and instance contexts.
-        if (localNode != null) {
-            builder.Merge(localNode);
         }
         //restore detailed logger status
         LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: previousClassNameStatus));
