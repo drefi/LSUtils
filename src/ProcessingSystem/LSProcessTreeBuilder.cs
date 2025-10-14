@@ -474,7 +474,7 @@ public class LSProcessTreeBuilder {
             properties: ("hideNodeID", true));
         if (existingNode is LSProcessNodeParallel parallelNode) {
             // update only if the node is not read-only
-            if (existingNode.ReadOnly) {
+            if (!existingNode.ReadOnly) {
                 // if fields are not provided keep the existing values
                 parallelNode.NumRequiredToSucceed = numRequiredToSucceed ?? parallelNode.NumRequiredToSucceed;
                 parallelNode.NumRequiredToFailure = numRequiredToFailure ?? parallelNode.NumRequiredToFailure;
