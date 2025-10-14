@@ -128,7 +128,7 @@ public sealed class LSLogger {
     /// </summary>
     public void Info(string message, string? source = null, System.Guid? processId = null,
                     IDictionary<string, object>? properties = null) {
-        Log(LSLogLevel.INFO, message, source != null ? (source, null) : null, processId: processId, properties: properties);
+        Log(LSLogLevel.INFO, message, source != null ? (source, true) : null, processId: processId, properties: properties);
     }
     public void Info(string message,
                 (string sourceID, bool? isEnabled)? source = null,
@@ -152,7 +152,7 @@ public sealed class LSLogger {
     /// </summary>
     public void Warning(string message, string? source = null, System.Guid? processId = null,
                        IDictionary<string, object>? properties = null) {
-        Log(LSLogLevel.WARNING, message, source != null ? (source, null) : null, processId: processId, properties: properties);
+        Log(LSLogLevel.WARNING, message, source != null ? (source, true) : null, processId: processId, properties: properties);
     }
     public void Warning(string message,
                     (string sourceID, bool? isEnabled)? source = null,
@@ -176,7 +176,7 @@ public sealed class LSLogger {
     /// </summary>
     public void Error(string message, LSException? exception = null, string? source = null,
                      System.Guid? processId = null, IDictionary<string, object>? properties = null) {
-        Log(LSLogLevel.ERROR, message, source != null ? (source, null) : null, exception: exception, processId: processId, properties: properties);
+        Log(LSLogLevel.ERROR, message, source != null ? (source, true) : null, exception: exception, processId: processId, properties: properties);
     }
     public void Error(string message,
                     LSException? exception = null,
@@ -201,7 +201,7 @@ public sealed class LSLogger {
     /// </summary>
     public void Critical(string message, LSException? exception = null, string? source = null,
                         System.Guid? processId = null, IDictionary<string, object>? properties = null) {
-        Log(LSLogLevel.CRITICAL, message, source != null ? (source, null) : null, exception: exception, processId: processId, properties: properties);
+        Log(LSLogLevel.CRITICAL, message, source != null ? (source, true) : null, exception: exception, processId: processId, properties: properties);
     }
     public void Critical(string message, (string sourceID, bool? isEnabled)? source = null, LSException? exception = null,
                         System.Guid? processId = null, IDictionary<string, object>? properties = null) {
