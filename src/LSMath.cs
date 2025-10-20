@@ -23,6 +23,11 @@ public static class LSMath {
     public static float Clamp(float value, float min, float max) {
         return System.Math.Clamp(value, min, max);
     }
+    public static T Clamp<T>(T value, T min, T max) where T : System.IComparable<T> {
+        if (value.CompareTo(min) < 0) return min;
+        if (value.CompareTo(max) > 0) return max;
+        return value;
+    }
 
     /// <summary>
     /// Returns the maximum of two integers.

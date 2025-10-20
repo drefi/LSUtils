@@ -15,5 +15,10 @@ public interface ILSSerializer : ILSClass {
     /// <typeparam name="T">The type of the object to deserialize into.</typeparam>
     /// <param name="data">The string data to deserialize.</param>
     /// <returns>An object of type T.</returns>
-    T Deserialize<T>(string data);
+    T? Deserialize<T>(string data);
+
+    /// <summary>
+    /// When deserializing unknown types
+    /// </summary>
+    object? Deserialize(string data, System.Type type);
 }

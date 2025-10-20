@@ -22,12 +22,7 @@ public sealed class LSLogger {
     /// Initializes the logger with default providers.
     /// </summary>
     private LSLogger() {
-        // Add default providers in order of preference
-        if (new LSGodotLogProvider().IsAvailable) {
-            _providers.Add(new LSGodotLogProvider());
-        } else {
-            _providers.Add(new LSConsoleLogProvider());
-        }
+        _providers.Add(new LSConsoleLogProvider());
     }
 
     /// <summary>
