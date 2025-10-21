@@ -146,7 +146,7 @@ public class CoreTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(null!, mockProcess, builder);
         var result = session.Execute();
 
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -181,7 +181,7 @@ public class CoreTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, merged);
+        var session = new LSProcessSession(null!, mockProcess, merged);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
 
@@ -222,7 +222,7 @@ public class CoreTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, mergedContextWithPriority);
+        var session = new LSProcessSession(null!, mockProcess, mergedContextWithPriority);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
 

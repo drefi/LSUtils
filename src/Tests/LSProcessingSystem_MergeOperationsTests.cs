@@ -95,7 +95,7 @@ public class MergeOperationsTests {
         Assert.That(subContextNode.HasChild("handler1"), Is.True);
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, mergedContext);
+        var session = new LSProcessSession(null!, mockProcess, mergedContext);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1)); // handler1 should be called once
@@ -130,7 +130,7 @@ public class MergeOperationsTests {
         Assert.That(seqB?.HasChild("handlerB"), Is.True);
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, root);
+        var session = new LSProcessSession(null!, mockProcess, root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1)); // handlerA should be called once
@@ -160,7 +160,7 @@ public class MergeOperationsTests {
         Assert.That(sequence.GetChildren().Length, Is.EqualTo(1));
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, sequence);
+        var session = new LSProcessSession(null!, mockProcess, sequence);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(0)); // First handler should be replaced
@@ -356,7 +356,7 @@ public class MergeOperationsTests {
 
         // Since override is always allowed, the second handler should replace the first
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, mergedContext);
+        var session = new LSProcessSession(null!, mockProcess, mergedContext);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(0)); // First handler should be replaced

@@ -75,7 +75,7 @@ public class NodeSelector_Tests {
         Assert.That(root.NodeID, Is.EqualTo("root"));
         // Test execution
 
-        var result = new LSProcessSession(new MockProcess(), root).Execute();
+        var result = new LSProcessSession(null!, new MockProcess(), root).Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
     }
 
@@ -92,7 +92,7 @@ public class NodeSelector_Tests {
         Assert.That(root.HasChild("handler1"), Is.True);
         Assert.That(root.HasChild("handler2"), Is.True);
         // Test execution
-        var result = new LSProcessSession(new MockProcess(), root).Execute();
+        var result = new LSProcessSession(null!, new MockProcess(), root).Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1));
         Assert.That(_handler2CallCount, Is.EqualTo(0)); // should not be called because handler1 succeeds
@@ -110,7 +110,7 @@ public class NodeSelector_Tests {
         Assert.That(root.HasChild("handler1"), Is.True);
         Assert.That(root.HasChild("handler2"), Is.True);
         // Test execution
-        var result = new LSProcessSession(new MockProcess(), root).Execute();
+        var result = new LSProcessSession(null!, new MockProcess(), root).Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
         Assert.That(_handler2CallCount, Is.EqualTo(1)); // should be called because handler1 fails
@@ -127,7 +127,7 @@ public class NodeSelector_Tests {
         Assert.That(root.NodeID, Is.EqualTo("root"));
         Assert.That(root.HasChild("handler1"), Is.True);
         // Test execution
-        var result = new LSProcessSession(new MockProcess(), root).Execute();
+        var result = new LSProcessSession(null!, new MockProcess(), root).Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
         Assert.That(_handler3CallCount, Is.EqualTo(2)); // Both handlers should be called
     }
@@ -146,7 +146,7 @@ public class NodeSelector_Tests {
         Assert.That(root.HasChild("handler2"), Is.True);
         // Test execution
 
-        var session = new LSProcessSession(new MockProcess(), root);
+        var session = new LSProcessSession(null!, new MockProcess(), root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -169,7 +169,7 @@ public class NodeSelector_Tests {
         Assert.That(root.HasChild("handler2"), Is.True);
         // Test execution
 
-        var session = new LSProcessSession(new MockProcess(), root);
+        var session = new LSProcessSession(null!, new MockProcess(), root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -197,7 +197,7 @@ public class NodeSelector_Tests {
         Assert.That(root.HasChild("handler2"), Is.True);
         // Test execution
 
-        var session = new LSProcessSession(new MockProcess(), root);
+        var session = new LSProcessSession(null!, new MockProcess(), root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -222,7 +222,7 @@ public class NodeSelector_Tests {
         Assert.That(root.NodeID, Is.EqualTo("root"));
         Assert.That(root.HasChild("handler1"), Is.True);
         // Test execution
-        var session = new LSProcessSession(new MockProcess(), root);
+        var session = new LSProcessSession(null!, new MockProcess(), root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -244,7 +244,7 @@ public class NodeSelector_Tests {
         Assert.That(selector.HasChild("handler1"), Is.True);
 
         // Start processing
-        var session = new LSProcessSession(new MockProcess(), selector);
+        var session = new LSProcessSession(null!, new MockProcess(), selector);
         var result = session.Execute();
 
         var handler2 = LSProcessNodeHandler.Create("handler2", _mockHandler2, 1);
@@ -274,7 +274,7 @@ public class NodeSelector_Tests {
         root.AddChild(handler2);
         root.AddChild(handler3);
 
-        var result = new LSProcessSession(new MockProcess(), root).Execute();
+        var result = new LSProcessSession(null!, new MockProcess(), root).Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         // Only the conditional success should execute (first with true condition)
         Assert.That(executionPath, Is.EqualTo(new List<string> { "CONDITIONAL_SUCCESS" }));

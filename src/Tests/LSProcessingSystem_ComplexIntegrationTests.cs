@@ -102,7 +102,7 @@ public class ComplexIntegrationTests {
 
         // Test execution of the entire structure
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, root);
+        var session = new LSProcessSession(null!, mockProcess, root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(2)); // handler1 and handler1B
@@ -129,7 +129,7 @@ public class ComplexIntegrationTests {
 
         var root = builder.Build();
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, root);
+        var session = new LSProcessSession(null!, mockProcess, root);
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var result = session.Execute();
@@ -156,7 +156,7 @@ public class ComplexIntegrationTests {
         Assert.That(root.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, root);
+        var session = new LSProcessSession(null!, mockProcess, root);
 
         // Process the entire hierarchy
         var result = session.Execute();

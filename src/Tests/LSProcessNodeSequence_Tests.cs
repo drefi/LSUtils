@@ -76,7 +76,7 @@ public class NodeSequence_Tests {
         Assert.That(root.NodeID, Is.EqualTo("root"));
         // Test execution
         var process = new MockProcess();
-        var session = new LSProcessSession(process, root);
+        var session = new LSProcessSession(null!, process, root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
     }
@@ -93,7 +93,7 @@ public class NodeSequence_Tests {
         Assert.That(root.HasChild("handler1"), Is.True);
         Assert.That(root.HasChild("handler2"), Is.True);
         // Test execution
-        var result = new LSProcessSession(new MockProcess(), root).Execute();
+        var result = new LSProcessSession(null!, new MockProcess(), root).Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1));
         Assert.That(_handler2CallCount, Is.EqualTo(1));
@@ -111,7 +111,7 @@ public class NodeSequence_Tests {
         Assert.That(root.NodeID, Is.EqualTo("root"));
         Assert.That(root.HasChild("handler1"), Is.True);
         // Test execution
-        var result = new LSProcessSession(new MockProcess(), root).Execute();
+        var result = new LSProcessSession(null!, new MockProcess(), root).Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
         Assert.That(_handler2CallCount, Is.EqualTo(0)); // Should not be called
@@ -131,7 +131,7 @@ public class NodeSequence_Tests {
         Assert.That(root.HasChild("handler1"), Is.True);
         Assert.That(root.HasChild("handler2"), Is.True);
         // Test execution
-        var result = new LSProcessSession(new MockProcess(), root).Execute();
+        var result = new LSProcessSession(null!, new MockProcess(), root).Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.CANCELLED));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
         Assert.That(_handler2CallCount, Is.EqualTo(0)); // Should not be called
@@ -147,7 +147,7 @@ public class NodeSequence_Tests {
         Assert.That(root.NodeID, Is.EqualTo("root"));
         Assert.That(root.HasChild("handler1"), Is.True);
         // Test execution
-        var session = new LSProcessSession(new MockProcess(), root);
+        var session = new LSProcessSession(null!, new MockProcess(), root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -167,7 +167,7 @@ public class NodeSequence_Tests {
         Assert.That(root.NodeID, Is.EqualTo("root"));
         Assert.That(root.HasChild("handler1"), Is.True);
         // Test execution
-        var session = new LSProcessSession(new MockProcess(), root);
+        var session = new LSProcessSession(null!, new MockProcess(), root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -187,7 +187,7 @@ public class NodeSequence_Tests {
         Assert.That(root.NodeID, Is.EqualTo("root"));
         Assert.That(root.HasChild("handler1"), Is.True);
         // Test execution
-        var session = new LSProcessSession(new MockProcess(), root);
+        var session = new LSProcessSession(null!, new MockProcess(), root);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(_handler3CallCount, Is.EqualTo(1));
@@ -208,7 +208,7 @@ public class NodeSequence_Tests {
         Assert.DoesNotThrow(() => sequence.AddChild(handler));
         Assert.That(sequence.HasChild("handler1"), Is.True);
 
-        var session = new LSProcessSession(new MockProcess(), sequence);
+        var session = new LSProcessSession(null!, new MockProcess(), sequence);
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
 
@@ -230,7 +230,7 @@ public class NodeSequence_Tests {
         Assert.That(root.NodeID, Is.EqualTo("root"));
         Assert.That(root.HasChild("handler1"), Is.True);
 
-        var result = new LSProcessSession(new MockProcess(), root).Execute();
+        var result = new LSProcessSession(null!, new MockProcess(), root).Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(0)); // Handler should not be called
     }

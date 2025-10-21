@@ -79,7 +79,7 @@ public class HandlerNodeTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(null!, mockProcess, builder);
 
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // since we skipped the handler that would return FAILURE the result is SUCCESS
@@ -97,7 +97,7 @@ public class HandlerNodeTests {
                     .Build();
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(null!, mockProcess, builder);
 
         var result = session.Execute();
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE)); // since the handler returns FAILURE the result is FAILURE
@@ -120,11 +120,11 @@ public class HandlerNodeTests {
         // Execute original
         var root = new LSProcessTreeBuilder().Sequence("root").Handler("handler", _mockHandler1).Build();
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, root);
+        var session = new LSProcessSession(null!, mockProcess, root);
         session.Execute();
 
         // Create a builder with the original handler to test execution count
-        var testContext = new LSProcessSession(mockProcess, originalHandler);
+        var testContext = new LSProcessSession(null!, mockProcess, originalHandler);
         ((ILSProcessNode)originalHandler).Execute(testContext);
 
         // Both should show increased execution count
@@ -150,7 +150,7 @@ public class HandlerNodeTests {
         // Note: We can't directly access _baseNode as it's protected, 
         // but we can test the behavior through execution count sharing
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, originalHandler);
+        var session = new LSProcessSession(null!, mockProcess, originalHandler);
 
         // Original execution count should be independent before cloning
         ((ILSProcessNode)originalHandler).Execute(session);
@@ -185,7 +185,7 @@ public class HandlerNodeTests {
         _handler1CallCount = 0;
 
         var mockProcess1 = new MockProcess();
-        var session1 = new LSProcessSession(mockProcess1, root);
+        var session1 = new LSProcessSession(null!, mockProcess1, root);
         var result1 = session1.Execute();
         Assert.That(result1, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(1));
@@ -208,7 +208,7 @@ public class HandlerNodeTests {
         _handler1CallCount = 0;
 
         var mockProcess2 = new MockProcess();
-        var session2 = new LSProcessSession(mockProcess2, root2);
+        var session2 = new LSProcessSession(null!, mockProcess2, root2);
         var result2 = session2.Execute();
         Assert.That(result2, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // sequence succeeds when handler is skipped
         Assert.That(_handler1CallCount, Is.EqualTo(0));
@@ -231,7 +231,7 @@ public class HandlerNodeTests {
         _handler1CallCount = 0;
 
         var mockProcess3 = new MockProcess();
-        var session3 = new LSProcessSession(mockProcess3, root3);
+        var session3 = new LSProcessSession(null!, mockProcess3, root3);
         var result3 = session3.Execute();
         Assert.That(result3, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(0));
@@ -252,7 +252,7 @@ public class HandlerNodeTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(null!, mockProcess, builder);
         var result = session.Execute();
 
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -275,7 +275,7 @@ public class HandlerNodeTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, root);
+        var session = new LSProcessSession(null!, mockProcess, root);
 
         // Exception in condition should propagate (current implementation behavior)
         throwException = true;

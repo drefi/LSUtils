@@ -160,7 +160,7 @@ public abstract class LSProcess : ILSProcess {
             return _processSession.RootNode.GetNodeStatus();
         }
         var sessionRoot = _manager.GetRootNode(GetType(), instance, _root);
-        _processSession = new LSProcessSession(this, sessionRoot, instance);
+        _processSession = new LSProcessSession(_manager, this, sessionRoot, instance);
 
         // Detailed debug logging ClassName
         LSLogger.Singleton.Debug($"Process Execute",

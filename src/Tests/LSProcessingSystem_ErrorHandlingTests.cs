@@ -80,7 +80,7 @@ public class ErrorHandlingTests {
                 .Build();
             // If build succeeds, test processing
             var mockProcess = new MockProcess();
-            var session = new LSProcessSession(mockProcess, builder);
+            var session = new LSProcessSession(null!, mockProcess, builder);
             try {
                 session.Execute();
             } catch (Exception ex) {
@@ -127,7 +127,7 @@ public class ErrorHandlingTests {
 
             // If this succeeds, let's test the behavior
             var mockProcess = new MockProcess();
-            var session = new LSProcessSession(mockProcess, builder);
+            var session = new LSProcessSession(null!, mockProcess, builder);
             var result = session.Execute();
 
             // The system might allow duplicates but only use the last one
@@ -171,7 +171,7 @@ public class ErrorHandlingTests {
             .Build();
 
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, builder);
+        var session = new LSProcessSession(null!, mockProcess, builder);
 
         // Exception should propagate and stop execution
         Assert.Throws<InvalidOperationException>(() => {
@@ -192,7 +192,7 @@ public class ErrorHandlingTests {
 
         // Start processing to set internal state
         var mockProcess = new MockProcess();
-        var session = new LSProcessSession(mockProcess, sequence);
+        var session = new LSProcessSession(null!, mockProcess, sequence);
 
         // Process first to set internal processing state
         var result = session.Execute();
@@ -213,7 +213,7 @@ public class ErrorHandlingTests {
         // Test null event - system might accept it
         Exception? caughtException = null;
         try {
-            var session = new LSProcessSession(null!, builder);
+            var session = new LSProcessSession(null!, null!, builder);
             // If construction succeeds, test processing
             try {
                 var result = session.Execute();
@@ -237,7 +237,7 @@ public class ErrorHandlingTests {
         var mockProcess = new MockProcess();
         Exception? caughtException2 = null;
         try {
-            var session = new LSProcessSession(mockProcess, null!);
+            var session = new LSProcessSession(null!, mockProcess, null!);
             try {
                 var result = session.Execute();
                 Assert.That(result, Is.AnyOf(LSProcessResultStatus.SUCCESS, LSProcessResultStatus.FAILURE, LSProcessResultStatus.WAITING, LSProcessResultStatus.CANCELLED));
