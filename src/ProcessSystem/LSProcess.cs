@@ -251,7 +251,7 @@ public abstract class LSProcess : ILSProcess {
     /// <para>Root node is named using the instance ID (if provided) or this process's ID,</para>
     /// <para>prefixed with the process type name for clarity in debugging.</para>
     /// </remarks>
-    public ILSProcess WithProcessing(LSProcessBuilderAction builderAction, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) {
+    public ILSProcess WithProcessing(LSProcessBuilderAction builderAction, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.WithProcessing: [{_root?.NodeID ?? "n/a"}] {_root?.GetType().Name ?? layerType.ToString()} ",
             source: ("LSProcessSystem", null),
