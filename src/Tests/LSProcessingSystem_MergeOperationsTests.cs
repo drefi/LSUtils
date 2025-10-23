@@ -295,8 +295,12 @@ public class MergeOperationsTests {
     public void TestMergeNullContext() {
         var builder = new LSProcessTreeBuilder()
             .Sequence("root");
+        LSProcessTreeBuilder subBuilder = null!;
 
-        Assert.Throws<LSArgumentNullException>(() => builder.Merge(null!));
+        Assert.Throws<LSArgumentNullException>(() => builder.Merge(subBuilder));
+        
+        ILSProcessLayerNode nullNode = null!;
+        Assert.Throws<LSArgumentNullException>(() => builder.Merge(nullNode));
     }
 
     //TODO: this test is a little wierd, maybe we need to check if this is the intended behavior
@@ -361,5 +365,27 @@ public class MergeOperationsTests {
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(_handler1CallCount, Is.EqualTo(0)); // First handler should be replaced
         Assert.That(_handler2CallCount, Is.EqualTo(1)); // Second handler should be called
+    }
+    [Test]
+    public void TestMergeWithSubBuilder() {
+        var subBuilder = new LSProcessTreeBuilder()
+            .Sequence("subSequence", seq => seq
+                .Handler("subHandler", _mockHandler1))
+            .Build();
+
+        var rootBuilder = new LSProcessTreeBuilder()
+            .Sequence("rootSequence", rootSeq => rootSeq
+                .Merge(subBuilder))
+            .Build();
+
+        Assert.That(rootBuilder.HasChild("subSequence"), Is.True);
+        var subSequence = rootBuilder.GetChild("subSequence") as ILSProcessLayerNode;
+        Assert.That(subSequence?.HasChild("subHandler"), Is.True);
+
+        var mockProcess = new MockProcess();
+        var session = new LSProcessSession(null!, mockProcess, rootBuilder);
+        var result = session.Execute();
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(_handler1CallCount, Is.EqualTo(1)); // subHandler should be called once
     }
 }

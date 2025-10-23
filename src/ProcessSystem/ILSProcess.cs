@@ -116,8 +116,9 @@ public interface ILSProcess {
     /// <typeparam name="T">Expected type of the stored data</typeparam>
     /// <param name="key">String key for the data</param>
     /// <param name="value">Output parameter containing the value or default(T)</param>
+    /// <param name="enableLogging">Optional flag to enable logging for this operation</param>
     /// <returns>True if key exists and value can be cast to T, otherwise false</returns>
-    bool TryGetData<T>(string key, out T? value);
+    bool TryGetData<T>(string key, out T? value, bool? enableLogging = false);
 
     /// <summary>
     /// Defines custom processing logic specific to this process instance.

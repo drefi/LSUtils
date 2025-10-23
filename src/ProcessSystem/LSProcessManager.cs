@@ -120,7 +120,7 @@ public class LSProcessManager {
     /// );
     /// </code>
     /// </example>
-    public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) where TProcess : ILSProcess {
+    public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) where TProcess : ILSProcess {
         Register(typeof(TProcess), builder, instance, layerType);
     }
     /// <summary>
@@ -139,7 +139,7 @@ public class LSProcessManager {
     /// <param name="instance">Processable instance for targeted registration (null = global context)</param>
     /// <param name="layerType">Root layer node type for new context creation</param>
     /// <exception cref="LSException">Thrown if concurrent dictionary operations fail</exception>
-    public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.PARALLEL) {
+    public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) {
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");

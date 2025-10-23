@@ -1,4 +1,5 @@
 namespace LSUtils.ProcessSystem.Tests;
+
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -73,12 +74,12 @@ public class LSProcessManager_Tests {
             .Sequence("seq", seq => seq
                 .Handler("handler1", _mockHandler1)
                 .Handler("handler2", _mockHandler2))
-        );
+        , null, LSProcessLayerNodeType.PARALLEL);
         LSProcessManager.Singleton.Register<MockProcess>(root => root
             .Selector("sel", sel => sel
                 .Handler("handler3", _mockHandler1)
                 .Handler("handler4", _mockHandler2))
-        );
+        , null, LSProcessLayerNodeType.PARALLEL);
 
         var root = LSProcessManager.Singleton.GetRootNode<MockProcess>();
         var typeName = typeof(MockProcess).Name;
@@ -91,12 +92,16 @@ public class LSProcessManager_Tests {
         var mockProcess = new MockProcess();
         var result = mockProcess.WithProcessing(s => s
             .Sequence("seq", seq => seq
+                .Handler("test", session => {
+                    LSLogger.Singleton.Info("Executing handler in test process.", source: (typeName, true));
+                    return LSProcessResultStatus.SUCCESS;
+                })
                 .Handler("handler5", _mockHandler1)
                 .Handler("handler6", _mockHandler2))
-        ).Execute();
+        , LSProcessLayerNodeType.PARALLEL).Execute();
 
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(_handler1CallCount, Is.EqualTo(3)); // handler1 and handler3
-        Assert.That(_handler2CallCount, Is.EqualTo(2)); // handler2 only
+        Assert.That(_handler1CallCount, Is.EqualTo(3)); // handler1, handler3 and handler5
+        Assert.That(_handler2CallCount, Is.EqualTo(2)); // handler2 and handler6
     }
 }

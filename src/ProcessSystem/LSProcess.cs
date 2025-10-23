@@ -38,30 +38,30 @@ public abstract class LSProcess : ILSProcess {
     /// and coordinates with the node hierarchy. Remains null until first execution.
     /// </summary>
     private LSProcessSession? _processSession;
-    
+
     /// <summary>
     /// Internal key-value store for inter-handler communication during processing.
     /// Isolated per process instance and persists throughout execution lifecycle.
     /// </summary>
     private Dictionary<string, object> _data = new();
-    
+
     /// <summary>
     /// Local processing tree defined via WithProcessing(). Merged with registered
     /// contexts during execution, with local context taking highest priority.
     /// </summary>
     private ILSProcessLayerNode? _root;
-    
+
     /// <summary>
     /// Reference to the process manager used for execution. Cached from Execute() call.
     /// </summary>
     private LSProcessManager? _manager;
-    
+
     /// <summary>
     /// Auto-generated unique identifier assigned at construction.
     /// Used for debugging, logging, and session association.
     /// </summary>
     public System.Guid ID { get; }
-    
+
     /// <summary>
     /// UTC timestamp of process creation for timing analysis and audit trails.
     /// Set once at construction and never changes.
@@ -77,7 +77,7 @@ public abstract class LSProcess : ILSProcess {
             return _processSession.RootNode.GetNodeStatus() == LSProcessResultStatus.CANCELLED;
         }
     }
-    
+
     /// <summary>
     /// Determines completion by checking if the session's root node has reached any terminal state.
     /// Returns false if no execution session exists (process not yet executed).
@@ -101,7 +101,9 @@ public abstract class LSProcess : ILSProcess {
         ID = System.Guid.NewGuid();
         CreatedAt = System.DateTime.UtcNow;
     }
-    
+    protected LSProcess(IReadOnlyDictionary<string, object> data) : this() {
+        _data = new Dictionary<string, object>(data);
+    }
     /// <summary>
     /// Exception-throwing data retrieval from the internal dictionary.
     /// Validates both key existence and type compatibility before returning.
@@ -335,14 +337,25 @@ public abstract class LSProcess : ILSProcess {
     /// <param name="key">The key used to store the data.</param>
     /// <param name="value">When this method returns, contains the retrieved value if successful, or the default value for T if unsuccessful.</param>
     /// <returns>true if the data was found and successfully cast to the specified type; otherwise, false.</returns>
-    public virtual bool TryGetData<T>(string key, out T? value) {
+    public virtual bool TryGetData<T>(string key, out T value, bool? enableLogging = false) {
+        string objValueType = "n/a";
         if (_data.TryGetValue(key, out var objValue)) {
+            objValueType = $"{objValue.GetType().Name}";
             if (objValue is T tValue) {
                 value = tValue;
                 return true;
             }
         }
-        value = default!;
+        LSLogger.Singleton.Debug($"Failed to retrieve data",
+            source: (ClassName, enableLogging),
+            processId: ID,
+            properties: new (string, object)[] {
+                ("key", key),
+                ("expectedType", typeof(T).Name),
+                ("objValueType", objValueType),
+                ("method", nameof(TryGetData))
+            });
+        value = default(T)!;
         return false;
     }
 }
