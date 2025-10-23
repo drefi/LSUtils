@@ -563,7 +563,7 @@ public class LSProcessTreeBuilder {
 
         return this;
     }
-    public LSProcessTreeBuilder Merge(LSProcessTreeBuilder subBuilder) {
+    public LSProcessTreeBuilder Merge(LSProcessBuilderAction subBuilder) {
         if (subBuilder == null) {
             //log warning
             LSLogger.Singleton.Warning($"Cannot merge an invalid builder",
@@ -575,7 +575,7 @@ public class LSProcessTreeBuilder {
                 });
             throw new LSArgumentNullException(nameof(subBuilder), "Provided subBuilder is null.");
         }
-        return Merge(subBuilder.Build());
+        return Merge(subBuilder(this).Build());
     }
     /// <summary>
     /// Merges a sub-layer node hierarchy into the current root node.

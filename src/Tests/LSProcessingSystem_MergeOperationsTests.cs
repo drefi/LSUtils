@@ -295,10 +295,10 @@ public class MergeOperationsTests {
     public void TestMergeNullContext() {
         var builder = new LSProcessTreeBuilder()
             .Sequence("root");
-        LSProcessTreeBuilder subBuilder = null!;
+        LSProcessBuilderAction subBuilder = null!;
 
         Assert.Throws<LSArgumentNullException>(() => builder.Merge(subBuilder));
-        
+
         ILSProcessLayerNode nullNode = null!;
         Assert.Throws<LSArgumentNullException>(() => builder.Merge(nullNode));
     }
@@ -368,14 +368,13 @@ public class MergeOperationsTests {
     }
     [Test]
     public void TestMergeWithSubBuilder() {
-        var subBuilder = new LSProcessTreeBuilder()
-            .Sequence("subSequence", seq => seq
-                .Handler("subHandler", _mockHandler1))
-            .Build();
 
         var rootBuilder = new LSProcessTreeBuilder()
             .Sequence("rootSequence", rootSeq => rootSeq
-                .Merge(subBuilder))
+                .Merge(subBuilder => subBuilder
+                    .Sequence("subSequence", subSeq => subSeq
+                        .Handler("subHandler", _mockHandler1))
+                ))
             .Build();
 
         Assert.That(rootBuilder.HasChild("subSequence"), Is.True);
