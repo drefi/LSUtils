@@ -48,4 +48,4 @@ namespace LSUtils.ProcessSystem;
 /// builder.Handler("premium-handler", PremiumHandler, conditions: combined);
 /// </code>
 /// </example>
-public delegate bool LSProcessNodeCondition(ILSProcess process, ILSProcessNode node);
+public delegate bool LSProcessNodeCondition(LSProcess process, ILSProcessNode node);

@@ -77,7 +77,7 @@ public static class LSProcessHelpers {
     /// }
     /// </code>
     /// </example>
-    public static bool IsMet(ILSProcess process, ILSProcessNode node) {
+    public static bool IsMet(LSProcess process, ILSProcessNode node) {
         if (node.Conditions == null) return true; // No conditions means always true
 
         foreach (LSProcessNodeCondition condition in node.Conditions.GetInvocationList()) {

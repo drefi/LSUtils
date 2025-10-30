@@ -1,6 +1,7 @@
 namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
+using System.Linq;
 using LSUtils.Logging;
 
 /// <summary>
@@ -31,7 +32,7 @@ using LSUtils.Logging;
 /// }
 /// ```
 /// </summary>
-public abstract class LSProcess : ILSProcess {
+public abstract class LSProcess {
     public const string ClassName = nameof(LSProcess);
     /// <summary>
     /// Execution session created when Execute() is called. Manages actual processing state
@@ -123,6 +124,9 @@ public abstract class LSProcess : ILSProcess {
         }
         throw new KeyNotFoundException($"No data found for key '{key}'.");
     }
+    public LSProcessResultStatus Execute(LSProcessManager? manager = null, params ILSProcessable[]? instances) {
+        return Execute(manager, LSProcessManager.ProcessInstanceBehaviour.ALL, instances);
+    }
     /// <summary>
     /// Executes the process through the registered processing pipeline (single-use operation).
     /// 
@@ -140,9 +144,9 @@ public abstract class LSProcess : ILSProcess {
     /// <param name="instance">Target entity for context resolution (may be null for global context)</param>
     /// <param name="manager">Process manager for context merging (uses singleton if null)</param>
     /// <returns>Final execution status (may be WAITING if contains async operations)</returns>
-    public LSProcessResultStatus Execute(ILSProcessable? instance = null, LSProcessManager? manager = null) {
+    public LSProcessResultStatus Execute(LSProcessManager? manager, LSProcessManager.ProcessInstanceBehaviour instanceBehaviour, params ILSProcessable[]? instances) {
         // Flow debug logging LSProcessSystem
-        LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root?.NodeID ?? "n/a"}] instance: {(instance == null ? "n/a" : $"{instance.ID}")}.",
+        LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root?.NodeID ?? "n/a"}] instance: {(instances == null ? "n/a" : $"{string.Join(", ", instances.Select(i => i.ID))}")}.",
             source: ("LSProcessSystem", null),
             properties: ("hideNodeID", true));
 
@@ -156,13 +160,13 @@ public abstract class LSProcess : ILSProcess {
                     ("session", _processSession.SessionID.ToString()),
                     ("rootNode", _processSession.RootNode.NodeID.ToString()),
                     ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                    ("instance", _processSession.Instance?.ID.ToString() ?? "global"),
+                    ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
                     ("method", nameof(Execute))
                 });
             return _processSession.RootNode.GetNodeStatus();
         }
-        var sessionRoot = _manager.GetRootNode(GetType(), instance, _root);
-        _processSession = new LSProcessSession(_manager, this, sessionRoot, instance);
+        var sessionRoot = _manager.GetRootNode(GetType(), _root, out var availableInstances, instanceBehaviour, instances);
+        _processSession = new LSProcessSession(_manager, this, sessionRoot, availableInstances);
 
         // Detailed debug logging ClassName
         LSLogger.Singleton.Debug($"Process Execute",
@@ -172,7 +176,8 @@ public abstract class LSProcess : ILSProcess {
                 ("session", _processSession.SessionID.ToString()),
                 ("rootNode", _processSession.RootNode.NodeID.ToString()),
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                ("instance", _processSession.Instance?.ID.ToString() ?? "global"),
+                ("behaviour", _processSession.Behaviour.ToString()),
+                ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
                 ("method", nameof(Execute))
             });
         return _processSession.Execute();
@@ -189,7 +194,7 @@ public abstract class LSProcess : ILSProcess {
             throw new LSException("Process not yet executed.");
         }
         // Flow debug logging
-        LSLogger.Singleton.Debug($"LSProcess.Resume [{_processSession.RootNode.NodeID}] {(_processSession.Instance == null ? "global" : $"instance {_processSession.Instance.ID}")}.",
+        LSLogger.Singleton.Debug($"LSProcess.Resume [{_processSession.RootNode.NodeID}] {_processSession.Behaviour} {(_processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}")}.",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
         LSLogger.Singleton.Debug($"Process Resume",
@@ -199,7 +204,8 @@ public abstract class LSProcess : ILSProcess {
                 ("session", _processSession.SessionID.ToString()),
                 ("rootNode", _processSession.RootNode.NodeID.ToString()),
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                ("instance", _processSession.Instance?.ID.ToString() ?? "null"),
+                ("behaviour", _processSession.Behaviour.ToString()),
+                ("instance", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
                 ("nodes", string.Join(",", nodeIDs)),
                 ("method", nameof(Resume))
             });
@@ -220,7 +226,7 @@ public abstract class LSProcess : ILSProcess {
             throw new LSException("Process not yet executed.");
         }
         // Flow debug logging
-        LSLogger.Singleton.Debug($"LSProcess.Cancel [{_processSession.RootNode.NodeID}] {(_processSession.Instance == null ? "global" : $"instance {_processSession.Instance.ID}")}.",
+        LSLogger.Singleton.Debug($"LSProcess.Cancel [{_processSession.RootNode.NodeID}] {_processSession.Behaviour} {(_processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}")}.",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
         LSLogger.Singleton.Debug($"Process Cancel",
@@ -230,7 +236,8 @@ public abstract class LSProcess : ILSProcess {
                 ("session", _processSession.SessionID.ToString()),
                 ("rootNode", _processSession.RootNode.NodeID.ToString()),
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                ("instance", _processSession.Instance?.ID.ToString() ?? "null"),
+                ("behaviour", _processSession.Behaviour.ToString()),
+                ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
                 ("method", nameof(Cancel))
             });
         _processSession.Cancel();
@@ -253,7 +260,7 @@ public abstract class LSProcess : ILSProcess {
     /// <para>Root node is named using the instance ID (if provided) or this process's ID,</para>
     /// <para>prefixed with the process type name for clarity in debugging.</para>
     /// </remarks>
-    public ILSProcess WithProcessing(LSProcessBuilderAction builderAction, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) {
+    public LSProcess WithProcessing(LSProcessBuilderAction builderAction, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.WithProcessing: [{_root?.NodeID ?? "n/a"}] {_root?.GetType().Name ?? layerType.ToString()} ",
             source: ("LSProcessSystem", null),
@@ -309,7 +316,8 @@ public abstract class LSProcess : ILSProcess {
                 ("session", _processSession.SessionID.ToString()),
                 ("rootNode", _processSession.RootNode.NodeID.ToString()),
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                ("instance", _processSession.Instance?.ID.ToString() ?? "null"),
+                ("behaviour", _processSession.Behaviour.ToString()),
+                ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
                 ("nodes", string.Join(",", nodeIDs)),
                 ("method", nameof(Fail))
             });

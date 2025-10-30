@@ -1,5 +1,6 @@
 namespace LSUtils.ProcessSystem;
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using LSUtils.Logging;
@@ -120,7 +121,7 @@ public class LSProcessManager {
     /// );
     /// </code>
     /// </example>
-    public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) where TProcess : ILSProcess {
+    public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) where TProcess : LSProcess {
         Register(typeof(TProcess), builder, instance, layerType);
     }
     /// <summary>
@@ -158,15 +159,15 @@ public class LSProcessManager {
         var instanceBuilder = new LSProcessTreeBuilder(instanceNode);
         // Build the root node using the provided builder action
         var root = builder(instanceBuilder).Build();
-        processDict[instance ?? GlobalProcessable.Instance] = root;
+        processDict[instance] = root;
 
         LSLogger.Singleton.Debug("Manager Register Tree",
             source: (ClassName, null),
             properties: new (string, object)[] {
-                ("processType", processType.Name),
-                ("rootNodeID", root.NodeID),
-                ("instance", instance?.ID.ToString() ?? "global"),
-                ("method", nameof(Register))
+                (nameof(processType), processType.Name),
+                (nameof(root.NodeID), root.NodeID),
+                (nameof(instance), instance == GlobalProcessable.Instance ? "global" : instance.ID.ToString()),
+                (nameof(Register), nameof(Register))
     });
 
 
@@ -182,7 +183,7 @@ public class LSProcessManager {
     /// <param name="instance">Optional processable instance for context targeting (null = global only)</param>
     /// <param name="localContext">Optional local context tree with highest merge priority</param>
     /// <returns>Merged root node containing all applicable contexts in priority order</returns>
-    public ILSProcessLayerNode GetRootNode<TProcess>(ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) where TProcess : ILSProcess {
+    public ILSProcessLayerNode GetRootNode<TProcess>(ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) where TProcess : LSProcess {
         return GetRootNode(typeof(TProcess), instance, localContext);
     }
     /// <summary>
@@ -250,6 +251,66 @@ public class LSProcessManager {
             });
         return root;
     }
+    public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessLayerNode? localNode, out ILSProcessable[]? availableInstances, ProcessInstanceBehaviour behaviour = ProcessInstanceBehaviour.ALL, params ILSProcessable[]? instanceNodes) {
+        if (!_globalNodes.TryGetValue(processType, out var processDict)) {
+            processDict = new();
+            if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
+        }
+        // Create a new builder starting with the localNode as root node
+        LSProcessTreeBuilder builder = new LSProcessTreeBuilder(localNode);
+
+        // check if behaviour include global
+        availableInstances = System.Array.Empty<ILSProcessable>();
+        if (behaviour.HasFlag(ProcessInstanceBehaviour.GLOBAL) && processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
+            // we have a global node to merge. We clone the global node to avoid modifying the original.
+            var clone = globalNode.Clone();
+            builder.Merge(clone);
+        }
+        // check if behaviour include instance
+        if (behaviour.HasFlag(ProcessInstanceBehaviour.SINGLE) && instanceNodes != null && instanceNodes.Length > 0) {
+            // use the first provided instance context
+            var firstInstance = instanceNodes[0];
+            if (processDict.TryGetValue(firstInstance, out var instanceNode)) {
+                var clone = instanceNode.Clone();
+                builder.Merge(clone);
+            }
+            availableInstances = new[] { firstInstance };
+        } else if (behaviour.HasFlag(ProcessInstanceBehaviour.FIRST) && instanceNodes != null) {
+            // use the first available instance context (try to match from first to last)
+            foreach (var instance in instanceNodes) {
+                if (processDict.TryGetValue(instance, out var instanceNode)) {
+                    var clone = instanceNode.Clone();
+                    builder.Merge(clone);
+                    availableInstances = new[] { instance };
+                    break;
+                }
+            }
+        } else if (behaviour.HasFlag(ProcessInstanceBehaviour.MULTI) && instanceNodes != null) {
+            // use all provided instance contexts
+            List<ILSProcessable> availableList = new();
+            foreach (var instance in instanceNodes) {
+                if (processDict.TryGetValue(instance, out var instanceNode)) {
+                    var clone = instanceNode.Clone();
+                    builder.Merge(clone);
+                    availableList.Add(instance);
+                }
+            }
+            availableInstances = availableList.ToArray();
+        }
+
+        return builder.Build();
+    }
+    [Flags]
+    public enum ProcessInstanceBehaviour {
+        LOCAL = 0, //use the provided local node context, tecnically does not make sense not have local context.
+        GLOBAL = 0 << 1, // use the global processable context
+        SINGLE = 0 << 2, // use the first provided instance context
+        FIRST = 0 << 2, // use the first available instance context (try to match from first to last)
+        MULTI = 0 << 3, // use all provided instance contexts
+        ANY = LOCAL | GLOBAL | FIRST, // use global + first available provided instance context
+        ALL = LOCAL | GLOBAL | MULTI, // use global + all provided instance contexts
+    }
+
     /// <summary>
     /// Sentinel object used as dictionary key for global (instance-less) context registrations.
     /// <para>
@@ -267,13 +328,13 @@ public class LSProcessManager {
     private class GlobalProcessable : ILSProcessable {
         static GlobalProcessable _instance = new();
         internal static GlobalProcessable Instance => _instance;
-        
+
         /// <summary>
         /// Returns a new GUID each time to ensure this sentinel is never used for actual identity comparison.
         /// The changing ID prevents accidental reliance on this placeholder for real processable operations.
         /// </summary>
         public System.Guid ID => System.Guid.NewGuid();
-        
+
         /// <summary>
         /// Throws NotImplementedException as this sentinel should never participate in actual processing.
         /// <para>

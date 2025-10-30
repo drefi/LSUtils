@@ -6,7 +6,8 @@ using LSUtils.ProcessSystem;
 // TODO: Logging according to LSLogger standards
 // TODO: LSProcess needs review
 public class LSTimestamp : ILSProcessable {
-
+    protected bool _isInitialized;
+    protected LSProcessManager? _manager;
     public int TotalMinutes;
     public int Minute { get { return TotalMinutes % 60; } }
     public int Hour { get { return (TotalMinutes / 60) % 24; } }
@@ -40,8 +41,8 @@ public class LSTimestamp : ILSProcessable {
         if (dontUpdate == false) Update();
     }
     public void Update() {
-        var @event = new OnUpdateEvent(this);
-        @event.Execute(this);
+        var @event = new UpdateProcess(this);
+        @event.Execute(_manager, this);
     }
     public bool AddMinutes(int minutes, bool dontUpdate = false) {
         if (minutes <= 0)
@@ -76,21 +77,21 @@ public class LSTimestamp : ILSProcessable {
         return "[Timestamp: " + TotalMinutes + " => Day = " + Day + " Hour = " + Hour + " Minute = " + Minute + "]";
     }
 
-    public LSProcessResultStatus Initialize(LSProcessBuilderAction? ctxBuilder = null, LSProcessManager? manager = null) {
-        var @event = new OnInitializeEvent(this);
-        if (ctxBuilder != null) @event.WithProcessing(ctxBuilder);
-        return @event.Execute(this);
+    public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitializeSequence = null, LSProcessManager? manager = null) {
+        _manager = manager ?? LSProcessManager.Singleton;
+        var @event = new InitializeProcess(this);
+        return @event.WithProcessing(root => root).Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, this);
     }
 
-    public class OnInitializeEvent : LSProcess {
+    public class InitializeProcess : LSProcess {
         public LSTimestamp Instance { get; }
-        internal OnInitializeEvent(LSTimestamp instance) {
+        internal InitializeProcess(LSTimestamp instance) {
             Instance = instance;
         }
     }
-    public class OnUpdateEvent : LSProcess {
+    public class UpdateProcess : LSProcess {
         public LSTimestamp Instance { get; }
-        public OnUpdateEvent(LSTimestamp instance) {
+        public UpdateProcess(LSTimestamp instance) {
             Instance = instance;
         }
     }

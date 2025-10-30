@@ -49,8 +49,9 @@ public class LSProcessSession {
     /// Nodes can access process data through this property during Execute, Resume, Fail, and Cancel operations. The process instance provides context for condition evaluation and processing logic.
     /// </remarks>
     public LSProcessManager Manager { get; }
-    public ILSProcess Process { get; }
-    public ILSProcessable? Instance { get; }
+    public LSProcess Process { get; }
+    public ILSProcessable[]? Instances { get; }
+    public LSProcessManager.ProcessInstanceBehaviour Behaviour { get; }
     internal Stack<ILSProcessNode> _sessionStack = new Stack<ILSProcessNode>();
     public ILSProcessNode? CurrentNode => _sessionStack.Count > 0 ? _sessionStack.Peek() : null;
 
@@ -66,11 +67,11 @@ public class LSProcessSession {
     /// <b>Initial State:</b><br/>
     /// The session starts in a non-cancelled state with the provided process and root node ready for execution.
     /// </remarks>
-    internal LSProcessSession(LSProcessManager manager, ILSProcess process, ILSProcessNode rootNode, ILSProcessable? instance = null) {
+    internal LSProcessSession(LSProcessManager manager, LSProcess process, ILSProcessNode rootNode, params ILSProcessable[]? instances) {
         Manager = manager;
         Process = process;
         RootNode = rootNode;
-        Instance = instance;
+        Instances = instances;
     }
 
     /// <summary>
