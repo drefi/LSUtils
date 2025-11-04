@@ -98,5 +98,5 @@ public interface ILSProcessable {
     /// }
     /// </code>
     /// </example>
-    LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null, LSProcessManager? manager = null);
+    LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables);
 }

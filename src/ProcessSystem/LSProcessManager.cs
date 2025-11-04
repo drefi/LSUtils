@@ -346,7 +346,7 @@ public class LSProcessManager {
         /// <param name="manager">Ignored - not used by sentinel implementation</param>
         /// <returns>Never returns - always throws exception</returns>
         /// <exception cref="NotImplementedException">Always thrown to prevent misuse of this sentinel object</exception>
-        LSProcessResultStatus ILSProcessable.Initialize(LSProcessBuilderAction? initBuilder, LSProcessManager? manager) {
+        LSProcessResultStatus ILSProcessable.Initialize(LSProcessBuilderAction? initBuilder, LSProcessManager? manager, params ILSProcessable[]? forwardProcessables) {
             throw new System.NotImplementedException("GlobalProcessable is a placeholder class and should never be initialized in the processing pipeline.");
         }
     }

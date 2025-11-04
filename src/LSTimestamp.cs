@@ -77,10 +77,20 @@ public class LSTimestamp : ILSProcessable {
         return "[Timestamp: " + TotalMinutes + " => Day = " + Day + " Hour = " + Hour + " Minute = " + Minute + "]";
     }
 
-    public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitializeSequence = null, LSProcessManager? manager = null) {
+    public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitializeSequence = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables) {
         _manager = manager ?? LSProcessManager.Singleton;
-        var @event = new InitializeProcess(this);
-        return @event.WithProcessing(root => root).Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, this);
+        var process = new InitializeProcess(this);
+        return process.WithProcessing(root => root
+            .Handler(LSProcessLabels.IS_INITIALIZED_KEY, session => {
+                if (_isInitialized) return LSProcessResultStatus.FAILURE;
+                _isInitialized = true;
+                return LSProcessResultStatus.SUCCESS;
+            }, priority: LSProcessPriority.CRITICAL, readOnly: true)
+            .Sequence(nameof(onInitializeSequence), onInitializeSequence,
+                readOnly: true,
+                priority: LSProcessPriority.HIGH,
+                conditions: (proc, node) => onInitializeSequence != null)
+        ).Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, this);
     }
 
     public class InitializeProcess : LSProcess {

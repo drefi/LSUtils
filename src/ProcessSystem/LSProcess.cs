@@ -105,25 +105,7 @@ public abstract class LSProcess {
     protected LSProcess(IReadOnlyDictionary<string, object> data) : this() {
         _data = new Dictionary<string, object>(data);
     }
-    /// <summary>
-    /// Exception-throwing data retrieval from the internal dictionary.
-    /// Validates both key existence and type compatibility before returning.
-    /// Virtual to allow subclasses to override data access behavior if needed.
-    /// </summary>
-    /// <typeparam name="T">Expected data type</typeparam>
-    /// <param name="key">Case-sensitive string key</param>
-    /// <returns>Stored value cast to type T</returns>
-    /// <exception cref="KeyNotFoundException">Key not found in internal dictionary</exception>
-    /// <exception cref="LSException">Value exists but cannot be cast to T</exception>
-    public virtual T? GetData<T>(string key) {
-        if (_data.TryGetValue(key, out var value)) {
-            if (value is T tValue) {
-                return tValue;
-            }
-            throw new LSException($"Stored data with key '{key}' is not of type {typeof(T).FullName}.");
-        }
-        throw new KeyNotFoundException($"No data found for key '{key}'.");
-    }
+
     public LSProcessResultStatus Execute(LSProcessManager? manager = null, params ILSProcessable[]? instances) {
         return Execute(manager, LSProcessManager.ProcessInstanceBehaviour.ALL, instances);
     }
@@ -322,6 +304,25 @@ public abstract class LSProcess {
                 ("method", nameof(Fail))
             });
         return _processSession.Fail(nodeIDs);
+    }
+    /// <summary>
+    /// Exception-throwing data retrieval from the internal dictionary.
+    /// Validates both key existence and type compatibility before returning.
+    /// Virtual to allow subclasses to override data access behavior if needed.
+    /// </summary>
+    /// <typeparam name="T">Expected data type</typeparam>
+    /// <param name="key">Case-sensitive string key</param>
+    /// <returns>Stored value cast to type T</returns>
+    /// <exception cref="KeyNotFoundException">Key not found in internal dictionary</exception>
+    /// <exception cref="LSException">Value exists but cannot be cast to T</exception>
+    public virtual T? GetData<T>(string key) {
+        if (_data.TryGetValue(key, out var value)) {
+            if (value is T tValue) {
+                return tValue;
+            }
+            throw new LSException($"Stored data with key '{key}' is not of type {typeof(T).FullName}.");
+        }
+        throw new KeyNotFoundException($"No data found for key '{key}'.");
     }
     /// <summary>
     /// Associates data with this process using a string key.

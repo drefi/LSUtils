@@ -32,7 +32,7 @@ public class LSTick : ILSProcessable {
         ID = System.Guid.NewGuid();
     }
 
-    public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitializeSequence = null, LSProcessManager? manager = null) {
+    public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitializeSequence = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables) {
         _manager = manager ?? LSProcessManager.Singleton;
         var process = new TickInitializeProcess(this);
         return process
