@@ -10,6 +10,15 @@ public class CoreTests {
     public class MockProcess : LSProcess {
         public MockProcess() { }
     }
+    //mock process with processing override
+    public class ProcessingMockProcess : LSProcess {
+        protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
+            return builder.Handler("myHandler", session => {
+                LSLogger.Singleton.Info("processing is working", source: (nameof(ProcessingMockProcess), true));
+                return LSProcessResultStatus.SUCCESS;
+            });
+        }
+    }
 
     private LSProcessHandler _mockHandler1;
     private LSProcessHandler _mockHandler2;
@@ -227,5 +236,12 @@ public class CoreTests {
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
 
         Assert.That(executionOrder, Is.EqualTo(new List<string> { "C", "A", "B" }));
+    }
+
+    // Test ProcessingMockProcess
+    [Test]
+    public void Test_ProcessingMockProcess() {
+        var process = new ProcessingMockProcess();
+        process.Execute();
     }
 }
