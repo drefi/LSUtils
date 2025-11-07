@@ -48,7 +48,7 @@ public class LSTick : ILSProcessable {
                     return LSProcessResultStatus.SUCCESS;
                 }, priority: LSProcessPriority.CRITICAL)
                 .Sequence(nameof(onInitializeSequence), onInitializeSequence)
-        ).Execute(manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        ).Execute(_manager ?? LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL);
     }
     /// <summary>
     /// Updates the tick count and notifies listeners of tick updates.
@@ -75,7 +75,7 @@ public class LSTick : ILSProcessable {
                     priority: LSProcessPriority.CRITICAL,
                     readOnly: true,
                     conditions: (proc, node) => _isInitialized == false)
-            ).Execute(_manager);
+            ).Execute(_manager ?? LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL);
         }
     }
 

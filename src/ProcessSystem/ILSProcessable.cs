@@ -68,7 +68,7 @@ public interface ILSProcessable {
     /// delegates, data, and entity-specific handlers.
     /// </para>
     /// </summary>
-    /// <param name="initBuilder">Builder action to define instance-specific processing logic during initialization</param>
+    /// <param name="onInitialize">Builder action to define instance-specific processing logic during initialization</param>
     /// <param name="manager">Process manager for registration (uses singleton if null)</param>
     /// <returns>SUCCESS if registration completed, FAILURE if registration failed</returns>
     /// <example>
@@ -98,5 +98,5 @@ public interface ILSProcessable {
     /// }
     /// </code>
     /// </example>
-    LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilder = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables);
+    LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitialize = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables);
 }

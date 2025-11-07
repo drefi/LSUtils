@@ -41,8 +41,8 @@ public class LSTimestamp : ILSProcessable {
         if (dontUpdate == false) Update();
     }
     public void Update() {
-        var @event = new UpdateProcess(this);
-        @event.Execute(_manager, this);
+        var process = new UpdateProcess(this);
+        process.Execute(_manager ?? LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL, this);
     }
     public bool AddMinutes(int minutes, bool dontUpdate = false) {
         if (minutes <= 0)
