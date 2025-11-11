@@ -4,9 +4,20 @@
 
 The LSProcessSystem provides a flexible, tree-based processing framework that supports complex business logic through composable nodes. It's designed for scenarios requiring sequential, parallel, or conditional execution of operations with waiting/resumption capabilities.
 
-## LSProcess - The Core Processing Entity
+### 🆕 What's New
 
-### Overview
+**Generic Type Support**: The system now includes strongly-typed generic versions of core components:
+
+- `LSProcessHandler<TProcess>` - Handlers with compile-time type safety
+- `LSProcessNodeCondition<TProcess>` - Conditions without casting
+- `LSProcessSession<TProcess>` - Type-safe session access
+- Generic method overloads in `LSProcessTreeBuilder`
+
+**Simplified Conditions**: `LSProcessNodeCondition` signature simplified from `(process, node)` to just `(process)` based on usage analysis.
+
+**Seamless Conversion**: `.ToCondition()` extension methods provide easy conversion between generic and non-generic versions for backward compatibility.
+
+## LSProcess - The Core Processing Entity
 
 LSProcess is the primary abstraction for executable workflows in the LSProcessSystem. It serves as both a data container and execution orchestrator, supporting complex business logic through configurable processing trees.
 
@@ -312,6 +323,57 @@ LSProcessHandler asyncHandler = session => {
 };
 ```
 
+## Type Safety & Generic Support
+
+The LSProcessSystem now includes strongly-typed generic versions of core components that eliminate casting and provide compile-time type safety.
+
+### Generic Delegates
+
+```csharp
+// Generic handler - no casting needed
+LSProcessHandler<MyProcess> typedHandler = session => {
+    // session.Process is already MyProcess type
+    var value = session.Process.MyProperty;
+    return LSProcessResultStatus.SUCCESS;
+};
+
+// Generic condition - direct property access
+LSProcessNodeCondition<MyProcess> typedCondition = process => 
+    process.MyProperty > 0; // Direct access, no casting
+
+// Convert to non-generic for compatibility
+LSProcessNodeCondition condition = typedCondition.ToCondition();
+```
+
+### Generic Usage Patterns
+
+```csharp
+public class UserProcess : LSProcess 
+{
+    public string Username { get; set; }
+    public int UserId { get; set; }
+}
+
+// Method 1: Direct generic usage (when supported)
+builder.Handler<UserProcess>("validate", session => {
+    // session.Process is UserProcess, no casting
+    if (string.IsNullOrEmpty(session.Process.Username)) {
+        return LSProcessResultStatus.FAILURE;
+    }
+    return LSProcessResultStatus.SUCCESS;
+});
+
+// Method 2: Convert for non-generic methods
+LSProcessNodeCondition<UserProcess> hasUsername = user => !string.IsNullOrEmpty(user.Username);
+builder.Handler("process", handler, conditions: hasUsername.ToCondition());
+
+// Method 3: Inline conversion
+builder.Sequence("validation", seq => seq
+    .Handler("check", handler, 
+        conditions: new LSProcessNodeCondition<UserProcess>(u => u.UserId > 0).ToCondition())
+);
+```
+
 ## Supporting Components
 
 ### LSProcessManager
@@ -338,6 +400,9 @@ builder.Sequence("nodeId", subBuilder => { })      // Execute children sequentia
 builder.Selector("nodeId", subBuilder => { })      // Execute until first success (OR logic)  
 builder.Parallel("nodeId", subBuilder => { }, 2)   // Execute concurrently with thresholds
 builder.Handler("nodeId", handlerDelegate)         // Terminal execution node
+
+// Generic overloads for type safety
+builder.Handler<MyProcess>("nodeId", typedHandler) // Strongly-typed handler
 ```
 
 ### LSProcessHandler
@@ -347,10 +412,21 @@ builder.Handler("nodeId", handlerDelegate)         // Terminal execution node
 ```csharp
 public delegate LSProcessResultStatus LSProcessHandler(LSProcessSession session);
 
+// Generic version with strong typing (eliminates casting)
+public delegate LSProcessResultStatus LSProcessHandler<TProcess>(LSProcessSession<TProcess> session)
+    where TProcess : LSProcess;
+
 // Access process data in handlers
 LSProcessHandler handler = session => {
     var input = session.Process.GetData<string>("key");
     session.Process.SetData("result", processedValue);
+    return LSProcessResultStatus.SUCCESS;
+};
+
+// Strongly-typed handler (no casting needed)
+LSProcessHandler<MyCustomProcess> typedHandler = session => {
+    // session.Process is already MyCustomProcess, no casting required
+    var customProperty = session.Process.CustomProperty;
     return LSProcessResultStatus.SUCCESS;
 };
 ```
@@ -489,6 +565,55 @@ var process = new PaymentProcess()
             .Handler("bank-transfer", ProcessBankTransfer)));
 ```
 
+### 6. Strongly-Typed Processes (New Generic Features)
+
+```csharp
+public class UserRegistrationProcess : LSProcess 
+{
+    public string Email { get; set; }
+    public string Username { get; set; }
+    public bool IsVerified { get; set; }
+}
+
+var process = new UserRegistrationProcess 
+{ 
+    Email = "user@example.com", 
+    Username = "newuser" 
+};
+
+// Method 1: Using generic handlers (type-safe)
+LSProcessHandler<UserRegistrationProcess> validateUser = session => {
+    // No casting needed - session.Process is UserRegistrationProcess
+    if (string.IsNullOrEmpty(session.Process.Email)) {
+        return LSProcessResultStatus.FAILURE;
+    }
+    session.Process.IsVerified = true;
+    return LSProcessResultStatus.SUCCESS;
+};
+
+// Method 2: Using generic conditions (type-safe)
+LSProcessNodeCondition<UserRegistrationProcess> hasEmail = 
+    user => !string.IsNullOrEmpty(user.Email);
+
+LSProcessNodeCondition<UserRegistrationProcess> isVerified = 
+    user => user.IsVerified;
+
+var result = process
+    .WithProcessing(builder => builder
+        .Sequence("registration", seq => seq
+            .Handler<UserRegistrationProcess>("validate", validateUser)
+            .Handler("send-welcome", session => {
+                // Traditional handler - can still use casting if needed
+                if (session.Process is UserRegistrationProcess user) {
+                    SendWelcomeEmail(user.Email);
+                }
+                return LSProcessResultStatus.SUCCESS;
+            }, conditions: hasEmail.ToCondition())
+            .Handler("setup-profile", profileHandler, 
+                conditions: isVerified.ToCondition())))
+    .Execute();
+```
+
 ## LSProcess Best Practices
 
 ### Design Patterns
@@ -515,3 +640,52 @@ var process = new PaymentProcess()
 - **Meaningful Node IDs**: Use descriptive names for easier debugging and Resume operations  
 - **Context Strategy**: Local contexts for instance-specific, Global for shared behavior
 - **Process Lifecycle**: Track CreatedAt and ID for monitoring and audit trails
+
+## Conditions System
+
+### LSProcessNodeCondition
+
+The condition system provides both generic and non-generic versions for flexible usage:
+
+```csharp
+// Non-generic version (simplified - node parameter removed)
+public delegate bool LSProcessNodeCondition(LSProcess process);
+
+// Generic version (strongly-typed)
+public delegate bool LSProcessNodeCondition<TProcess>(TProcess process) where TProcess : LSProcess;
+```
+
+### Condition Usage Examples
+
+```csharp
+// Simple conditions
+LSProcessNodeCondition simpleCondition = process => 
+    process.TryGetData<int>("value", out var val) && val > 0;
+
+// Strongly-typed conditions
+LSProcessNodeCondition<UserProcess> userCondition = user => 
+    user.UserId > 0 && !string.IsNullOrEmpty(user.Username);
+
+// Convert generic to non-generic
+var converted = userCondition.ToCondition();
+
+// Use in builders
+builder.Handler("process", handler, conditions: converted);
+
+// Direct usage (where generic overloads exist)
+builder.Handler<UserProcess>("typed", typedHandler, conditions: userCondition);
+```
+
+### Breaking Changes Note
+
+**⚠️ Important**: The `LSProcessNodeCondition` signature changed from `(LSProcess process, ILSProcessNode node)` to `(LSProcess process)`. The node parameter was removed based on usage analysis showing it had minimal practical value. Most conditions focus on process state rather than node metadata.
+
+**Migration**: Update existing conditions by removing the `node` parameter:
+
+```csharp
+// Old syntax
+LSProcessNodeCondition oldCondition = (process, node) => process.SomeProperty;
+
+// New syntax  
+LSProcessNodeCondition newCondition = process => process.SomeProperty;
+```
