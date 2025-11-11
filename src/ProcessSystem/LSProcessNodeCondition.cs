@@ -22,21 +22,20 @@ namespace LSUtils.ProcessSystem;
 /// </para>
 /// </summary>
 /// <param name="process">Process instance containing data and context for evaluation.</param>
-/// <param name="node">Node being evaluated, providing access to metadata and configuration.</param>
 /// <returns>True if the condition is satisfied and the node should be processed, false otherwise.</returns>
 /// <example>
 /// Common condition patterns:
 /// <code>
 /// // Data presence check
-/// LSProcessNodeCondition hasUserData = (process, node) => 
+/// LSProcessNodeCondition hasUserData = (process) => 
 ///     process.TryGetData&lt;string&gt;("userId", out _);
 ///
 /// // Business logic condition  
-/// LSProcessNodeCondition isPremiumUser = (process, node) =>
+/// LSProcessNodeCondition isPremiumUser = (process) =>
 ///     process.TryGetData&lt;string&gt;("userType", out var type) &amp;&amp; type == "Premium";
 ///
 /// // Time-based condition
-/// LSProcessNodeCondition isBusinessHours = (process, node) => {
+/// LSProcessNodeCondition isBusinessHours = (process) => {
 ///     var now = DateTime.Now;
 ///     return now.Hour >= 9 &amp;&amp; now.Hour &lt;= 17 &amp;&amp; now.DayOfWeek != DayOfWeek.Weekend;
 /// };
@@ -56,16 +55,15 @@ public delegate bool LSProcessNodeCondition(LSProcess process);
 /// </summary>
 /// <typeparam name="TProcess">The specific process type this condition evaluates.</typeparam>
 /// <param name="process">Strongly-typed process instance containing data and context for evaluation.</param>
-/// <param name="node">Node being evaluated, providing access to metadata and configuration.</param>
 /// <returns>True if the condition is satisfied and the node should be processed, false otherwise.</returns>
 /// <example>
 /// Usage with strongly-typed conditions:
 /// <code>
 /// // Condition with strong typing - no casting needed
-/// LSProcessNodeCondition&lt;EngageTask&gt; canAttackCondition = (process, node) => 
+/// LSProcessNodeCondition&lt;EngageTask&gt; canAttackCondition = (process) => 
 ///     process.Entity.CanAttack; // Direct access, no casting
 ///
-/// LSProcessNodeCondition&lt;EngageTask&gt; targetAliveCondition = (process, node) =>
+/// LSProcessNodeCondition&lt;EngageTask&gt; targetAliveCondition = (process) =>
 ///     process.Target.IsAlive; // Direct access, no casting
 ///
 /// // Usage in builder

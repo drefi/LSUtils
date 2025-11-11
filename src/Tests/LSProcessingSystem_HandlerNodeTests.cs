@@ -288,7 +288,7 @@ public class HandlerNodeTests {
     public void TestLSProcessHelpersCreateCondition() {
         int conditionCallCount = 0;
 
-        var condition = LSProcessHelpers.CreateCondition<MockProcess>(proc => {
+        var condition = new LSProcessNodeCondition<MockProcess>(proc => {
             conditionCallCount++;
             return true;
         });
@@ -298,7 +298,7 @@ public class HandlerNodeTests {
                 .Handler("helperConditionHandler", (session) => {
                     _handler1CallCount++;
                     return LSProcessResultStatus.SUCCESS;
-                }, LSProcessPriority.NORMAL, conditions: condition))
+                }, LSProcessPriority.NORMAL, conditions: condition.ToCondition()))
             .Build();
 
         var mockProcess = new MockProcess();

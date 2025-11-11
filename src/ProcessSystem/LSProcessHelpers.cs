@@ -166,25 +166,44 @@ public static class LSProcessHelpers {
     /// builder.Handler("attack", attackHandler, conditions: canAttackCondition);
     /// </code>
     /// </example>
-    public static LSProcessNodeCondition CreateCondition<TProcess>(LSProcessNodeCondition<TProcess> condition)
+    public static LSProcessNodeCondition ToCondition<TProcess>(this LSProcessNodeCondition<TProcess> genericCondition)
         where TProcess : LSProcess {
-        return (process) => {
+        if (genericCondition == null)
+            return null!;
+
+        return process => {
             if (process is TProcess typedProcess) {
-                return condition(typedProcess);
+                return genericCondition(typedProcess);
             }
-            return false;
+            return false; // Condition fails if process is not of expected type
         };
     }
-    public static LSProcessNodeCondition?[] CreateCondition<TProcess>(params LSProcessNodeCondition<TProcess>?[] conditions)
+    public static LSProcessNodeCondition?[] ToCondition<TProcess>(this LSProcessNodeCondition<TProcess>?[] genericConditions)
         where TProcess : LSProcess {
-        return conditions
+        if (genericConditions == null)
+            return System.Array.Empty<LSProcessNodeCondition>();
+
+        return genericConditions
             .OfType<LSProcessNodeCondition<TProcess>>()
-            .Select<LSProcessNodeCondition<TProcess>, LSProcessNodeCondition>(cond => (process) => {
+            .Select<LSProcessNodeCondition<TProcess>, LSProcessNodeCondition>(cond => process => {
                 if (process is TProcess typedProcess) {
                     return cond(typedProcess);
                 }
-                return false;
+                return false; // Condition fails if process is not of expected type
             })
-            .ToArray() ?? System.Array.Empty<LSProcessNodeCondition>();
+            .ToArray();
+    }
+
+    public static LSProcessHandler ToHandler<TProcess>(this LSProcessHandler<TProcess> genericHandler)
+        where TProcess : LSProcess {
+        if (genericHandler == null)
+            return null!;
+
+        return session => {
+            if (session is LSProcessSession<TProcess> typedSession) {
+                return genericHandler(typedSession);
+            }
+            return LSProcessResultStatus.FAILURE; // Handler fails if session is not of expected type
+        };
     }
 }
