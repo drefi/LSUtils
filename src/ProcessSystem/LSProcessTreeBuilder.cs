@@ -191,6 +191,10 @@ public class LSProcessTreeBuilder {
         return this;
     }
 
+    public LSProcessTreeBuilder Handler<TProcess>(string nodeID, LSProcessHandler<TProcess> handler, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
+        return Handler(nodeID, new LSProcessHandler(session => handler((LSProcessSession<TProcess>)session)), priority, readOnly, LSProcessHelpers.CreateCondition<TProcess>(conditions));
+
+    }
     /// <summary>
     /// Removes a child node from the current layer context by its identifier.
     /// </summary>

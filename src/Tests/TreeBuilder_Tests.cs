@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using LSUtils.Logging;
 [TestFixture]
-public class CoreTests {
+public class TreeBuilder_Tests {
     public class MockProcess : LSProcess {
         public MockProcess() { }
     }
@@ -74,12 +74,6 @@ public class CoreTests {
         _handler3CallCount = 0;
     }
 
-    [Test]
-    public void TestProcessCreation() {
-        var mockProcess = new MockProcess();
-        Assert.That(mockProcess, Is.Not.Null);
-        Assert.That(mockProcess.ID, Is.Not.EqualTo(System.Guid.Empty));
-    }
 
     [Test]
     public void TestBuildEmptyBuilder() {

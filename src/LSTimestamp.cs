@@ -89,7 +89,7 @@ public class LSTimestamp : ILSProcessable {
             .Sequence(nameof(onInitializeSequence), onInitializeSequence,
                 readOnly: true,
                 priority: LSProcessPriority.HIGH,
-                conditions: (proc, node) => onInitializeSequence != null)
+                conditions: (proc) => onInitializeSequence != null)
         ).Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, this);
     }
 

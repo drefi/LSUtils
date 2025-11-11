@@ -68,6 +68,7 @@ public abstract class LSProcess {
     /// Set once at construction and never changes.
     /// </summary>
     public System.DateTime CreatedAt { get; }
+    public bool IsExecuted => _processSession != null;
     /// <summary>
     /// Delegates to the session's root node status to determine cancellation state.
     /// Returns false if no execution session exists (process not yet executed).
@@ -160,13 +161,13 @@ public abstract class LSProcess {
             properties: ("hideNodeID", true));
         if (manager == null) throw new LSException("Process manager cannot be null.");
         _manager = manager;
-        if (_processSession != null) {
+        if (IsExecuted) {
             //log warning
             LSLogger.Singleton.Warning($"Process already executed. Returning current status.",
                 source: (ClassName, null),
                 processId: ID,
                 properties: new (string, object)[] {
-                    ("session", _processSession.SessionID.ToString()),
+                    ("session", _processSession!.SessionID.ToString()),
                     ("rootNode", _processSession.RootNode.NodeID.ToString()),
                     ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
                     ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),

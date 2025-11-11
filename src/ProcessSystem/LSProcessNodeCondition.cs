@@ -48,4 +48,29 @@ namespace LSUtils.ProcessSystem;
 /// builder.Handler("premium-handler", PremiumHandler, conditions: combined);
 /// </code>
 /// </example>
-public delegate bool LSProcessNodeCondition(LSProcess process, ILSProcessNode node);
+public delegate bool LSProcessNodeCondition(LSProcess process);
+
+/// <summary>
+/// Generic version of LSProcessNodeCondition that provides strongly-typed access to the process instance.
+/// Eliminates the need for casting in conditions when working with specific process types.
+/// </summary>
+/// <typeparam name="TProcess">The specific process type this condition evaluates.</typeparam>
+/// <param name="process">Strongly-typed process instance containing data and context for evaluation.</param>
+/// <param name="node">Node being evaluated, providing access to metadata and configuration.</param>
+/// <returns>True if the condition is satisfied and the node should be processed, false otherwise.</returns>
+/// <example>
+/// Usage with strongly-typed conditions:
+/// <code>
+/// // Condition with strong typing - no casting needed
+/// LSProcessNodeCondition&lt;EngageTask&gt; canAttackCondition = (process, node) => 
+///     process.Entity.CanAttack; // Direct access, no casting
+///
+/// LSProcessNodeCondition&lt;EngageTask&gt; targetAliveCondition = (process, node) =>
+///     process.Target.IsAlive; // Direct access, no casting
+///
+/// // Usage in builder
+/// builder.Handler("attack", attackHandler, conditions: canAttackCondition);
+/// </code>
+/// </example>
+public delegate bool LSProcessNodeCondition<TProcess>(TProcess process)
+    where TProcess : LSProcess;

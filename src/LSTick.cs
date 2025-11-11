@@ -74,7 +74,7 @@ public class LSTick : ILSProcessable {
                 .Handler(LSProcessLabels.IS_INITIALIZED_KEY, session => LSProcessResultStatus.FAILURE,
                     priority: LSProcessPriority.CRITICAL,
                     readOnly: true,
-                    conditions: (proc, node) => _isInitialized == false)
+                    conditions: (proc) => _isInitialized == false)
             ).Execute(_manager ?? LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL);
         }
     }

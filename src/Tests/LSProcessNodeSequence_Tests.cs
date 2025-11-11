@@ -224,7 +224,7 @@ public class NodeSequence_Tests {
         var handler1 = LSProcessNodeHandler.Create("handler1", (session) => {
             _handler1CallCount++;
             return LSProcessResultStatus.SUCCESS;
-        }, 0, conditions: (proc, node) => false);
+        }, 0, conditions: (proc) => false);
         root.AddChild(handler1);
         Assert.That(root, Is.Not.Null);
         Assert.That(root.NodeID, Is.EqualTo("root"));

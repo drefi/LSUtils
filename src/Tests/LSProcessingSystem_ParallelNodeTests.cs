@@ -601,15 +601,15 @@ public class NodeParallelTests {
                 .Handler("handler1", (session) => {
                     executedHandlers.Add("H1");
                     return LSProcessResultStatus.SUCCESS;
-                }, LSProcessPriority.NORMAL, conditions: (proc, node) => condition1)
+                }, LSProcessPriority.NORMAL, conditions: (proc) => condition1)
                 .Handler("handler2", (session) => {
                     executedHandlers.Add("H2");
                     return LSProcessResultStatus.SUCCESS;
-                }, LSProcessPriority.NORMAL, conditions: (proc, node) => condition2)
+                }, LSProcessPriority.NORMAL, conditions: (proc) => condition2)
                 .Handler("handler3", (session) => {
                     executedHandlers.Add("H3");
                     return LSProcessResultStatus.SUCCESS;
-                }, LSProcessPriority.NORMAL, conditions: (proc, node) => condition3), 2) // require 2 to succeed
+                }, LSProcessPriority.NORMAL, conditions: (proc) => condition3), 2) // require 2 to succeed
             .Build();
 
         var mockProcess = new MockProcess();

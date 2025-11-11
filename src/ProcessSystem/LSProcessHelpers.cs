@@ -81,7 +81,7 @@ public static class LSProcessHelpers {
         if (node.Conditions == null) return true; // No conditions means always true
 
         foreach (LSProcessNodeCondition condition in node.Conditions.GetInvocationList()) {
-            if (!condition(process, node)) return false;
+            if (!condition(process)) return false;
         }
         return true;
     }
@@ -126,7 +126,7 @@ public static class LSProcessHelpers {
     /// </example>
     internal static LSProcessNodeCondition? UpdateConditions(bool overrideExisting, LSProcessNodeCondition? existingConditions, params LSProcessNodeCondition?[] conditions) {
         // Default condition always returns true - used as base when overriding
-        var defaultCondition = (LSProcessNodeCondition)((process, node) => true);
+        var defaultCondition = new LSProcessNodeCondition((process) => true);
         if (overrideExisting) {
             // when overriding, always start with default condition
             // if no conditions is provided, assume that the user want to use the default condition
@@ -149,5 +149,42 @@ public static class LSProcessHelpers {
 
 
         return existingConditions;
+    }
+
+    /// <summary>
+    /// Creates a strongly-typed condition that automatically handles the casting.
+    /// </summary>
+    /// <typeparam name="TProcess">The target process type.</typeparam>
+    /// <param name="condition">The strongly-typed condition to execute.</param>
+    /// <returns>A condition delegate that handles the casting automatically.</returns>
+    /// <example>
+    /// Usage for creating typed conditions:
+    /// <code>
+    /// var canAttackCondition = LSProcessExtensions.CreateCondition&lt;EngageTask&gt;(
+    ///     task => task.Entity.CanAttack);
+    /// 
+    /// builder.Handler("attack", attackHandler, conditions: canAttackCondition);
+    /// </code>
+    /// </example>
+    public static LSProcessNodeCondition CreateCondition<TProcess>(LSProcessNodeCondition<TProcess> condition)
+        where TProcess : LSProcess {
+        return (process) => {
+            if (process is TProcess typedProcess) {
+                return condition(typedProcess);
+            }
+            return false;
+        };
+    }
+    public static LSProcessNodeCondition?[] CreateCondition<TProcess>(params LSProcessNodeCondition<TProcess>?[] conditions)
+        where TProcess : LSProcess {
+        return conditions
+            .OfType<LSProcessNodeCondition<TProcess>>()
+            .Select<LSProcessNodeCondition<TProcess>, LSProcessNodeCondition>(cond => (process) => {
+                if (process is TProcess typedProcess) {
+                    return cond(typedProcess);
+                }
+                return false;
+            })
+            .ToArray() ?? System.Array.Empty<LSProcessNodeCondition>();
     }
 }
