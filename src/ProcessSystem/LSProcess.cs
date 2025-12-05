@@ -109,34 +109,12 @@ public abstract class LSProcess {
 
     /// <summary>
     /// Virtual method that allows concrete process classes to define their processing tree through inheritance.
-    /// This method is called during Execute() and takes precedence over WithProcessing() configuration.
+    /// This method is called during Execute() before WithProcessing() configuration.
     /// </summary>
-    /// <param name="builder">The tree builder to configure the processing hierarchy.</param>
-    /// <param name="layerType">The root node type for the processing tree.</param>
-    /// <returns>The configured root node for this process type, or null to use WithProcessing() configuration.</returns>
-    /// <remarks>
-    /// <para><strong>Override Pattern:</strong></para>
-    /// <para>Concrete classes can override this method to define their processing logic declaratively:</para>
-    /// <code>
-    /// protected override ILSProcessLayerNode? DefineProcessing(LSProcessTreeBuilder builder, LSProcessLayerNodeType layerType) {
-    ///     return builder.Sequence("my-process", seq => seq
-    ///         .Handler("validate", ValidateInput)
-    ///         .Handler("process", ProcessLogic)
-    ///         .Handler("cleanup", Cleanup))
-    ///     .Build();
-    /// }
-    /// </code>
-    /// <para><strong>Execution Priority:</strong></para>
-    /// <para>If this method returns a non-null value, it takes precedence over WithProcessing() configuration.</para>
-    /// <para>This allows subclasses to have built-in processing logic while still supporting runtime customization.</para>
-    /// </remarks>
     protected virtual LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
         return builder;
     }
 
-    public LSProcessResultStatus Execute(params ILSProcessable[]? instances) {
-        return Execute(LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL, instances);
-    }
     /// <summary>
     /// Executes the process through the registered processing pipeline (single-use operation).
     /// 
@@ -196,6 +174,15 @@ public abstract class LSProcess {
             });
         return _processSession.Execute();
     }
+    /// <summary>
+    /// Executes the process using the singleton LSProcessManager and ALL instance behaviour.
+    /// </summary>
+    /// <param name="instances"></param>
+    /// <returns></returns>
+    public LSProcessResultStatus Execute(params ILSProcessable[]? instances) {
+        return Execute(LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL, instances);
+    }
+
     /// <summary>
     /// Resumes processing from WAITING state for the specified node IDs.
     /// </summary>
