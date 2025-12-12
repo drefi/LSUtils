@@ -74,12 +74,12 @@ public class LSProcessManager_Tests {
             .Sequence("seq", seq => seq
                 .Handler("handler1", _mockHandler1)
                 .Handler("handler2", _mockHandler2))
-        , null, LSProcessLayerNodeType.PARALLEL);
+        , null);
         LSProcessManager.Singleton.Register<MockProcess>(root => root
             .Selector("sel", sel => sel
                 .Handler("handler3", _mockHandler1)
                 .Handler("handler4", _mockHandler2))
-        , null, LSProcessLayerNodeType.PARALLEL);
+        , null);
 
         var root = LSProcessManager.Singleton.GetRootNode<MockProcess>();
         var typeName = typeof(MockProcess).Name;

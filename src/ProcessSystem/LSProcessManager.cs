@@ -121,8 +121,8 @@ public class LSProcessManager {
     /// );
     /// </code>
     /// </example>
-    public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) where TProcess : LSProcess {
-        Register(typeof(TProcess), builder, instance, layerType);
+    public void Register<TProcess>(LSProcessBuilderAction builder, ILSProcessable? instance = null) where TProcess : LSProcess {
+        Register(typeof(TProcess), builder, instance);
     }
     /// <summary>
     /// Core registration method that handles the actual context storage and tree building.
@@ -138,9 +138,8 @@ public class LSProcessManager {
     /// <param name="processType">The concrete process type (e.g., typeof(MyCustomProcess))</param>
     /// <param name="builder">Builder action that defines the processing hierarchy to add</param>
     /// <param name="instance">Processable instance for targeted registration (null = global context)</param>
-    /// <param name="layerType">Root layer node type for new context creation</param>
     /// <exception cref="LSException">Thrown if concurrent dictionary operations fail</exception>
-    public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) {
+    public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null) {
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
@@ -150,11 +149,7 @@ public class LSProcessManager {
               properties: ("hideNodeID", true));
         instance ??= GlobalProcessable.Instance;
         if (!processDict.TryGetValue(instance, out var instanceNode)) {
-            instanceNode = layerType switch {
-                LSProcessLayerNodeType.SEQUENCE => new LSProcessTreeBuilder().Sequence($"{processType.Name}").Build(),
-                LSProcessLayerNodeType.SELECTOR => new LSProcessTreeBuilder().Selector($"{processType.Name}").Build(),
-                _ => new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build()
-            };
+            instanceNode = new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build();
         }
         var instanceBuilder = new LSProcessTreeBuilder(instanceNode);
         // Build the root node using the provided builder action
