@@ -202,10 +202,10 @@ public class MergeOperationsTests {
         var level2 = level1?.GetChild("level2") as ILSProcessLayerNode;
         Assert.That(level2, Is.Not.Null);
         var level3 = level2?.GetChild("level3") as ILSProcessLayerNode;
-        Assert.That(level3, Is.Not.Null);
+        Assert.That(level3!, Is.Not.Null);
 
-        Assert.That(level3.HasChild("handlerA"), Is.True);
-        Assert.That(level3.HasChild("handlerB"), Is.True);
+        Assert.That(level3!.HasChild("handlerA"), Is.True);
+        Assert.That(level3!.HasChild("handlerB"), Is.True);
         // we don't need to test execution here, just structure
     }
 
@@ -272,12 +272,12 @@ public class MergeOperationsTests {
 
         // Verify the structure
         var mainSeq = mergedContext.GetChild("mainSequence") as ILSProcessLayerNode;
-        Assert.That(mainSeq, Is.Not.Null);
+        Assert.That(mainSeq!, Is.Not.Null);
 
         // Should have validation (new), execution (merged), and cleanup (existing)
-        Assert.That(mainSeq.HasChild("validation"), Is.True);
-        Assert.That(mainSeq.HasChild("execution"), Is.True);
-        Assert.That(mainSeq.HasChild("cleanup"), Is.True);
+        Assert.That(mainSeq!.HasChild("validation"), Is.True);
+        Assert.That(mainSeq!.HasChild("execution"), Is.True);
+        Assert.That(mainSeq!.HasChild("cleanup"), Is.True);
 
         // Check validation node
         var validation = mainSeq.GetChild("validation") as ILSProcessLayerNode;
