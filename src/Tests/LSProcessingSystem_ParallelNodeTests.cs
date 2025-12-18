@@ -14,15 +14,15 @@ public class NodeParallelTests {
         public MockProcess() { }
     }
 
-    private LSProcessHandler _mockHandler1;
-    private LSProcessHandler _mockHandler2;
-    private LSProcessHandler _mockHandler3Failure;
-    private LSProcessHandler _mockHandler3Cancel;
-    private LSProcessHandler _mockHandler3Waiting;
+    private LSProcessHandler _mockHandler1 = null!;
+    private LSProcessHandler _mockHandler2 = null!;
+    private LSProcessHandler _mockHandler3Failure = null!;
+    private LSProcessHandler _mockHandler3Cancel = null!;
+    private LSProcessHandler _mockHandler3Waiting = null!;
     private int _handler1CallCount;
     private int _handler2CallCount;
     private int _handler3CallCount;
-    private LSLogger _logger;
+    private LSLogger _logger = null!;
 
     [SetUp]
     public void Setup() {

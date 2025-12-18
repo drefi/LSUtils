@@ -14,15 +14,15 @@ public class ComplexIntegrationTests {
         public MockProcess() { }
     }
 
-    private LSProcessHandler _mockHandler1;
-    private LSProcessHandler _mockHandler2;
-    private LSProcessHandler _mockHandler3Failure;
-    private LSProcessHandler _mockHandler3Cancel;
-    private LSProcessHandler _mockHandler3Waiting;
+    private LSProcessHandler _mockHandler1 = null!;
+    private LSProcessHandler _mockHandler2 = null!;
+    private LSProcessHandler _mockHandler3Failure = null!;
+    private LSProcessHandler _mockHandler3Cancel = null!;
+    private LSProcessHandler _mockHandler3Waiting = null!;
     private int _handler1CallCount;
     private int _handler2CallCount;
     private int _handler3CallCount;
-    private LSLogger _logger;
+    private LSLogger _logger = null!;
 
     [SetUp]
     public void Setup() {
@@ -89,16 +89,16 @@ public class ComplexIntegrationTests {
 
         var childSequence = root.GetChild("childSequence") as ILSProcessLayerNode;
         Assert.That(childSequence, Is.Not.Null);
-        Assert.That(childSequence.HasChild("handler1"), Is.True);
+        Assert.That(childSequence!.HasChild("handler1"), Is.True);
 
         var childSelector = root.GetChild("childSelector") as ILSProcessLayerNode;
         Assert.That(childSelector, Is.Not.Null);
-        Assert.That(childSelector.HasChild("handler2"), Is.True);
+        Assert.That(childSelector!.HasChild("handler2"), Is.True);
 
         var childParallel = root.GetChild("childParallel") as ILSProcessLayerNode;
         Assert.That(childParallel, Is.Not.Null);
-        Assert.That(childParallel.HasChild("handler1B"), Is.True);
-        Assert.That(childParallel.HasChild("handler2B"), Is.True);
+        Assert.That(childParallel!.HasChild("handler1B"), Is.True);
+        Assert.That(childParallel!.HasChild("handler2B"), Is.True);
 
         // Test execution of the entire structure
         var mockProcess = new MockProcess();

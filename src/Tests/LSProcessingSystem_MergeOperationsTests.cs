@@ -14,15 +14,15 @@ public class MergeOperationsTests {
         public MockProcess() { }
     }
 
-    private LSProcessHandler _mockHandler1;
-    private LSProcessHandler _mockHandler2;
-    private LSProcessHandler _mockHandler3Failure;
-    private LSProcessHandler _mockHandler3Cancel;
-    private LSProcessHandler _mockHandler3Waiting;
+    private LSProcessHandler _mockHandler1 = null!;
+    private LSProcessHandler _mockHandler2 = null!;
+    private LSProcessHandler _mockHandler3Failure = null!;
+    private LSProcessHandler _mockHandler3Cancel = null!;
+    private LSProcessHandler _mockHandler3Waiting = null!;
     private int _handler1CallCount;
     private int _handler2CallCount;
     private int _handler3CallCount;
-    private LSLogger _logger;
+    private LSLogger _logger = null!;
 
     [SetUp]
     public void Setup() {
@@ -88,11 +88,11 @@ public class MergeOperationsTests {
             .Build();
 
         // The merged builder should be the root builder itself, containing the subContext as a child
-        Assert.That(mergedContext.NodeID, Is.EqualTo("root")); // The merged builder is the root
+        Assert.That(mergedContext!.NodeID, Is.EqualTo("root")); // The merged builder is the root
         Assert.That(mergedContext.HasChild("subContext"), Is.True); // The root should contain the subContext
         var subContextNode = mergedContext.GetChild("subContext") as ILSProcessLayerNode;
         Assert.That(subContextNode, Is.Not.Null);
-        Assert.That(subContextNode.HasChild("handler1"), Is.True);
+        Assert.That(subContextNode!.HasChild("handler1"), Is.True);
 
         var mockProcess = new MockProcess();
         var session = new LSProcessSession(null!, mockProcess, mergedContext);
