@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>11.0</LangVersion>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
+    <!--Package Information -->
+    <PackageId>LSUtils</PackageId>
+    <Version>1.0.0</Version>
+    <Description>A modular .NET utility library with components for process management, logging, graphs, and more.</Description>
+    <PackageTags>utils;process-system;logging;graphs;collections;utilities</PackageTags>
+    <PackageProjectUrl>https://github.com/drefi/LSUtils</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/drefi/LSUtils</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
