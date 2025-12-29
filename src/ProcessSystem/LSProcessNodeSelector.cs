@@ -72,6 +72,8 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// <inheritdoc />
     public string NodeID { get; }
     /// <inheritdoc />
+    public LSProcessLayerNodeType NodeType => LSProcessLayerNodeType.SELECTOR;
+    /// <inheritdoc />
     public LSProcessPriority Priority { get; internal set; }
     /// <inheritdoc />
     public int Order { get; internal set; }

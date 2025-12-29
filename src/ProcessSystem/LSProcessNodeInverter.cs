@@ -57,6 +57,7 @@ using LSUtils.Logging;
 public class LSProcessNodeInverter : ILSProcessLayerNode {
     public const string ClassName = nameof(LSProcessNodeInverter);
     public string NodeID { get; }
+    public LSProcessLayerNodeType NodeType => LSProcessLayerNodeType.INVERTER;
     protected ILSProcessNode? _childNode = null;
 
     public LSProcessPriority Priority { get; internal set; }
@@ -67,20 +68,32 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
 
     public int Order { get; internal set; }
 
-    public bool ReadOnly { get; internal set; } = false;
+    public bool ReadOnly { get; }
 
     protected LSProcessNodeInverter(string nodeID, LSProcessPriority priority = LSProcessPriority.NORMAL, int order = 0, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeID;
         Priority = priority;
         Order = order;
-        Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
         ReadOnly = readOnly;
+        Conditions = LSProcessHelpers.UpdateConditions(true, null, conditions);
     }
 
     // inverter should not be able to change child after creation
     public void AddChild(ILSProcessNode child) {
-        if (this._childNode != null) {
-            throw new LSException("Can't add more than a single child to LSProcessNodeInverter!");
+        if (child == null) {
+            throw new System.ArgumentNullException(nameof(child), 
+                $"Cannot add null child to inverter '{NodeID}'");
+        }
+        
+        if (ReadOnly) {
+            throw new LSException(
+                $"Cannot add child to read-only inverter '{NodeID}'");
+        }
+        
+        if (_childNode != null) {
+            throw new LSException(
+                $"Inverter '{NodeID}' already has a child '{_childNode.NodeID}'. " +
+                "Inverters can only have exactly one child node.");
         }
 
         _childNode = child;
@@ -92,6 +105,18 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
               source: ("LSProcessSystem", null),
               processId: session.Process.ID,
               properties: ("hideNodeID", true));
+        
+        // Check conditions before executing
+        if (Conditions != null && !Conditions(session.Process)) {
+            LSLogger.Singleton.Debug($"Inverter conditions not met.",
+                source: (ClassName, null),
+                processId: session.Process.ID,
+                properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("method", nameof(Execute))
+                });
+            return LSProcessResultStatus.FAILURE;
+        }
 
         if (_childNode == null) {
             //log warning
@@ -150,7 +175,13 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
                 ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
                 ("method", nameof(Fail))
             });
-        return _childNode.Fail(session, nodes);
+        var result = _childNode.Fail(session, nodes);
+        // Invert SUCCESS/FAILURE results
+        return result switch {
+            LSProcessResultStatus.SUCCESS => LSProcessResultStatus.FAILURE,
+            LSProcessResultStatus.FAILURE => LSProcessResultStatus.SUCCESS,
+            _ => result,
+        };
     }
 
     public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
@@ -180,7 +211,13 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
                 ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
                 ("method", nameof(Resume))
             });
-        return _childNode.Resume(session, nodes);
+        var result = _childNode.Resume(session, nodes);
+        // Invert SUCCESS/FAILURE results
+        return result switch {
+            LSProcessResultStatus.SUCCESS => LSProcessResultStatus.FAILURE,
+            LSProcessResultStatus.FAILURE => LSProcessResultStatus.SUCCESS,
+            _ => result,
+        };
     }
     public LSProcessResultStatus Cancel(LSProcessSession session) {
         // Flow debug logging
@@ -244,7 +281,7 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     }
 
     public LSProcessResultStatus GetNodeStatus() {
-        if (_childNode == null) return LSProcessResultStatus.FAILURE;
+        if (_childNode == null) return LSProcessResultStatus.UNKNOWN;
 
         return _childNode.GetNodeStatus() switch {
             LSProcessResultStatus.SUCCESS => LSProcessResultStatus.FAILURE,

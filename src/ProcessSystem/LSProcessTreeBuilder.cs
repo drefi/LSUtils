@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using LSUtils.Logging;
 
 namespace LSUtils.ProcessSystem;
@@ -192,7 +193,7 @@ public class LSProcessTreeBuilder {
     }
 
     public LSProcessTreeBuilder Handler<TProcess>(string nodeID, LSProcessHandler<TProcess> handler, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
-        return Handler(nodeID, new LSProcessHandler(session => handler((LSProcessSession<TProcess>)session)), priority, readOnly, conditions.ToCondition());
+        return Handler(nodeID, handler.ToHandler(), priority, readOnly, conditions.ToCondition());
     }
     /// <summary>
     /// Removes a child node from the current layer context by its identifier.
@@ -568,6 +569,50 @@ public class LSProcessTreeBuilder {
 
         return this;
     }
+    
+    /// <summary>
+    /// Creates a type-safe parallel node for strongly-typed processes.
+    /// </summary>
+    /// <typeparam name="TProcess">The specific process type for compile-time type safety.</typeparam>
+    /// <param name="nodeID">Unique identifier for the parallel node.</param>
+    /// <param name="parallelBuilderAction">Optional action to configure child nodes within the parallel context.</param>
+    /// <param name="numRequiredToSucceed">Number of children that must succeed for parallel success (default: 0 = all children).</param>
+    /// <param name="numRequiredToFailure">Number of children that must fail for parallel failure (default: 0 = any child).</param>
+    /// <param name="priority">Execution priority (default: NORMAL).</param>
+    /// <param name="overrideConditions">If true, replaces existing conditions; if false, appends to them.</param>
+    /// <param name="readOnly">If true, prevents further modifications to the node.</param>
+    /// <param name="conditions">Optional array of type-safe conditions for execution.</param>
+    /// <returns>The current builder instance for method chaining.</returns>
+    /// <example>
+    /// <code>
+    /// builder.Parallel&lt;MyProcess&gt;("concurrent", par => par
+    ///     .Handler&lt;MyProcess&gt;("task1", Task1Handler)
+    ///     .Handler&lt;MyProcess&gt;("task2", Task2Handler),
+    ///     numRequiredToSucceed: 2,
+    ///     conditions: process => process.IsEnabled);
+    /// </code>
+    /// </example>
+    public LSProcessTreeBuilder Parallel<TProcess>(
+        string nodeID,
+        LSProcessBuilderAction? parallelBuilderAction = null,
+        int? numRequiredToSucceed = 0,
+        int? numRequiredToFailure = 0,
+        LSProcessPriority? priority = null,
+        bool overrideConditions = false,
+        bool readOnly = false,
+        params LSProcessNodeCondition<TProcess>?[] conditions)
+        where TProcess : LSProcess {
+        
+        // Convert generic conditions to non-generic
+        var convertedConditions = conditions
+            .Where(c => c != null)
+            .Select(c => c!.ToCondition())
+            .ToArray();
+        
+        return Parallel(nodeID, parallelBuilderAction, numRequiredToSucceed, numRequiredToFailure, 
+            priority, overrideConditions, readOnly, convertedConditions);
+    }
+    
     public LSProcessTreeBuilder Merge(LSProcessBuilderAction subBuilder) {
         if (subBuilder == null) {
             //log warning
@@ -779,6 +824,43 @@ public class LSProcessTreeBuilder {
                 ("method", nameof(Inverter))
             });
         return this;
+    }
+
+    /// <summary>
+    /// Creates a type-safe inverter node for strongly-typed processes.
+    /// </summary>
+    /// <typeparam name="TProcess">The specific process type for compile-time type safety.</typeparam>
+    /// <param name="nodeID">Unique identifier for the inverter node.</param>
+    /// <param name="builderAction">Action to configure the single child node.</param>
+    /// <param name="priority">Execution priority (default: NORMAL).</param>
+    /// <param name="overrideConditions">If true, replaces existing conditions; if false, appends to them.</param>
+    /// <param name="readOnly">If true, prevents further modifications to the node.</param>
+    /// <param name="conditions">Optional array of type-safe conditions for execution.</param>
+    /// <returns>The current builder instance for method chaining.</returns>
+    /// <example>
+    /// <code>
+    /// builder.Inverter&lt;MyProcess&gt;("reject-invalid", inv => inv
+    ///     .Handler&lt;MyProcess&gt;("validate", session => 
+    ///         session.Process.IsValid ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE),
+    ///     conditions: process => process.IsEnabled);
+    /// </code>
+    /// </example>
+    public LSProcessTreeBuilder Inverter<TProcess>(
+        string nodeID,
+        LSProcessBuilderAction builderAction,
+        LSProcessPriority? priority = LSProcessPriority.NORMAL,
+        bool overrideConditions = false,
+        bool readOnly = false,
+        params LSProcessNodeCondition<TProcess>?[] conditions)
+        where TProcess : LSProcess {
+        
+        // Convert generic conditions to non-generic
+        var convertedConditions = conditions
+            .Where(c => c != null)
+            .Select(c => c!.ToCondition())
+            .ToArray();
+        
+        return Inverter(nodeID, builderAction, priority, overrideConditions, readOnly, convertedConditions);
     }
 
     /// <summary>

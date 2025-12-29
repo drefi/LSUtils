@@ -447,8 +447,18 @@ LSProcessHandler<MyCustomProcess> typedHandler = session => {
 
 **Parallel** - Execute children concurrently with thresholds
 
-- ⚙️ Configurable success/failure count requirements
-- 🔄 Use for: Concurrent operations, majority voting
+- ⚙️ Configurable success count: `numRequiredToSucceed` (default: 0 = all must succeed)
+- ⚙️ Configurable failure count: `numRequiredToFail` (default: 0 = any failure fails the parallel)
+- ✅ Succeeds when `numRequiredToSucceed` children succeed
+- ❌ Fails when `numRequiredToFail` children fail
+- 🔄 Use for: Concurrent operations, majority voting, redundant tasks
+
+**Inverter** - Inverts SUCCESS/FAILURE of single child (NOT logic)
+
+- 🔄 SUCCESS → FAILURE, FAILURE → SUCCESS
+- ⏸️ WAITING, CANCELLED, UNKNOWN pass through unchanged
+- 🎯 Single child only (decorator pattern)
+- 🔄 Use for: Negative conditions, rejection logic, inverse validation
 
 **Handler** - Terminal nodes that execute your business logic
 
@@ -548,6 +558,62 @@ var process = new OrderProcess()
 ```
 
 ### 5. Error Handling with Fallbacks
+
+```csharp
+builder.Selector("payment-strategy", sel => sel
+    .Handler("credit-card", ProcessCreditCard)
+    .Handler("paypal", ProcessPaypal)
+    .Handler("bank-transfer", ProcessBankTransfer));
+// First successful payment method wins
+```
+
+### 6. Inverter for Negative Conditions
+
+```csharp
+// Invert validation - succeed when validation fails
+builder.Inverter("reject-invalid-data", inv => inv
+    .Handler("strict-validate", StrictValidationHandler));
+
+// Use with selector for conditional logic
+builder.Selector("conditional-flow", sel => sel
+    .Handler("primary-path", PrimaryHandler)
+    .Inverter("unless-busy", inv => inv
+        .Handler("check-busy", CheckSystemBusyHandler))
+    .Handler("fallback-path", FallbackHandler));
+
+// Type-safe inverter with generic process
+builder.Inverter<MyProcess>("reject-invalid", inv => inv
+    .Handler<MyProcess>("validate", session => 
+        session.Process.IsValid 
+            ? LSProcessResultStatus.SUCCESS 
+            : LSProcessResultStatus.FAILURE),
+    conditions: process => process.ShouldValidate);
+```
+
+### 7. Parallel with Custom Thresholds
+
+```csharp
+// Require 2 out of 3 tasks to succeed
+builder.Parallel("redundant-tasks", par => par
+    .Handler("task1", Task1Handler)
+    .Handler("task2", Task2Handler)
+    .Handler("task3", Task3Handler),
+    numRequiredToSucceed: 2,
+    numRequiredToFail: 2);  // Fail if 2 tasks fail
+
+// Majority voting: 3 out of 5
+builder.Parallel<MyProcess>("majority-vote", par => par
+    .Handler<MyProcess>("voter1", Voter1Handler)
+    .Handler<MyProcess>("voter2", Voter2Handler)
+    .Handler<MyProcess>("voter3", Voter3Handler)
+    .Handler<MyProcess>("voter4", Voter4Handler)
+    .Handler<MyProcess>("voter5", Voter5Handler),
+    numRequiredToSucceed: 3,
+    numRequiredToFail: 3,
+    conditions: process => process.VotingEnabled);
+```
+
+## Best Practices
 
 ```csharp
 var process = new PaymentProcess()

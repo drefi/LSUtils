@@ -14,6 +14,7 @@ namespace LSUtils.ProcessSystem;
 /// <item><description><strong>LSProcessSequenceNode</strong>: Processes children sequentially until one fails (AND logic)</description></item>
 /// <item><description><strong>LSProcessSelectorNode</strong>: Processes children sequentially until one succeeds (OR logic)</description></item>
 /// <item><description><strong>LSProcessParallelNode</strong>: Processes children simultaneously with threshold-based completion</description></item>
+/// <item><description><strong>LSProcessInverterNode</strong>: Inverts SUCCESS/FAILURE of single child (NOT logic)</description></item>
 /// </list>
 /// 
 /// <para><strong>Child Management Architecture:</strong></para>
@@ -41,8 +42,11 @@ namespace LSUtils.ProcessSystem;
 /// </list>
 /// </remarks>
 public interface ILSProcessLayerNode : ILSProcessNode {
-    /// <summary>
-    /// Adds a child node to this layer node's collection.
+    /// <summary>    /// Gets the type of this layer node (SEQUENCE, SELECTOR, PARALLEL, or INVERTER).
+    /// </summary>
+    LSProcessLayerNodeType NodeType { get; }
+
+    /// <summary>    /// Adds a child node to this layer node's collection.
     /// The child will be processed according to this node's processing logic.
     /// </summary>
     /// <param name="child">The child node to add. Must have a unique NodeID within this parent.</param>

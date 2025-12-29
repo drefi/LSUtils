@@ -651,4 +651,147 @@ public class NodeParallelTests {
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(totalExecutions, Is.EqualTo(handlerCount));
     }
+
+    #region Generic Type-Safe Tests
+
+    [Test]
+    public void TestParallelGenericTypeSafe() {
+        int handlerCallCount = 0;
+
+        var builder = new LSProcessTreeBuilder()
+            .Parallel<MockProcess>("generic-parallel", par => par
+                .Handler<MockProcess>("typed1", session => {
+                    handlerCallCount++;
+                    // Type-safe access to MockProcess properties
+                    Assert.That(session.Process, Is.InstanceOf<MockProcess>());
+                    return LSProcessResultStatus.SUCCESS;
+                })
+                .Handler<MockProcess>("typed2", session => {
+                    handlerCallCount++;
+                    return LSProcessResultStatus.SUCCESS;
+                }),
+                numRequiredToSucceed: 2)
+            .Build();
+
+        var mockProcess = new MockProcess();
+        var session = new LSProcessSession(null!, mockProcess, builder);
+        var result = session.Execute();
+
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(handlerCallCount, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void TestParallelGenericWithCondition() {
+        List<string> executedHandlers = new List<string>();
+
+        var builder = new LSProcessTreeBuilder()
+            .Parallel<MockProcess>("conditional-parallel", par => par
+                .Handler<MockProcess>("h1", session => {
+                    executedHandlers.Add("H1");
+                    return LSProcessResultStatus.SUCCESS;
+                })
+                .Handler<MockProcess>("h2", session => {
+                    executedHandlers.Add("H2");
+                    return LSProcessResultStatus.SUCCESS;
+                }),
+                numRequiredToSucceed: 1,
+                conditions: process => true) // Condition met
+            .Build();
+
+        var mockProcess = new MockProcess();
+        var session = new LSProcessSession(null!, mockProcess, builder);
+        var result = session.Execute();
+
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(executedHandlers.Count, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void TestParallelGenericWithConditionFalse() {
+        List<string> executedHandlers = new List<string>();
+
+        var builder = new LSProcessTreeBuilder()
+            .Parallel<MockProcess>("conditional-parallel", par => par
+                .Handler<MockProcess>("h1", session => {
+                    executedHandlers.Add("H1");
+                    return LSProcessResultStatus.SUCCESS;
+                }),
+                numRequiredToSucceed: 1,
+                conditions: process => false) // Condition NOT met
+            .Build();
+
+        var mockProcess = new MockProcess();
+        var session = new LSProcessSession(null!, mockProcess, builder);
+        var result = session.Execute();
+
+        // Condition not met, should return FAILURE
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+        Assert.That(executedHandlers.Count, Is.EqualTo(0)); // No handlers executed
+    }
+
+    [Test]
+    public void TestParallelGenericWithBothThresholds() {
+        int successCount = 0;
+        int failureCount = 0;
+
+        var builder = new LSProcessTreeBuilder()
+            .Parallel<MockProcess>("threshold-parallel", par => par
+                .Handler<MockProcess>("success1", session => {
+                    successCount++;
+                    return LSProcessResultStatus.SUCCESS;
+                })
+                .Handler<MockProcess>("success2", session => {
+                    successCount++;
+                    return LSProcessResultStatus.SUCCESS;
+                })
+                .Handler<MockProcess>("failure1", session => {
+                    failureCount++;
+                    return LSProcessResultStatus.FAILURE;
+                }),
+                numRequiredToSucceed: 2,
+                numRequiredToFailure: 1)
+            .Build();
+
+        var mockProcess = new MockProcess();
+        var session = new LSProcessSession(null!, mockProcess, builder);
+        var result = session.Execute();
+
+        // 2 successes and 1 failure - success threshold met first
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(successCount, Is.EqualTo(2));
+        Assert.That(failureCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void TestParallelGenericMajorityVoting() {
+        int voteCount = 0;
+        var votes = new List<bool> { true, true, false, true, false }; // 3 yes, 2 no
+
+        var builder = new LSProcessTreeBuilder()
+            .Parallel<MockProcess>("voting", par => {
+                for (int i = 0; i < votes.Count; i++) {
+                    int index = i; // Capture for lambda
+                    par.Handler<MockProcess>($"voter{i}", session => {
+                        voteCount++;
+                        return votes[index] 
+                            ? LSProcessResultStatus.SUCCESS 
+                            : LSProcessResultStatus.FAILURE;
+                    });
+                }
+                return par;
+            },
+            numRequiredToSucceed: 3, // Need 3 yes votes
+            numRequiredToFailure: 3)     // Or 3 no votes
+            .Build();
+
+        var mockProcess = new MockProcess();
+        var session = new LSProcessSession(null!, mockProcess, builder);
+        var result = session.Execute();
+
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS)); // Majority voted yes
+        Assert.That(voteCount, Is.EqualTo(5)); // All voters participated
+    }
+
+    #endregion
 }

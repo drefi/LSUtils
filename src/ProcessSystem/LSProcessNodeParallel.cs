@@ -76,6 +76,8 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// <inheritdoc />
     public string NodeID { get; }
     /// <inheritdoc />
+    public LSProcessLayerNodeType NodeType => LSProcessLayerNodeType.PARALLEL;
+    /// <inheritdoc />
     public LSProcessPriority Priority { get; internal set; }
     /// <inheritdoc />
     public int Order { get; internal set; }
@@ -604,6 +606,18 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
               source: ("LSProcessSystem", null),
               processId: session.Process.ID,
               properties: ("hideNodeID", true));
+
+        // Check conditions before executing
+        if (Conditions != null && !Conditions(session.Process)) {
+            LSLogger.Singleton.Debug($"Parallel conditions not met.",
+                source: (ClassName, null),
+                processId: session.Process.ID,
+                properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("method", nameof(Execute))
+                });
+            return LSProcessResultStatus.FAILURE;
+        }
 
         // Initialize available children list if not done yet
         if (_isProcessing == false) {
