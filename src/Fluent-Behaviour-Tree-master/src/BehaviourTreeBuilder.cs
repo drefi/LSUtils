@@ -5,8 +5,11 @@ using LSUtils;
 
 namespace FluentBehaviourTree {
     /// <summary>
-    /// Fluent API for building a behaviour tree.
+    /// [DEPRECATED] Fluent API for building a behaviour tree.
+    /// Use LSProcessSystem (LSProcessTreeBuilder) instead.
+    /// This class will be removed - see MIGRATION_PLAN.md for migration guide.
     /// </summary>
+    [System.Obsolete("Use LSProcessSystem instead. See MIGRATION_PLAN.md for migration guide.", false)]
     public class BehaviourTreeBuilder {
         /// <summary>
         /// Last node created.

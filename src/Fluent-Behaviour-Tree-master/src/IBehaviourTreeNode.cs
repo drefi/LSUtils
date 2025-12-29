@@ -5,8 +5,10 @@ using System.Text;
 
 namespace FluentBehaviourTree {
     /// <summary>
-    /// Interface for behaviour tree nodes.
+    /// [DEPRECATED] Interface for behaviour tree nodes.
+    /// Use LSProcessSystem (ILSProcessNode) instead.
     /// </summary>
+    [System.Obsolete("Use LSProcessSystem instead. See MIGRATION_PLAN.md", false)]
     public interface IBehaviourTreeNode {
         /// <summary>
         /// Update the time of the behaviour tree.

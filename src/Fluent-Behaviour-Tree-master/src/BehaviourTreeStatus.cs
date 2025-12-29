@@ -6,8 +6,10 @@ using System.Text;
 namespace FluentBehaviourTree
 {
     /// <summary>
-    /// The return type when invoking behaviour tree nodes.
+    /// [DEPRECATED] The return type when invoking behaviour tree nodes.
+    /// Use LSProcessResultStatus instead.
     /// </summary>
+    [System.Obsolete("Use LSProcessResultStatus instead. See MIGRATION_PLAN.md", false)]
     public enum BehaviourTreeStatus
     {
         Success,
