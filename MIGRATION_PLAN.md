@@ -200,7 +200,8 @@ src/ProcessSystem/
 **Status:** ✅ **CONCLUÍDA** em 29/12/2025
 **Commits:** 
 - `0211e1b` - chore(BehaviourTree): Mark as obsolete before removal
-- *próximo* - chore(BehaviourTree): Remove deprecated system
+- `df57fa7` - chore(BehaviourTree): Remove deprecated system completely
+- `6765075` - docs(MIGRATION_PLAN): Update with final commit reference
 
 ### Tarefas Realizadas
 
