@@ -128,116 +128,119 @@ public class ILSProcessableTests {
     }
 }
 
+/** It does not make sense ILSProcessNode have tests because LSProcess/LSProcessManager will not implement then, so they cannot be testes by the process.
+// I will leave this for demonstration purposes only, but this is unnecessary.
 [TestFixture]
 public class ILSProcessNodeTests {
-    private class TestProcessNode : ILSProcessNode {
-        public string NodeID { get; } = Guid.NewGuid().ToString();
-        public LSProcessPriority Priority { get; set; } = LSProcessPriority.NORMAL;
-        public LSProcessNodeCondition? Conditions { get; set; }
-        public int ExecutionCount { get; private set; }
-        public int Order { get; set; }
-        public bool ReadOnly { get; set; }
-        
-        public LSProcessResultStatus Status { get; set; } = LSProcessResultStatus.UNKNOWN;
-        public bool ExecuteCalled { get; private set; }
-        public bool CancelCalled { get; private set; }
+private class TestProcessNode : ILSProcessNode {
+    public string NodeID { get; } = Guid.NewGuid().ToString();
+    public LSProcessPriority Priority { get; set; } = LSProcessPriority.NORMAL;
+    public LSProcessNodeCondition? Conditions { get; set; }
+    public int ExecutionCount { get; private set; }
+    public int Order { get; set; }
+    public bool ReadOnly { get; set; }
+    
+    public LSProcessResultStatus Status { get; set; } = LSProcessResultStatus.UNKNOWN;
+    public bool ExecuteCalled { get; private set; }
+    public bool CancelCalled { get; private set; }
 
-        public ILSProcessNode Clone() {
-            return new TestProcessNode {
-                Priority = Priority,
-                Conditions = Conditions,
-                Order = Order,
-                ReadOnly = ReadOnly,
-                Status = LSProcessResultStatus.UNKNOWN
-            };
-        }
-
-        public LSProcessResultStatus Execute(LSProcessSession context) {
-            ExecuteCalled = true;
-            return Status;
-        }
-
-        public LSProcessResultStatus GetNodeStatus() => Status;
-
-        public LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodeIDs) {
-            if (Status == LSProcessResultStatus.WAITING) {
-                Status = LSProcessResultStatus.SUCCESS;
-            }
-            return Status;
-        }
-
-        public LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodeIDs) {
-            Status = LSProcessResultStatus.FAILURE;
-            return Status;
-        }
-
-        public LSProcessResultStatus Cancel(LSProcessSession context) {
-            CancelCalled = true;
-            Status = LSProcessResultStatus.CANCELLED;
-            return Status;
-        }
+    public ILSProcessNode Clone() {
+        return new TestProcessNode {
+            Priority = Priority,
+            Conditions = Conditions,
+            Order = Order,
+            ReadOnly = ReadOnly,
+            Status = LSProcessResultStatus.UNKNOWN
+        };
     }
 
-    [Test]
-    public void TestProcessNode_ShouldImplementInterface() {
-        // Arrange & Act
-        var node = new TestProcessNode();
-
-        // Assert
-        Assert.That(node, Is.InstanceOf<ILSProcessNode>());
-        Assert.That(node.NodeID, Is.Not.Null);
-        Assert.That(node.NodeID, Is.Not.Empty);
+    public LSProcessResultStatus Execute(LSProcessSession context) {
+        ExecuteCalled = true;
+        return Status;
     }
 
-    [Test]
-    public void GetNodeStatus_ShouldReturnCurrentStatus() {
-        // Arrange
-        var node = new TestProcessNode();
+    public LSProcessResultStatus GetNodeStatus() => Status;
 
-        // Act & Assert
-        Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
-
-        node.Status = LSProcessResultStatus.SUCCESS;
-        Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
+    public LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodeIDs) {
+        if (Status == LSProcessResultStatus.WAITING) {
+            Status = LSProcessResultStatus.SUCCESS;
+        }
+        return Status;
     }
 
-    [Test]
-    public void Execute_ShouldBeCallable() {
-        // Arrange
-        var node = new TestProcessNode();
-        var process = new TestProcess();
-        // Use public API to create session through process execution
-        process.WithProcessing(builder => builder.Handler("test", session => {
-            // This will trigger node execution through the proper API
-            return node.Execute(session);
-        }));
-
-        // Act
-        var result = process.Execute(LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL);
-
-        // Assert
-        Assert.That(node.ExecuteCalled, Is.True);
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.UNKNOWN));
+    public LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodeIDs) {
+        Status = LSProcessResultStatus.FAILURE;
+        return Status;
     }
 
-    [Test]
-    public void Cancel_ShouldSetCancelledStatus() {
-        // Arrange
-        var node = new TestProcessNode();
-        var process = new TestProcess();
-        // Use public API to create session through process execution
-        process.WithProcessing(builder => builder.Handler("test", session => {
-            // This will test the cancel functionality
-            var result = node.Cancel(session);
-            return LSProcessResultStatus.SUCCESS;
-        }));
-
-        // Act
-        var result = process.Execute(LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL);
-
-        // Assert
-        Assert.That(node.CancelCalled, Is.True);
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.CANCELLED));
-        Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.CANCELLED));
+    public LSProcessResultStatus Cancel(LSProcessSession context) {
+        CancelCalled = true;
+        Status = LSProcessResultStatus.CANCELLED;
+        return Status;
     }
 }
+
+[Test]
+public void TestProcessNode_ShouldImplementInterface() {
+    // Arrange & Act
+    var node = new TestProcessNode();
+
+    // Assert
+    Assert.That(node, Is.InstanceOf<ILSProcessNode>());
+    Assert.That(node.NodeID, Is.Not.Null);
+    Assert.That(node.NodeID, Is.Not.Empty);
+}
+
+[Test]
+public void GetNodeStatus_ShouldReturnCurrentStatus() {
+    // Arrange
+    var node = new TestProcessNode();
+
+    // Act & Assert
+    Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
+
+    node.Status = LSProcessResultStatus.SUCCESS;
+    Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
+}
+
+[Test]
+public void Execute_ShouldBeCallable() {
+    // Arrange
+    var node = new TestProcessNode();
+    var process = new TestProcess();
+    // Use public API to create session through process execution
+    process.WithProcessing(builder => builder.Handler("test", session => {
+        // This will trigger node execution through the proper API
+        return node.Execute(session);
+    }));
+
+    // Act
+    var result = process.Execute(LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL);
+
+    // Assert
+    Assert.That(node.ExecuteCalled, Is.True);
+    Assert.That(result, Is.EqualTo(LSProcessResultStatus.UNKNOWN));
+}
+
+[Test]
+public void Cancel_ShouldSetCancelledStatus() {
+    // Arrange
+    var node = new TestProcessNode();
+    var process = new TestProcess();
+    // Use public API to create session through process execution
+    process.WithProcessing(builder => builder.Handler("test", session => {
+        // This will test the cancel functionality
+        var result = node.Cancel(session);
+        return LSProcessResultStatus.SUCCESS;
+    }));
+
+    // Act
+    var result = process.Execute(LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL);
+
+    // Assert
+    Assert.That(node.CancelCalled, Is.True);
+    Assert.That(result, Is.EqualTo(LSProcessResultStatus.CANCELLED));
+    Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.CANCELLED));
+}
+}
+/**/

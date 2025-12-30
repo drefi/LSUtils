@@ -435,6 +435,7 @@ var result = process.Execute(instances);
 ```
 
 **Impacto:**
+
 - 297 erros de compilação no projeto de testes
 - Todos os 11 arquivos de teste afetados
 - 100% dos testes do ProcessSystem precisam ser reescritos
@@ -553,7 +554,7 @@ var process = LSProcess.Create("example", builder => builder
 ### Logging
 
 ```csharp
-var logger = new LSLogger("MyApp");
+var logger = LSLogger.Singleton;
 logger.Info("Application started");
 ```
 
@@ -579,16 +580,13 @@ Contribuições são bem-vindas! Veja [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ...
 
-```
-
 ---
 
 ## 🧪 Estratégia de Testes
 
 ### Pirâmide de Testes
 
-```
-
+```text
         ╱╲
        ╱  ╲
       ╱ E2E ╲         10% - Integration Tests
@@ -599,7 +597,6 @@ Contribuições são bem-vindas! Veja [CONTRIBUTING.md](CONTRIBUTING.md).
  ╱                ╲
 ╱   Unit Tests     ╲   70% - Unit Tests
 ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-
 ```
 
 ### Cobertura por Componente
@@ -614,57 +611,6 @@ Contribuições são bem-vindas! Veja [CONTRIBUTING.md](CONTRIBUTING.md).
 | Random | 0% | 70% | 🟢 Baixa |
 | Hex | 0% | 70% | 🟢 Baixa |
 
-### Ferramentas
-- **Framework:** NUnit
-- **Cobertura:** Coverlet
-- **Mocks:** NSubstitute (adicionar se necessário)
-- **Benchmarks:** BenchmarkDotNet (adicionar)
-
----
-
-## 🔧 CI/CD
-
-### Workflows
-
-#### Build Workflow
-```yaml
-name: Build
-on: [push, pull_request]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: 8.0.x
-      - name: Restore
-        run: dotnet restore
-      - name: Build
-        run: dotnet build --no-restore
-```
-
-#### Test Workflow
-
-```yaml
-name: Test
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-      - name: Test
-        run: dotnet test --collect:"XPlat Code Coverage"
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-```
-
----
-
 ## 📋 Checklist de Conclusão
 
 ### Estrutura
@@ -672,8 +618,6 @@ jobs:
 - [ ] Código reorganizado em estrutura modular
 - [ ] Namespaces consistentes
 - [ ] Testes separados do código de produção
-- [ ] `.editorconfig` configurado
-- [ ] `.gitignore` atualizado
 
 ### Documentação
 

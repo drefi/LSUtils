@@ -48,6 +48,48 @@ internal class WaitingTestProcess : LSProcess {
     }
 }
 
+/// <summary>
+/// Process with no predefined handlers, used for tree-building tests.
+/// </summary>
+internal class BasicProcess : LSProcess { }
+
+/// <summary>
+/// Process that can transition from WAITING to SUCCESS on resume for testing.
+/// </summary>
+internal class ResumableProcess : LSProcess {
+    public int ExecutionCount { get; private set; }
+
+    protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
+        return builder.Handler("resumable-handler", session => {
+            ExecutionCount++;
+            return ExecutionCount == 1 ? LSProcessResultStatus.WAITING : LSProcessResultStatus.SUCCESS;
+        });
+    }
+}
+
+/// <summary>
+/// Sequence-based process used to validate ordered handler execution.
+/// </summary>
+internal class SequenceProcess : LSProcess {
+    private readonly List<string> _steps;
+
+    public SequenceProcess(List<string> steps) {
+        _steps = steps;
+    }
+
+    protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
+        return builder.Sequence("sequence-root", seq => seq
+            .Handler("first", session => {
+                _steps.Add("first");
+                return LSProcessResultStatus.SUCCESS;
+            })
+            .Handler("second", session => {
+                _steps.Add("second");
+                return LSProcessResultStatus.SUCCESS;
+            }));
+    }
+}
+
 [TestFixture]
 public class LSProcessTests {
     private LSProcessManager? _manager;
@@ -308,5 +350,253 @@ public class LSProcessTests {
 
         // Assert
         Assert.That(configured, Is.True);
+    }
+
+    [Test]
+    public void SequenceHandlers_ShouldRunInOrderAndSucceed() {
+        // Arrange
+        List<string> steps = new();
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Handler("first", session => {
+                steps.Add("first");
+                return LSProcessResultStatus.SUCCESS;
+            });
+            builder.Handler("second", session => {
+                steps.Add("second");
+                return LSProcessResultStatus.SUCCESS;
+            });
+            return builder;
+        }, LSProcessLayerNodeType.SEQUENCE);
+
+        // Act
+        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+
+        // Assert
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(steps, Is.EqualTo(new[] { "first", "second" }));
+    }
+
+    [Test]
+    public void Selector_ShouldStopAfterFirstSuccess() {
+        // Arrange
+        List<string> steps = new();
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Handler("fail", session => {
+                steps.Add("fail");
+                return LSProcessResultStatus.FAILURE;
+            });
+            builder.Handler("win", session => {
+                steps.Add("win");
+                return LSProcessResultStatus.SUCCESS;
+            });
+            builder.Handler("skip", session => {
+                steps.Add("skip");
+                return LSProcessResultStatus.SUCCESS;
+            });
+            return builder;
+        });
+
+        // Act
+        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+
+        // Assert
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(steps, Is.EqualTo(new[] { "fail", "win" }));
+    }
+
+    [Test]
+    public void Inverter_ShouldInvertSuccessToFailure() {
+        // Arrange
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Inverter("invert", inv => inv
+                .Handler("child", session => LSProcessResultStatus.SUCCESS));
+            return builder;
+        });
+
+        // Act
+        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+
+        // Assert
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+    }
+
+    [Test]
+    public void Inverter_ShouldPropagateWaiting() {
+        // Arrange
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Inverter("invert", inv => inv
+                .Handler("waiting-child", session => LSProcessResultStatus.WAITING));
+            return builder;
+        });
+
+        // Act
+        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+
+        // Assert
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
+    }
+
+    [Test]
+    public void Parallel_ShouldSucceedWhenSuccessThresholdMet() {
+        // Arrange
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Parallel("parallel-root", par => par
+                .Handler("ok-1", session => LSProcessResultStatus.SUCCESS)
+                .Handler("ok-2", session => LSProcessResultStatus.SUCCESS)
+                .Handler("fail", session => LSProcessResultStatus.FAILURE),
+                numRequiredToSucceed: 2,
+                numRequiredToFailure: 2,
+                priority: LSProcessPriority.NORMAL);
+            return builder;
+        });
+
+        // Act
+        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+
+        // Assert
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+    }
+
+    [Test]
+    public void Parallel_ShouldFailWhenFailureThresholdReached() {
+        // Arrange
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Parallel("parallel-root", par => par
+                .Handler("ok-1", session => LSProcessResultStatus.SUCCESS)
+                .Handler("ok-2", session => LSProcessResultStatus.SUCCESS)
+                .Handler("fail", session => LSProcessResultStatus.FAILURE),
+                numRequiredToSucceed: 3,
+                numRequiredToFailure: 1,
+                priority: LSProcessPriority.NORMAL);
+            return builder;
+        });
+
+        // Act
+        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+
+        // Assert
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+    }
+
+    [Test]
+    public void Parallel_ResumeSpecificWaitingChildShouldSucceed() {
+        // Arrange
+        int waitExecutions = 0;
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Parallel("parallel-root", par => par
+                .Handler("wait", session => {
+                    waitExecutions++;
+                    return LSProcessResultStatus.WAITING;
+                })
+                .Handler("ok", session => LSProcessResultStatus.SUCCESS),
+                numRequiredToSucceed: 2,
+                numRequiredToFailure: 1,
+                priority: LSProcessPriority.NORMAL);
+            return builder;
+        });
+
+        // Act
+        var initial = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var resumed = process.Resume("wait");
+
+        // Assert
+        Assert.That(initial, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(resumed, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(waitExecutions, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Parallel_FailSpecificWaitingChildShouldFail() {
+        // Arrange
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Parallel("parallel-root", par => par
+                .Handler("wait", session => LSProcessResultStatus.WAITING)
+                .Handler("ok", session => LSProcessResultStatus.SUCCESS),
+                numRequiredToSucceed: 2,
+                numRequiredToFailure: 1,
+                priority: LSProcessPriority.NORMAL);
+            return builder;
+        });
+
+        // Act
+        var initial = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var failed = process.Fail("wait");
+
+        // Assert
+        Assert.That(initial, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(failed, Is.EqualTo(LSProcessResultStatus.FAILURE));
+    }
+
+    [Test]
+    public void Parallel_CancelShouldCancelWaitingChildren() {
+        // Arrange
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Parallel("parallel-root", par => par
+                .Handler("wait", session => LSProcessResultStatus.WAITING),
+                numRequiredToSucceed: 1,
+                numRequiredToFailure: 1,
+                priority: LSProcessPriority.NORMAL);
+            return builder;
+        });
+
+        // Act
+        var initial = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Cancel();
+
+        // Assert
+        Assert.That(initial, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(process.IsCancelled, Is.True);
+    }
+
+    [Test]
+    public void Conditions_ShouldSkipHandlersWhenFalse() {
+        // Arrange
+        bool skippedExecuted = false;
+        bool executed = false;
+        var process = new BasicProcess();
+        process.WithProcessing(builder => {
+            builder.Sequence("sequence-root", seq => seq
+                .Handler("skip", session => {
+                    skippedExecuted = true;
+                    return LSProcessResultStatus.FAILURE;
+                }, conditions: _ => false)
+                .Handler("run", session => {
+                    executed = true;
+                    return LSProcessResultStatus.SUCCESS;
+                }));
+            return builder;
+        }, LSProcessLayerNodeType.SEQUENCE);
+
+        // Act
+        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+
+        // Assert
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(skippedExecuted, Is.False);
+        Assert.That(executed, Is.True);
+    }
+
+    [Test]
+    public void Resume_ShouldMoveWaitingHandlerToSuccess() {
+        // Arrange
+        var process = new ResumableProcess();
+
+        // Act
+        var firstResult = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var resumedResult = process.Resume("resumable-handler");
+
+        // Assert
+        Assert.That(firstResult, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(resumedResult, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(process.ExecutionCount, Is.EqualTo(1));
     }
 }

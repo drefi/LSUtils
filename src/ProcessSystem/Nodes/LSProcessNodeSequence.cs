@@ -401,9 +401,10 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
             _currentChild.Execute(session);
             session._sessionStack.Pop();
             sequenceStatus = GetNodeStatus();
-            if (sequenceStatus == LSProcessResultStatus.UNKNOWN) {
-                return LSProcessResultStatus.UNKNOWN;
-            }
+            // if sequenceStatus is still UNKNOWN the sequence is not done yet, so we can't just return UNKNOWN.
+            // if (sequenceStatus == LSProcessResultStatus.UNKNOWN) { //THIS WAS ADDED BY MISTAKE, will be removed in the future, for now is commented out
+            //     return LSProcessResultStatus.UNKNOWN;
+            // }
             if (sequenceStatus == LSProcessResultStatus.FAILURE ||
                 sequenceStatus == LSProcessResultStatus.CANCELLED) {
                 endSequence();
