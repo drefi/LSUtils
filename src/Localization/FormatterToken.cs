@@ -35,21 +35,28 @@ public class FormatterToken {
     protected bool replaceTokens(MatchCollection matches, string text, List<string> missingKeys, out string parsedText) {
         var filteredMatches = matches.Cast<Match>().Where(m => !missingKeys.Contains(m.Groups[1].Value));
         parsedText = text;
+        bool replaced = false;
+
         foreach (Match match in filteredMatches) {
             var groups = match.Groups;
             var key = groups[1].Value;
             string value = key;
+
             if (_tokens.TryGetValue(key, out var token)) {
-                value = token.TryGetValue(CurrentLanguage, out var langValue) ? langValue :
-                token.TryGetValue(Languages.VALUE, out var anyValue) ? anyValue : key;
+                value = token.TryGetValue(CurrentLanguage, out var langValue)
+                    ? langValue
+                    : token.TryGetValue(Languages.VALUE, out var anyValue) ? anyValue : key;
             }
+
             if (value == key && missingKeys.Contains(key) == false) {
                 missingKeys.Add(key);
             } else if (value != key) {
-                text = text.Replace(match.Value, value);
+                parsedText = parsedText.Replace(match.Value, value);
+                replaced = true;
             }
         }
-        return filteredMatches.Count() > 0;
+
+        return replaced;
     }
 
     /// <summary>
