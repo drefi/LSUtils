@@ -185,7 +185,7 @@ public class LSProcessManagerTests {
         Assert.That(rootNode, Is.Not.Null);
         Assert.That(availableInstances, Is.Not.Null);
         // With FIRST behaviour, we expect at most 1 instance
-        Assert.That(availableInstances.Length, Is.LessThanOrEqualTo(1));
+        Assert.That(availableInstances!.Length, Is.LessThanOrEqualTo(1));
     }
 
     [Test]
