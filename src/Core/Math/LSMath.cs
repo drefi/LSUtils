@@ -5,6 +5,12 @@ namespace LSUtils;
 /// Provides mathematical utility functions.
 /// </summary>
 public static class LSMath {
+    public static float Abs(float value) {
+        return System.MathF.Abs(value);
+    }
+    public static int Abs(int value) {
+        return System.Math.Abs(value);
+    }
     public static bool TryParseFloat(string? value, out float result) {
         return float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out result);
     }
@@ -88,4 +94,24 @@ public static class LSMath {
     public static double Ceil(double s) {
         return System.Math.Ceiling(s);
     }
+
+    public static float Round(float s) {
+        return System.MathF.Round(s);
+    }
+    public static double Round(double s) {
+        return System.Math.Round(s);
+    }
+    public static int Sign(int s) {
+        return System.Math.Sign(s);
+    }
+    public static int Sign(float s) {
+        return System.MathF.Sign(s);
+    }
+    public static float Sqrt(float s) {
+        return System.MathF.Sqrt(s);
+    }
+    public static double Sqrt(double s) {
+        return System.Math.Sqrt(s);
+    }
+    
 }
