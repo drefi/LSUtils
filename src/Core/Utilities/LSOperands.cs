@@ -109,12 +109,12 @@ public interface ILSBinaryOperand<T> : ILSNumericOperand<T> where T : System.Num
     /// Gets the left operand of the binary operation.
     /// </summary>
     public ILSNumericOperand<T> Left { get; }
-    
+
     /// <summary>
     /// Gets the right operand of the binary operation.
     /// </summary>
     public ILSNumericOperand<T> Right { get; }
-    
+
     /// <summary>
     /// Gets the mathematical operator to apply between the operands.
     /// </summary>
@@ -129,12 +129,12 @@ public interface ILSConditionalOperand : ILSBooleanOperand {
     /// Gets the comparison operator used to compare the operands.
     /// </summary>
     ComparisonOperator Operator { get; }
-    
+
     /// <summary>
     /// Gets the left operand to compare.
     /// </summary>
     ILSOperand Left { get; }
-    
+
     /// <summary>
     /// Gets the right operand to compare.
     /// </summary>
@@ -149,12 +149,12 @@ public interface ILSBinaryConditionalOperand : ILSBooleanOperand {
     /// Gets the boolean operator used to combine the operands.
     /// </summary>
     BooleanOperator Operator { get; }
-    
+
     /// <summary>
     /// Gets the left boolean operand.
     /// </summary>
     ILSBooleanOperand Left { get; }
-    
+
     /// <summary>
     /// Gets the right boolean operand.
     /// </summary>
@@ -170,7 +170,7 @@ public interface ILSUnaryOperand<T> : ILSNumericOperand<T> where T : System.Nume
     /// Gets the operand to transform.
     /// </summary>
     public ILSNumericOperand<T> Operand { get; }
-    
+
     /// <summary>
     /// Gets the unary operator to apply to the operand.
     /// </summary>
@@ -187,12 +187,12 @@ public interface ILSTernaryConditionalOperand<T> : ILSNumericOperand<T> where T 
     /// Gets the boolean condition that determines which operand to evaluate.
     /// </summary>
     ILSBooleanOperand Condition { get; }
-    
+
     /// <summary>
     /// Gets the operand to evaluate when the condition is true.
     /// </summary>
     ILSNumericOperand<T> TrueOperand { get; }
-    
+
     /// <summary>
     /// Gets the operand to evaluate when the condition is false.
     /// </summary>
@@ -420,7 +420,7 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
 /// </summary>
 public class LSUnaryBooleanOperand : ILSUnaryBooleanOperand {
     public ILSBooleanOperand Operand { get; }
-    
+
     /// <summary>
     /// Creates a unary boolean negation operation.
     /// </summary>
@@ -428,10 +428,10 @@ public class LSUnaryBooleanOperand : ILSUnaryBooleanOperand {
     public LSUnaryBooleanOperand(ILSBooleanOperand operand) {
         Operand = operand;
     }
-    
+
     /// <inheritdoc/>
     public bool Evaluate(IEvaluationContext context) => !Operand.Evaluate(context);
-    
+
     /// <inheritdoc/>
     object ILSOperand.Evaluate(IEvaluationContext context) => Evaluate(context);
 }

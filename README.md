@@ -1,29 +1,21 @@
 # LSUtils
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/yourusername/LSUtils)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)](https://dotnet.microsoft.com/)
+A modular .NET utility library with components for processing, logging, graphs, and more.
 
-Uma biblioteca .NET utilitária modular com componentes para processamento, logging, grafos e mais.
+## ✨ Features
 
-## ✨ Características
+- 🔄 **Process System**: Flexible process and behaviour tree system with async operations support
+- 📝 **Logging**: Multi-provider logging with hierarchical context
+- 🗺️ **Graphs**: Graph implementations (Grid, Hex, Node) with A* and Dijkstra pathfinding
+- 📦 **Collections**: Specialized data structures (BinaryHeap, CachePool)
+- 🎲 **Random**: High-quality Lehmer random number generator
+- 🔷 **Hex**: Complete hexagonal coordinate system
+- 🌍 **Localization**: Multi-language localization and formatting support
+- 🔧 **Core Utilities**: Essential interfaces, types, math, and utilities
 
-- 🔄 **Process System**: Sistema flexível de processos e behaviour trees com suporte a operações assíncronas
-- 📝 **Logging**: Sistema de logging multi-provider com suporte a contexto hierárquico
-- 🗺️ **Graphs**: Implementações de grafos (Grid, Hex, Node) com pathfinding A* e Dijkstra
-- 📦 **Collections**: Estruturas de dados especializadas (BinaryHeap, CachePool)
-- 🎲 **Random**: Gerador Lehmer de números aleatórios de alta qualidade
-- 🔷 **Hex**: Sistema completo de coordenadas hexagonais
-- 🌍 **Localization**: Suporte a localização e formatação multi-idioma
-- 🔧 **Core Utilities**: Interfaces, tipos, matemática e utilitários essenciais
+## 📦 Installation
 
-## 📦 Instalação
-
-```bash
-dotnet add package LSUtils
-```
-
-Ou adicione manualmente ao seu `.csproj`:
+Add manually to your `.csproj`:
 
 ```xml
 <ItemGroup>
@@ -35,7 +27,7 @@ Ou adicione manualmente ao seu `.csproj`:
 
 ### Process System
 
-Crie processos complexos com uma API fluente:
+Build complex processes with a fluent API:
 
 ```csharp
 using LSUtils.ProcessSystem;
@@ -49,7 +41,7 @@ var process = LSProcess.Create("patrol", builder => builder
     )
 );
 
-// Execute o processo
+// Run the process
 var manager = new LSProcessManager();
 manager.AddProcess(process);
 manager.Tick(deltaTime);
@@ -57,7 +49,7 @@ manager.Tick(deltaTime);
 
 ### Logging System
 
-Sistema de logging com níveis e contexto:
+Logging with levels and context:
 
 ```csharp
 using LSUtils.Logging;
@@ -72,7 +64,7 @@ logger.Error("Failed to connect to database", exception);
 
 ### Graph Pathfinding
 
-Encontre caminhos em grafos com A* ou Dijkstra:
+Find paths in graphs with A* or Dijkstra:
 
 ```csharp
 using LSUtils.Graphs;
@@ -90,102 +82,96 @@ var path = pathResolver.FindPath(
 
 ### Collections
 
-Use estruturas de dados otimizadas:
+Use optimized data structures:
 
 ```csharp
 using LSUtils.Collections;
 
-// Binary Heap para priorização
+// Binary Heap for prioritization
 var heap = new BinaryHeap<int>();
 heap.Insert(5);
 heap.Insert(3);
 var min = heap.ExtractMin(); // 3
 
-// Cache Pool para reutilização de objetos
+// Cache Pool for object reuse
 var pool = new CachePool<MyObject>(() => new MyObject());
 var obj = pool.Get();
 // ... use obj
 pool.Return(obj);
 ```
 
-## 📖 Documentação
+## 📖 Documentation
 
-### Guias Principais
+### Main Guides
 
-- **[Getting Started](docs/getting-started.md)** - Comece aqui para aprender o básico
-- **[Process System Guide](docs/guides/process-system-guide.md)** - Guia completo do sistema de processos
-- **[Logging Guide](docs/guides/logging-guide.md)** - Configure e use o sistema de logging
-- **[Graph Guide](docs/guides/graph-guide.md)** - Trabalhe com grafos e pathfinding
+- **[Getting Started](docs/getting-started.md)** - Start here to learn the basics
+- **[Process System Guide](docs/guides/process-system-guide.md)** - Complete guide to the process system
+- **[Logging Guide](docs/guides/logging-guide.md)** - Configure and use the logging system
+- **[Graph Guide](docs/guides/graph-guide.md)** - Work with graphs and pathfinding
 
-### Referência da API
+### API Reference
 
-- [Core](docs/api-reference/core.md) - Interfaces, tipos e utilitários core
-- [Collections](docs/api-reference/collections.md) - Estruturas de dados
-- [Graphs](docs/api-reference/graphs.md) - Sistema de grafos
-- [Process System](docs/api-reference/process-system.md) - API completa do Process System
-- [Logging](docs/api-reference/logging.md) - API de logging
+- [Core](docs/api-reference/core.md) - Core interfaces, types, and utilities
+- [Collections](docs/api-reference/collections.md) - Data structures
+- [Graphs](docs/api-reference/graphs.md) - Graph system
+- [Process System](docs/api-reference/process-system.md) - Full Process System API
+- [Logging](docs/api-reference/logging.md) - Logging API
 
-### Exemplos
+### Examples
 
-Veja [docs/examples/](docs/examples/) para exemplos detalhados de uso.
+See [docs/examples/](docs/examples/) for detailed usage examples.
 
-## 🏗️ Estrutura do Projeto
+## 🏗️ Project Structure
 
 ```file tree
 LSUtils/
-├── src/                      # Código fonte
-│   ├── Collections/          # Estruturas de dados
-│   ├── Exceptions/           # Exceções customizadas
-│   ├── Graphs/              # Sistema de grafos
-│   ├── Hex/                 # Coordenadas hexagonais
-│   ├── JsonConverters/      # Conversores JSON
-│   ├── Locale/              # Localização
-│   ├── Logging/             # Sistema de logging
-│   └── ProcessSystem/       # Sistema de processos
-├── docs/                    # Documentação
-└── tests/                   # Testes (futuramente)
+├── src/                      # Source code
+│   ├── Collections/          # Data structures
+│   ├── Exceptions/           # Custom exceptions
+│   ├── Graphs/               # Graph system
+│   ├── Hex/                  # Hex coordinates
+│   ├── JsonConverters/       # JSON converters
+│   ├── Locale/               # Localization
+│   ├── Logging/              # Logging system
+│   └── ProcessSystem/        # Process system
+├── docs/                     # Documentation
+└── tests/                    # Tests (future)
 ```
 
-## 🔧 Requisitos
+## 🔧 Requirements
 
-- **.NET 8.0** ou superior
-- **C# 11.0** ou superior
+- **.NET 8.0** or higher
 
-## 🧪 Testes
+## 🧪 Tests
 
 ```bash
 dotnet test
 ```
 
-## 🤝 Contribuindo
+## 🤝 Contributing
 
-Contribuições são bem-vindas! Por favor:
+Sure, go ahead.
 
-1. Faça fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/MinhaFeature`)
-3. Commit suas mudanças (`git commit -m 'Adiciona MinhaFeature'`)
-4. Push para a branch (`git push origin feature/MinhaFeature`)
-5. Abra um Pull Request
+1. Fork the project
+2. Create a branch for your feature (`git checkout -b feature/MyFeature`)
+3. Commit your changes (`git commit -m 'Add MyFeature'`)
+4. Push to the branch (`git push origin feature/MyFeature`)
+5. Open a Pull Request
 
-Leia [CONTRIBUTING.md](CONTRIBUTING.md) para mais detalhes.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
 ## 📝 Changelog
 
-Veja [CHANGELOG.md](CHANGELOG.md) para histórico de mudanças.
+See [CHANGELOG.md](CHANGELOG.md) for the change history.
 
-## 📄 Licença
+## 📄 License
 
-Este projeto está sob a licença MIT. Veja [LICENSE](LICENSE) para mais detalhes.
+This project is not under any license. Do whatever you want.
 
-## 👤 Autor
+## 👤 Author
 
 - GitHub: [@drefi](https://github.com/drefi)
 
-## 🙏 Agradecimentos
+## 🙏 Thanks
 
-- Comunidade .NET
-- Contribuidores do projeto
-
----
-
-Feito com ❤️ pela comunidade LSUtils
+- My mom for putting up with me.
