@@ -1,6 +1,4 @@
 namespace LSUtils;
-
-using LSUtils.ECS;
 #region Interfaces
 /// <summary>
 /// Base interface for operands that can be evaluated to produce a value.
@@ -91,38 +89,123 @@ public interface ILSBooleanOperand : ILSOperand<bool> {
     }
 }
 
+/// <summary>
+/// Interface for constant operands that hold a single immutable numeric value.
+/// </summary>
+/// <typeparam name="T">The numeric type of the constant value.</typeparam>
 public interface ILSConstantOperand<T> : ILSNumericOperand<T> where T : System.Numerics.INumber<T> {
+    /// <summary>
+    /// Gets the constant value held by this operand.
+    /// </summary>
     T Value { get; }
 }
 
+/// <summary>
+/// Interface for binary mathematical operations that combine two numeric operands.
+/// </summary>
+/// <typeparam name="T">The numeric type of the operands and result.</typeparam>
 public interface ILSBinaryOperand<T> : ILSNumericOperand<T> where T : System.Numerics.INumber<T> {
+    /// <summary>
+    /// Gets the left operand of the binary operation.
+    /// </summary>
     public ILSNumericOperand<T> Left { get; }
+    
+    /// <summary>
+    /// Gets the right operand of the binary operation.
+    /// </summary>
     public ILSNumericOperand<T> Right { get; }
+    
+    /// <summary>
+    /// Gets the mathematical operator to apply between the operands.
+    /// </summary>
     public MathOperator Operator { get; }
 }
 
+/// <summary>
+/// Interface for conditional comparison operations that compare two values and return a boolean result.
+/// </summary>
 public interface ILSConditionalOperand : ILSBooleanOperand {
+    /// <summary>
+    /// Gets the comparison operator used to compare the operands.
+    /// </summary>
     ComparisonOperator Operator { get; }
+    
+    /// <summary>
+    /// Gets the left operand to compare.
+    /// </summary>
     ILSOperand Left { get; }
+    
+    /// <summary>
+    /// Gets the right operand to compare.
+    /// </summary>
     ILSOperand Right { get; }
 }
 
+/// <summary>
+/// Interface for binary boolean operations that combine two boolean operands using logical operators.
+/// </summary>
 public interface ILSBinaryConditionalOperand : ILSBooleanOperand {
+    /// <summary>
+    /// Gets the boolean operator used to combine the operands.
+    /// </summary>
     BooleanOperator Operator { get; }
+    
+    /// <summary>
+    /// Gets the left boolean operand.
+    /// </summary>
     ILSBooleanOperand Left { get; }
+    
+    /// <summary>
+    /// Gets the right boolean operand.
+    /// </summary>
     ILSBooleanOperand Right { get; }
 }
 
+/// <summary>
+/// Interface for unary mathematical operations that transform a single numeric operand.
+/// </summary>
+/// <typeparam name="T">The numeric type of the operand and result.</typeparam>
 public interface ILSUnaryOperand<T> : ILSNumericOperand<T> where T : System.Numerics.INumber<T> {
+    /// <summary>
+    /// Gets the operand to transform.
+    /// </summary>
     public ILSNumericOperand<T> Operand { get; }
+    
+    /// <summary>
+    /// Gets the unary operator to apply to the operand.
+    /// </summary>
     public UnaryOperator Operator { get; }
 }
+
+/// <summary>
+/// Interface for ternary conditional operations that select between two numeric operands based on a boolean condition.
+/// Implements the pattern: condition ? trueValue : falseValue
+/// </summary>
+/// <typeparam name="T">The numeric type of the result operands.</typeparam>
 public interface ILSTernaryConditionalOperand<T> : ILSNumericOperand<T> where T : System.Numerics.INumber<T> {
+    /// <summary>
+    /// Gets the boolean condition that determines which operand to evaluate.
+    /// </summary>
     ILSBooleanOperand Condition { get; }
+    
+    /// <summary>
+    /// Gets the operand to evaluate when the condition is true.
+    /// </summary>
     ILSNumericOperand<T> TrueOperand { get; }
+    
+    /// <summary>
+    /// Gets the operand to evaluate when the condition is false.
+    /// </summary>
     ILSNumericOperand<T> FalseOperand { get; }
 }
+
+/// <summary>
+/// Interface for unary boolean operations that negate a boolean operand.
+/// </summary>
 public interface ILSUnaryBooleanOperand : ILSBooleanOperand {
+    /// <summary>
+    /// Gets the boolean operand to negate.
+    /// </summary>
     ILSBooleanOperand Operand { get; }
 }
 
@@ -333,13 +416,23 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
 
 /// <summary>
 /// Negates a boolean operand, inverting its true/false value.
+/// Implements the logical NOT operation.
 /// </summary>
 public class LSUnaryBooleanOperand : ILSUnaryBooleanOperand {
     public ILSBooleanOperand Operand { get; }
+    
+    /// <summary>
+    /// Creates a unary boolean negation operation.
+    /// </summary>
+    /// <param name="operand">The boolean operand to negate.</param>
     public LSUnaryBooleanOperand(ILSBooleanOperand operand) {
         Operand = operand;
     }
+    
+    /// <inheritdoc/>
     public bool Evaluate(IEvaluationContext context) => !Operand.Evaluate(context);
+    
+    /// <inheritdoc/>
     object ILSOperand.Evaluate(IEvaluationContext context) => Evaluate(context);
 }
 
