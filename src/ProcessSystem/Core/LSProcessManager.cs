@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using LSUtils.Logging;
 
 /// <summary>
@@ -140,10 +141,8 @@ public class LSProcessManager {
     /// <param name="instance">Processable instance for targeted registration (null = global context)</param>
     /// <exception cref="LSException">Thrown if concurrent dictionary operations fail</exception>
     public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null) {
-        if (!_globalNodes.TryGetValue(processType, out var processDict)) {
-            processDict = new();
-            if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
-        }
+        var processDict = _globalNodes.GetOrAdd(processType, _ => new ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>());
+        
         LSLogger.Singleton.Debug($"{ClassName}.Register<{processType.Name}>: {(instance != null ? instance.ID.ToString() : "global")}",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
@@ -249,15 +248,13 @@ public class LSProcessManager {
     // }
 
     public ILSProcessLayerNode GetRootNode(System.Type processType, out ILSProcessable[]? availableInstances, ProcessInstanceBehaviour behaviour = ProcessInstanceBehaviour.ALL, params ILSProcessable[]? instanceNodes) {
-        if (!_globalNodes.TryGetValue(processType, out var processDict)) {
-            processDict = new();
-            if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
-        }
+        var processDict = _globalNodes.GetOrAdd(processType, _ => new ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>());
+        
         // Create a new builder starting with the localNode as root node
         LSProcessTreeBuilder builder = new LSProcessTreeBuilder();
 
-        // check if behaviour include global
         availableInstances = System.Array.Empty<ILSProcessable>();
+        // Behaviour include global
         if (behaviour.HasFlag(ProcessInstanceBehaviour.GLOBAL) && processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
             // we have a global node to merge. We clone the global node to avoid modifying the original.
             var clone = globalNode.Clone();
@@ -265,19 +262,23 @@ public class LSProcessManager {
         }
         // ensure instanceNodes is not null
         instanceNodes ??= System.Array.Empty<ILSProcessable>();
-        // check if behaviour include instance
-        if (behaviour.HasFlag(ProcessInstanceBehaviour.MATCH_INSTANCE)) {
+        // Behaviour include match instance
+        if (behaviour.HasFlag(ProcessInstanceBehaviour.MATCH_FIRST)) {
             // use the first available instance context (try to match from first to last)
             foreach (var instance in instanceNodes) {
-                if (processDict.TryGetValue(instance, out var instanceNode)) {
-                    var clone = instanceNode.Clone();
-                    builder.Merge(clone);
-                    availableInstances = new[] { instance };
-                    break;
+                if (processDict.TryGetValue(instance, out var instanceNode) == false) {
+                    continue;
                 }
+                var clone = instanceNode.Clone();
+                builder.Merge(clone);
+                availableInstances = new[] { instance };
+                break;
             }
-        } else if (behaviour.HasFlag(ProcessInstanceBehaviour.MULTI_INSTANCES)) {
-            // use all provided instance contexts
+            // no instance was matched
+            if (availableInstances.Length == 0)
+                availableInstances = instanceNodes;
+        } else if (behaviour.HasFlag(ProcessInstanceBehaviour.ALL_INSTANCES)) {
+            // use all provided instance contexts that have registered handlers
             List<ILSProcessable> availableList = new();
             foreach (var instance in instanceNodes) {
                 if (processDict.TryGetValue(instance, out var instanceNode)) {
@@ -287,6 +288,9 @@ public class LSProcessManager {
                 }
             }
             availableInstances = availableList.ToArray();
+            // if no instance contexts were found, still include all provided instances
+            if (availableInstances.Length == 0)
+                availableInstances = instanceNodes;
         }
 
         try {
@@ -303,14 +307,14 @@ public class LSProcessManager {
     [Flags]
     public enum ProcessInstanceBehaviour {
         LOCAL = 0, //local use is always used, no flag needed
-        GLOBAL = 0 << 1, // use the global processable context
-        MATCH_INSTANCE = 0 << 2, // match one provided instance with the first available registered context. (stop at first match)
+        GLOBAL = 1 << 0, // use the global processable context
+        MATCH_FIRST = 1 << 1, // match one provided instance with the first available registered context. (stop at first match)
                                  // case use: we have multiple provided instances, and we want to use the first one that has a registered context.
-        MULTI_INSTANCES = 0 << 3, // use all provided instance contexts
+        ALL_INSTANCES = 1 << 2, // use all provided instance contexts
                                   // use case: we have multiple provided instances, and we want to use all that have a registered context.
                                   // the merged context will include all matched instance contexts.
-        ANY = LOCAL | GLOBAL | MATCH_INSTANCE, // use global + first available provided instance context
-        ALL = LOCAL | GLOBAL | MULTI_INSTANCES, // use global + all provided instance contexts
+        ANY = LOCAL | GLOBAL | MATCH_FIRST, // use global + first available provided instance context
+        ALL = LOCAL | GLOBAL | ALL_INSTANCES, // use global + all provided instance contexts
     }
 
     /// <summary>

@@ -157,12 +157,14 @@ public abstract class LSProcess {
 
         var globalInstancedRoot = _manager.GetRootNode(GetType(), out var availableInstances, instanceBehaviour, instances);
         var globalBuilder = new LSProcessTreeBuilder(globalInstancedRoot);
-        var builtInProcessing = processing(new LSProcessTreeBuilder(LSProcessManager.CreateRootNode(GetType().Name))).Build();
+        var baseNode = new LSProcessTreeBuilder(LSProcessManager.CreateRootNode(GetType().Name));
+        var builtInProcessing = processing(baseNode).Build();
         globalBuilder = globalBuilder.Merge(builtInProcessing);
         globalBuilder = globalBuilder.Merge(_root);
         var sessionRoot = globalBuilder.Build();
-
-        _processSession = new LSProcessSession(_manager, this, sessionRoot, availableInstances);
+        // NOTE: availableInstances may be different from instances if instanceBehaviour modifies the selection
+        // 
+        _processSession = new LSProcessSession(_manager, this, sessionRoot, instanceBehaviour, availableInstances);
 
         // Detailed debug logging ClassName
         LSLogger.Singleton.Debug($"Process Execute",

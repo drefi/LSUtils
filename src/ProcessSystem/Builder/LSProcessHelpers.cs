@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 
 namespace LSUtils.ProcessSystem;
 /// <summary>
@@ -206,6 +206,7 @@ public static class LSProcessHelpers {
                     session.Manager,
                     typedProcess,
                     session.RootNode,
+                    session.Behaviour,
                     session.Instances
                 );
                 return genericHandler(typedSession);

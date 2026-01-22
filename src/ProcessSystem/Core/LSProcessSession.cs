@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -67,10 +67,11 @@ public class LSProcessSession {
     /// <b>Initial State:</b><br/>
     /// The session starts in a non-cancelled state with the provided process and root node ready for execution.
     /// </remarks>
-    internal LSProcessSession(LSProcessManager manager, LSProcess process, ILSProcessNode rootNode, params ILSProcessable[]? instances) {
+    internal LSProcessSession(LSProcessManager manager, LSProcess process, ILSProcessNode rootNode, LSProcessManager.ProcessInstanceBehaviour behaviour, params ILSProcessable[]? instances) {
         Manager = manager;
         Process = process;
         RootNode = rootNode;
+        Behaviour = behaviour;
         Instances = instances;
     }
 

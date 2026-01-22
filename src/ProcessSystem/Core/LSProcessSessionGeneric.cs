@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 
 /// <summary>
 /// Generic version of LSProcessSession that provides strongly-typed access to the process instance.
@@ -43,8 +43,8 @@ public class LSProcessSession<TProcess> : LSProcessSession
     /// This constructor is internal as strongly-typed sessions are typically created by the processing
     /// system infrastructure when executing generic handlers and conditions.
     /// </remarks>
-    internal LSProcessSession(LSProcessManager manager, TProcess process, ILSProcessNode rootNode, params ILSProcessable[]? instances)
-        : base(manager, process, rootNode, instances)
+    internal LSProcessSession(LSProcessManager manager, TProcess process, ILSProcessNode rootNode, LSProcessManager.ProcessInstanceBehaviour behaviour, params ILSProcessable[]? instances)
+        : base(manager, process, rootNode, behaviour, instances)
     {
     }
 }
