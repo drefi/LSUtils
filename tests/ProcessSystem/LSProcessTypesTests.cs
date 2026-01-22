@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using LSUtils.ProcessSystem;
 using System;
 
@@ -24,17 +24,6 @@ public class LSProcessResultStatusTests {
         Assert.That((int)LSProcessResultStatus.FAILURE, Is.EqualTo(2));
         Assert.That((int)LSProcessResultStatus.WAITING, Is.EqualTo(3));
         Assert.That((int)LSProcessResultStatus.CANCELLED, Is.EqualTo(4));
-    }
-}
-
-[TestFixture]
-public class LSProcessLayerNodeTypeTests {
-    [Test]
-    public void LSProcessLayerNodeType_ShouldHaveExpectedValues() {
-        // Assert
-        Assert.That(Enum.IsDefined(typeof(LSProcessLayerNodeType), LSProcessLayerNodeType.SEQUENCE), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessLayerNodeType), LSProcessLayerNodeType.SELECTOR), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessLayerNodeType), LSProcessLayerNodeType.PARALLEL), Is.True);
     }
 }
 

@@ -1,6 +1,6 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 
-public enum LSProcessLayerNodeType { 
+public enum LSProcessRootNodeType { 
     SEQUENCE,
     SELECTOR,
     PARALLEL,

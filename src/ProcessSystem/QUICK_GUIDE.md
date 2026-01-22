@@ -42,7 +42,7 @@ public abstract class LSProcess
     public LSProcessResultStatus Execute(params ILSProcessable[]? instances)
     public LSProcessResultStatus Execute(LSProcessManager manager, ProcessInstanceBehaviour instanceBehaviour, params ILSProcessable[]? instances)
     
-    // Async Control Methods (post-execution)
+    // Control Methods (post-execution) NOTE: These control methods should be treated as threads or System.Task, is not their intention to be used like that
     public LSProcessResultStatus Resume(params string[] nodeIDs)   // Resume WAITING nodes
     public LSProcessResultStatus Fail(params string[] nodeIDs)     // Force WAITING→FAILURE
     public void Cancel()                                           // Force→CANCELLED (terminal)
@@ -65,7 +65,7 @@ public abstract class LSProcess
 ```csharp
 var process = new MyProcess();
 var result = process.Execute(); // First call - executes the workflow
-var result2 = process.Execute(); // Subsequent calls - returns cached status
+var result2 = process.Execute(); // Subsequent calls returns cached status
 ```
 
 #### 2. Data Container Pattern
@@ -90,40 +90,47 @@ LSProcessHandler retrieveDataHandler = session => {
 };
 ```
 
-#### 3. Processing Configuration - Combined Approach
+#### 3. Processing Configuration - Context Pipeline
 
 ```csharp
-// Approach A: Runtime configuration with WithProcessing()
-var process = new MyProcess()
-    .WithProcessing(builder => builder
-        .Sequence("validation", seq => seq
-            .Handler("checkInput", inputValidator)
-            .Handler("validateBusiness", businessValidator))
-        .Handler("process", mainProcessor)
-        .Handler("cleanup", cleanupHandler));
+// The execution pipeline merges contexts in priority order:
+// Global → Instance → processing() → WithProcessing()
 
-// Approach B: Override processing() to extend/modify WithProcessing() result
+// Approach A: Built-in behavior with processing() override
 public class ValidationProcess : LSProcess 
 {
     protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) 
     {
-        // Builder already contains WithProcessing() configuration
-        // Add additional built-in handlers
         return builder
-            .Handler("built-in-validation", CheckFormat)
-            .Handler("built-in-security", CheckSecurity);
+            .Sequence("validation", seq => seq
+                .Handler("security-check", CheckSecurity)
+                .Handler("data-validation", ValidateData)
+            );
     }
-    
-    private LSProcessResultStatus CheckFormat(LSProcessSession session) => LSProcessResultStatus.SUCCESS;
     private LSProcessResultStatus CheckSecurity(LSProcessSession session) => LSProcessResultStatus.SUCCESS;
 }
 
-// Combined usage: WithProcessing() + processing() override work together
-var combinedProcess = new ValidationProcess()
-    .WithProcessing(builder => builder.Handler("runtime-config", runtimeHandler));
-// Result: Contains both runtime handlers AND built-in handlers
-var result = combinedProcess.Execute();
+// Approach B: Override/extend processing() with runtime config
+var process = new ValidationProcess()
+    .WithProcessing(builder => builder
+        .Sequence("validation", seq => seq  // Same ID - MERGES with processing() sequence
+            .Handler("custom-security", customSecurityHandler)
+            .Handler("custom-validation", customValidationHandler)
+        )
+        .Handler("post-process", postProcessHandler)  // Adds new handler
+    );
+
+            // Note: Sequence is a Decorator, so children are combined, not replaced
+var result = process.Execute();
+// Merged sequence execution:
+// 1. custom-security (WithProcessing handler override)
+// 2. custom-validation (WithProcessing handler override)
+// 3. security-check (from processing() - merged in)
+// 4. data-validation (from processing() - merged in)
+// 5. post-process (new handler from WithProcessing)
 ```
+
+**Important**: `processing()` always runs. `WithProcessing()` can override same-type/ID nodes (unless readonly).
 
 #### 4. Asynchronous Operations & Control
 
@@ -148,26 +155,49 @@ var failResult = process.Fail("async");     // Force WAITING→FAILURE
 process.Cancel();                           // Force→CANCELLED (cannot resume)
 ```
 
-#### 5. Context Merging System
+#### 5. Context Merging System - Full Pipeline
 
 ```csharp
-// Priority order: Local > Instance-specific > Global
+// Merge pipeline order (lowest to highest priority):
+// Global → Instance-specific → processing() → WithProcessing()
+// NOTE: Decorators MERGE children, Handlers OVERRIDE
 
-// 1. Global context (lowest priority)
+// 1. Global context (registered without instance)
 LSProcessManager.Singleton.Register<MyProcess>(root => root
-    .Handler("global", globalHandler));
+    .Sequence("workflow", seq => seq
+        .Handler("global-step", globalHandler)
+    )
+);
 
 // 2. Instance-specific context  
 var entity = new GameEntity();
 LSProcessManager.Singleton.Register<MyProcess>(root => root
-    .Handler("entity-specific", entityHandler), entity);
+    .Sequence("workflow", seq => seq  // Same ID - overrides global
+        .Handler("entity-step", entityHandler)
+    )
+, entity);
 
-// 3. Local context (highest priority)
+// 3. Custom process with processing()
+public class MyProcess : LSProcess {
+    protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
+        return builder.Sequence("workflow", seq => seq  // Same ID - overrides instance
+            .Handler("process-step", processHandler)
+        );
+    }
+}
+
+// 4. Runtime configuration with WithProcessing()
 var process = new MyProcess()
     .WithProcessing(builder => builder
-        .Handler("local", localHandler)); // This executes first
+        .Sequence("workflow", seq => seq  // Same ID - overrides processing()
+            .Handler("runtime-step", runtimeHandler)
+        )
+    );
 
-var result = process.Execute(entity); // Merges all three contexts
+var result = process.Execute(LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL, entity);
+
+// Execution order: global-step, entity-step, process-step, runtime-step
+// Each with same "workflow" sequence ID overrides the previous one
 ```
 
 ### Advanced Usage Patterns
@@ -214,18 +244,65 @@ public class OrderProcessingWorkflow : LSProcess
     
     // ... other handler implementations
 }
+```
 
-// Usage
-var workflow = new OrderProcessingWorkflow().ConfigureFor(customerOrder);
-var result = workflow.Execute();
+### Node Override Behavior
 
-if (result == LSProcessResultStatus.WAITING) 
-{
-    // Handle async operations (payment processing, inventory checks, etc.)
-    // Resume when external systems respond
-    await WaitForExternalSystems();
-    result = workflow.Resume(); // Resume all waiting nodes
+**Override vs Merge:**
+- **Handlers** with same ID override (replace) lower-priority ones
+- **Decorators** (Sequence, Selector, Parallel, Inverter) with same ID merge (combine children from all contexts)
+
+This enables flexible workflow customization:
+
+```csharp
+// Global context defines base workflow
+LSProcessManager.Singleton.Register<OrderProcess>(root => root
+    .Sequence("payment", seq => seq
+        .Handler("validate-card", ValidateCardHandler)  // ID: "validate-card"
+        .Handler("charge", ChargeHandler)                // ID: "charge"
+    )
+);
+
+// Instance context customizes for specific customer
+var vipCustomer = new Customer { IsVIP = true };
+LSProcessManager.Singleton.Register<OrderProcess>(root => root
+    .Sequence("payment", seq => seq  // Same ID - overrides global
+        .Handler("validate-card", ValidateVIPCardHandler)  // Override: different handler
+        .Handler("vip-discount", ApplyVIPDiscountHandler)  // New: additional step
+        .Handler("charge", ChargeHandler)  // Reuse: inherited from global
+    )
+, vipCustomer);
+
+// processing() can further customize
+public class OrderProcess : LSProcess {
+    protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
+        return builder.Sequence("payment", seq => seq  // Same ID - overrides instance
+            .Handler("fraud-check", FraudCheckHandler)  // New: added at runtime
+            .Handler("validate-card", ValidateCardHandler)  // Reuse from instance
+            .Handler("charge", ChargeHandler)
+        );
+    }
 }
+
+// WithProcessing() has final say
+var process = new OrderProcess()
+    .WithProcessing(builder => builder
+        .Sequence("payment", seq => seq  // Same ID - highest priority
+            .Handler("test-charge", TestChargeHandler)  // Override: test mode
+        )
+    );
+
+// Final workflow uses: test-charge (WithProcessing overrides all others)
+```
+
+**ReadOnly Nodes**: Nodes marked `readonly` cannot be overridden by lower-priority contexts:
+
+```csharp
+LSProcessManager.Singleton.Register<PaymentProcess>(root => root
+    .Sequence("audit-trail", seq => seq  // Marked readonly = immutable
+        .Handler("log-transaction", LogHandler, readOnly: true)
+    )
+);
 ```
 
 ### Best Practices for LSProcess
@@ -244,43 +321,37 @@ public class UserRegistrationProcess : LSProcess
 var process = new UserRegistrationProcess()
     .WithProcessing(builder => builder.Handler("validate", handler));
 
-// Approach 2: Override processing() to extend WithProcessing()
+// Approach 2: Override processing() to add default behavior
 public class OrderProcess : LSProcess 
 {
     public Order Order { get; set; }
     
     protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) 
     {
-        // Builder already contains WithProcessing() configuration
-        // Add built-in handlers that always execute
+        // Add built-in handlers that always execute (but can be overridden)
         return builder
-            .Handler("built-in-validation", ValidateOrder)
-            .Handler("built-in-audit", AuditOrder);
+            .Sequence("validation", seq => seq
+                .Handler("validate-order", ValidateOrder)
+                .Handler("validate-payment", ValidatePayment)
+            );
     }
     
-    private LSProcessResultStatus ValidateOrder(LSProcessSession session) 
-    {
-        // Built-in validation always runs
-        return LSProcessResultStatus.SUCCESS;
-    }
-    
-    private LSProcessResultStatus AuditOrder(LSProcessSession session) 
-    {
-        // Built-in audit always runs
-        return LSProcessResultStatus.SUCCESS;
-    }
+    private LSProcessResultStatus ValidateOrder(LSProcessSession session) => LSProcessResultStatus.SUCCESS;
+    private LSProcessResultStatus ValidatePayment(LSProcessSession session) => LSProcessResultStatus.SUCCESS;
 }
 
-// Usage: Combined approach - runtime + built-in
+// Usage: Combined approach - WithProcessing() can override processing()
 var orderProcess = new OrderProcess { Order = myOrder }
     .WithProcessing(builder => builder
-        .Handler("custom-validation", customHandler)
-        .Handler("payment", paymentHandler));
-// Result: Contains custom-validation, payment, built-in-validation, built-in-audit
+        .Sequence("validation", seq => seq  // Same ID - overrides processing()
+            .Handler("custom-order-check", customValidator)
+            // validate-payment is removed - not included in override
+        ));
+// Result: Uses custom-order-check (processing() sequence is overridden)
 var result = orderProcess.Execute();
 ```
 
-2. **Data Exchange**: Use strongly-typed data for handler communication
+1. **Data Exchange**: Use strongly-typed data for handler communication
 
 ```csharp
 // Good: Type-safe data exchange
@@ -295,7 +366,7 @@ public static class ProcessKeys
 }
 ```
 
-3. **Error Handling**: Return appropriate status codes, avoid exceptions in handlers
+1. **Error Handling**: Return appropriate status codes, avoid exceptions in handlers
 
 ```csharp
 LSProcessHandler safeHandler = session => {
@@ -313,7 +384,7 @@ LSProcessHandler safeHandler = session => {
 };
 ```
 
-4. **Async Operations**: Use WAITING status appropriately
+1. **Async Operations**: Use WAITING status appropriately
 
 ```csharp
 LSProcessHandler asyncHandler = session => {
@@ -378,7 +449,7 @@ builder.Sequence("validation", seq => seq
 
 ### LSProcessManager
 
-**Singleton for global context registration**
+**Singleton for global context registration:**
 
 ```csharp
 // Register global contexts
@@ -392,7 +463,7 @@ LSProcessManager.Singleton.Register<MyProcess>(root => root
 
 ### LSProcessTreeBuilder  
 
-**Fluent API for building node hierarchies**
+**Fluent API for building node hierarchies:**
 
 ```csharp
 // Main node types
@@ -407,7 +478,7 @@ builder.Handler<MyProcess>("nodeId", typedHandler) // Strongly-typed handler
 
 ### LSProcessHandler
 
-**Delegate signature for business logic**
+**Delegate signature for business logic:**
 
 ```csharp
 public delegate LSProcessResultStatus LSProcessHandler(LSProcessSession session);
@@ -685,8 +756,55 @@ var result = process
 ### Design Patterns
 
 - **Inherit from LSProcess**: Create domain-specific classes with typed properties
+- **processing() Method**: Define default behavior; always runs before WithProcessing()
+- **WithProcessing() Method**: Customize at runtime; can override processing() nodes
 - **Single Execution**: Remember Execute() works only once per instance  
 - **Data as State**: Use SetData/GetData for handler communication, not static variables
+- **Global Contexts**: Use for default behaviors across all instances
+- **Instance Contexts**: Use for entity/customer-specific customizations
+- **ReadOnly Nodes**: Mark critical nodes readonly to prevent override
+
+### Context Strategy
+
+```csharp
+// Pattern: Base behavior + customization points
+public class RegistrationProcess : LSProcess {
+    protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
+        return builder.Sequence("registration", seq => seq
+            .Handler("validate", ValidateHandler)          // Core requirement
+            .Handler("store-data", StoreDataHandler)        // Customizable
+            .Handler("send-email", SendEmailHandler)        // Customizable
+        );
+    }
+}
+
+// Global: Standard workflow for all users
+LSProcessManager.Singleton.Register<RegistrationProcess>(root => root
+    .Sequence("registration", seq => seq
+        .Handler("store-data", StoreInDatabaseHandler)
+        .Handler("send-email", SendWelcomeEmailHandler)
+    )
+);
+
+// Instance: Special handling for beta testers
+var betaTester = new User { IsBetaTester = true };
+LSProcessManager.Singleton.Register<RegistrationProcess>(root => root
+    .Sequence("registration", seq => seq
+        .Handler("store-data", StoreInTestDatabaseHandler)     // Override
+        .Handler("send-email", SendBetaWelcomeEmailHandler)    // Override
+        .Handler("enable-beta-features", EnableBetaHandler)    // New
+    )
+, betaTester);
+
+// Runtime: One-time customization
+var process = new RegistrationProcess()
+    .WithProcessing(builder => builder
+        .Sequence("registration", seq => seq
+            .Handler("send-email", SendMockEmailHandler)  // Override for testing
+        )
+    );
+```
+
 - **Composition over Complexity**: Prefer multiple simple processes over one complex process
 
 ### Error Handling

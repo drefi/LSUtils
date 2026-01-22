@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using LSUtils.Logging;
 
@@ -122,7 +122,7 @@ public class LSProcessTreeBuilder {
                     ("conditions", conditions.Length.ToString()),
                     ("method", nameof(Handler))
                 });
-            _rootNode = new LSProcessNodeSequence($"sequence[{nodeID}]", 0);
+            throw new LSException("Cannot add handler node because no layer context exists.");
         }
         int order = _rootNode.GetChildren().Length; // Order is based on the number of existing children
         var actionDebug = "create";

@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 using LSUtils.Logging;
@@ -57,7 +57,6 @@ using LSUtils.Logging;
 public class LSProcessNodeInverter : ILSProcessLayerNode {
     public const string ClassName = nameof(LSProcessNodeInverter);
     public string NodeID { get; }
-    public LSProcessLayerNodeType NodeType => LSProcessLayerNodeType.INVERTER;
     protected ILSProcessNode? _childNode = null;
 
     public LSProcessPriority Priority { get; internal set; }

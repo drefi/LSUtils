@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 
 using System;
 using System.Collections.Concurrent;
@@ -149,7 +149,8 @@ public class LSProcessManager {
               properties: ("hideNodeID", true));
         instance ??= GlobalProcessable.Instance;
         if (!processDict.TryGetValue(instance, out var instanceNode)) {
-            instanceNode = new LSProcessTreeBuilder().Parallel($"{processType.Name}").Build();
+            // first time registration for this type+instance, create new root node
+            instanceNode = CreateRootNode(processType.Name);
         }
         var instanceBuilder = new LSProcessTreeBuilder(instanceNode);
         // Build the root node using the provided builder action
@@ -178,9 +179,9 @@ public class LSProcessManager {
     /// <param name="instance">Optional processable instance for context targeting (null = global only)</param>
     /// <param name="localContext">Optional local context tree with highest merge priority</param>
     /// <returns>Merged root node containing all applicable contexts in priority order</returns>
-    public ILSProcessLayerNode GetRootNode<TProcess>(ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) where TProcess : LSProcess {
-        return GetRootNode(typeof(TProcess), instance, localContext);
-    }
+    // public ILSProcessLayerNode GetRootNode<TProcess>(ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) where TProcess : LSProcess {
+    //     return GetRootNode(typeof(TProcess), instance, localContext);
+    // }
     /// <summary>
     /// Core context resolution method that implements the three-tier merging strategy.
     /// <para>
@@ -202,57 +203,58 @@ public class LSProcessManager {
     /// <param name="localNode">Optional local context tree to merge with highest priority</param>
     /// <returns>Fully merged root node ready for process execution</returns>
     /// <exception cref="LSException">Thrown if process type dictionary creation fails</exception>
-    public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localNode = null) {
-        LSLogger.Singleton.Debug($"{ClassName}.GetRootNode<{processType.Name}>: [{localNode?.NodeID ?? "n/a"}] instance: {instance?.ID.ToString() ?? "n/a"}",
-            source: ("LSProcessSystem", null),
-            properties: ("hideNodeID", true));
-        var previousClassNameStatus = LSLogger.Singleton.GetSourceStatus(ClassName);
-        var previousLSProcessSystemStatus = LSLogger.Singleton.GetSourceStatus("LSProcessSystem");
-        //disable detailed logging during get node (avoid unnecessary logging), flow logging remains active
-        LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: false));
-        LSLogger.Singleton.SetSourceStatus((sourceID: "LSProcessSystem", isEnabled: false));
-        // if processType is not registered, create a new process dictionary for this type.
+    // public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localNode = null) {
+    //     LSLogger.Singleton.Debug($"{ClassName}.GetRootNode<{processType.Name}>: [{localNode?.NodeID ?? "n/a"}] instance: {instance?.ID.ToString() ?? "n/a"}",
+    //         source: ("LSProcessSystem", null),
+    //         properties: ("hideNodeID", true));
+    //     var previousClassNameStatus = LSLogger.Singleton.GetSourceStatus(ClassName);
+    //     var previousLSProcessSystemStatus = LSLogger.Singleton.GetSourceStatus("LSProcessSystem");
+    //     //disable detailed logging during get node (avoid unnecessary logging), flow logging remains active
+    //     LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: false));
+    //     LSLogger.Singleton.SetSourceStatus((sourceID: "LSProcessSystem", isEnabled: false));
+    //     // if processType is not registered, create a new process dictionary for this type.
+    //     if (!_globalNodes.TryGetValue(processType, out var processDict)) {
+    //         processDict = new();
+    //         if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
+    //     }
+    //     // Create a new builder starting with the localNode as root node
+    //     LSProcessTreeBuilder builder = new LSProcessTreeBuilder(localNode);
+    //     if (processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
+    //         // we have a global node to merge. We clone the global node to avoid modifying the original.
+    //         var clone = globalNode.Clone();
+    //         builder.Merge(clone);
+    //     }
+    //     // merge instance specific node if available. We clone the instance node to avoid modifying the original.
+    //     ILSProcessLayerNode? instanceNode = null;
+    //     if (instance != null && processDict.TryGetValue(instance, out instanceNode)) {
+    //         var clone = instanceNode.Clone();
+    //         builder.Merge(clone);
+    //     }
+    //     //restore detailed logger status
+    //     LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: previousClassNameStatus));
+    //     LSLogger.Singleton.SetSourceStatus((sourceID: "LSProcessSystem", isEnabled: previousLSProcessSystemStatus));
+    //     var root = builder.Build();
+    //     // debug log with details
+    //     LSLogger.Singleton.Debug("Manager Get Root Tree",
+    //         source: (ClassName, null),
+    //         properties: new (string, object)[] {
+    //             ("processType", processType.Name),
+    //             ("rootNodeID", root.NodeID),
+    //             ("global", globalNode?.GetType().Name ?? "n/a"), ("globalNodeID", globalNode?.NodeID ?? "null"),
+    //             ("instance", instanceNode?.GetType().Name ?? "n/a"), ("instanceNodeID", instanceNode?.NodeID ?? "null"),
+    //             ("local", localNode?.GetType().Name ?? "n/a"), ("localNodeID", localNode?.NodeID ?? "null"),
+    //             ("method", nameof(GetRootNode))
+    //         });
+    //     return root;
+    // }
+
+    public ILSProcessLayerNode GetRootNode(System.Type processType, out ILSProcessable[]? availableInstances, ProcessInstanceBehaviour behaviour = ProcessInstanceBehaviour.ALL, params ILSProcessable[]? instanceNodes) {
         if (!_globalNodes.TryGetValue(processType, out var processDict)) {
             processDict = new();
             if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
         }
         // Create a new builder starting with the localNode as root node
-        LSProcessTreeBuilder builder = new LSProcessTreeBuilder(localNode);
-        if (processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
-            // we have a global node to merge. We clone the global node to avoid modifying the original.
-            var clone = globalNode.Clone();
-            builder.Merge(clone);
-        }
-        // merge instance specific node if available. We clone the instance node to avoid modifying the original.
-        ILSProcessLayerNode? instanceNode = null;
-        if (instance != null && processDict.TryGetValue(instance, out instanceNode)) {
-            var clone = instanceNode.Clone();
-            builder.Merge(clone);
-        }
-        //restore detailed logger status
-        LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: previousClassNameStatus));
-        LSLogger.Singleton.SetSourceStatus((sourceID: "LSProcessSystem", isEnabled: previousLSProcessSystemStatus));
-        var root = builder.Build();
-        // debug log with details
-        LSLogger.Singleton.Debug("Manager Get Root Tree",
-            source: (ClassName, null),
-            properties: new (string, object)[] {
-                ("processType", processType.Name),
-                ("rootNodeID", root.NodeID),
-                ("global", globalNode?.GetType().Name ?? "n/a"), ("globalNodeID", globalNode?.NodeID ?? "null"),
-                ("instance", instanceNode?.GetType().Name ?? "n/a"), ("instanceNodeID", instanceNode?.NodeID ?? "null"),
-                ("local", localNode?.GetType().Name ?? "n/a"), ("localNodeID", localNode?.NodeID ?? "null"),
-                ("method", nameof(GetRootNode))
-            });
-        return root;
-    }
-    public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessLayerNode? localNode, out ILSProcessable[]? availableInstances, ProcessInstanceBehaviour behaviour = ProcessInstanceBehaviour.ALL, params ILSProcessable[]? instanceNodes) {
-        if (!_globalNodes.TryGetValue(processType, out var processDict)) {
-            processDict = new();
-            if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
-        }
-        // Create a new builder starting with the localNode as root node
-        LSProcessTreeBuilder builder = new LSProcessTreeBuilder(localNode);
+        LSProcessTreeBuilder builder = new LSProcessTreeBuilder();
 
         // check if behaviour include global
         availableInstances = System.Array.Empty<ILSProcessable>();
@@ -261,16 +263,10 @@ public class LSProcessManager {
             var clone = globalNode.Clone();
             builder.Merge(clone);
         }
+        // ensure instanceNodes is not null
+        instanceNodes ??= System.Array.Empty<ILSProcessable>();
         // check if behaviour include instance
-        if (behaviour.HasFlag(ProcessInstanceBehaviour.SINGLE) && instanceNodes != null && instanceNodes.Length > 0) {
-            // use the first provided instance context
-            var firstInstance = instanceNodes[0];
-            if (processDict.TryGetValue(firstInstance, out var instanceNode)) {
-                var clone = instanceNode.Clone();
-                builder.Merge(clone);
-            }
-            availableInstances = new[] { firstInstance };
-        } else if (behaviour.HasFlag(ProcessInstanceBehaviour.FIRST) && instanceNodes != null) {
+        if (behaviour.HasFlag(ProcessInstanceBehaviour.MATCH_INSTANCE)) {
             // use the first available instance context (try to match from first to last)
             foreach (var instance in instanceNodes) {
                 if (processDict.TryGetValue(instance, out var instanceNode)) {
@@ -280,7 +276,7 @@ public class LSProcessManager {
                     break;
                 }
             }
-        } else if (behaviour.HasFlag(ProcessInstanceBehaviour.MULTI) && instanceNodes != null) {
+        } else if (behaviour.HasFlag(ProcessInstanceBehaviour.MULTI_INSTANCES)) {
             // use all provided instance contexts
             List<ILSProcessable> availableList = new();
             foreach (var instance in instanceNodes) {
@@ -293,23 +289,28 @@ public class LSProcessManager {
             availableInstances = availableList.ToArray();
         }
 
-        // If no contexts were merged and localNode is null, create a default root to handle gracefully
         try {
+            // Build the final merged tree, if no nodes were merged, this will throw an exception
             return builder.Build();
         } catch (LSException) {
-            // Graceful fallback: empty selector root using process type name
-            return new LSProcessTreeBuilder().Selector(processType.Name).Build();
+            // Graceful fallback: empty root using process type name
+            return CreateRootNode(processType.Name);
         }
+    }
+    public static ILSProcessLayerNode CreateRootNode(string nodeID) {
+        return new LSProcessTreeBuilder().Sequence(nodeID).Build();
     }
     [Flags]
     public enum ProcessInstanceBehaviour {
-        LOCAL = 0, //use the provided local node context, tecnically does not make sense not have local context.
+        LOCAL = 0, //local use is always used, no flag needed
         GLOBAL = 0 << 1, // use the global processable context
-        SINGLE = 0 << 2, // use the first provided instance context
-        FIRST = 0 << 2, // use the first available instance context (try to match from first to last)
-        MULTI = 0 << 3, // use all provided instance contexts
-        ANY = LOCAL | GLOBAL | FIRST, // use global + first available provided instance context
-        ALL = LOCAL | GLOBAL | MULTI, // use global + all provided instance contexts
+        MATCH_INSTANCE = 0 << 2, // match one provided instance with the first available registered context. (stop at first match)
+                                 // case use: we have multiple provided instances, and we want to use the first one that has a registered context.
+        MULTI_INSTANCES = 0 << 3, // use all provided instance contexts
+                                  // use case: we have multiple provided instances, and we want to use all that have a registered context.
+                                  // the merged context will include all matched instance contexts.
+        ANY = LOCAL | GLOBAL | MATCH_INSTANCE, // use global + first available provided instance context
+        ALL = LOCAL | GLOBAL | MULTI_INSTANCES, // use global + all provided instance contexts
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Extended interface for composite nodes that can contain and manage child nodes in the process execution hierarchy.
 /// Implements the Composite Pattern by extending ILSProcessNode with child management capabilities.
@@ -42,9 +42,6 @@ namespace LSUtils.ProcessSystem;
 /// </list>
 /// </remarks>
 public interface ILSProcessLayerNode : ILSProcessNode {
-    /// <summary>    /// Gets the type of this layer node (SEQUENCE, SELECTOR, PARALLEL, or INVERTER).
-    /// </summary>
-    LSProcessLayerNodeType NodeType { get; }
 
     /// <summary>    /// Adds a child node to this layer node's collection.
     /// The child will be processed according to this node's processing logic.

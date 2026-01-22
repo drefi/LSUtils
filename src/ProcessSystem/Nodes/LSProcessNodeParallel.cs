@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -75,8 +75,6 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     protected bool _isProcessing = false;
     /// <inheritdoc />
     public string NodeID { get; }
-    /// <inheritdoc />
-    public LSProcessLayerNodeType NodeType => LSProcessLayerNodeType.PARALLEL;
     /// <inheritdoc />
     public LSProcessPriority Priority { get; internal set; }
     /// <inheritdoc />

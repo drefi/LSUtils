@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using LSUtils.ProcessSystem;
 using LSUtils.Logging;
 using System;
@@ -357,6 +357,7 @@ public class LSProcessTests {
         // Arrange
         List<string> steps = new();
         var process = new BasicProcess();
+        // this will use the default Sequence root
         process.WithProcessing(builder => {
             builder.Handler("first", session => {
                 steps.Add("first");
@@ -367,7 +368,7 @@ public class LSProcessTests {
                 return LSProcessResultStatus.SUCCESS;
             });
             return builder;
-        }, LSProcessLayerNodeType.SEQUENCE);
+        });
 
         // Act
         var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
@@ -382,21 +383,21 @@ public class LSProcessTests {
         // Arrange
         List<string> steps = new();
         var process = new BasicProcess();
-        process.WithProcessing(builder => {
-            builder.Handler("fail", session => {
+        // since the default root is a Sequence, we need to explicitly use a Selector (the Selector is not root)
+        process.WithProcessing(builder => builder.Selector("selector-root", sel => sel
+            .Handler("fail", session => {
                 steps.Add("fail");
                 return LSProcessResultStatus.FAILURE;
-            });
-            builder.Handler("win", session => {
+            })
+            .Handler("win", session => {
                 steps.Add("win");
                 return LSProcessResultStatus.SUCCESS;
-            });
-            builder.Handler("skip", session => {
+            })
+            .Handler("skip", session => {
                 steps.Add("skip");
                 return LSProcessResultStatus.SUCCESS;
-            });
-            return builder;
-        });
+            })
+        ));
 
         // Act
         var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
@@ -410,11 +411,10 @@ public class LSProcessTests {
     public void Inverter_ShouldInvertSuccessToFailure() {
         // Arrange
         var process = new BasicProcess();
-        process.WithProcessing(builder => {
+        process.WithProcessing(builder =>
             builder.Inverter("invert", inv => inv
-                .Handler("child", session => LSProcessResultStatus.SUCCESS));
-            return builder;
-        });
+                .Handler("child", session => LSProcessResultStatus.SUCCESS)
+            ));
 
         // Act
         var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
@@ -427,11 +427,10 @@ public class LSProcessTests {
     public void Inverter_ShouldPropagateWaiting() {
         // Arrange
         var process = new BasicProcess();
-        process.WithProcessing(builder => {
+        process.WithProcessing(builder =>
             builder.Inverter("invert", inv => inv
-                .Handler("waiting-child", session => LSProcessResultStatus.WAITING));
-            return builder;
-        });
+                .Handler("waiting-child", session => LSProcessResultStatus.WAITING)
+            ));
 
         // Act
         var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
@@ -444,16 +443,15 @@ public class LSProcessTests {
     public void Parallel_ShouldSucceedWhenSuccessThresholdMet() {
         // Arrange
         var process = new BasicProcess();
-        process.WithProcessing(builder => {
+        process.WithProcessing(builder =>
             builder.Parallel("parallel-root", par => par
                 .Handler("ok-1", session => LSProcessResultStatus.SUCCESS)
                 .Handler("ok-2", session => LSProcessResultStatus.SUCCESS)
                 .Handler("fail", session => LSProcessResultStatus.FAILURE),
                 numRequiredToSucceed: 2,
                 numRequiredToFailure: 2,
-                priority: LSProcessPriority.NORMAL);
-            return builder;
-        });
+                priority: LSProcessPriority.NORMAL)
+            );
 
         // Act
         var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
@@ -574,7 +572,7 @@ public class LSProcessTests {
                     return LSProcessResultStatus.SUCCESS;
                 }));
             return builder;
-        }, LSProcessLayerNodeType.SEQUENCE);
+        });
 
         // Act
         var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
@@ -598,5 +596,100 @@ public class LSProcessTests {
         Assert.That(firstResult, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(resumedResult, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(process.ExecutionCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void NodeOverridePriority_Pipeline_MergeAndOverride_WorksCorrectly() {
+        var log = new List<string>();
+        var manager = new LSProcessManager();
+        // Register global context
+        manager.Register<TestProcessWithProcessing>(b =>
+            b.Sequence("checkContextMerge", seq =>
+                seq.Handler("Global", session => {
+                    log.Add("Global");
+                    return LSProcessResultStatus.SUCCESS;
+                })
+            )
+            .Sequence("override", seq =>
+                seq.Handler("overridedHandler", session => {
+                    log.Add("GlobalOverride");
+                    return LSProcessResultStatus.SUCCESS;
+                })
+            )
+        );
+        var instance = new TestProcessable();
+
+        // Register instanced context
+        manager.Register<TestProcessWithProcessing>(b =>
+            b.Sequence("checkContextMerge", seq =>
+                seq.Handler("Instanced", session => {
+                    log.Add("Instanced");
+                    return LSProcessResultStatus.SUCCESS;
+                })
+            )
+            .Sequence("override", seq =>
+                seq.Handler("overridedHandler", session => {
+                    log.Add("InstancedOverride");
+                    return LSProcessResultStatus.SUCCESS;
+                })
+            )
+        , instance);
+
+        // Custom process with processing() context
+        var process = new TestProcessWithProcessing(log);
+
+        // WithProcessing context
+        process.WithProcessing(b =>
+            b.Sequence("checkContextMerge", seq =>
+                seq.Handler("WithProcessing", session => {
+                    log.Add("WithProcessing");
+                    return LSProcessResultStatus.SUCCESS;
+                })
+            )
+            .Sequence("override", seq =>
+                seq.Handler("overridedHandler", session => {
+                    log.Add("WithProcessingOverride");
+                    return LSProcessResultStatus.SUCCESS;
+                })
+            )
+        );
+
+        var result = process.Execute(manager, LSProcessManager.ProcessInstanceBehaviour.ALL, instance);
+
+        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(log, Is.EqualTo(new[] {
+            "Global",
+            "Instanced",
+            "processing",
+            "WithProcessing",
+            "WithProcessingOverride"
+        }));
+    }
+    internal class TestProcessable : ILSProcessable {
+        public Guid ID { get; } = Guid.NewGuid();
+
+
+        public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitialize = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables) {
+            return LSProcessResultStatus.SUCCESS;
+        }
+    }
+    internal class TestProcessWithProcessing : LSProcess {
+        private readonly List<string> _log;
+        public TestProcessWithProcessing(List<string> log) { _log = log; }
+        protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
+            return builder
+                .Sequence("checkContextMerge", seq =>
+                    seq.Handler("processing", session => {
+                        _log.Add("processing");
+                        return LSProcessResultStatus.SUCCESS;
+                    })
+                )
+                .Sequence("override", seq =>
+                    seq.Handler("overridedHandler", session => {
+                        _log.Add("processingOverride");
+                        return LSProcessResultStatus.SUCCESS;
+                    })
+                );
+        }
     }
 }

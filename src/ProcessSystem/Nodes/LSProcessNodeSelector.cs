@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -71,8 +71,6 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     int ILSProcessNode.ExecutionCount => throw new System.NotImplementedException("ExecutionCount is tracked only in handler node.");
     /// <inheritdoc />
     public string NodeID { get; }
-    /// <inheritdoc />
-    public LSProcessLayerNodeType NodeType => LSProcessLayerNodeType.SELECTOR;
     /// <inheritdoc />
     public LSProcessPriority Priority { get; internal set; }
     /// <inheritdoc />

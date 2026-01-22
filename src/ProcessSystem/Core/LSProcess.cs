@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -50,7 +50,7 @@ public abstract class LSProcess {
     /// Local processing tree defined via WithProcessing(). Merged with registered
     /// contexts during execution, with local context taking highest priority.
     /// </summary>
-    private ILSProcessLayerNode? _root;
+    private ILSProcessLayerNode _root;
 
     /// <summary>
     /// Reference to the process manager used for execution. Cached from Execute() call.
@@ -102,6 +102,7 @@ public abstract class LSProcess {
     protected LSProcess() {
         ID = System.Guid.NewGuid();
         CreatedAt = System.DateTime.UtcNow;
+        _root = LSProcessManager.CreateRootNode(GetType().Name);
     }
     protected LSProcess(IReadOnlyDictionary<string, object> data) : this() {
         _data = new Dictionary<string, object>(data);
@@ -134,7 +135,7 @@ public abstract class LSProcess {
     /// <returns>Final execution status (may be WAITING if contains async operations)</returns>
     public LSProcessResultStatus Execute(LSProcessManager manager, LSProcessManager.ProcessInstanceBehaviour instanceBehaviour, params ILSProcessable[]? instances) {
         // Flow debug logging LSProcessSystem
-        LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root?.NodeID ?? "n/a"}] instance: {(instances == null ? "n/a" : $"{string.Join(", ", instances.Select(i => i.ID))}")}.",
+        LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root.NodeID}] instance: {(instances == null ? "n/a" : $"{string.Join(", ", instances.Select(i => i.ID))}")}.",
             source: ("LSProcessSystem", null),
             properties: ("hideNodeID", true));
         if (manager == null) throw new LSException("Process manager cannot be null.");
@@ -154,10 +155,13 @@ public abstract class LSProcess {
             return _processSession.RootNode.GetNodeStatus();
         }
 
-        ILSProcessLayerNode? localRoot = processing(new LSProcessTreeBuilder(_root)).Build();
+        var globalInstancedRoot = _manager.GetRootNode(GetType(), out var availableInstances, instanceBehaviour, instances);
+        var globalBuilder = new LSProcessTreeBuilder(globalInstancedRoot);
+        var builtInProcessing = processing(new LSProcessTreeBuilder(LSProcessManager.CreateRootNode(GetType().Name))).Build();
+        globalBuilder = globalBuilder.Merge(builtInProcessing);
+        globalBuilder = globalBuilder.Merge(_root);
+        var sessionRoot = globalBuilder.Build();
 
-
-        var sessionRoot = _manager.GetRootNode(GetType(), localRoot, out var availableInstances, instanceBehaviour, instances);
         _processSession = new LSProcessSession(_manager, this, sessionRoot, availableInstances);
 
         // Detailed debug logging ClassName
@@ -261,20 +265,30 @@ public abstract class LSProcess {
     /// <para>Root node is named using the instance ID (if provided) or this process's ID,</para>
     /// <para>prefixed with the process type name for clarity in debugging.</para>
     /// </remarks>
-    public LSProcess WithProcessing(LSProcessBuilderAction builderAction, LSProcessLayerNodeType layerType = LSProcessLayerNodeType.SELECTOR) {
+    public LSProcess WithProcessing(LSProcessBuilderAction builderAction) {
         // Flow debug logging
-        LSLogger.Singleton.Debug($"{ClassName}.WithProcessing: [{_root?.NodeID ?? "n/a"}] {_root?.GetType().Name ?? layerType.ToString()} ",
+        LSLogger.Singleton.Debug($"{ClassName}.WithProcessing: [{_root?.NodeID ?? "n/a"}]",
             source: ("LSProcessSystem", null),
             processId: ID,
             properties: ("hideNodeID", true));
-
+        if (IsExecuted) {
+            LSLogger.Singleton.Error($"Cannot modify processing tree after execution.",
+                source: (ClassName, null),
+                processId: ID,
+                properties: new (string, object)[] {
+                    ("session", _processSession!.SessionID.ToString()),
+                    ("rootNode", _processSession.RootNode.NodeID.ToString()),
+                    ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
+                    ("behaviour", _processSession.Behaviour.ToString()),
+                    ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
+                    ("method", nameof(WithProcessing))
+                });
+            return this;
+        }
         LSProcessTreeBuilder builder;
         if (_root == null) {
-            builder = layerType switch {
-                LSProcessLayerNodeType.SEQUENCE => new LSProcessTreeBuilder().Sequence($"{GetType().Name}"),
-                LSProcessLayerNodeType.SELECTOR => new LSProcessTreeBuilder().Selector($"{GetType().Name}"),
-                _ => new LSProcessTreeBuilder().Parallel($"{GetType().Name}"),
-            };
+            // create a new root sequence node to match the global/instanced context style
+            builder = new LSProcessTreeBuilder().Sequence($"{GetType().Name}");
         } else {
             builder = new LSProcessTreeBuilder(_root);
         }
@@ -286,7 +300,6 @@ public abstract class LSProcess {
               processId: ID,
               properties: new (string, object)[] {
                 ("rootNode", _root.NodeID.ToString()),
-                ("layerType", layerType.ToString()),
                 ("method", nameof(WithProcessing))
             });
         return this;

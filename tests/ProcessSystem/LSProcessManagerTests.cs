@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using LSUtils.ProcessSystem;
 using LSUtils.Logging;
 using System;
@@ -84,7 +84,7 @@ public class LSProcessManagerTests {
         Assert.That(Enum.IsDefined(typeof(LSProcessManager.ProcessInstanceBehaviour),
             LSProcessManager.ProcessInstanceBehaviour.LOCAL), Is.True);
         Assert.That(Enum.IsDefined(typeof(LSProcessManager.ProcessInstanceBehaviour),
-            LSProcessManager.ProcessInstanceBehaviour.FIRST), Is.True);
+            LSProcessManager.ProcessInstanceBehaviour.MATCH_INSTANCE), Is.True);
         Assert.That(Enum.IsDefined(typeof(LSProcessManager.ProcessInstanceBehaviour),
             LSProcessManager.ProcessInstanceBehaviour.GLOBAL), Is.True);
     }
@@ -101,7 +101,6 @@ public class LSProcessManagerTests {
         // Act
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
-            localRoot,
             out var availableInstances,
             LSProcessManager.ProcessInstanceBehaviour.ALL,
             processable);
@@ -119,7 +118,6 @@ public class LSProcessManagerTests {
         // Act
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
-            null,
             out var availableInstances,
             LSProcessManager.ProcessInstanceBehaviour.ALL,
             processable);
@@ -134,12 +132,10 @@ public class LSProcessManagerTests {
         // Arrange
         var tempProcess = new TestProcess();
         tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
-        var localRoot = tempProcess.GetType().GetField("_root", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(tempProcess) as ILSProcessLayerNode;
 
         // Act
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
-            localRoot,
             out var availableInstances,
             LSProcessManager.ProcessInstanceBehaviour.LOCAL);
     }
@@ -154,7 +150,6 @@ public class LSProcessManagerTests {
         // Act
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
-            localRoot,
             out var availableInstances,
             LSProcessManager.ProcessInstanceBehaviour.ALL,
             null);
@@ -171,14 +166,12 @@ public class LSProcessManagerTests {
         var processable2 = new TestProcessable();
         var tempProcess = new TestProcess();
         tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
-        var localRoot = tempProcess.GetType().GetField("_root", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(tempProcess) as ILSProcessLayerNode;
 
         // Act
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
-            localRoot,
             out var availableInstances,
-            LSProcessManager.ProcessInstanceBehaviour.FIRST,
+            LSProcessManager.ProcessInstanceBehaviour.MATCH_INSTANCE,
             processable1, processable2);
 
         // Assert
