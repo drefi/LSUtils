@@ -1,4 +1,4 @@
-namespace LSUtils;
+﻿namespace LSUtils;
 
 using LSUtils.ProcessSystem;
 
@@ -85,9 +85,8 @@ public class LSTimestamp : ILSProcessable {
                 if (_isInitialized) return LSProcessResultStatus.FAILURE;
                 _isInitialized = true;
                 return LSProcessResultStatus.SUCCESS;
-            }, priority: LSProcessPriority.CRITICAL, readOnly: true)
+            }, priority: LSProcessPriority.CRITICAL)
             .Sequence(nameof(onInitializeSequence), onInitializeSequence,
-                readOnly: true,
                 priority: LSProcessPriority.HIGH,
                 conditions: (proc) => onInitializeSequence != null)
         ).Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, this);

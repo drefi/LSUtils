@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 /// <summary>
 /// Core interface for all nodes in the LSProcessing system hierarchy.
 /// Defines the fundamental contract for process execution, state management, and tree navigation.
@@ -48,7 +48,7 @@ public interface ILSProcessNode {
     /// Conditions are evaluated before processing and can be composed using delegate combination.
     /// Use LSProcessConditions.IsMet() to evaluate all conditions in the delegate chain.
     /// </remarks>
-    LSProcessNodeCondition? Conditions { get; }
+    LSProcessNodeCondition?[] Conditions { get; }
     /// <summary>
     /// Number of times this node has been executed.
     /// For handler nodes, this count is shared among clones to provide global execution statistics.
@@ -66,7 +66,13 @@ public interface ILSProcessNode {
     /// <value>Order value set during node registration, typically incremented sequentially.</value>
     /// <remarks>This provides deterministic execution order for nodes with identical priorities.</remarks>
     int Order { get; }
-    bool ReadOnly { get; }
+    /// <summary>
+    /// Indicates whether this node is read-only and cannot be modified by the builder.
+    /// NodeUpdatePolicy.IGNORE_CHANGES: when set, the node will not allow modifications.
+    /// NodeUpdatePolicy.IGNORE_BUILDER: when set, builder actions (if applicable) are ignored for this node.
+    /// NodeUpdatePolicy.READONLY: combination of both flags, making the node fully read-only.
+    /// </summary>
+    NodeUpdatePolicy UpdatePolicy { get; }
     /// <summary>
     /// Creates an independent copy of this node for parallel processing or tree manipulation.
     /// </summary>

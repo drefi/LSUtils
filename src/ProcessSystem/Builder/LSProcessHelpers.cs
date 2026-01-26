@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace LSUtils.ProcessSystem;
 /// <summary>
@@ -79,9 +80,9 @@ public static class LSProcessHelpers {
     /// </example>
     public static bool IsMet(LSProcess process, ILSProcessNode node) {
         if (node.Conditions == null) return true; // No conditions means always true
-
-        foreach (LSProcessNodeCondition condition in node.Conditions.GetInvocationList()) {
-            if (!condition(process)) return false;
+        foreach (LSProcessNodeCondition? condition in node.Conditions) {
+            if (condition == null) continue; // Skip null conditions
+            if (condition(process) == false) return false;
         }
         return true;
     }
@@ -124,31 +125,36 @@ public static class LSProcessHelpers {
     /// var combinedConditions = UpdateConditions(false, existingConditions, newCondition);
     /// </code>
     /// </example>
-    internal static LSProcessNodeCondition? UpdateConditions(bool overrideExisting, LSProcessNodeCondition? existingConditions, params LSProcessNodeCondition?[] conditions) {
-        // Default condition always returns true - used as base when overriding
-        var defaultCondition = new LSProcessNodeCondition((process) => true);
-        if (overrideExisting) {
-            // when overriding, always start with default condition
-            // if no conditions is provided, assume that the user want to use the default condition
-            existingConditions = defaultCondition;
-        }
+    internal static LSProcessNodeCondition?[] UpdateConditions(NodeUpdatePolicy updatePolicy, LSProcessNodeCondition?[] existingConditions, params LSProcessNodeCondition?[] conditions) {
+        // Filter out null conditions
+        var validConditions = conditions?.Where(c => c != null).ToArray() ?? System.Array.Empty<LSProcessNodeCondition>();
 
-        // no conditions provided
-        if (conditions == null || conditions.Length == 0) {
-            // If overriding, return default condition; else keep existing conditions
+        // No new conditions provided - return existing regardless of flags
+        if (validConditions.Length == 0) {
+            if (updatePolicy.HasFlag(NodeUpdatePolicy.OVERRIDE_CONDITIONS)) {
+                // Override with empty = remove all conditions (always true)
+                return new LSProcessNodeCondition?[] { (process) => true };
+            }
             return existingConditions;
         }
-        // Conditions provided - handle override vs combine logic
 
-        // Add all non-null conditions to the delegate chain
-        foreach (var condition in conditions) {
-            if (condition != null) {
-                existingConditions += condition;
-            }
+        // Neither OVERRIDE nor MERGE - ignore new conditions, keep existing
+        if (!updatePolicy.HasFlag(NodeUpdatePolicy.OVERRIDE_CONDITIONS) &&
+            !updatePolicy.HasFlag(NodeUpdatePolicy.MERGE_CONDITIONS)) {
+            return existingConditions;
         }
 
+        // Start fresh if overriding, otherwise merge with existing
+        List<LSProcessNodeCondition?> result = updatePolicy.HasFlag(NodeUpdatePolicy.OVERRIDE_CONDITIONS)
+            ? new List<LSProcessNodeCondition?>()
+            : existingConditions.ToList();
 
-        return existingConditions;
+        // Add new conditions
+        foreach (var condition in validConditions) {
+            result.Add(condition);
+        }
+
+        return result.ToArray();
     }
 
     /// <summary>

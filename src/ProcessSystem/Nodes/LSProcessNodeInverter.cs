@@ -1,6 +1,7 @@
 ﻿namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
+using System.Linq;
 using LSUtils.Logging;
 
 /// <summary>
@@ -61,34 +62,35 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
 
     public LSProcessPriority Priority { get; internal set; }
 
-    public LSProcessNodeCondition? Conditions { get; internal set; }
+    public LSProcessNodeCondition?[] Conditions { get; internal set; }
 
     int ILSProcessNode.ExecutionCount => throw new System.NotImplementedException("ExecutionCount is tracked only in handler node.");
 
     public int Order { get; internal set; }
 
-    public bool ReadOnly { get; }
+    public bool ReadOnly => UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES);
+    public NodeUpdatePolicy UpdatePolicy { get; }
 
-    internal LSProcessNodeInverter(string nodeID, LSProcessPriority priority = LSProcessPriority.NORMAL, int order = 0, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
+    internal LSProcessNodeInverter(string nodeID, LSProcessPriority priority = LSProcessPriority.NORMAL, int order = 0, NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.NONE, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeID;
         Priority = priority;
         Order = order;
-        ReadOnly = readOnly;
-        Conditions = LSProcessHelpers.UpdateConditions(true, null, conditions);
+        UpdatePolicy = updatePolicy & (NodeUpdatePolicy.IGNORE_CHANGES | NodeUpdatePolicy.IGNORE_BUILDER);
+        Conditions = conditions;
     }
 
     // inverter should not be able to change child after creation
     public void AddChild(ILSProcessNode child) {
         if (child == null) {
-            throw new System.ArgumentNullException(nameof(child), 
+            throw new System.ArgumentNullException(nameof(child),
                 $"Cannot add null child to inverter '{NodeID}'");
         }
-        
+
         if (ReadOnly) {
             throw new LSException(
                 $"Cannot add child to read-only inverter '{NodeID}'");
         }
-        
+
         if (_childNode != null) {
             throw new LSException(
                 $"Inverter '{NodeID}' already has a child '{_childNode.NodeID}'. " +
@@ -97,6 +99,20 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
 
         _childNode = child;
     }
+    public void AddChildren(params ILSProcessNode[] children) {
+        if (children == null || children.Length == 0) {
+            throw new System.ArgumentNullException(nameof(children),
+                $"Cannot add null or empty children to inverter '{NodeID}'");
+        }
+
+        if (children.Length > 1) {
+            throw new LSException(
+                $"Inverter '{NodeID}' cannot have multiple children. " +
+                "Inverters can only have exactly one child node.");
+        }
+
+        AddChild(children[0]);
+    }
 
     public LSProcessResultStatus Execute(LSProcessSession session) {
         // Flow debug logging
@@ -104,9 +120,9 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
               source: ("LSProcessSystem", null),
               processId: session.Process.ID,
               properties: ("hideNodeID", true));
-        
+
         // Check conditions before executing
-        if (Conditions != null && !Conditions(session.Process)) {
+        if (Conditions != null && !Conditions.All(condition => condition == null || condition(session.Process))) {
             LSLogger.Singleton.Debug($"Inverter conditions not met.",
                 source: (ClassName, null),
                 processId: session.Process.ID,
@@ -251,7 +267,7 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true)); // No specific process context for node cloning
 
-        var clone = new LSProcessNodeInverter(NodeID, Priority, Order, ReadOnly, Conditions);
+        var clone = new LSProcessNodeInverter(NodeID, Priority, Order, UpdatePolicy, Conditions);
         if (_childNode != null) clone.AddChild(_childNode.Clone());
         // Debug log with details
         LSLogger.Singleton.Debug($"Inverter node cloned.",

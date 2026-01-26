@@ -69,6 +69,7 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// </list>
     /// </remarks>
     void AddChild(ILSProcessNode child);
+    void AddChildren(params ILSProcessNode[] children);
     /// <summary>
     /// Retrieves a child node by its unique identifier.
     /// </summary>

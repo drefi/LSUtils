@@ -70,12 +70,13 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// <inheritdoc />
     public string NodeID { get; }
     /// <inheritdoc />
-    public LSProcessPriority Priority { get; internal set; }
+    public LSProcessPriority Priority { get; }
     /// <inheritdoc />
-    public int Order { get; internal set; }
+    public int Order { get; }
     /// <inheritdoc />
-    public LSProcessNodeCondition? Conditions { get; internal set; }
-    public bool ReadOnly { get; internal set; } = false;
+    public LSProcessNodeCondition?[] Conditions { get; }
+    public bool ReadOnly => UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES);
+    public NodeUpdatePolicy UpdatePolicy { get; }
 
     /// <summary>
     /// Initializes a new sequence node with the specified configuration.
@@ -91,12 +92,12 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     /// • <b>Composition:</b> Multiple conditions are combined using delegate composition (+=)<br/>
     /// • <b>Null Safety:</b> Null conditions in the array are automatically filtered out
     /// </remarks>
-    internal LSProcessNodeSequence(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
+    internal LSProcessNodeSequence(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.NONE, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeId;
         Order = order;
         Priority = priority;
-        ReadOnly = readOnly;
-        Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
+        UpdatePolicy = updatePolicy & (NodeUpdatePolicy.IGNORE_CHANGES | NodeUpdatePolicy.IGNORE_BUILDER);
+        Conditions = conditions;
     }
     /// <summary>
     /// Adds a child node to this sequence node's collection.
@@ -113,6 +114,12 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
         }
         _children[child.NodeID] = child;
     }
+    public void AddChildren(params ILSProcessNode[] children) {
+        foreach (var child in children) {
+            AddChild(child);
+        }
+    }
+
     /// <summary>
     /// Removes a child node from this sequence node's collection.
     /// </summary>
@@ -143,7 +150,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
 
-        var cloned = new LSProcessNodeSequence(NodeID, Order, Priority, ReadOnly, Conditions);
+        var cloned = new LSProcessNodeSequence(NodeID, Order, Priority, UpdatePolicy, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }

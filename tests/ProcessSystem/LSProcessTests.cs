@@ -448,8 +448,8 @@ public class LSProcessTests {
                 .Handler("ok-1", session => LSProcessResultStatus.SUCCESS)
                 .Handler("ok-2", session => LSProcessResultStatus.SUCCESS)
                 .Handler("fail", session => LSProcessResultStatus.FAILURE),
-                numRequiredToSucceed: 2,
-                numRequiredToFailure: 2,
+                successThreshold: 2,
+                failureThreshold: 2,
                 priority: LSProcessPriority.NORMAL)
             );
 
@@ -469,8 +469,8 @@ public class LSProcessTests {
                 .Handler("ok-1", session => LSProcessResultStatus.SUCCESS)
                 .Handler("ok-2", session => LSProcessResultStatus.SUCCESS)
                 .Handler("fail", session => LSProcessResultStatus.FAILURE),
-                numRequiredToSucceed: 3,
-                numRequiredToFailure: 1,
+                successThreshold: 3,
+                failureThreshold: 1,
                 priority: LSProcessPriority.NORMAL);
             return builder;
         });
@@ -494,8 +494,8 @@ public class LSProcessTests {
                     return LSProcessResultStatus.WAITING;
                 })
                 .Handler("ok", session => LSProcessResultStatus.SUCCESS),
-                numRequiredToSucceed: 2,
-                numRequiredToFailure: 1,
+                successThreshold: 2,
+                failureThreshold: 1,
                 priority: LSProcessPriority.NORMAL);
             return builder;
         });
@@ -518,8 +518,8 @@ public class LSProcessTests {
             builder.Parallel("parallel-root", par => par
                 .Handler("wait", session => LSProcessResultStatus.WAITING)
                 .Handler("ok", session => LSProcessResultStatus.SUCCESS),
-                numRequiredToSucceed: 2,
-                numRequiredToFailure: 1,
+                successThreshold: 2,
+                failureThreshold: 1,
                 priority: LSProcessPriority.NORMAL);
             return builder;
         });
@@ -540,8 +540,8 @@ public class LSProcessTests {
         process.WithProcessing(builder => {
             builder.Parallel("parallel-root", par => par
                 .Handler("wait", session => LSProcessResultStatus.WAITING),
-                numRequiredToSucceed: 1,
-                numRequiredToFailure: 1,
+                successThreshold: 1,
+                failureThreshold: 1,
                 priority: LSProcessPriority.NORMAL);
             return builder;
         });

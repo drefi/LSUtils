@@ -3,6 +3,7 @@
 ## Overview
 
 LSProcessManager is the central registry for process contexts. It manages a two-level hierarchy:
+
 - **Process Type** → **Instance** → **Node Hierarchy**
 
 This enables flexible, multi-layered behavior definition without modifying code or core logic.
@@ -10,44 +11,37 @@ This enables flexible, multi-layered behavior definition without modifying code 
 ## Core Responsibilities
 
 1. **Context Storage**: Maintain registered node hierarchies per process type and instance
-2. **Context Merging**: Combine contexts from global, instance, and local layers
+2. **Context Merging**: Combine contexts from global and instance layers
 3. **Instance Behavior**: Support multiple instance targeting strategies (match, multi, all)
 4. **Thread Safety**: Concurrent-safe registration and retrieval via ConcurrentDictionary
 
 ## Registration Levels (Priority Order)
 
-```
-Highest Priority (Runtime)
+```flow
+Highest Priority (Runtime) - Process build-in implementantion
         ↓
 Local context (WithProcessing) - Process-specific override
         ↓
-Instance context - Entity/user-specific behavior
+Instance context - IProcessable-specific behavior
         ↓
-Global context - Applies to all instances
-        ↓
-Lowest Priority (Built-in defaults)
+Global context - Applies to all processes of the same type
 ```
 
 ## Registration Patterns
 
 ### Global Context
 
-Applied to all process instances of a given type:
+Applied to all processes of a given type:
 
 ```csharp
 // Register once, used everywhere
-LSProcessManager.Singleton.Register<AttributeRecomputeProcess>(root => root
-    .Sequence("base-recompute", seq => seq
-        .Handler("seed-base", SeedBase)
-        .Handler("apply-modifiers", ApplyModifiers)
+LSProcessManager.Singleton.Register<TestProcess>(build => build
+    .Sequence("sub-sequence", seq => seq
+        .Handler("handler1", Handler1)
+        .Handler("handler2", Handler2)
     )
 );
 ```
-
-**Use cases:**
-- Common behavior shared across all entities
-- Default modifier application logic
-- Standard validation/audit steps
 
 ### Instance Context
 
@@ -59,7 +53,7 @@ var vipEntity = new VIPEntity { ID = Guid.Parse("...") };
 LSProcessManager.Singleton.Register<AttributeRecomputeProcess>(root => root
     .Sequence("base-recompute", seq => seq
         .Handler("vip-bonus", ApplyVIPBonus)      // Override global logic
-        .Handler("parallel-cascade", cascade => cascade  // Override cascade strategy
+        .Parallel("parallel-cascade", cascade => cascade  // Override cascade strategy
             .Handler("update-dep-1", UpdateDep1)
             .Handler("update-dep-2", UpdateDep2)
         )
@@ -68,6 +62,7 @@ LSProcessManager.Singleton.Register<AttributeRecomputeProcess>(root => root
 ```
 
 **Use cases:**
+
 - Per-entity customization (VIP, faction, class)
 - Entity-specific modifiers or bonuses
 - Different cascade/dependency strategies per entity
@@ -90,6 +85,7 @@ var result = process.Execute(manager, ProcessInstanceBehaviour.ALL, entity);
 ```
 
 **Use cases:**
+
 - One-time customizations (buffs, debuffs)
 - Test-specific behavior overrides
 - Dynamic effect injection without touching definers
@@ -291,6 +287,7 @@ Task.Run(() => var root = manager.GetRootNode(typeof(Process1), ...));
 ```
 
 **Guarantees:**
+
 - Registration operations are atomic per (ProcessType, Instance) pair
 - GetRootNode() does not block other registrations
 - Context cloning prevents original registrations from being modified
@@ -313,6 +310,7 @@ var anotherProcess = manager.GetRootNode(typeof(MyProcess), ...);
 ```
 
 **Benefits:**
+
 - Registrations are immutable once stored
 - Multiple concurrent executions don't interfere
 - Predictable behavior across process instances
@@ -387,16 +385,21 @@ foreach (var definer in definers) {
 ## Troubleshooting
 
 **Issue: Handler not executing**
+
 - Check: Is ID correct? Is it readonly in a higher-priority context? Is it in a failed decorator?
 
 **Issue: Expected children missing**
+
 - Check: Are you using a decorator? Decorators MERGE (combine) children, not replace them.
 
 **Issue: Wrong instance context applied**
+
 - Check: ProcessInstanceBehaviour flags. Use `MATCH_INSTANCE` for single, `MULTI_INSTANCES` for all.
 
 **Issue: Performance degradation with many instances**
+
 - Check: Register common behavior globally, not per-instance. Batch registrations during init.
 
 **Issue: Circular dependency or re-entry**
+
 - Check: Mark readonly handlers, use cycle detection in handlers, check `IsCancelled` status.

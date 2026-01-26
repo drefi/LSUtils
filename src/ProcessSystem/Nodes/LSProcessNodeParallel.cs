@@ -19,8 +19,8 @@ using LSUtils.Logging;
 /// <para>
 /// <b>Parallel Processing Logic:</b><br/>
 /// • Simultaneous Execution: All eligible children are processed in parallel during each Execute() call<br/>
-/// • Threshold-Based Success: Succeeds when NumRequiredToSucceed children reach SUCCESS state<br/>
-/// • Threshold-Based Failure: Fails when NumRequiredToFailure children reach FAILURE state<br/>
+/// • Threshold-Based Success: Succeeds when SuccessThreshold children reach SUCCESS state<br/>
+/// • Threshold-Based Failure: Fails when FailureThreshold children reach FAILURE state<br/>
 /// • Complex Status Aggregation: Monitors multiple children simultaneously for state changes<br/>
 /// • Configurable Termination: Flexible success/failure conditions based on threshold configuration
 /// </para>
@@ -56,7 +56,7 @@ using LSUtils.Logging;
 /// • Load Distribution: Parallel processing for performance optimization
 /// </para>
 /// </remarks>
-public class LSProcessNodeParallel : ILSProcessLayerNode {
+public partial class LSProcessNodeParallel : ILSProcessLayerNode {
     public const string ClassName = nameof(LSProcessNodeParallel);
     /// <inheritdoc />
     int ILSProcessNode.ExecutionCount => throw new System.NotImplementedException("ExecutionCount is tracked only in handler node.");
@@ -76,13 +76,13 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// <inheritdoc />
     public string NodeID { get; }
     /// <inheritdoc />
-    public LSProcessPriority Priority { get; internal set; }
+    public LSProcessPriority Priority { get; }
     /// <inheritdoc />
-    public int Order { get; internal set; }
-
-    public bool ReadOnly { get; internal set; } = false;
+    public int Order { get; }
     /// <inheritdoc />
-    public LSProcessNodeCondition? Conditions { get; internal set; }
+    public NodeUpdatePolicy UpdatePolicy { get; }
+    /// <inheritdoc />
+    public LSProcessNodeCondition?[] Conditions { get; }
     /// <summary>
     /// Number of child nodes that must reach SUCCESS state for this parallel node to succeed.
     /// </summary>
@@ -96,7 +96,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// • Runtime Validation: Threshold checked against actual available children during processing
     /// </para>
     /// </remarks>
-    public int NumRequiredToSucceed { get; internal set; }
+    public int SuccessThreshold { get; }
     /// <summary>
     /// Number of child nodes that must reach FAILURE state for this parallel node to fail.
     /// </summary>
@@ -110,7 +110,9 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// • Runtime Validation: Threshold checked against actual available children during processing
     /// </para>
     /// </remarks>
-    public int NumRequiredToFailure { get; internal set; }
+    public int FailureThreshold { get; }
+
+    public ParallelThresholdMode ThresholdMode { get; }
     /// <summary>
     /// Create a new parallel node with threshold-based success/failure conditions.
     /// </summary>
@@ -137,14 +139,22 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
     /// • Evaluation: Conditions are checked before each processing cycle
     /// </para>
     /// </remarks>
-    internal LSProcessNodeParallel(string nodeID, int order, int numRequiredToSucceed, int numRequiredToFailure, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
+    internal LSProcessNodeParallel(string nodeID,
+            int order,
+            int numRequiredToSucceed,
+            int numRequiredToFailure,
+            ParallelThresholdMode thresholdMode = ParallelThresholdMode.SUCCESS_PRIORITY,
+            NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
+            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeID;
         Order = order;
         Priority = priority;
-        NumRequiredToSucceed = numRequiredToSucceed;
-        NumRequiredToFailure = numRequiredToFailure;
-        ReadOnly = readOnly;
-        Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
+        SuccessThreshold = numRequiredToSucceed;
+        FailureThreshold = numRequiredToFailure;
+        ThresholdMode = thresholdMode;
+        UpdatePolicy = updatePolicy & (NodeUpdatePolicy.IGNORE_CHANGES | NodeUpdatePolicy.IGNORE_BUILDER);
+        Conditions = conditions;
     }
     /// <summary>
     /// Adds a child node to this parallel node's collection.
@@ -169,6 +179,11 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
             throw new LSException("Cannot add child after processing.");
         }
         _children[child.NodeID] = child;
+    }
+    public void AddChildren(params ILSProcessNode[] children) {
+        foreach (var child in children) {
+            AddChild(child);
+        }
     }
     /// <summary>
     /// Retrieves a specific child node by its identifier.
@@ -217,7 +232,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
 
-        var cloned = new LSProcessNodeParallel(NodeID, Order, NumRequiredToSucceed, NumRequiredToFailure, Priority, ReadOnly, Conditions);
+        var cloned = new LSProcessNodeParallel(NodeID, Order, SuccessThreshold, FailureThreshold, ThresholdMode, UpdatePolicy, Priority, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
@@ -290,20 +305,20 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
             }
         }
         // Priority: Success or Failure threshold, then waiting, then fallback
-        if (NumRequiredToSucceed >= NumRequiredToFailure) {
-            if (success >= NumRequiredToSucceed) return LSProcessResultStatus.SUCCESS;
+        if (SuccessThreshold >= FailureThreshold) {
+            if (success >= SuccessThreshold) return LSProcessResultStatus.SUCCESS;
             if (waiting) return LSProcessResultStatus.WAITING;
-            if (failure >= NumRequiredToFailure) return LSProcessResultStatus.FAILURE;
+            if (failure >= FailureThreshold) return LSProcessResultStatus.FAILURE;
         } else {
-            if (failure >= NumRequiredToFailure) return LSProcessResultStatus.FAILURE;
+            if (failure >= FailureThreshold) return LSProcessResultStatus.FAILURE;
             if (waiting) return LSProcessResultStatus.WAITING;
-            if (success >= NumRequiredToSucceed) return LSProcessResultStatus.SUCCESS;
+            if (success >= SuccessThreshold) return LSProcessResultStatus.SUCCESS;
         }
 
         if (waiting) return LSProcessResultStatus.WAITING;
 
         // Fallback: all succeeded or failed
-        if (NumRequiredToSucceed < 0)
+        if (SuccessThreshold < 0)
             return success == total ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
 
         return LSProcessResultStatus.FAILURE;
@@ -606,7 +621,7 @@ public class LSProcessNodeParallel : ILSProcessLayerNode {
               properties: ("hideNodeID", true));
 
         // Check conditions before executing
-        if (Conditions != null && !Conditions(session.Process)) {
+        if (Conditions != null && !Conditions.All(condition => condition == null || condition(session.Process))) {
             LSLogger.Singleton.Debug($"Parallel conditions not met.",
                 source: (ClassName, null),
                 processId: session.Process.ID,

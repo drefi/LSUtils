@@ -142,7 +142,7 @@ public class LSProcessManager {
     /// <exception cref="LSException">Thrown if concurrent dictionary operations fail</exception>
     public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null) {
         var processDict = _globalNodes.GetOrAdd(processType, _ => new ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>());
-        
+
         LSLogger.Singleton.Debug($"{ClassName}.Register<{processType.Name}>: {(instance != null ? instance.ID.ToString() : "global")}",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
@@ -249,7 +249,7 @@ public class LSProcessManager {
 
     public ILSProcessLayerNode GetRootNode(System.Type processType, out ILSProcessable[]? availableInstances, ProcessInstanceBehaviour behaviour = ProcessInstanceBehaviour.ALL, params ILSProcessable[]? instanceNodes) {
         var processDict = _globalNodes.GetOrAdd(processType, _ => new ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>());
-        
+
         // Create a new builder starting with the localNode as root node
         LSProcessTreeBuilder builder = new LSProcessTreeBuilder();
 
@@ -302,17 +302,18 @@ public class LSProcessManager {
         }
     }
     public static ILSProcessLayerNode CreateRootNode(string nodeID) {
-        return new LSProcessTreeBuilder().Sequence(nodeID).Build();
+        var sequence = new LSProcessNodeSequence(nodeID, 0, LSProcessPriority.NORMAL, NodeUpdatePolicy.DEFAULT_LAYER | NodeUpdatePolicy.IGNORE_CHANGES);
+        return sequence;
     }
     [Flags]
     public enum ProcessInstanceBehaviour {
         LOCAL = 0, //local use is always used, no flag needed
         GLOBAL = 1 << 0, // use the global processable context
         MATCH_FIRST = 1 << 1, // match one provided instance with the first available registered context. (stop at first match)
-                                 // case use: we have multiple provided instances, and we want to use the first one that has a registered context.
+                              // case use: we have multiple provided instances, and we want to use the first one that has a registered context.
         ALL_INSTANCES = 1 << 2, // use all provided instance contexts
-                                  // use case: we have multiple provided instances, and we want to use all that have a registered context.
-                                  // the merged context will include all matched instance contexts.
+                                // use case: we have multiple provided instances, and we want to use all that have a registered context.
+                                // the merged context will include all matched instance contexts.
         ANY = LOCAL | GLOBAL | MATCH_FIRST, // use global + first available provided instance context
         ALL = LOCAL | GLOBAL | ALL_INSTANCES, // use global + all provided instance contexts
     }

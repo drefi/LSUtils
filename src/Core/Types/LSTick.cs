@@ -1,4 +1,4 @@
-namespace LSUtils;
+﻿namespace LSUtils;
 
 using Logging;
 using ProcessSystem;
@@ -73,7 +73,6 @@ public class LSTick : ILSProcessable {
             process.WithProcessing(root => root
                 .Handler(LSProcessLabels.IS_INITIALIZED_KEY, session => LSProcessResultStatus.FAILURE,
                     priority: LSProcessPriority.CRITICAL,
-                    readOnly: true,
                     conditions: (proc) => _isInitialized == false)
             ).Execute(_manager ?? LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL);
         }

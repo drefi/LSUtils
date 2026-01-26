@@ -560,7 +560,7 @@ public class LSProcessManagerTests {
         var log = new List<string>();
 
         _manager!.Register<TestProcess>(root => root
-            .Handler("protected", s => { log.Add("original"); return LSProcessResultStatus.SUCCESS; }, readOnly: true)
+            .Handler("protected", s => { log.Add("original"); return LSProcessResultStatus.SUCCESS; }, updatePolicy: NodeUpdatePolicy.IGNORE_CHANGES)
         );
 
         // Act: Try to override with instance context

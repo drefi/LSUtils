@@ -1,4 +1,4 @@
-namespace LSUtils.ProcessSystem;
+﻿namespace LSUtils.ProcessSystem;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -86,14 +86,14 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// The handler receives both the current process and the processing session context,
     /// allowing it to access process data and node metadata for decision-making.
     /// </remarks>
-    protected LSProcessHandler _handler;
+    public LSProcessHandler Handler { get; }
     protected bool _hasExecuted = false;
     /// <inheritdoc />
     public string NodeID { get; }
     /// <inheritdoc />
     public LSProcessPriority Priority { get; }
     /// <inheritdoc />
-    public LSProcessNodeCondition? Conditions { get; }
+    public LSProcessNodeCondition?[] Conditions { get; }
     /// <summary>
     /// Gets or sets the execution count, automatically delegating to the base node if this is a clone.
     /// Provides shared execution statistics across all clones of a handler node.
@@ -125,7 +125,8 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// sibling nodes with the same priority level.
     /// </remarks>
     public int Order { get; }
-    public bool ReadOnly { get; } = false;
+    public bool ReadOnly { get; }
+    NodeUpdatePolicy ILSProcessNode.UpdatePolicy => ReadOnly ? NodeUpdatePolicy.READONLY : NodeUpdatePolicy.NONE;
 
     /// <summary>
     /// Initializes a new handler node with the specified configuration.
@@ -159,11 +160,11 @@ public class LSProcessNodeHandler : ILSProcessNode {
         _baseNode = baseNode;
         NodeID = nodeID;
         Priority = priority;
-        _handler = handler;
+        Handler = handler;
         Order = order;
         ReadOnly = readOnly;
         //WithInverter = withInverter;
-        Conditions = LSProcessHelpers.UpdateConditions(true, null, conditions);
+        Conditions = conditions;
     }
     /// <inheritdoc />
     public LSProcessResultStatus GetNodeStatus() {
@@ -242,7 +243,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
         }
         _hasExecuted = true;
         // Execute the handler delegate with current process and session context
-        var handlerResult = _handler(session);
+        var handlerResult = Handler(session);
         // Increment execution count for analytics (shared across clones via base node)
         ExecutionCount++;
         // update status if handlerResult is CANCELLED
@@ -436,7 +437,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
         LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
-        var clone = new LSProcessNodeHandler(NodeID, _handler, Order, Priority, _baseNode == null ? this : _baseNode, ReadOnly, Conditions);
+        var clone = new LSProcessNodeHandler(NodeID, Handler, Order, Priority, _baseNode == null ? this : _baseNode, ReadOnly, Conditions);
         // Debug log with details
         LSLogger.Singleton.Debug($"Handler node [{NodeID}] cloned.",
               source: (ClassName, null));

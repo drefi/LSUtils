@@ -72,12 +72,13 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// <inheritdoc />
     public string NodeID { get; }
     /// <inheritdoc />
-    public LSProcessPriority Priority { get; internal set; }
+    public LSProcessPriority Priority { get; }
     /// <inheritdoc />
-    public int Order { get; internal set; }
+    public int Order { get; }
     /// <inheritdoc />
-    public LSProcessNodeCondition? Conditions { get; internal set; }
-    public bool ReadOnly { get; internal set; } = false;
+    public LSProcessNodeCondition?[] Conditions { get; }
+    public bool ReadOnly => UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES);
+    public NodeUpdatePolicy UpdatePolicy { get; }
 
     /// <summary>
     /// Initializes a new selector node with the specified configuration.
@@ -93,12 +94,12 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// • <b>Composition:</b> Multiple conditions are combined using delegate composition (+=)<br/>
     /// • <b>Null Safety:</b> Null conditions in the array are automatically filtered out
     /// </remarks>
-    internal LSProcessNodeSelector(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, bool readOnly = false, params LSProcessNodeCondition?[] conditions) {
+    internal LSProcessNodeSelector(string nodeId, int order, LSProcessPriority priority = LSProcessPriority.NORMAL, NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.NONE, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeId;
         Order = order;
         Priority = priority;
-        ReadOnly = readOnly;
-        Conditions = LSProcessHelpers.UpdateConditions(true, Conditions, conditions);
+        UpdatePolicy = updatePolicy & (NodeUpdatePolicy.IGNORE_CHANGES | NodeUpdatePolicy.IGNORE_BUILDER);
+        Conditions = conditions;
     }
     /// <summary>
     /// Adds a child node to this selector node's collection.
@@ -114,6 +115,12 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         }
         _children[child.NodeID] = child;
     }
+    public void AddChildren(params ILSProcessNode[] children) {
+        foreach (var child in children) {
+            AddChild(child);
+        }
+    }
+
     /// <summary>
     /// Removes a child node from this selector node's collection.
     /// </summary>
@@ -121,7 +128,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// <returns>True if the child was found and removed, false if no child with the specified ID existed.</returns>
     public bool RemoveChild(string label) {
         if (_isProcessing) {
-            throw new LSException("Cannot add child after processing.");
+            throw new LSException("Cannot remove child after processing.");
         }
         return _children.Remove(label);
     }
@@ -139,7 +146,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
         LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
-        var cloned = new LSProcessNodeSelector(NodeID, Order, Priority, ReadOnly, Conditions);
+        var cloned = new LSProcessNodeSelector(NodeID, Order, Priority, UpdatePolicy, Conditions);
         foreach (var child in _children.Values) {
             cloned.AddChild(child.Clone());
         }
