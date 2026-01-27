@@ -99,7 +99,7 @@ public partial class LSProcessTreeBuilder {
                             ("conditions", conditions != null ? conditions.Length.ToString() : "n/a"),
                             ("method", nameof(Sequence))
                         });
-                    
+
                     // the existing node is read-only or not replacing, cannot be modified and since it's not the same type, should not run builder actions
                     return this;
                 }
@@ -148,4 +148,28 @@ public partial class LSProcessTreeBuilder {
 
         return this;
     }
+
+    public LSProcessTreeBuilder Sequence(LSProcessBuilderAction builderAction,
+            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
+            params LSProcessNodeCondition?[] conditions) {
+        string nodeID = LSProcessManager.CreateNodeID<LSProcessNodeSequence>(_rootNode);
+        return Sequence(nodeID, builderAction, updatePolicy, priority, conditions);
+    }
+    public LSProcessTreeBuilder Sequence<TProcess>(string nodeID,
+            LSProcessBuilderAction? builderAction = null,
+            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
+            params LSProcessNodeCondition?[] conditions) where TProcess : LSProcess {
+        return Sequence(nodeID, builderAction, updatePolicy, priority, conditions);
+    }
+    public LSProcessTreeBuilder Sequence<TProcess>(
+            LSProcessBuilderAction? builderAction = null,
+            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
+            params LSProcessNodeCondition?[] conditions) where TProcess : LSProcess {
+        string nodeID = LSProcessManager.CreateNodeID<LSProcessNodeSequence>(_rootNode);
+        return Sequence(nodeID, builderAction, updatePolicy, priority, conditions);
+    }
+
 }

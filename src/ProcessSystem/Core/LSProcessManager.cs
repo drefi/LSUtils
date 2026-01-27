@@ -357,4 +357,7 @@ public class LSProcessManager {
             throw new System.NotImplementedException("GlobalProcessable is a placeholder class and should never be initialized in the processing pipeline.");
         }
     }
+    public static string CreateNodeID<TNode>(ILSProcessNode? rootNode) where TNode : ILSProcessNode {
+        return $"{rootNode?.NodeID ?? "root"}-{typeof(TNode).Name}-{System.Guid.NewGuid()}";
+    }
 }

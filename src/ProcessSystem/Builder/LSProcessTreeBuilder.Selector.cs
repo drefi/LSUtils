@@ -193,7 +193,7 @@ public partial class LSProcessTreeBuilder {
             LSProcessPriority priority = LSProcessPriority.NORMAL,
             params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
 
-        string nodeID = $"{_rootNode?.NodeID ?? "root"}-selector-{System.Guid.NewGuid()}";
+        string nodeID = LSProcessManager.CreateNodeID<LSProcessNodeSelector>(_rootNode);
         return Selector(nodeID,
             builderAction,
             updatePolicy,

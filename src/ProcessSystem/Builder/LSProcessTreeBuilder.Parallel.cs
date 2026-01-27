@@ -181,7 +181,7 @@ public partial class LSProcessTreeBuilder {
             LSProcessNodeParallel.ParallelThresholdMode thresholdMode = LSProcessNodeParallel.ParallelThresholdMode.SUCCESS_PRIORITY,
             LSProcessPriority priority = LSProcessPriority.NORMAL,
             params LSProcessNodeCondition?[] conditions) {
-        string nodeID = $"{_rootNode?.NodeID ?? "root"}-parallel-{System.Guid.NewGuid()}";
+        string nodeID = LSProcessManager.CreateNodeID<LSProcessNodeParallel>(_rootNode);
         return Parallel(nodeID,
             builderAction,
             updatePolicy,
@@ -249,7 +249,7 @@ public partial class LSProcessTreeBuilder {
             params LSProcessNodeCondition<TProcess>?[] conditions)
         where TProcess : LSProcess {
 
-        string nodeID = $"{_rootNode?.NodeID ?? "root"}-parallel-{System.Guid.NewGuid()}";
+        string nodeID = LSProcessManager.CreateNodeID<LSProcessNodeParallel>(_rootNode);
         return Parallel(nodeID,
             builderAction,
             updatePolicy,
