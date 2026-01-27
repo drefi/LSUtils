@@ -35,48 +35,48 @@ public partial class LSProcessTreeBuilder {
             builderAction(new LSProcessTreeBuilder(node));
             return this;
         }
-        if (existingNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) {
-            LSLogger.Singleton.Warning($"Node [{nodeID}] already exists and is read-only, cannot modify.",
-                source: (ClassName, true),
-                properties: new (string, object)[] {
-                    ("nodeID", nodeID),
-                    ("method", nameof(Inverter))
-                });
-
-            if (existingNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_BUILDER) == false) {// Allow building children
-                if (existingNode is LSProcessNodeInverter readOnlyInverter) { // only if it's an inverter node
-                    builderAction(new LSProcessTreeBuilder(readOnlyInverter));
-                }
-            }
-            return this;
-        }
-
-        ILSProcessNode? policyChild;
+        ILSProcessNode? policyChild = null;
         int policyOrder = existingNode.Order;
         LSProcessNodeCondition?[] policyConditions = LSProcessHelpers.UpdateConditions(updatePolicy, existingNode.Conditions, conditions);
         LSProcessPriority policyPriority = updatePolicy.HasFlag(NodeUpdatePolicy.OVERRIDE_PRIORITY) ? priority : existingNode.Priority;
-        if (existingNode is not LSProcessNodeInverter inverterNode) {
-            // existing node is not an inverter node
-            if (existingNode is ILSProcessLayerNode existingLayerNode) {
-                // existing node is a layer
-                if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_LAYER) == false) {
-                    //since we are not replacing the layer, cannot modify non-inverter nodes
-                    LSLogger.Singleton.Warning($"Node [{nodeID}] exists but is not an inverter node, cannot modify.",
+
+        if (existingNode is not LSProcessNodeInverter inverterNode) { // is not an inverter node
+            if (existingNode is ILSProcessLayerNode existingLayerNode) { // but is a layer node
+                if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_LAYER) == false || // not replacing the layer
+                    existingLayerNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
+                    LSLogger.Singleton.Warning($"Node [{nodeID}] exists but update policy does not allow replacing the layer.",
                         source: (ClassName, true),
                         properties: new (string, object)[] {
-                        ("nodeID", nodeID),
-                        ("existingNodeType", existingNode.GetType().Name),
-                        ("method", nameof(Inverter))
+                            ("nodeID", nodeID),
+                            ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                            ("existingLayerNodeType", existingLayerNode.GetType().Name),
+                            ("existingLayerNodeOrder", existingLayerNode?.Order.ToString() ?? "n/a"),
+                            ("existingLayerNodePriority", existingLayerNode?.Priority.ToString() ?? "n/a"),
+                            ("existingLayerNodeConditions", existingLayerNode?.Conditions.Length.ToString() ?? "n/a"),
+                            ("existingLayerNodeUpdatePolicy", existingLayerNode?.UpdatePolicy.ToString() ?? "n/a"),
+                            ("order", order),
+                            ("priority", priority.ToString()),
+                            ("updatePolicy", updatePolicy.ToString()),
+                            ("conditions", conditions != null ? conditions.Length.ToString() : "n/a"),
+                            ("method", nameof(Inverter))
                         });
+
+                    // the existing node is read-only or not replacing, cannot be modified and since it's not the same type, should not run builder actions
                     return this;
                 }
-                policyChild = existingLayerNode.GetChildren().FirstOrDefault();
-            } else {
-                // existing node is not a layer, so no child to preserve
-                policyChild = null;
+                // when replacing a non-inverter layer node children will not be preserved
             }
         } else {
-            // existing node is an inverter node
+            // inverter node found, preserve existing children if not replacing layer
+            if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_LAYER) == false || // not replacing the layer
+                inverterNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
+
+                if (existingNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_BUILDER) == false) {  // existing node allows builder updates
+                    builderAction?.Invoke(new LSProcessTreeBuilder(inverterNode));
+                }
+                return this;
+            }
+
             policyChild = inverterNode.GetChildren().FirstOrDefault();
         }
         // updatePolicy can be applied to the inverter node, however only IGNORED_CHANGES and IGNORE_BUILDER, if applied, are kept

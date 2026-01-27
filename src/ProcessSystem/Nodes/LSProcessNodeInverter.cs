@@ -82,19 +82,26 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     // inverter should not be able to change child after creation
     public void AddChild(ILSProcessNode child) {
         if (child == null) {
+            LSLogger.Singleton.Error($"Cannot add null child to inverter '{NodeID}'",
+                source: (ClassName, true),
+                properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("method", nameof(AddChild))
+                });
             throw new System.ArgumentNullException(nameof(child),
                 $"Cannot add null child to inverter '{NodeID}'");
         }
 
-        if (ReadOnly) {
-            throw new LSException(
-                $"Cannot add child to read-only inverter '{NodeID}'");
-        }
-
         if (_childNode != null) {
-            throw new LSException(
-                $"Inverter '{NodeID}' already has a child '{_childNode.NodeID}'. " +
-                "Inverters can only have exactly one child node.");
+            LSLogger.Singleton.Warning($"Inverter '{NodeID}' already has a child '{_childNode.NodeID}'. Cannot add another child '{child.NodeID}'.",
+                source: (ClassName, true),
+                properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("existingChildNodeID", _childNode.NodeID),
+                    ("newChildNodeID", child.NodeID),
+                    ("method", nameof(AddChild))
+                });
+            return;
         }
 
         _childNode = child;

@@ -120,10 +120,7 @@ public partial class LSProcessTreeBuilder {
                         ("method", nameof(Parallel))
                     });
 
-                    if (existingNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_BUILDER) == false) { // existing node allows builder updates
-                        // continue to build children if the existing node allows it
-                        builderAction?.Invoke(new LSProcessTreeBuilder(existingLayerNode));
-                    }
+                    // the existing node is read-only or not replacing, cannot be modified and since it's not the same type, should not run builder actions
                     return this; // existing node is read-only, exit early
                 }
             }

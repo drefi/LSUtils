@@ -86,9 +86,7 @@ public partial class LSProcessTreeBuilder {
                             ("method", nameof(Selector))
                         });
 
-                    if (existingNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_BUILDER) == false) {  // existing node allows builder updates
-                        builderAction?.Invoke(new LSProcessTreeBuilder(existingLayerNode));
-                    }
+                    // the existing node is read-only or not replacing, cannot be modified and since it's not the same type, should not run builder actions
                     return this;
                 }
                 // default behaviour when replacing a non-sequence layer node will not preserve children
