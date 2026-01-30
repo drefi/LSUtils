@@ -120,23 +120,25 @@ public abstract class LSProcess {
     /// Executes the process through the registered processing pipeline (single-use operation).
     /// The process serves as a passive data container while the session manages execution state.
     /// 
-    /// Execution Flow:
+    /// NEW Execution Flow:
     /// 1. Check if already executed (return cached status if so)
-    /// 2. Get merged root node from manager (global or instance context if applicable)
-    /// 3. Merge built-in processing from processing() override
+    /// 2. Get built-in processing from processing() override
+    /// 3. Get merged root node from manager (global or instance context if applicable)
     /// 4. Merge local _root processing tree with global context
     /// 5. Create execution session with this process as data container
     /// 6. Delegate to session.Execute() for actual processing
     /// <remarks>
     /// - Single execution: Calling Execute() multiple times returns the last status.
-    /// - Context merging: Local _root has the highest priority over other contexts;
-    /// -- Processing() override has the second highest priority;
-    /// -- Instance context (if any) has the next priority;
-    /// -- Lastly, global context is the base layer.
-    /// - Nodes in lower priority layers can be overridden by higher priority layers unless they are marked as IGNORE_CHANGES.
+    /// - Context merging:
+    /// -- WithProcessing(): be used to override processing() override;
+    /// -- processing() override used is always used as base context;
+    /// -- Instance context is merged with base context;
+    /// -- Global context is merged with instance context.
     /// - Context mode: Controls which contexts are included when executing
-    /// 
-    /// 
+    /// Why changing processing() override to be used base context?
+    /// - LSProcess implementantions should be able to define their processing tree through inheritance;
+    /// - WithProcessing() is able to override processing() override;
+    /// - Instanced and Global as additional context to be merged with base context;
     /// </remarks>
     /// </summary>
     /// <param name="instance">Target entity for context resolution (may be null for global context)</param>
@@ -166,14 +168,14 @@ public abstract class LSProcess {
         }
 
         var type = GetType();
-        LSProcessTreeBuilder baseBuilder;
+        if (_root == null) {
+            // create root node if not exists (no WithProcessing override)
+            _root = LSProcessManager.CreateRootNode(type.Name);
+        }
+        // base builder from processing() override and WithProcessing() override
+        LSProcessTreeBuilder baseBuilder = processing(new LSProcessTreeBuilder(_root));
         List<ILSProcessable> contextInstances = new();
-        if (contextMode.HasFlag(LSProcessManager.LSProcessContextMode.GLOBAL)) {
-            var globalContext = _manager.GetRootNode(type, out var globalInstance, false);
-            baseBuilder = new LSProcessTreeBuilder(globalContext);
-            if (globalInstance != null) contextInstances.AddRange(globalInstance);
-        } else baseBuilder = new LSProcessTreeBuilder(LSProcessManager.CreateRootNode(type.Name));
-
+        // merge instance context
         // include instances when contextMode is MATCH_FIRST or ALL_INSTANCES, using bitwise operation
         var instanceMode = contextMode & (LSProcessManager.LSProcessContextMode.MATCH_FIRST | LSProcessManager.LSProcessContextMode.ALL_INSTANCES);
         if (instances != null && instances.Length > 0 && instanceMode != LSProcessManager.LSProcessContextMode.LOCAL) {
@@ -183,9 +185,13 @@ public abstract class LSProcess {
                 baseBuilder = baseBuilder.Merge(instancesContext);
             }
         }
+        // the last context is Global
+        if (contextMode.HasFlag(LSProcessManager.LSProcessContextMode.GLOBAL)) {
+            var globalContext = _manager.GetRootNode(type, out var globalInstance, false);
+            baseBuilder = baseBuilder.Merge(globalContext);
+            if (globalInstance != null) contextInstances.AddRange(globalInstance);
+        }
 
-        baseBuilder = processing(baseBuilder);
-        baseBuilder = baseBuilder.Merge(_root);
         var sessionRoot = baseBuilder.Build();
         _processSession = new LSProcessSession(_manager,
             this,

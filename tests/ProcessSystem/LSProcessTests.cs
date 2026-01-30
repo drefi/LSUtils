@@ -1,8 +1,8 @@
-﻿using NUnit.Framework;
-using LSUtils.ProcessSystem;
-using LSUtils.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using LSUtils.Logging;
+using LSUtils.ProcessSystem;
+using NUnit.Framework;
 
 namespace LSUtils.Tests.ProcessSystem;
 
@@ -176,11 +176,13 @@ public class LSProcessTests {
         var result = _process!.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(_process.IsExecuted, Is.True);
-        Assert.That(_process.IsCompleted, Is.True);
-        Assert.That(_process.TestData, Is.EqualTo("processed"));
-        Assert.That(_process.ProcessingCalled, Is.True);
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(_process.IsExecuted, Is.True);
+            Assert.That(_process.IsCompleted, Is.True);
+            Assert.That(_process.TestData, Is.EqualTo("processed"));
+            Assert.That(_process.ProcessingCalled, Is.True);
+        }
     }
 
     [Test]
@@ -189,9 +191,11 @@ public class LSProcessTests {
         var result = _process!.Execute();
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(_process.IsExecuted, Is.True);
-        Assert.That(_process.IsCompleted, Is.True);
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(_process.IsExecuted, Is.True);
+            Assert.That(_process.IsCompleted, Is.True);
+        }
     }
 
     [Test]
@@ -655,16 +659,113 @@ public class LSProcessTests {
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL, instance);
-
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(log, Is.EqualTo(new[] {
-            "Global",
-            "Instanced",
-            "processing",
+        var expected = new[] {
             "WithProcessing",
-            "WithProcessingOverride"
-        }));
+            "processing",
+            "Instanced",
+            "Global",
+            "GlobalOverride"
+        };
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(log, Is.EqualTo(expected));
+        }
     }
+
+    [Test]
+    public void NodeOverridePriority_Pipeline_MergeAndOverride_IgnoreBuilder_WorksCorrectly() {
+        var log = new List<string>();
+        var manager = new LSProcessManager();
+        var instance = new TestProcessable();
+
+        // Register initial global context with IGNORE_BUILDER
+        // This ensures that "Global1" is added, but subsequent builder actions on this node are ignored.
+        manager.Register<TestProcessWithProcessing>(b =>
+            b.Sequence("override", seq =>
+                seq.Handler("Global1", session => {
+                    log.Add("Global1");
+                    return LSProcessResultStatus.SUCCESS;
+                }),
+                updatePolicy: NodeUpdatePolicy.IGNORE_BUILDER
+            )
+        );
+
+        // Attempt to extend global context - should be ignored due to IGNORE_BUILDER
+        manager.Register<TestProcessWithProcessing>(b =>
+            b.Sequence("override", seq =>
+                seq.Handler("Global2", session => {
+                    log.Add("Global2");
+                    return LSProcessResultStatus.SUCCESS;
+                })
+            )
+        );
+
+        var process = new TestProcessWithProcessing(log);
+
+        // Execute merging all contexts
+        var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL, instance);
+
+        // Expected order:
+        // 1. "processing" (from TestProcessWithProcessing.checkContextMerge)
+        // 2. "processingOverride" (from TestProcessWithProcessing.override)
+        // 3. "Global1" (merged from Global context, appended to override sequence)
+        // "Global2" should be missing because its registration was ignored.
+        var expected = new[] {
+            "processing",
+            "processingOverride",
+            "Global1"
+        };
+
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(log, Is.EqualTo(expected));
+        }
+    }
+
+    [Test]
+    public void NodeOverridePriority_Pipeline_MergeAndOverride_IgnoreChanges_WorksCorrectly() {
+        var log = new List<string>();
+        var manager = new LSProcessManager();
+
+        // Register Global Sequence with IGNORE_CHANGES
+        // This locks the node type and properties.
+        manager.Register<TestProcessWithProcessing>(b =>
+            b.Sequence("seq", seq => seq
+               .Handler("h1", s => { log.Add("h1"); return LSProcessResultStatus.SUCCESS; })
+               .Handler("h2", s => { log.Add("h2"); return LSProcessResultStatus.SUCCESS; }),
+            updatePolicy: NodeUpdatePolicy.IGNORE_CHANGES)
+        );
+
+        // Attempt to change "seq" to a Selector
+        // This requires REPLACE_LAYER, but IGNORE_CHANGES should prevent it.
+        manager.Register<TestProcessWithProcessing>(b =>
+            b.Selector("seq", sel => sel
+                .Handler("h3", s => { log.Add("h3"); return LSProcessResultStatus.SUCCESS; }),
+            updatePolicy: NodeUpdatePolicy.REPLACE_LAYER)
+        );
+
+        var process = new TestProcessWithProcessing(log);
+
+        var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
+
+        // If IGNORE_CHANGES worked:
+        // 1. Node remains a Sequence (not Selector).
+        // 2. Handler h3 is not added (builder action skipped because of type mismatch/readonly).
+        // 3. Execution runs h1 then h2.
+
+        var expected = new[] {
+            "processing",
+            "processingOverride",
+            "h1",
+            "h2"
+        };
+
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(log, Is.EqualTo(expected));
+        }
+    }
+
     internal class TestProcessable : ILSProcessable {
         public Guid ID { get; } = Guid.NewGuid();
 

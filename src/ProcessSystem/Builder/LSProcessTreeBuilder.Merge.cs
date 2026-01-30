@@ -108,20 +108,25 @@ public partial class LSProcessTreeBuilder {
             mergeRecursive(existingLayer, subNodeLayer);
         } else if (existingChild.GetType() == sourceNode.GetType()) {
             // Same type but not layer nodes (e.g., both handlers)
-            if (existingChild.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) {
-                LSLogger.Singleton.Warning($"Node [{sourceNode.NodeID}] exists but is read-only, cannot replace.",
-                    source: (ClassName, true),
-                    properties: new (string, object)[] {
-                            ("nodeID", sourceNode.NodeID),
-                            ("subNodeType", sourceNode.GetType().Name),
-                            ("existingType", existingChild.GetType().Name),
-                            ("method", nameof(mergeNode))
-                });
-                return;
+            // if (existingChild.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) {
+            //     LSLogger.Singleton.Warning($"Node [{sourceNode.NodeID}] exists but is read-only, cannot replace.",
+            //         source: (ClassName, true),
+            //         properties: new (string, object)[] {
+            //                 ("nodeID", sourceNode.NodeID),
+            //                 ("subNodeType", sourceNode.GetType().Name),
+            //                 ("existingType", existingChild.GetType().Name),
+            //                 ("method", nameof(mergeNode))
+            //     });
+            //     return;
+            // }
+            if (sourceNode is LSProcessNodeHandler handlerNode) {
+                // this make sure the handler is only added if the update policy allows it
+                var builder = new LSProcessTreeBuilder(targetLayerNode);
+                builder.Handler(handlerNode.NodeID, handlerNode.Handler, handlerNode.UpdatePolicy, handlerNode.Priority, handlerNode.Conditions);
+            } else {
+                targetLayerNode.RemoveChild(sourceNode.NodeID);
+                targetLayerNode.AddChild(sourceNode);
             }
-            // Replace existing node with source node
-            targetLayerNode.RemoveChild(sourceNode.NodeID);
-            targetLayerNode.AddChild(sourceNode);
         } else {
             // Different types - log warning and continue
             LSLogger.Singleton.Warning($"Node [{sourceNode.NodeID}] already exists but is different type.",

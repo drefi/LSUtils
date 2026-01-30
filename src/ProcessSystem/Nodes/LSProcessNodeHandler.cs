@@ -125,8 +125,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// sibling nodes with the same priority level.
     /// </remarks>
     public int Order { get; internal set; }
-    public bool ReadOnly { get; }
-    NodeUpdatePolicy ILSProcessNode.UpdatePolicy => ReadOnly ? NodeUpdatePolicy.READONLY : NodeUpdatePolicy.NONE;
+    public NodeUpdatePolicy UpdatePolicy { get; }
 
     /// <summary>
     /// Initializes a new handler node with the specified configuration.
@@ -155,15 +154,14 @@ public class LSProcessNodeHandler : ILSProcessNode {
             int order,
             LSProcessPriority priority = LSProcessPriority.NORMAL,
             LSProcessNodeHandler? baseNode = null,
-            bool readOnly = false,
+            NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_HANDLER,
             params LSProcessNodeCondition?[] conditions) {
         _baseNode = baseNode;
         NodeID = nodeID;
         Priority = priority;
         Handler = handler;
         Order = order;
-        ReadOnly = readOnly;
-        //WithInverter = withInverter;
+        UpdatePolicy = updatePolicy;
         Conditions = conditions;
     }
     /// <inheritdoc />
@@ -437,7 +435,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
         LSLogger.Singleton.Debug($"{ClassName}.Clone [{NodeID}]",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
-        var clone = new LSProcessNodeHandler(NodeID, Handler, Order, Priority, _baseNode == null ? this : _baseNode, ReadOnly, Conditions);
+        var clone = new LSProcessNodeHandler(NodeID, Handler, Order, Priority, _baseNode == null ? this : _baseNode, UpdatePolicy, Conditions);
         // Debug log with details
         LSLogger.Singleton.Debug($"Handler node [{NodeID}] cloned.",
               source: (ClassName, null));

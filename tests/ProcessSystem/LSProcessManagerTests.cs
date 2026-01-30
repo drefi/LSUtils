@@ -1,9 +1,9 @@
-﻿using NUnit.Framework;
-using LSUtils.ProcessSystem;
-using LSUtils.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using LSUtils.Logging;
+using LSUtils.ProcessSystem;
+using NUnit.Framework;
 
 namespace LSUtils.Tests.ProcessSystem;
 
@@ -360,12 +360,11 @@ public class LSProcessManagerTests {
         );
 
         process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, entity);
-
-        // Assert: Only highest-priority (local) should execute
-        Assert.That(log, Contains.Item("local"));
-        Assert.That(log, Does.Not.Contain("global"));
+        // Assert: Global is the last one, so it is overriding others
+        Assert.That(log, Contains.Item("global")); // global override
         Assert.That(log, Does.Not.Contain("instance"));
-        Assert.That(log.Count, Is.EqualTo(1));
+        Assert.That(log, Does.Not.Contain("local"));
+        Assert.That(log, Has.Count.EqualTo(1));
     }
 
     [Test]
@@ -512,7 +511,7 @@ public class LSProcessManagerTests {
         var log = new List<string>();
 
         _manager!.Register<TestProcess>(root => root
-            .Handler("protected", s => { log.Add("original"); return LSProcessResultStatus.SUCCESS; }, updatePolicy: NodeUpdatePolicy.IGNORE_CHANGES)
+            .Handler("protected", s => { log.Add("original"); return LSProcessResultStatus.SUCCESS; }, updatePolicy: NodeUpdatePolicy.DEFAULT_HANDLER | NodeUpdatePolicy.IGNORE_CHANGES)
         );
 
         // Act: Try to override with instance context
@@ -540,13 +539,19 @@ public class LSProcessManagerTests {
             .Sequence("modifiers", seq => seq
                 .Handler("mod-1", s => { vipLog.Add("global-mod-1"); return LSProcessResultStatus.SUCCESS; })
                 .Handler("mod-2", s => { vipLog.Add("global-mod-2"); return LSProcessResultStatus.SUCCESS; })
+                .Handler("mod-3", s => { vipLog.Add("global-mod-3"); return LSProcessResultStatus.SUCCESS; },
+                    updatePolicy: NodeUpdatePolicy.NONE // this handler will only be executed if no handler overrides it
+                )
             )
         );
 
         // VIP: override mod-2 with bonus
         _manager.Register<TestProcess>(root => root
             .Sequence("modifiers", seq => seq
-                .Handler("mod-2", s => { vipLog.Add("vip-bonus"); return LSProcessResultStatus.SUCCESS; })  // Overrides global mod-2
+                .Handler("mod-2", s => { vipLog.Add("vip-bonus"); return LSProcessResultStatus.SUCCESS; },
+                    updatePolicy: NodeUpdatePolicy.IGNORE_CHANGES // making this handler ignore changes will make prevent any other context from overriding it
+                )
+                .Handler("mod-3", s => { vipLog.Add("vip-mod-3"); return LSProcessResultStatus.SUCCESS; }) // this should be executed instead of the global-mod-3 because of updatePolicy: NodeUpdatePolicy.NONE
             )
         , vip);
 
@@ -555,12 +560,16 @@ public class LSProcessManagerTests {
         vipProcess.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, vip);
 
         // Assert VIP execution
-        // VIP: should have global-mod-1 + vip-bonus (mod-2 overridden)
+        // VIP: should have global-mod-1 + vip-bonus (mod-2 forced override) + vip-mod-3 (mod-3-global doesn't override)
         Assert.That(vipLog, Contains.Item("global-mod-1"));
         Assert.That(vipLog, Contains.Item("vip-bonus"));
+        Assert.That(vipLog, Contains.Item("vip-mod-3"));
         // Should not have original global-mod-2 since it was overridden
         var countGlobalMod2 = vipLog.Where(x => x == "global-mod-2").Count();
         Assert.That(countGlobalMod2, Is.EqualTo(0));
+        // Should not have vip-mod-3 since it was overridden by the global handler
+        var countGlobalMod3 = vipLog.Where(x => x == "global-mod-3").Count();
+        Assert.That(countGlobalMod3, Is.EqualTo(0));
     }
 
     [Test]

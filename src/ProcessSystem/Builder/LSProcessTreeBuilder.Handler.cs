@@ -63,11 +63,10 @@ public partial class LSProcessTreeBuilder {
             throw new LSException("Cannot add handler node because no layer context exists.");
         }
 
-        bool policyReadOnly = (updatePolicy & NodeUpdatePolicy.IGNORE_CHANGES) != 0;
         var order = _rootNode.GetChildren().Length;
         if (getChild(nodeID, out var existingNode) == false || existingNode == null) {
             // Create new handler node, except for READONLY update policies does not matter
-            var node = new LSProcessNodeHandler(nodeID, handler, order, priority, null, policyReadOnly, conditions);
+            var node = new LSProcessNodeHandler(nodeID, handler, order, priority, null, updatePolicy, conditions);
             _rootNode.AddChild(node);
             return this;
         }
@@ -118,19 +117,19 @@ public partial class LSProcessTreeBuilder {
         int policyOrder = existingNode.Order; // ordering can only be modified at layer level with REORDER_CHILDREN flag
 
         _rootNode.RemoveChild(nodeID);
-        var updatedNode = new LSProcessNodeHandler(nodeID, policyHandler, policyOrder, policyPriority, null, policyReadOnly, policyCondition);
+        // updatePolicy is trick, should the new updatePolicy be applied or a combination of existing and new?
+        var updatedNode = new LSProcessNodeHandler(nodeID, policyHandler, policyOrder, policyPriority, null, updatePolicy, policyCondition);
         _rootNode.AddChild(updatedNode);
 
-        LSLogger.Singleton.Debug($"Handler Node updated [{nodeID}].",
-            source: (ClassName, null),
+        LSLogger.Singleton.Warning($"Handler Node updated [{nodeID}].",
+            source: (ClassName, true),
             properties: new (string, object)[] {
                 ("nodeID", nodeID),
                 ("rootNode", _rootNode?.NodeID ?? "n/a"),
                 ("order", updatedNode.Order.ToString()),
                 ("priority", updatedNode.Priority.ToString()),
-                ("readOnly", updatedNode.ReadOnly.ToString()),
+                ("updatePolicy", updatedNode.UpdatePolicy.ToString()),
                 ("conditions", updatedNode.Conditions.Length.ToString()),
-                ("updatePolicy", updatePolicy.ToString()),
                 ("method", nameof(Handler))
             });
 
