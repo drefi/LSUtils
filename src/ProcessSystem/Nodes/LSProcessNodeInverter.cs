@@ -324,4 +324,12 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         }
         return false;
     }
+    public void Reorder(int order) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"{ClassName}.Reorder [{NodeID}]",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
+        Order = order;
+        _childNode?.Reorder(0);
+    }
 }

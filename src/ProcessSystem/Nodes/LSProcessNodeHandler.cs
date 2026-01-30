@@ -124,7 +124,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// with each new node registered. Used for deterministic execution ordering among 
     /// sibling nodes with the same priority level.
     /// </remarks>
-    public int Order { get; }
+    public int Order { get; internal set; }
     public bool ReadOnly { get; }
     NodeUpdatePolicy ILSProcessNode.UpdatePolicy => ReadOnly ? NodeUpdatePolicy.READONLY : NodeUpdatePolicy.NONE;
 
@@ -442,5 +442,16 @@ public class LSProcessNodeHandler : ILSProcessNode {
         LSLogger.Singleton.Debug($"Handler node [{NodeID}] cloned.",
               source: (ClassName, null));
         return clone;
+    }
+    /// <summary>
+    /// Reorders the node within its parent's collection.
+    /// </summary>
+    /// <param name="order">The new order value for the node.</param>
+    public void Reorder(int order) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"{ClassName}.Reorder [{NodeID}]",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
+        Order = order;
     }
 }

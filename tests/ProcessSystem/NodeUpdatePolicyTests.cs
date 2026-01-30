@@ -1,7 +1,7 @@
-﻿using NUnit.Framework;
-using LSUtils.ProcessSystem;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using LSUtils.ProcessSystem;
+using NUnit.Framework;
 
 namespace LSUtils.Tests.ProcessSystem;
 
@@ -12,6 +12,7 @@ namespace LSUtils.Tests.ProcessSystem;
 [TestFixture]
 public class NodeUpdatePolicyTests {
     private LSProcessManager? _manager;
+    private static readonly string[] expected = new[] { "original-check" };
 
     [SetUp]
     public void SetUp() {
@@ -33,7 +34,7 @@ public class NodeUpdatePolicyTests {
 
         // Core system registers protected handler
         _manager!.Register<BasicProcess>(b => b
-            .Handler("core-validation", 
+            .Handler("core-validation",
                 session => { log.Add("core"); return LSProcessResultStatus.SUCCESS; },
                 NodeUpdatePolicy.READONLY)
         );
@@ -46,10 +47,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Only core handler should execute
-        Assert.That(log, Is.EqualTo(new[] { "core" }));
+        var expected = new[] { "core" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     [Test]
@@ -73,10 +75,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Only original handlers execute
-        Assert.That(log, Is.EqualTo(new[] { "step1", "step2" }));
+        var expected = new[] { "step1", "step2" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     #endregion
@@ -106,10 +109,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Both handlers execute (builder worked) but priority unchanged
-        Assert.That(log, Is.EqualTo(new[] { "original", "added" }));
+        var expected = new[] { "original", "added" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     #endregion
@@ -139,10 +143,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Only original child exists
-        Assert.That(log, Is.EqualTo(new[] { "original" }));
+        var expected = new[] { "original" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     #endregion
@@ -171,10 +176,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Selector behavior (stops after first success)
-        Assert.That(log, Is.EqualTo(new[] { "first-fail", "second-success" }));
+        var expected = new[] { "first-fail", "second-success" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     [Test]
@@ -198,11 +204,12 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Existing sequence remains and builder for selector is skipped
         // Sequence should stop after first failure, so only the first handler logs
-        Assert.That(log, Is.EqualTo(new[] { "first-fail" }));
+        var expected = new[] { "first-fail" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     [Test]
@@ -226,10 +233,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Only simple handler executes
-        Assert.That(log, Is.EqualTo(new[] { "simple" }));
+        var expected = new[] { "simple" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     #endregion
@@ -256,10 +264,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: New implementation executes
-        Assert.That(log, Is.EqualTo(new[] { "v2-patched" }));
+        var expected = new[] { "v2-patched" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     [Test]
@@ -278,10 +287,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(log, Is.EqualTo(new[] { "replacement" }));
+        var expected = new[] { "replacement" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     #endregion
@@ -313,10 +323,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Executes because v2 condition is true
-        Assert.That(log, Is.EqualTo(new[] { "executed" }));
+        var expected = new[] { "executed" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     [Test]
@@ -344,7 +355,7 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Doesn't execute because condition-b is false
         Assert.That(log, Is.Empty);
@@ -373,7 +384,7 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Executes with new handler but old condition
         Assert.That(log, Is.EqualTo(new[] { "v2" }));
@@ -407,7 +418,7 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Critical priority executes first, then high
         Assert.That(log, Is.EqualTo(new[] { "now-critical", "high" }));
@@ -436,7 +447,7 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: High priority still executes first
         Assert.That(log, Is.EqualTo(new[] { "high", "low-v2" }));
@@ -472,11 +483,13 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        var result = process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Should succeed with relaxed thresholds (2 success, 1 failure, 1 new success)
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(log.Count(s => s.Contains("wood") || s.Contains("stone") || s.Contains("food")), Is.GreaterThanOrEqualTo(2));
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(log.Count(s => s.Contains("wood") || s.Contains("stone") || s.Contains("food")), Is.GreaterThanOrEqualTo(2));
+        }
     }
 
     #endregion
@@ -516,7 +529,7 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Core intact, plugins added
         Assert.That(log, Is.EqualTo(new[] { "core-init", "default", "custom-plugin", "core-cleanup" }));
@@ -551,7 +564,7 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Armed attack executes (enemies-near AND has-weapon both true)
         Assert.That(log, Is.EqualTo(new[] { "armed-attack" }));
@@ -592,10 +605,12 @@ public class NodeUpdatePolicyTests {
         }
 
         // Act
-        var result = process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
-
-        // Assert: Current engine yields SUCCESS (parallel thresholds/priorities are not overriding as a failure scenario)
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        var result = process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
+        var expected = new[] { "buffed-defense", "player-attack", "environmental" };
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+            Assert.That(log, Is.EqualTo(expected));
+        }
     }
 
     [Test]
@@ -620,10 +635,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
+        var expected = new[] { "new" };
         // Assert: Selector behavior with only new children (old ones lost due to REPLACE_LAYER)
-        Assert.That(log, Is.EqualTo(new[] { "new" }));
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     [Test]
@@ -646,11 +662,13 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        var result = process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Original check executes and gets inverted (SUCCESS -> FAILURE)
-        Assert.That(log, Is.EqualTo(new[] { "original-check" }));
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(log, Is.EqualTo(expected));
+            Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+        }
     }
 
     [Test]
@@ -685,10 +703,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Outer protected, inner modified
-        Assert.That(log, Is.EqualTo(new[] { "outer", "inner-v2" }));
+        var expected = new[] { "outer", "inner-v2" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     #endregion
@@ -725,9 +744,11 @@ public class NodeUpdatePolicyTests {
 
         // Assert: New condition should be evaluated (OVERRIDE took precedence), and it should fail
         // So handler should NOT execute, but we can verify the right condition was used
-        Assert.That(log, Is.Empty, "Handler should not execute because override condition is false");
-        Assert.That(newConditionEvaluated, Is.True, "Override condition should be evaluated (OVERRIDE_CONDITIONS took precedence)");
-        Assert.That(originalConditionPassed, Is.False, "Original condition should NOT be evaluated (was overridden)");
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(log, Is.Empty, "Handler should not execute because override condition is false");
+            Assert.That(newConditionEvaluated, Is.True, "Override condition should be evaluated (OVERRIDE_CONDITIONS took precedence)");
+            Assert.That(originalConditionPassed, Is.False, "Original condition should NOT be evaluated (was overridden)");
+        }
     }
 
     [Test]
@@ -753,10 +774,11 @@ public class NodeUpdatePolicyTests {
         );
 
         // Act
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Layer type not replaced and builder does not append to existing sequence
-        Assert.That(log, Is.EqualTo(new[] { "sequence-1", "sequence-2" }));
+        var expected = new[] { "sequence-1", "sequence-2" };
+        Assert.That(log, Is.EqualTo(expected));
     }
 
     #endregion

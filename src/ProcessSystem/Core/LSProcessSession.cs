@@ -50,8 +50,15 @@ public class LSProcessSession {
     /// </remarks>
     public LSProcessManager Manager { get; }
     public LSProcess Process { get; }
+    /// <summary>
+    /// The set of ILSProcessable instances that provide context for this session.
+    /// </summary>
+    public ILSProcessable[]? ContextInstances { get; }
+    /// <summary>
+    /// The set of ILSProcessable instances associated with this session.
+    /// </summary>
     public ILSProcessable[]? Instances { get; }
-    public LSProcessManager.ProcessInstanceBehaviour Behaviour { get; }
+    public LSProcessManager.LSProcessContextMode ContextMode { get; }
     internal Stack<ILSProcessNode> _sessionStack = new Stack<ILSProcessNode>();
     public ILSProcessNode? CurrentNode => _sessionStack.Count > 0 ? _sessionStack.Peek() : null;
 
@@ -67,11 +74,12 @@ public class LSProcessSession {
     /// <b>Initial State:</b><br/>
     /// The session starts in a non-cancelled state with the provided process and root node ready for execution.
     /// </remarks>
-    internal LSProcessSession(LSProcessManager manager, LSProcess process, ILSProcessNode rootNode, LSProcessManager.ProcessInstanceBehaviour behaviour, params ILSProcessable[]? instances) {
+    internal LSProcessSession(LSProcessManager manager, LSProcess process, ILSProcessNode rootNode, LSProcessManager.LSProcessContextMode behaviour, ILSProcessable[]? instances, ILSProcessable[]? contextInstances) {
         Manager = manager;
         Process = process;
         RootNode = rootNode;
-        Behaviour = behaviour;
+        ContextMode = behaviour;
+        ContextInstances = contextInstances;
         Instances = instances;
     }
 

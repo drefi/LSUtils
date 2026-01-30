@@ -69,7 +69,13 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// </list>
     /// </remarks>
     void AddChild(ILSProcessNode child);
+
+    /// <sumary>
+    /// Adds multiple child nodes to this layer node's collection.
+    /// </sumary>
+    /// <param name="children">The child nodes to add.</param>
     void AddChildren(params ILSProcessNode[] children);
+
     /// <summary>
     /// Retrieves a child node by its unique identifier.
     /// </summary>
@@ -77,6 +83,7 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// <returns>The child node with the specified ID, or null if not found.</returns>
     /// <remarks>This operation is O(1) due to dictionary-based storage.</remarks>
     ILSProcessNode? GetChild(string nodeID);
+
     /// <summary>
     /// Checks whether a child node with the specified ID exists in this layer node.
     /// </summary>
@@ -114,6 +121,7 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// </list>
     /// </remarks>
     ILSProcessNode[] GetChildren();
+
     /// <summary>
     /// Removes a child node from this layer node's collection.
     /// </summary>
@@ -124,6 +132,7 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// <para><strong>Status Impact:</strong> Removing children may affect the parent node's aggregated status.</para>
     /// </remarks>
     bool RemoveChild(string nodeID);
+
     /// <summary>
     /// Creates an independent copy of this layer node and its entire child hierarchy.
     /// </summary>

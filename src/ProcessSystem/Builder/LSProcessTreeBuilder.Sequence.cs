@@ -106,16 +106,26 @@ public partial class LSProcessTreeBuilder {
                 // default behaviour when replacing a non-sequence layer node will not preserve children
             }
         } else {
-            // sequence node found, preserve existing children if not replacing layer or is read-only
-            if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_LAYER) == false || // not replacing the layer
-                sequenceNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
+            // sequence node found
+            // REPLACE_LAYER was removed from this check because the point for REPLACE_LAYER is change the node type
+            if (sequenceNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
 
                 if (existingNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_BUILDER) == false) {  // existing node allows builder updates
                     builderAction?.Invoke(new LSProcessTreeBuilder(sequenceNode));
                 }
+                LSLogger.Singleton.Debug($"Sequence node [{nodeID}] exists but update policy prevents changes.",
+                    source: (ClassName, null),
+                    properties: new (string, object)[] {
+                        ("nodeID", nodeID),
+                        ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                        ("order", order),
+                        ("priority", priority.ToString()),
+                        ("updatePolicy", updatePolicy.ToString()),
+                        ("conditions", conditions.Length.ToString()),
+                        ("method", nameof(Sequence))
+                    });
                 // the existing node is read-only
                 return this;
-
             }
             policyChildren = sequenceNode.GetChildren();
         }

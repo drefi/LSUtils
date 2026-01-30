@@ -86,6 +86,7 @@ public partial class LSProcessTreeBuilder {
                 return this;
             } else mergeNode(_rootNode, subLayer);
         }
+        _rootNode.Reorder(0);
 
         return this;
     }
@@ -118,7 +119,7 @@ public partial class LSProcessTreeBuilder {
                 });
                 return;
             }
-
+            // Replace existing node with source node
             targetLayerNode.RemoveChild(sourceNode.NodeID);
             targetLayerNode.AddChild(sourceNode);
         } else {

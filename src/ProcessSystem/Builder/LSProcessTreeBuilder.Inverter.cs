@@ -68,8 +68,7 @@ public partial class LSProcessTreeBuilder {
             }
         } else {
             // inverter node found, preserve existing children if not replacing layer
-            if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_LAYER) == false || // not replacing the layer
-                inverterNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
+            if (inverterNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
 
                 if (existingNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_BUILDER) == false) {  // existing node allows builder updates
                     builderAction?.Invoke(new LSProcessTreeBuilder(inverterNode));

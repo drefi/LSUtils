@@ -42,7 +42,7 @@ public class LSTimestamp : ILSProcessable {
     }
     public void Update() {
         var process = new UpdateProcess(this);
-        process.Execute(_manager ?? LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL, this);
+        process.Execute(_manager ?? LSProcessManager.Singleton, LSProcessManager.LSProcessContextMode.ALL, this);
     }
     public bool AddMinutes(int minutes, bool dontUpdate = false) {
         if (minutes <= 0)
@@ -89,7 +89,7 @@ public class LSTimestamp : ILSProcessable {
             .Sequence(nameof(onInitializeSequence), onInitializeSequence,
                 priority: LSProcessPriority.HIGH,
                 conditions: (proc) => onInitializeSequence != null)
-        ).Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, this);
+        ).Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, this);
     }
 
     public class InitializeProcess : LSProcess {

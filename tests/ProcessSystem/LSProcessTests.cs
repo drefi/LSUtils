@@ -173,7 +173,7 @@ public class LSProcessTests {
     [Test]
     public void Execute_WithManager_ShouldReturnSuccess() {
         // Act
-        var result = _process!.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = _process!.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -198,16 +198,16 @@ public class LSProcessTests {
     public void Execute_WithNullManager_ShouldThrowException() {
         // Act & Assert
         Assert.Throws<LSException>(() =>
-            _process!.Execute(null!, LSProcessManager.ProcessInstanceBehaviour.ALL));
+            _process!.Execute(null!, LSProcessManager.LSProcessContextMode.ALL));
     }
 
     [Test]
     public void Execute_CalledTwice_ShouldReturnCachedResult() {
         // Arrange
-        var firstResult = _process!.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var firstResult = _process!.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Act
-        var secondResult = _process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var secondResult = _process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(firstResult, Is.EqualTo(secondResult));
@@ -220,7 +220,7 @@ public class LSProcessTests {
         var failingProcess = new FailingTestProcess();
 
         // Act
-        var result = failingProcess.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = failingProcess.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
@@ -233,7 +233,7 @@ public class LSProcessTests {
         var waitingProcess = new WaitingTestProcess();
 
         // Act
-        var result = waitingProcess.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = waitingProcess.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -249,7 +249,7 @@ public class LSProcessTests {
     [Test]
     public void Cancel_AfterExecution_ShouldSetCancelledState() {
         // Arrange
-        _process!.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        _process!.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Act
         _process.Cancel();
@@ -346,7 +346,7 @@ public class LSProcessTests {
         );
 
         // Execute to trigger the configured processing
-        result.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        result.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(configured, Is.True);
@@ -371,7 +371,7 @@ public class LSProcessTests {
         });
 
         // Act
-        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -400,7 +400,7 @@ public class LSProcessTests {
         ));
 
         // Act
-        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -417,7 +417,7 @@ public class LSProcessTests {
             ));
 
         // Act
-        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
@@ -433,7 +433,7 @@ public class LSProcessTests {
             ));
 
         // Act
-        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -454,7 +454,7 @@ public class LSProcessTests {
             );
 
         // Act
-        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -476,7 +476,7 @@ public class LSProcessTests {
         });
 
         // Act
-        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
@@ -501,7 +501,7 @@ public class LSProcessTests {
         });
 
         // Act
-        var initial = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var initial = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
         var resumed = process.Resume("wait");
 
         // Assert
@@ -525,7 +525,7 @@ public class LSProcessTests {
         });
 
         // Act
-        var initial = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var initial = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
         var failed = process.Fail("wait");
 
         // Assert
@@ -547,7 +547,7 @@ public class LSProcessTests {
         });
 
         // Act
-        var initial = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var initial = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
         process.Cancel();
 
         // Assert
@@ -575,7 +575,7 @@ public class LSProcessTests {
         });
 
         // Act
-        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -589,7 +589,7 @@ public class LSProcessTests {
         var process = new ResumableProcess();
 
         // Act
-        var firstResult = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var firstResult = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
         var resumedResult = process.Resume("resumable-handler");
 
         // Assert
@@ -654,7 +654,7 @@ public class LSProcessTests {
             )
         );
 
-        var result = process.Execute(manager, LSProcessManager.ProcessInstanceBehaviour.ALL, instance);
+        var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL, instance);
 
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(log, Is.EqualTo(new[] {

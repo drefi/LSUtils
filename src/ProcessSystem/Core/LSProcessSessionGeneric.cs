@@ -17,8 +17,7 @@
 /// strongly-typed handlers and conditions, providing seamless type safety without additional overhead.
 /// </remarks>
 public class LSProcessSession<TProcess> : LSProcessSession
-    where TProcess : LSProcess
-{
+    where TProcess : LSProcess {
     /// <summary>
     /// The strongly-typed process being executed by this session.
     /// Provides direct access to process-specific properties without casting.
@@ -43,8 +42,7 @@ public class LSProcessSession<TProcess> : LSProcessSession
     /// This constructor is internal as strongly-typed sessions are typically created by the processing
     /// system infrastructure when executing generic handlers and conditions.
     /// </remarks>
-    internal LSProcessSession(LSProcessManager manager, TProcess process, ILSProcessNode rootNode, LSProcessManager.ProcessInstanceBehaviour behaviour, params ILSProcessable[]? instances)
-        : base(manager, process, rootNode, behaviour, instances)
-    {
+    internal LSProcessSession(LSProcessManager manager, TProcess process, ILSProcessNode rootNode, LSProcessManager.LSProcessContextMode behaviour, ILSProcessable[]? instances, ILSProcessable[]? contextInstances)
+        : base(manager, process, rootNode, behaviour, instances, contextInstances) {
     }
 }

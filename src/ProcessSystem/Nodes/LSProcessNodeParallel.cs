@@ -78,7 +78,7 @@ public partial class LSProcessNodeParallel : ILSProcessLayerNode {
     /// <inheritdoc />
     public LSProcessPriority Priority { get; }
     /// <inheritdoc />
-    public int Order { get; }
+    public int Order { get; internal set; }
     /// <inheritdoc />
     public NodeUpdatePolicy UpdatePolicy { get; }
     /// <inheritdoc />
@@ -667,5 +667,17 @@ public partial class LSProcessNodeParallel : ILSProcessLayerNode {
                 ("method", nameof(Execute))
         });
         return parallelStatus;
+    }
+
+    public void Reorder(int order) {
+        // Flow debug logging
+        LSLogger.Singleton.Debug($"{ClassName}.Reorder [{NodeID}]",
+              source: ("LSProcessSystem", null),
+              properties: ("hideNodeID", true));
+        Order = order;
+        int count = 0;
+        foreach (var child in _children.Values) {
+            child.Reorder(count++);
+        }
     }
 }

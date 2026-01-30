@@ -80,16 +80,16 @@ public class LSProcessManagerTests {
     }
 
     [Test]
-    public void ProcessInstanceBehaviour_ShouldHaveExpectedValues() {
+    public void LSProcessContextMode_ShouldHaveExpectedValues() {
         // Assert
-        Assert.That(Enum.IsDefined(typeof(LSProcessManager.ProcessInstanceBehaviour),
-            LSProcessManager.ProcessInstanceBehaviour.ALL), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessManager.ProcessInstanceBehaviour),
-            LSProcessManager.ProcessInstanceBehaviour.LOCAL), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessManager.ProcessInstanceBehaviour),
-            LSProcessManager.ProcessInstanceBehaviour.MATCH_FIRST), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessManager.ProcessInstanceBehaviour),
-            LSProcessManager.ProcessInstanceBehaviour.GLOBAL), Is.True);
+        Assert.That(Enum.IsDefined(typeof(LSProcessManager.LSProcessContextMode),
+            LSProcessManager.LSProcessContextMode.ALL), Is.True);
+        Assert.That(Enum.IsDefined(typeof(LSProcessManager.LSProcessContextMode),
+            LSProcessManager.LSProcessContextMode.LOCAL), Is.True);
+        Assert.That(Enum.IsDefined(typeof(LSProcessManager.LSProcessContextMode),
+            LSProcessManager.LSProcessContextMode.MATCH_FIRST), Is.True);
+        Assert.That(Enum.IsDefined(typeof(LSProcessManager.LSProcessContextMode),
+            LSProcessManager.LSProcessContextMode.GLOBAL), Is.True);
     }
 
     [Test]
@@ -104,8 +104,7 @@ public class LSProcessManagerTests {
         // Act
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
-            out var availableInstances,
-            LSProcessManager.ProcessInstanceBehaviour.ALL,
+            out var availableInstances, false,
             processable);
 
         // Assert
@@ -122,7 +121,7 @@ public class LSProcessManagerTests {
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
             out var availableInstances,
-            LSProcessManager.ProcessInstanceBehaviour.ALL,
+            false,
             processable);
 
         // Assert
@@ -133,28 +132,30 @@ public class LSProcessManagerTests {
     [Test]
     public void GetRootNode_WithEmptyInstances_ShouldHandleGracefully() {
         // Arrange
-        var tempProcess = new TestProcess();
-        tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
+        // var tempProcess = new TestProcess(); //this is not needed in this context, GetRootNode does not use local contexts anymore;
+        // tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
 
         // Act
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
-            out var availableInstances,
-            LSProcessManager.ProcessInstanceBehaviour.LOCAL);
+            out var availableInstances);
+        // Assert
+        Assert.That(rootNode, Is.Not.Null);
+        Assert.That(availableInstances, Is.Not.Null);
     }
 
     [Test]
     public void GetRootNode_WithNullInstances_ShouldHandleGracefully() {
         // Arrange
-        var tempProcess = new TestProcess();
-        tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
-        var localRoot = tempProcess.GetType().GetField("_root", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(tempProcess) as ILSProcessLayerNode;
+        // var tempProcess = new TestProcess();
+        // tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
+        // var localRoot = tempProcess.GetType().GetField("_root", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(tempProcess) as ILSProcessLayerNode;
 
         // Act
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
             out var availableInstances,
-            LSProcessManager.ProcessInstanceBehaviour.ALL,
+            false,
             null);
 
         // Assert
@@ -182,7 +183,7 @@ public class LSProcessManagerTests {
         var rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
             out var availableInstances,
-            LSProcessManager.ProcessInstanceBehaviour.MATCH_FIRST,
+            true,
             processable1, processable2);
 
         // Assert
@@ -194,7 +195,7 @@ public class LSProcessManagerTests {
         rootNode = _manager!.GetRootNode(
             typeof(TestProcess),
             out availableInstances,
-            LSProcessManager.ProcessInstanceBehaviour.MATCH_FIRST,
+            true,
             processable2, processable1);
 
         Assert.That(rootNode, Is.Not.Null);
@@ -209,7 +210,7 @@ public class LSProcessManagerTests {
         var process = new TestProcess();
 
         // Act
-        var result = process.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -223,8 +224,8 @@ public class LSProcessManagerTests {
         var process2 = new TestProcess();
 
         // Act
-        var result1 = process1.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
-        var result2 = process2.Execute(_manager!, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        var result1 = process1.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
+        var result2 = process2.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
         Assert.That(result1, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -249,16 +250,17 @@ public class LSProcessManagerTests {
                         global_executed.Add(tp.Name);
                     }
                 }
+                //global_executed.Add(session.SessionID.ToString());
                 return LSProcessResultStatus.SUCCESS;
             })
         );
 
         // Act: Execute two processes with different instances
         var process1 = new TestProcess();
-        var result1 = process1.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, processable1);
+        var result1 = process1.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, processable1);
 
         var process2 = new TestProcess();
-        var result2 = process2.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, processable2);
+        var result2 = process2.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, processable2);
 
         // Assert: Global handler should execute for both
         Assert.That(result1, Is.EqualTo(LSProcessResultStatus.SUCCESS));
@@ -287,7 +289,7 @@ public class LSProcessManagerTests {
 
         // Act: Execute with target entity
         var process1 = new TestProcess();
-        process1.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, targetEntity);
+        process1.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, targetEntity);
         Assert.That(instance_executed, Contains.Item("VIP"));
 
 
@@ -295,7 +297,7 @@ public class LSProcessManagerTests {
 
         // Execute with different entity - should NOT use instance context
         var process2 = new TestProcess();
-        process2.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, otherEntity);
+        process2.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, otherEntity);
 
         // Assert: Instance handler should only execute for target entity
         Assert.That(instance_executed, Does.Not.Contain("Regular"));
@@ -328,7 +330,7 @@ public class LSProcessManagerTests {
             )
         );
 
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, entity);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, entity);
 
         // Assert: All children should be merged
         Assert.That(log, Contains.Item("global-h1"));
@@ -357,7 +359,7 @@ public class LSProcessManagerTests {
             .Handler("override-handler", s => { log.Add("local"); return LSProcessResultStatus.SUCCESS; })  // Same ID - OVERRIDE
         );
 
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, entity);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, entity);
 
         // Assert: Only highest-priority (local) should execute
         Assert.That(log, Contains.Item("local"));
@@ -367,7 +369,7 @@ public class LSProcessManagerTests {
     }
 
     [Test]
-    public void ProcessInstanceBehaviour_GLOBAL_ShouldIncludeGlobal() {
+    public void LSProcessContextMode_GLOBAL_ShouldIncludeGlobal() {
         // Arrange
         var log = new List<string>();
         var entity = new TestProcessable();
@@ -382,15 +384,15 @@ public class LSProcessManagerTests {
 
         // Act
         var process = new TestProcess();
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.GLOBAL, entity);
-        
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.GLOBAL, entity);
+
         // Assert: Should include global handler but exclude instance handler
         Assert.That(log, Contains.Item("global"));
         Assert.That(log, Does.Not.Contain("instance"));
     }
 
     [Test]
-    public void ProcessInstanceBehaviour_MATCH_FIRST_ShouldFindFirst() {
+    public void LSProcessContextMode_MATCH_FIRST_ShouldFindFirst() {
         // Arrange
         var entity1 = new TestProcessable { Name = "E1" };
         var entity2 = new TestProcessable { Name = "E2" };
@@ -402,7 +404,7 @@ public class LSProcessManagerTests {
 
         // Act: Try to match in order E1, E2, E3
         var root = _manager.GetRootNode(typeof(TestProcess), out var available,
-            LSProcessManager.ProcessInstanceBehaviour.MATCH_FIRST, entity1, entity2, entity3);
+            true, entity1, entity2, entity3);
 
         // Assert: Should find and return only entity2
         Assert.That(available!.Length, Is.EqualTo(1));
@@ -410,7 +412,7 @@ public class LSProcessManagerTests {
     }
 
     [Test]
-    public void ProcessInstanceBehaviour_ALL_INSTANCES_ShouldFindAll() {
+    public void LSProcessContextMode_ALL_INSTANCES_ShouldFindAll() {
         // Arrange
         var entity1 = new TestProcessable { Name = "E1" };
         var entity2 = new TestProcessable { Name = "E2" };
@@ -426,63 +428,13 @@ public class LSProcessManagerTests {
 
         // Act: Try to match all in E1, E2, E3 with ALL_INSTANCES behavior
         var root = _manager.GetRootNode(typeof(TestProcess), out var available,
-            LSProcessManager.ProcessInstanceBehaviour.ALL_INSTANCES, entity1, entity2, entity3);
+            false, entity1, entity2, entity3);
 
         // Assert: Should find all instances that have contexts registered (entity1, entity3)
         Assert.That(available!.Length, Is.GreaterThanOrEqualTo(1)); // At least entity1 matched
         Assert.That(available, Does.Contain(entity1));
         Assert.That(available, Does.Not.Contain(entity2));
         Assert.That(available, Does.Contain(entity3));
-    }
-
-    [Test]
-    public void ProcessInstanceBehaviour_ANY_ShouldIncludeGlobalAndFirstInstance() {
-        // Arrange
-        var entity1 = new TestProcessable { Name = "E1" };
-        var entity2 = new TestProcessable { Name = "E2" };
-
-        _manager!.Register<TestProcess>(root => root
-            .Handler("global-h", s => LSProcessResultStatus.SUCCESS)
-        );
-
-        _manager.Register<TestProcess>(root => root
-            .Handler("e1-h", s => LSProcessResultStatus.SUCCESS)
-        , entity1);
-
-        // Act
-        var root = _manager.GetRootNode(typeof(TestProcess), out var available,
-            LSProcessManager.ProcessInstanceBehaviour.ANY, entity1, entity2);
-
-        // Assert: Should include global + first matching (entity1)
-        Assert.That(available!.Length, Is.EqualTo(1));
-        Assert.That(available[0].ID, Is.EqualTo(entity1.ID));
-    }
-
-    [Test]
-    public void ProcessInstanceBehaviour_ALL_ShouldIncludeGlobalAndInstances() {
-        // Arrange
-        var entity1 = new TestProcessable { Name = "E1" };
-        var entity2 = new TestProcessable { Name = "E2" };
-
-        _manager!.Register<TestProcess>(root => root
-            .Handler("global-h", s => LSProcessResultStatus.SUCCESS)
-        );
-
-        _manager.Register<TestProcess>(root => root
-            .Handler("e1-h", s => LSProcessResultStatus.SUCCESS)
-        , entity1);
-
-        _manager.Register<TestProcess>(root => root
-            .Handler("e2-h", s => LSProcessResultStatus.SUCCESS)
-        , entity2);
-
-        // Act: Use ALL behaviour which includes global + matching instances
-        var root = _manager.GetRootNode(typeof(TestProcess), out var available,
-            LSProcessManager.ProcessInstanceBehaviour.ALL, entity1, entity2);
-
-        // Assert: Should merge global and at least the first matching instance
-        Assert.That(root, Is.Not.Null);
-        Assert.That(available!.Length, Is.GreaterThanOrEqualTo(1)); // At least one instance merged
     }
 
     [Test]
@@ -502,7 +454,7 @@ public class LSProcessManagerTests {
 
         // Act
         var process = new TestProcess();
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Both should execute
         Assert.That(log, Contains.Item("h1"));
@@ -520,13 +472,13 @@ public class LSProcessManagerTests {
 
         // Act: Execute multiple times
         var process1 = new TestProcess();
-        process1.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process1.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         var process2 = new TestProcess();
-        process2.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process2.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         var process3 = new TestProcess();
-        process3.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process3.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Handler should have been invoked 3 times from fresh contexts
         Assert.That(execution_count, Is.EqualTo(3));
@@ -547,7 +499,7 @@ public class LSProcessManagerTests {
             .Handler("added-runtime", s => { log.Add("added-runtime"); return LSProcessResultStatus.SUCCESS; })
         );
 
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert: Both built-in and runtime-added handler should execute
         Assert.That(log, Contains.Item("built-in"));
@@ -570,7 +522,7 @@ public class LSProcessManagerTests {
         , entity);
 
         var process = new TestProcess();
-        process.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, entity);
+        process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, entity);
 
         // Assert: Original readonly handler should execute, not override
         Assert.That(log, Contains.Item("original"));
@@ -600,7 +552,7 @@ public class LSProcessManagerTests {
 
         // Act: Execute for VIP
         var vipProcess = new TestProcess();
-        vipProcess.Execute(_manager, LSProcessManager.ProcessInstanceBehaviour.ALL, vip);
+        vipProcess.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, vip);
 
         // Assert VIP execution
         // VIP: should have global-mod-1 + vip-bonus (mod-2 overridden)

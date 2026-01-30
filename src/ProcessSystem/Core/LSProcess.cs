@@ -118,22 +118,32 @@ public abstract class LSProcess {
 
     /// <summary>
     /// Executes the process through the registered processing pipeline (single-use operation).
-    /// 
-    /// Creates LSProcessSession, retrieves merged context from LSProcessManager, and delegates
-    /// execution to the session. Subsequent calls return cached status from first execution.
+    /// The process serves as a passive data container while the session manages execution state.
     /// 
     /// Execution Flow:
     /// 1. Check if already executed (return cached status if so)
-    /// 2. Get merged root node from manager (local + instance + global contexts)
-    /// 3. Create execution session with this process as data container
-    /// 4. Delegate to session.Execute() for actual processing
+    /// 2. Get merged root node from manager (global or instance context if applicable)
+    /// 3. Merge built-in processing from processing() override
+    /// 4. Merge local _root processing tree with global context
+    /// 5. Create execution session with this process as data container
+    /// 6. Delegate to session.Execute() for actual processing
+    /// <remarks>
+    /// - Single execution: Calling Execute() multiple times returns the last status.
+    /// - Context merging: Local _root has the highest priority over other contexts;
+    /// -- Processing() override has the second highest priority;
+    /// -- Instance context (if any) has the next priority;
+    /// -- Lastly, global context is the base layer.
+    /// - Nodes in lower priority layers can be overridden by higher priority layers unless they are marked as IGNORE_CHANGES.
+    /// - Context mode: Controls which contexts are included when executing
     /// 
-    /// The process serves as a passive data container while the session manages execution state.
+    /// 
+    /// </remarks>
     /// </summary>
     /// <param name="instance">Target entity for context resolution (may be null for global context)</param>
+    /// <param name="contextMode">Flags controlling which context levels to include in the merge</param>
     /// <param name="manager">Process manager for context merging (uses singleton if null)</param>
     /// <returns>Final execution status (may be WAITING if contains async operations)</returns>
-    public LSProcessResultStatus Execute(LSProcessManager manager, LSProcessManager.ProcessInstanceBehaviour instanceBehaviour = LSProcessManager.ProcessInstanceBehaviour.ALL, params ILSProcessable[]? instances) {
+    public LSProcessResultStatus Execute(LSProcessManager manager, LSProcessManager.LSProcessContextMode contextMode = LSProcessManager.LSProcessContextMode.ALL, params ILSProcessable[]? instances) {
         // Flow debug logging LSProcessSystem
         LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root.NodeID}] instance: {(instances == null ? "n/a" : $"{string.Join(", ", instances.Select(i => i.ID))}")}.",
             source: ("LSProcessSystem", null),
@@ -155,16 +165,34 @@ public abstract class LSProcess {
             return _processSession.RootNode.GetNodeStatus();
         }
 
-        var globalInstancedRoot = _manager.GetRootNode(GetType(), out var availableInstances, instanceBehaviour, instances);
-        var globalBuilder = new LSProcessTreeBuilder(globalInstancedRoot);
-        var baseNode = new LSProcessTreeBuilder(LSProcessManager.CreateRootNode(GetType().Name));
-        var builtInProcessing = processing(baseNode).Build();
-        globalBuilder = globalBuilder.Merge(builtInProcessing);
-        globalBuilder = globalBuilder.Merge(_root);
-        var sessionRoot = globalBuilder.Build();
-        // NOTE: availableInstances may be different from instances if instanceBehaviour modifies the selection
-        // 
-        _processSession = new LSProcessSession(_manager, this, sessionRoot, instanceBehaviour, availableInstances);
+        var type = GetType();
+        LSProcessTreeBuilder baseBuilder;
+        List<ILSProcessable> contextInstances = new();
+        if (contextMode.HasFlag(LSProcessManager.LSProcessContextMode.GLOBAL)) {
+            var globalContext = _manager.GetRootNode(type, out var globalInstance, false);
+            baseBuilder = new LSProcessTreeBuilder(globalContext);
+            if (globalInstance != null) contextInstances.AddRange(globalInstance);
+        } else baseBuilder = new LSProcessTreeBuilder(LSProcessManager.CreateRootNode(type.Name));
+
+        // include instances when contextMode is MATCH_FIRST or ALL_INSTANCES, using bitwise operation
+        var instanceMode = contextMode & (LSProcessManager.LSProcessContextMode.MATCH_FIRST | LSProcessManager.LSProcessContextMode.ALL_INSTANCES);
+        if (instances != null && instances.Length > 0 && instanceMode != LSProcessManager.LSProcessContextMode.LOCAL) {
+            var instancesContext = _manager.GetRootNode(type, out var available, contextMode.HasFlag(LSProcessManager.LSProcessContextMode.MATCH_FIRST), instances);
+            if (instancesContext != null) {
+                if (available != null && available.Length > 0) contextInstances.AddRange(available);
+                baseBuilder = baseBuilder.Merge(instancesContext);
+            }
+        }
+
+        baseBuilder = processing(baseBuilder);
+        baseBuilder = baseBuilder.Merge(_root);
+        var sessionRoot = baseBuilder.Build();
+        _processSession = new LSProcessSession(_manager,
+            this,
+            sessionRoot,
+            contextMode,
+            instances,
+            contextInstances.ToArray());
 
         // Detailed debug logging ClassName
         LSLogger.Singleton.Debug($"Process Execute",
@@ -174,8 +202,9 @@ public abstract class LSProcess {
                 ("session", _processSession.SessionID.ToString()),
                 ("rootNode", _processSession.RootNode.NodeID.ToString()),
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                ("behaviour", _processSession.Behaviour.ToString()),
+                ("behaviour", _processSession.ContextMode.ToString()),
                 ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
+                ("contextInstances", _processSession.ContextInstances == null ? "n/a" : $"{string.Join(", ", _processSession.ContextInstances.Select(i => i.ID))}"),
                 ("method", nameof(Execute))
             });
         return _processSession.Execute();
@@ -186,7 +215,7 @@ public abstract class LSProcess {
     /// <param name="instances"></param>
     /// <returns></returns>
     public LSProcessResultStatus Execute(params ILSProcessable[]? instances) {
-        return Execute(LSProcessManager.Singleton, LSProcessManager.ProcessInstanceBehaviour.ALL, instances);
+        return Execute(LSProcessManager.Singleton, LSProcessManager.LSProcessContextMode.ALL, instances);
     }
 
     /// <summary>
@@ -201,7 +230,7 @@ public abstract class LSProcess {
             throw new LSException("Process not yet executed.");
         }
         // Flow debug logging
-        LSLogger.Singleton.Debug($"LSProcess.Resume [{_processSession.RootNode.NodeID}] {_processSession.Behaviour} {(_processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}")}.",
+        LSLogger.Singleton.Debug($"LSProcess.Resume [{_processSession.RootNode.NodeID}] {_processSession.ContextMode} {(_processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}")}.",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
         LSLogger.Singleton.Debug($"Process Resume",
@@ -211,8 +240,9 @@ public abstract class LSProcess {
                 ("session", _processSession.SessionID.ToString()),
                 ("rootNode", _processSession.RootNode.NodeID.ToString()),
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                ("behaviour", _processSession.Behaviour.ToString()),
+                ("behaviour", _processSession.ContextMode.ToString()),
                 ("instance", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
+                ("contextInstances", _processSession.ContextInstances == null ? "n/a" : $"{string.Join(", ", _processSession.ContextInstances.Select(i => i.ID))}"),
                 ("nodes", string.Join(",", nodeIDs)),
                 ("method", nameof(Resume))
             });
@@ -233,7 +263,7 @@ public abstract class LSProcess {
             throw new LSException("Process not yet executed.");
         }
         // Flow debug logging
-        LSLogger.Singleton.Debug($"LSProcess.Cancel [{_processSession.RootNode.NodeID}] {_processSession.Behaviour} {(_processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}")}.",
+        LSLogger.Singleton.Debug($"LSProcess.Cancel [{_processSession.RootNode.NodeID}] {_processSession.ContextMode} {(_processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}")}.",
               source: ("LSProcessSystem", null),
               properties: ("hideNodeID", true));
         LSLogger.Singleton.Debug($"Process Cancel",
@@ -243,7 +273,7 @@ public abstract class LSProcess {
                 ("session", _processSession.SessionID.ToString()),
                 ("rootNode", _processSession.RootNode.NodeID.ToString()),
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                ("behaviour", _processSession.Behaviour.ToString()),
+                ("behaviour", _processSession.ContextMode.ToString()),
                 ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
                 ("method", nameof(Cancel))
             });
@@ -281,7 +311,7 @@ public abstract class LSProcess {
                     ("session", _processSession!.SessionID.ToString()),
                     ("rootNode", _processSession.RootNode.NodeID.ToString()),
                     ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                    ("behaviour", _processSession.Behaviour.ToString()),
+                    ("behaviour", _processSession.ContextMode.ToString()),
                     ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
                     ("method", nameof(WithProcessing))
                 });
@@ -332,7 +362,7 @@ public abstract class LSProcess {
                 ("session", _processSession.SessionID.ToString()),
                 ("rootNode", _processSession.RootNode.NodeID.ToString()),
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
-                ("behaviour", _processSession.Behaviour.ToString()),
+                ("behaviour", _processSession.ContextMode.ToString()),
                 ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
                 ("nodes", string.Join(",", nodeIDs)),
                 ("method", nameof(Fail))

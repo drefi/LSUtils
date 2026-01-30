@@ -87,6 +87,11 @@ public interface ILSProcessNode {
     /// </remarks>
     ILSProcessNode Clone();
     /// <summary>
+    /// Reorders the node within its parent's collection.
+    /// </summary>
+    /// <param name="order">The new order value for the node.</param>
+    void Reorder(int order);
+    /// <summary>
     /// Primary execution method for process execution.
     /// Processes this node and returns the resulting status.
     /// </summary>

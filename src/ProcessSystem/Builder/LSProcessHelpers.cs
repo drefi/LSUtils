@@ -212,8 +212,9 @@ public static class LSProcessHelpers {
                     session.Manager,
                     typedProcess,
                     session.RootNode,
-                    session.Behaviour,
-                    session.Instances
+                    session.ContextMode,
+                    session.Instances,
+                    session.ContextInstances
                 );
                 return genericHandler(typedSession);
             }

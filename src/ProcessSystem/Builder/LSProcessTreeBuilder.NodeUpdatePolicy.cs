@@ -15,12 +15,10 @@ public enum NodeUpdatePolicy {
     NONE = 0,
     /// <summary>
     /// Mark the layer to ignore changes when the node is being updated.
-    /// This does not prevent changes for new nodes.
     /// </summary>
     IGNORE_CHANGES = 1 << 1,
     /// <summary>
     /// Mark the layer to ignore builder actions when the node is being updated.
-    /// This does not prevent build action for new nodes.
     /// </summary>
     IGNORE_BUILDER = 1 << 2,
     /// <summary>

@@ -116,6 +116,9 @@ public partial class LSProcessTreeBuilder {
                         ("order", order),
                         ("priority", priority.ToString()),
                         ("updatePolicy", updatePolicy.ToString()),
+                        ("successThreshold", successThreshold.ToString()),
+                        ("failureThreshold", failureThreshold.ToString()),
+                        ("thresholdMode", thresholdMode.ToString()),
                         ("conditions", conditions != null ? conditions.Length.ToString() : "n/a"),
                         ("method", nameof(Parallel))
                     });
@@ -126,12 +129,32 @@ public partial class LSProcessTreeBuilder {
             }
         } else {
             // existing node is a parallel node, update thresholds based on update policy
-            if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_LAYER) == false || // not replacing the layer
-                parallelNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
+            // REPLACE_LAYER was removed from this check because the point for REPLACE_LAYER is change the node type
+            if (parallelNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
 
                 if (existingNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_BUILDER) == false) {  // existing node allows builder updates
                     builderAction?.Invoke(new LSProcessTreeBuilder(parallelNode));
                 }
+                LSLogger.Singleton.Debug($"Parallel node [{nodeID}] is read-only.",
+                    source: (ClassName, null),
+                    properties: new (string, object)[] {
+                    ("rootNode", _rootNode?.NodeID ?? "n/a"),
+                    ("nodeID", nodeID),
+                    ("parallelNodeOrder", parallelNode.Order.ToString()),
+                    ("parallelNodePriority", parallelNode.Priority.ToString()),
+                    ("parallelNodeUpdatePolicy", parallelNode.UpdatePolicy.ToString()),
+                    ("parallelNodeSuccessThreshold", parallelNode.SuccessThreshold.ToString()),
+                    ("parallelNodeFailureThreshold", parallelNode.FailureThreshold.ToString()),
+                    ("parallelNodeThresholdMode", parallelNode.ThresholdMode.ToString()),
+                    ("order", order),
+                    ("priority", priority.ToString()),
+                    ("updatePolicy", updatePolicy.ToString()),
+                    ("successThreshold", successThreshold.ToString()),
+                    ("failureThreshold", failureThreshold.ToString()),
+                    ("thresholdMode", thresholdMode.ToString()),
+                    ("conditions", conditions.Length.ToString()),
+                    ("method", nameof(Parallel))
+                });
                 return this;
             }
             // preserve existing children if not replacing layer

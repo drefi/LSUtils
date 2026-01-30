@@ -168,102 +168,25 @@ public class LSProcessManager {
 
     }
     /// <summary>
-    /// Generic wrapper for GetRootNode that provides type-safe access for specific process types.
-    /// <para>
     /// This is the primary method used by LSProcess.Execute() to obtain the merged processing
     /// hierarchy before creating an execution session.
-    /// </para>
-    /// </summary>
-    /// <typeparam name="TProcess">The process type to retrieve contexts for (must implement ILSProcess)</typeparam>
-    /// <param name="instance">Optional processable instance for context targeting (null = global only)</param>
-    /// <param name="localContext">Optional local context tree with highest merge priority</param>
-    /// <returns>Merged root node containing all applicable contexts in priority order</returns>
-    // public ILSProcessLayerNode GetRootNode<TProcess>(ILSProcessable? instance = null, ILSProcessLayerNode? localContext = null) where TProcess : LSProcess {
-    //     return GetRootNode(typeof(TProcess), instance, localContext);
-    // }
-    /// <summary>
-    /// Core context resolution method that implements the three-tier merging strategy.
-    /// <para>
-    /// <b>Merging Algorithm:</b><br/>
-    /// 1. Start with LSProcessTreeBuilder using localNode as base (if provided)<br/>
-    /// 2. Clone and merge global context for the process type (if registered)<br/>
-    /// 3. Clone and merge instance-specific context (if registered and instance provided)<br/>
-    /// 4. Build final merged tree with proper node IDs and hierarchy
-    /// </para>
-    /// <para>
-    /// <b>Performance Notes:</b><br/>
-    /// - Temporarily disables detailed logging during context resolution to avoid noise<br/>
-    /// - Creates new process type dictionaries on-demand for unregistered types<br/>
-    /// - All contexts are cloned before merging to preserve original registrations
-    /// </para>
-    /// </summary>
     /// <param name="processType">The concrete process type to resolve contexts for</param>
     /// <param name="instance">Optional processable instance for targeted context resolution</param>
     /// <param name="localNode">Optional local context tree to merge with highest priority</param>
+    /// <param name="contextMode">Flags controlling which context levels to include in the merge</param>
     /// <returns>Fully merged root node ready for process execution</returns>
     /// <exception cref="LSException">Thrown if process type dictionary creation fails</exception>
-    // public ILSProcessLayerNode GetRootNode(System.Type processType, ILSProcessable? instance = null, ILSProcessLayerNode? localNode = null) {
-    //     LSLogger.Singleton.Debug($"{ClassName}.GetRootNode<{processType.Name}>: [{localNode?.NodeID ?? "n/a"}] instance: {instance?.ID.ToString() ?? "n/a"}",
-    //         source: ("LSProcessSystem", null),
-    //         properties: ("hideNodeID", true));
-    //     var previousClassNameStatus = LSLogger.Singleton.GetSourceStatus(ClassName);
-    //     var previousLSProcessSystemStatus = LSLogger.Singleton.GetSourceStatus("LSProcessSystem");
-    //     //disable detailed logging during get node (avoid unnecessary logging), flow logging remains active
-    //     LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: false));
-    //     LSLogger.Singleton.SetSourceStatus((sourceID: "LSProcessSystem", isEnabled: false));
-    //     // if processType is not registered, create a new process dictionary for this type.
-    //     if (!_globalNodes.TryGetValue(processType, out var processDict)) {
-    //         processDict = new();
-    //         if (!_globalNodes.TryAdd(processType, processDict)) throw new LSException("Failed to add new process type dictionary.");
-    //     }
-    //     // Create a new builder starting with the localNode as root node
-    //     LSProcessTreeBuilder builder = new LSProcessTreeBuilder(localNode);
-    //     if (processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
-    //         // we have a global node to merge. We clone the global node to avoid modifying the original.
-    //         var clone = globalNode.Clone();
-    //         builder.Merge(clone);
-    //     }
-    //     // merge instance specific node if available. We clone the instance node to avoid modifying the original.
-    //     ILSProcessLayerNode? instanceNode = null;
-    //     if (instance != null && processDict.TryGetValue(instance, out instanceNode)) {
-    //         var clone = instanceNode.Clone();
-    //         builder.Merge(clone);
-    //     }
-    //     //restore detailed logger status
-    //     LSLogger.Singleton.SetSourceStatus((sourceID: ClassName, isEnabled: previousClassNameStatus));
-    //     LSLogger.Singleton.SetSourceStatus((sourceID: "LSProcessSystem", isEnabled: previousLSProcessSystemStatus));
-    //     var root = builder.Build();
-    //     // debug log with details
-    //     LSLogger.Singleton.Debug("Manager Get Root Tree",
-    //         source: (ClassName, null),
-    //         properties: new (string, object)[] {
-    //             ("processType", processType.Name),
-    //             ("rootNodeID", root.NodeID),
-    //             ("global", globalNode?.GetType().Name ?? "n/a"), ("globalNodeID", globalNode?.NodeID ?? "null"),
-    //             ("instance", instanceNode?.GetType().Name ?? "n/a"), ("instanceNodeID", instanceNode?.NodeID ?? "null"),
-    //             ("local", localNode?.GetType().Name ?? "n/a"), ("localNodeID", localNode?.NodeID ?? "null"),
-    //             ("method", nameof(GetRootNode))
-    //         });
-    //     return root;
-    // }
-
-    public ILSProcessLayerNode GetRootNode(System.Type processType, out ILSProcessable[]? availableInstances, ProcessInstanceBehaviour behaviour = ProcessInstanceBehaviour.ALL, params ILSProcessable[]? instanceNodes) {
+    public ILSProcessLayerNode GetRootNode(System.Type processType, out ILSProcessable[]? availableInstances, bool firstMatch = false, params ILSProcessable[]? instanceNodes) {
         var processDict = _globalNodes.GetOrAdd(processType, _ => new ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>());
 
         // Create a new builder starting with the localNode as root node
         LSProcessTreeBuilder builder = new LSProcessTreeBuilder();
 
         availableInstances = System.Array.Empty<ILSProcessable>();
-        // Behaviour include global
-        if (behaviour.HasFlag(ProcessInstanceBehaviour.GLOBAL) && processDict.TryGetValue(GlobalProcessable.Instance, out var globalNode)) {
-            // we have a global node to merge. We clone the global node to avoid modifying the original.
-            var clone = globalNode.Clone();
-            builder.Merge(clone);
+        if (instanceNodes == null || instanceNodes.Length == 0) {
+            instanceNodes = new[] { GlobalProcessable.Instance };
         }
-        // ensure instanceNodes is not null
-        instanceNodes ??= System.Array.Empty<ILSProcessable>();
-        // Behaviour include match instance
-        if (behaviour.HasFlag(ProcessInstanceBehaviour.MATCH_FIRST)) {
+        if (firstMatch) {
             // use the first available instance context (try to match from first to last)
             foreach (var instance in instanceNodes) {
                 if (processDict.TryGetValue(instance, out var instanceNode) == false) {
@@ -274,10 +197,7 @@ public class LSProcessManager {
                 availableInstances = new[] { instance };
                 break;
             }
-            // no instance was matched
-            if (availableInstances.Length == 0)
-                availableInstances = instanceNodes;
-        } else if (behaviour.HasFlag(ProcessInstanceBehaviour.ALL_INSTANCES)) {
+        } else {
             // use all provided instance contexts that have registered handlers
             List<ILSProcessable> availableList = new();
             foreach (var instance in instanceNodes) {
@@ -288,9 +208,6 @@ public class LSProcessManager {
                 }
             }
             availableInstances = availableList.ToArray();
-            // if no instance contexts were found, still include all provided instances
-            if (availableInstances.Length == 0)
-                availableInstances = instanceNodes;
         }
 
         try {
@@ -306,22 +223,40 @@ public class LSProcessManager {
         return sequence;
     }
     [Flags]
-    public enum ProcessInstanceBehaviour {
-        LOCAL = 0, //local use is always used, no flag needed
-        GLOBAL = 1 << 0, // use the global processable context
-        MATCH_FIRST = 1 << 1, // match one provided instance with the first available registered context. (stop at first match)
-                              // case use: we have multiple provided instances, and we want to use the first one that has a registered context.
-        ALL_INSTANCES = 1 << 2, // use all provided instance contexts
-                                // use case: we have multiple provided instances, and we want to use all that have a registered context.
-                                // the merged context will include all matched instance contexts.
-        ANY = LOCAL | GLOBAL | MATCH_FIRST, // use global + first available provided instance context
-        ALL = LOCAL | GLOBAL | ALL_INSTANCES, // use global + all provided instance contexts
+    public enum LSProcessContextMode {
+        /// <summary>
+        /// Local context and built-in processing are always included
+        /// </summary>
+        LOCAL = 0,
+        /// <summary>
+        /// Global context registered without specific instance
+        /// </summary>
+        GLOBAL = 1 << 0,
+        /// <summary>
+        /// Use the first available provided instance context
+        /// Case use: we have multiple provided instances, and we want to use the first one that has a registered context.
+        /// </summary>
+        MATCH_FIRST = 1 << 1,
+        /// <summary>
+        /// Use all provided instance contexts
+        /// Case use: we have multiple provided instances, and we want to use all that have a registered context.
+        /// The merged context will include all matched instance contexts.
+        /// </summary>
+        ALL_INSTANCES = 1 << 2,
+        /// <summary>
+        /// Use any available context: global + first available instance context
+        /// </summary>
+        ANY = LOCAL | GLOBAL | MATCH_FIRST,
+        /// <summary>
+        /// Use all available contexts: global + all provided instance contexts
+        /// </summary>
+        ALL = LOCAL | GLOBAL | ALL_INSTANCES,
     }
 
     /// <summary>
     /// Sentinel object used as dictionary key for global (instance-less) context registrations.
     /// <para>
-    /// This internal class implements ILSProcessable to satisfy the dictionary key requirements
+    /// This class implements ILSProcessable to satisfy the dictionary key requirements
     /// while clearly indicating that the associated context applies globally rather than to
     /// a specific processable instance.
     /// </para>
@@ -332,9 +267,9 @@ public class LSProcessManager {
     /// both global and instance-specific contexts without additional complexity.
     /// </para>
     /// </summary>
-    private class GlobalProcessable : ILSProcessable {
+    public class GlobalProcessable : ILSProcessable {
         static GlobalProcessable _instance = new();
-        internal static GlobalProcessable Instance => _instance;
+        public static GlobalProcessable Instance => _instance;
 
         /// <summary>
         /// Returns a new GUID each time to ensure this sentinel is never used for actual identity comparison.
