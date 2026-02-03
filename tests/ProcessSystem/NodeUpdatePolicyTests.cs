@@ -172,7 +172,7 @@ public class NodeUpdatePolicyTests {
             .Selector("changeable-layer", sel => sel
                 .Handler("first", s => { log.Add("first-fail"); return LSProcessResultStatus.FAILURE; })
                 .Handler("second", s => { log.Add("second-success"); return LSProcessResultStatus.SUCCESS; }),
-                NodeUpdatePolicy.REPLACE_LAYER)
+                NodeUpdatePolicy.REPLACE_NODE)
         );
 
         // Act
@@ -229,7 +229,7 @@ public class NodeUpdatePolicyTests {
         _manager.Register<BasicProcess>(b => b
             .Handler("simplify-me",
                 s => { log.Add("simple"); return LSProcessResultStatus.SUCCESS; },
-                NodeUpdatePolicy.REPLACE_LAYER)
+                NodeUpdatePolicy.REPLACE_NODE)
         );
 
         // Act
@@ -631,7 +631,7 @@ public class NodeUpdatePolicyTests {
         _manager.Register<BasicProcess>(b => b
             .Selector("refactor-target", sel => sel
                 .Handler("new-child", s => { log.Add("new"); return LSProcessResultStatus.SUCCESS; }),
-                NodeUpdatePolicy.REPLACE_LAYER)
+                NodeUpdatePolicy.REPLACE_NODE)
         );
 
         // Act
@@ -770,7 +770,7 @@ public class NodeUpdatePolicyTests {
             .Selector("protected-type", sel => sel
                 .Handler("selector-fail", s => { log.Add("selector-fail"); return LSProcessResultStatus.FAILURE; })
                 .Handler("selector-success", s => { log.Add("selector-success"); return LSProcessResultStatus.SUCCESS; }),
-                NodeUpdatePolicy.REPLACE_LAYER)
+                NodeUpdatePolicy.REPLACE_NODE)
         );
 
         // Act

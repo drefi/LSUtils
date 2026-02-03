@@ -1,4 +1,5 @@
-﻿using LSUtils.Logging;
+﻿using System.Linq;
+using LSUtils.Logging;
 
 namespace LSUtils.ProcessSystem;
 
@@ -81,7 +82,7 @@ public partial class LSProcessTreeBuilder {
 
         if (existingNode is not LSProcessNodeSequence sequenceNode) { // is not a sequence node
             if (existingNode is ILSProcessLayerNode existingLayerNode) { // but is a layer node
-                if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_LAYER) == false || // not replacing the layer
+                if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_NODE) == false || // not replacing the layer
                     existingLayerNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
                     LSLogger.Singleton.Warning($"Node [{nodeID}] exists but update policy does not allow replacing the layer.",
                         source: (ClassName, true),
@@ -170,16 +171,24 @@ public partial class LSProcessTreeBuilder {
             LSProcessBuilderAction? builderAction = null,
             LSProcessPriority priority = LSProcessPriority.NORMAL,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-            params LSProcessNodeCondition?[] conditions) where TProcess : LSProcess {
-        return Sequence(nodeID, builderAction, updatePolicy, priority, conditions);
+            params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
+        var convertedConditions = conditions
+            .Where(c => c != null)
+            .Select(c => c!.ToCondition())
+            .ToArray();
+        return Sequence(nodeID, builderAction, updatePolicy, priority, convertedConditions);
     }
     public LSProcessTreeBuilder Sequence<TProcess>(
             LSProcessBuilderAction? builderAction = null,
             LSProcessPriority priority = LSProcessPriority.NORMAL,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-            params LSProcessNodeCondition?[] conditions) where TProcess : LSProcess {
+            params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
         string nodeID = LSProcessManager.CreateNodeID<LSProcessNodeSequence>(_rootNode);
-        return Sequence(nodeID, builderAction, updatePolicy, priority, conditions);
+        var convertedConditions = conditions
+            .Where(c => c != null)
+            .Select(c => c!.ToCondition())
+            .ToArray();
+        return Sequence(nodeID, builderAction, updatePolicy, priority, convertedConditions);
     }
 
 }

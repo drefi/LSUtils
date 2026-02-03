@@ -100,7 +100,7 @@ public partial class LSProcessTreeBuilder {
 
         if (existingNode is not LSProcessNodeParallel parallelNode) { // existing node is not a parallel node
             if (existingNode is ILSProcessLayerNode existingLayerNode) {
-                if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_LAYER) == false || // not replacing the layer
+                if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_NODE) == false || // not replacing the layer
                     existingLayerNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existingLayerNode is read-only
 
                     LSLogger.Singleton.Warning($"Node [{nodeID}] is read-only.",

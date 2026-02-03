@@ -105,6 +105,13 @@ public partial class LSProcessTreeBuilder {
         //     properties: ("hideNodeID", true));
         return _rootNode;
     }
+    public LSProcessTreeBuilder RemoveNode(string nodeID) {
+        if (_rootNode == null) {
+            throw new LSException("No root node to remove from.");
+        }
+        _rootNode.RemoveChild(nodeID);
+        return this;
+    }
 
     /// <summary>
     /// Attempts to retrieve a child node from the root node by its identifier.

@@ -89,7 +89,7 @@ public partial class LSProcessTreeBuilder {
         LSProcessHandler? policyHandler;
         if (existingNode is not LSProcessNodeHandler nodeHandler) {
 
-            if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_LAYER) == false || // unless replacing the existing node, cannot modify non-handler nodes
+            if (updatePolicy.HasFlag(NodeUpdatePolicy.REPLACE_NODE) == false || // unless replacing the existing node, cannot modify non-handler nodes
                 existingNode.UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES)) { // existing node is read-only
                 LSLogger.Singleton.Warning($"Node [{nodeID}] already exists but is not a NodeHandler, cannot modify.",
                     source: (ClassName, true),

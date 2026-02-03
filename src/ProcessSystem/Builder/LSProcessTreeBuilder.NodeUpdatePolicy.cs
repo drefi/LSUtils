@@ -23,10 +23,10 @@ public enum NodeUpdatePolicy {
     IGNORE_BUILDER = 1 << 2,
     /// <summary>
     /// Replace existing nodes with the same ID.
-    /// Existing children are lost.
+    /// Existing children are lost (if any).
     /// Used for replace layers types (e.g.: sequence to selector), layers to handlers and vice versa.
     /// </summary>
-    REPLACE_LAYER = 1 << 3,
+    REPLACE_NODE = 1 << 3,
     /// <summary>
     /// Override existing handler implementations.
     /// Only handler nodes are affected by this flag.
@@ -83,4 +83,9 @@ public enum NodeUpdatePolicy {
     /// - skip builder actions when nodes are not the same type.
     /// </summary>
     DEFAULT_LAYER = NONE,
+    /// <summary>
+    /// Policy to fully protect a layer from modifications, including replacing layer, ignoring changes, overriding conditions, and overriding priority.
+    /// When used in processing() override methods, it ensures the layer remains unchanged independently of other contexts.
+    /// </summary>
+    PROTECT_NODE = NodeUpdatePolicy.REPLACE_NODE | NodeUpdatePolicy.IGNORE_CHANGES | NodeUpdatePolicy.OVERRIDE_CONDITIONS | NodeUpdatePolicy.OVERRIDE_PRIORITY,
 }

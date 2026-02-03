@@ -741,7 +741,7 @@ public class LSProcessTests {
         manager.Register<TestProcessWithProcessing>(b =>
             b.Selector("seq", sel => sel
                 .Handler("h3", s => { log.Add("h3"); return LSProcessResultStatus.SUCCESS; }),
-            updatePolicy: NodeUpdatePolicy.REPLACE_LAYER)
+            updatePolicy: NodeUpdatePolicy.REPLACE_NODE)
         );
 
         var process = new TestProcessWithProcessing(log);
