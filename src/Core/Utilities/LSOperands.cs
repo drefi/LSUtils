@@ -1,3 +1,5 @@
+﻿using System;
+
 namespace LSUtils;
 #region Interfaces
 /// <summary>
@@ -10,27 +12,64 @@ public interface ILSOperand {
     /// </summary>
     /// <param name="context">Evaluation context containing necessary information and state.</param>
     /// <returns>The evaluated value, or null if evaluation fails.</returns>
-    object Evaluate(IEvaluationContext context);
+    T Resolve<T>(IOperandVisitor visitor);
 }
 
+public interface IOperandVisitor {
+    float Visit(ILSConstantOperand<float> node);
+    float Visit(ILSVarOperand<float> node);
+    float Visit(ILSBinaryOperand<float> node);
+    float Visit(ILSUnaryOperand<float> node);
+    float Visit(ILSTernaryConditionalOperand<float> node);
+    int Visit(ILSConstantOperand<int> node);
+    int Visit(ILSVarOperand<int> node);
+    int Visit(ILSBinaryOperand<int> node);
+    int Visit(ILSUnaryOperand<int> node);
+    int Visit(ILSTernaryConditionalOperand<int> node);
+    bool Visit(ILSConditionalOperand node);
+    bool Visit(ILSBinaryConditionalOperand node);
+    bool Visit(ILSUnaryBooleanOperand node);
+}
+public interface IVariableProvider<out T> where T : System.Numerics.INumber<T> {
+    // ID: "Source", Key: AttributeDefiner asset
+    T GetValue(string id, object key);
+}
+public class LSEvaluator<T> : IOperandVisitor where T : System.Numerics.INumber<T> {
+    private readonly IVariableProvider<T> _provider;
+    public LSEvaluator(IVariableProvider<T> provider) {
+        _provider = provider;
+    }
+    public float Visit(ILSConstantOperand<float> node) => node.Value;
+    public float Visit(ILSVarOperand<float> node) => (float)((object)_provider.GetValue(node.ID, node.Key));
+    public float Visit(ILSBinaryOperand<float> node) => ILSNumericOperand<float>.BinaryOperation(node.Operator, node.Left.Resolve(this), node.Right.Resolve(this));
+    public float Visit(ILSUnaryOperand<float> node) => ILSNumericOperand<float>.UnaryOperation(node.Operator, node.Operand.Resolve(this));
+    public float Visit(ILSTernaryConditionalOperand<float> node) => node.Condition.Resolve(this) ? node.TrueOperand.Resolve(this) : node.FalseOperand.Resolve(this);
+    public int Visit(ILSConstantOperand<int> node) => node.Value;
+    public int Visit(ILSVarOperand<int> node) => (int)((object)_provider.GetValue(node.ID, node.Key));
+    public int Visit(ILSBinaryOperand<int> node) => ILSNumericOperand<int>.BinaryOperation(node.Operator, node.Left.Resolve(this), node.Right.Resolve(this));
+    public int Visit(ILSUnaryOperand<int> node) => ILSNumericOperand<int>.UnaryOperation(node.Operator, node.Operand.Resolve(this));
+    public int Visit(ILSTernaryConditionalOperand<int> node) => node.Condition.Resolve(this) ? node.TrueOperand.Resolve(this) : node.FalseOperand.Resolve(this);
+    public bool Visit(ILSConditionalOperand node) {
+        var leftValue = (IComparable)node.Left.Resolve<object>(this);
+        var rightValue = (IComparable)node.Right.Resolve<object>(this);
+        return ILSBooleanOperand.ComparisonOperation(node.Operator, leftValue.CompareTo(rightValue));
+    }
+    public bool Visit(ILSBinaryConditionalOperand node) => ILSBooleanOperand.BooleanOperation(node.Operator, node.Left, node.Right, this);
+    public bool Visit(ILSUnaryBooleanOperand node) => !node.Operand.Resolve(this);
+}
 /// <summary>
 /// Generic operand interface that produces a strongly-typed result.
 /// </summary>
 /// <typeparam name="T">The type of value this operand evaluates to.</typeparam>
-public interface ILSOperand<T> : ILSOperand {
-    /// <summary>
-    /// Evaluates the operand and returns the strongly-typed result.
-    /// </summary>
-    /// <param name="context">Evaluation context containing necessary information and state.</param>
-    /// <returns>The evaluated value of type T, or null if evaluation fails.</returns>
-    new T Evaluate(IEvaluationContext context);
+public interface ILSOperand<out T> : ILSOperand {
+    T Resolve(IOperandVisitor visitor);
 }
 
 /// <summary>
 /// Operand interface for numeric types that support mathematical operations.
 /// </summary>
 /// <typeparam name="T">The numeric type, must implement INumber&lt;T&gt;.</typeparam>
-public interface ILSNumericOperand<T> : ILSOperand<T> where T : System.Numerics.INumber<T>, System.IComparable<T> {
+public interface ILSNumericOperand<out T> : ILSOperand<T> where T : System.Numerics.INumber<T>, System.IComparable<T> {
     public static T UnaryOperation(UnaryOperator @operator, T value) {
         return @operator switch {
             UnaryOperator.Negate => -value,
@@ -58,20 +97,43 @@ public interface ILSNumericOperand<T> : ILSOperand<T> where T : System.Numerics.
         };
     }
 }
-
+/// <summary>
+/// Interface for constant operands that hold a single immutable numeric value.
+/// </summary>
+/// <typeparam name="T">The numeric type of the constant value.</typeparam>
+public interface ILSConstantOperand<T> : ILSNumericOperand<T> where T : System.Numerics.INumber<T> {
+    /// <summary>
+    /// Gets the constant value held by this operand.
+    /// </summary>
+    T Value { get; }
+}
+/// <summary>
+/// Interface for variable operands that retrieve their value from a provider based on an ID and key.
+/// </summary>
+/// <typeparam name="T"></typeparam>
+public interface ILSVarOperand<T> : ILSNumericOperand<T> where T : System.Numerics.INumber<T> {
+    /// <summary>
+    /// Identifier for the variable source (e.g., "EntityA.Health"). Used by the provider to determine where to get the value from.
+    /// </summary>
+    string ID { get; }
+    /// <summary>
+    /// Key object that provides additional context for the provider to retrieve the correct value. Depends on the provider's implementation.
+    /// </summary>
+    object Key { get; }
+}
 /// <summary>
 /// Operand interface specifically for boolean operations and conditions.
 /// </summary>
 public interface ILSBooleanOperand : ILSOperand<bool> {
-    public static bool BooleanOperation(BooleanOperator @operator, ILSBooleanOperand l, ILSBooleanOperand right, IEvaluationContext context) {
-        var leftValue = l.Evaluate(context);
+    public static bool BooleanOperation(BooleanOperator @operator, ILSBooleanOperand l, ILSBooleanOperand right, IOperandVisitor visitor) {
+        var leftValue = l.Resolve<bool>(visitor);
 
         return @operator switch {
-            BooleanOperator.And => leftValue && right.Evaluate(context),
-            BooleanOperator.Or => leftValue || right.Evaluate(context),
-            BooleanOperator.Xor => leftValue ^ right.Evaluate(context),
-            BooleanOperator.Nand => !(leftValue && right.Evaluate(context)),
-            BooleanOperator.Nor => !(leftValue || right.Evaluate(context)),
+            BooleanOperator.And => leftValue && right.Resolve<bool>(visitor),
+            BooleanOperator.Or => leftValue || right.Resolve<bool>(visitor),
+            BooleanOperator.Xor => leftValue ^ right.Resolve<bool>(visitor),
+            BooleanOperator.Nand => !(leftValue && right.Resolve<bool>(visitor)),
+            BooleanOperator.Nor => !(leftValue || right.Resolve<bool>(visitor)),
             _ => throw new LSNotImplementedException($"Boolean operator {@operator} not implemented.")
         };
     }
@@ -87,17 +149,6 @@ public interface ILSBooleanOperand : ILSOperand<bool> {
         };
 
     }
-}
-
-/// <summary>
-/// Interface for constant operands that hold a single immutable numeric value.
-/// </summary>
-/// <typeparam name="T">The numeric type of the constant value.</typeparam>
-public interface ILSConstantOperand<T> : ILSNumericOperand<T> where T : System.Numerics.INumber<T> {
-    /// <summary>
-    /// Gets the constant value held by this operand.
-    /// </summary>
-    T Value { get; }
 }
 
 /// <summary>
@@ -228,17 +279,43 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
     public LSConstantOperand(T value) {
         Value = value;
     }
-
+    public T Resolve(IOperandVisitor visitor) {
+        if (typeof(T) == typeof(float)) {
+            return (T)(object)visitor.Visit((ILSConstantOperand<float>)(object)this);
+        } else if (typeof(T) == typeof(int)) {
+            return (T)(object)visitor.Visit((ILSConstantOperand<int>)(object)this);
+        }
+        throw new LSNotImplementedException($"Constant operand of type {typeof(T)} is not supported in the visitor.");
+    }
     /// <inheritdoc/>
-    public T Evaluate(IEvaluationContext context) => Value;
-
-    /// <inheritdoc/>
-    object ILSOperand.Evaluate(IEvaluationContext context) => Value;
+    TOperand ILSOperand.Resolve<TOperand>(IOperandVisitor visitor) {
+        return (TOperand)(object)Resolve(visitor);
+    }
 
     /// <summary>
     /// Implicit conversion from a numeric value to a ConstantOperand.
     /// </summary>
     public static implicit operator LSConstantOperand<T>(T value) => new(value);
+}
+public class LSVarOperand<T> : ILSVarOperand<T> where T : System.Numerics.INumber<T> {
+    public string ID { get; }
+    public object Key { get; }
+
+    public LSVarOperand(string id, object key) {
+        ID = id;
+        Key = key;
+    }
+
+    public T Resolve(IOperandVisitor visitor) {
+        if (typeof(T) == typeof(float)) {
+            return (T)(object)visitor.Visit((ILSVarOperand<float>)(object)this);
+        } else if (typeof(T) == typeof(int)) {
+            return (T)(object)visitor.Visit((ILSVarOperand<int>)(object)this);
+        }
+        throw new LSNotImplementedException($"Variable operand of type {typeof(T)} is not supported in the visitor.");
+    }
+
+    TOperand ILSOperand.Resolve<TOperand>(IOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 }
 
 /// <summary>
@@ -262,17 +339,15 @@ public class LSBinaryOperand<T> : ILSBinaryOperand<T> where T : System.Numerics.
         Right = right;
         Operator = op;
     }
-
-    /// <inheritdoc/>
-    public T Evaluate(IEvaluationContext context) {
-        var l = Left.Evaluate(context)!;
-        var r = Right.Evaluate(context)!;
-
-        return ILSNumericOperand<T>.BinaryOperation(Operator, l, r);
+    public T Resolve(IOperandVisitor visitor) {
+        if (typeof(T) == typeof(float)) {
+            return (T)(object)visitor.Visit((ILSBinaryOperand<float>)(object)this);
+        } else if (typeof(T) == typeof(int)) {
+            return (T)(object)visitor.Visit((ILSBinaryOperand<int>)(object)this);
+        }
+        throw new LSNotImplementedException($"Binary operand of type {typeof(T)} is not supported in the visitor.");
     }
-
-    /// <inheritdoc/>
-    object ILSOperand.Evaluate(IEvaluationContext context) => Evaluate(context);
+    TOperand ILSOperand.Resolve<TOperand>(IOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 
 }
 
@@ -298,18 +373,10 @@ public class LSConditionalOperand : ILSConditionalOperand {
     }
 
     /// <inheritdoc/>
-    public bool Evaluate(IEvaluationContext context) {
-        var leftValue = Left.Evaluate(context)!;
-        var rightValue = Right.Evaluate(context)!;
-        if (leftValue is System.IComparable leftComp && rightValue is System.IComparable rightComp) {
-            var comparison = leftComp.CompareTo(rightComp);
-            return ILSBooleanOperand.ComparisonOperation(Operator, comparison);
-        }
-        throw new LSInvalidOperationException("Operands are not comparable.");
-    }
+    public bool Resolve(IOperandVisitor visitor) => visitor.Visit(this);
 
     /// <inheritdoc/>
-    object ILSOperand.Evaluate(IEvaluationContext context) => Evaluate(context);
+    TOperand ILSOperand.Resolve<TOperand>(IOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 
 }
 
@@ -340,12 +407,10 @@ public class LSBinaryConditionalOperand : ILSBinaryConditionalOperand {
     /// - AND: if left is false, right is not evaluated
     /// - OR: if left is true, right is not evaluated
     /// </remarks>
-    public bool Evaluate(IEvaluationContext context) {
-        return ILSBooleanOperand.BooleanOperation(Operator, Left, Right, context);
-    }
+    public bool Resolve(IOperandVisitor visitor) => visitor.Visit(this);
 
     /// <inheritdoc/>
-    object ILSOperand.Evaluate(IEvaluationContext context) => Evaluate(context);
+    TOperand ILSOperand.Resolve<TOperand>(IOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 }
 
 /// <summary>
@@ -368,14 +433,17 @@ public class LSUnaryOperand<T> : ILSUnaryOperand<T> where T : System.Numerics.IN
     }
 
     /// <inheritdoc/>
-    public T Evaluate(IEvaluationContext context) {
-        var value = Operand.Evaluate(context)!;
-
-        return ILSNumericOperand<T>.UnaryOperation(Operator, value);
+    public T Resolve(IOperandVisitor visitor) {
+        if (typeof(T) == typeof(float)) {
+            return (T)(object)visitor.Visit((ILSUnaryOperand<float>)(object)this);
+        } else if (typeof(T) == typeof(int)) {
+            return (T)(object)visitor.Visit((ILSUnaryOperand<int>)(object)this);
+        }
+        throw new LSNotImplementedException($"Unary operand of type {typeof(T)} is not supported");
     }
 
     /// <inheritdoc/>
-    object ILSOperand.Evaluate(IEvaluationContext context) => Evaluate(context);
+    TOperand ILSOperand.Resolve<TOperand>(IOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 }
 
 /// <summary>
@@ -404,14 +472,17 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
     /// <remarks>
     /// Only the selected branch is evaluated, avoiding unnecessary computation.
     /// </remarks>
-    public T Evaluate(IEvaluationContext context) {
-        return Condition.Evaluate(context)
-            ? TrueOperand.Evaluate(context)!
-            : FalseOperand.Evaluate(context)!;
+    public T Resolve(IOperandVisitor visitor) {
+        if (typeof(T) == typeof(float)) {
+            return (T)(object)visitor.Visit((ILSTernaryConditionalOperand<float>)(object)this);
+        } else if (typeof(T) == typeof(int)) {
+            return (T)(object)visitor.Visit((ILSTernaryConditionalOperand<int>)(object)this);
+        }
+        throw new LSNotImplementedException($"Ternary conditional operand of type {typeof(T)} is not supported");
     }
 
     /// <inheritdoc/>
-    object ILSOperand.Evaluate(IEvaluationContext context) => Evaluate(context);
+    TOperand ILSOperand.Resolve<TOperand>(IOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 }
 
 /// <summary>
@@ -430,10 +501,10 @@ public class LSUnaryBooleanOperand : ILSUnaryBooleanOperand {
     }
 
     /// <inheritdoc/>
-    public bool Evaluate(IEvaluationContext context) => !Operand.Evaluate(context);
+    public bool Resolve(IOperandVisitor visitor) => visitor.Visit(this);
 
     /// <inheritdoc/>
-    object ILSOperand.Evaluate(IEvaluationContext context) => Evaluate(context);
+    TOperand ILSOperand.Resolve<TOperand>(IOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 }
 
 #endregion

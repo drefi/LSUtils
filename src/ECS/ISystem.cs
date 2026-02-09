@@ -1,4 +1,4 @@
-namespace LSUtils.ECS;
+﻿namespace LSUtils.ECS;
 /// <summary>
 /// Interface base para sistemas.
 /// Sistemas contêm a lógica que processa entidades e seus componentes.
@@ -25,4 +25,7 @@ public interface ISystem {
     /// Chamado quando o sistema é desativado ou destruído.
     /// </summary>
     void Shutdown();
+
+    void RegisterEntity(IEntity entity);
+    void UnregisterEntity(IEntity entity);
 }

@@ -1,4 +1,5 @@
-namespace LSUtils.ECS;
+﻿namespace LSUtils.ECS;
+
 using System;
 using System.Collections.Generic;
 /// <summary>
@@ -9,9 +10,15 @@ public class Entity : IEntity {
     public Guid ID { get; private set; }
 
     private Dictionary<Type, IComponent> _components = new();
+    public string? Name { get; private set; }
 
-    public Entity(Guid? id = null) {
+    public Entity() {
+        ID = Guid.NewGuid();
+    }
+
+    public Entity(Guid? id = null, string? name = null) {
         ID = id ?? Guid.NewGuid();
+        Name = name;
     }
 
     public void AddComponent<T>(T component) where T : IComponent {

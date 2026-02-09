@@ -1,4 +1,4 @@
-namespace LSUtils.ECS;
+﻿namespace LSUtils.ECS;
 
 /// <summary>
 /// Classe base abstrata para sistemas.
@@ -7,7 +7,7 @@ namespace LSUtils.ECS;
 /// </summary>
 public abstract class SystemBase : ISystem {
     public abstract string SystemName { get; }
-    protected IWorld? World { get; private set; }
+    public IWorld? World { get; private set; }
 
     protected SystemBase() { }
 
@@ -17,7 +17,10 @@ public abstract class SystemBase : ISystem {
 
     public abstract void Update(float deltaTime);
 
-    public virtual void Shutdown() {
-        // Override se necessário
-    }
+    public virtual void Shutdown() { }
+
+    public virtual void RegisterEntity(IEntity entity) { }
+
+    public virtual void UnregisterEntity(IEntity entity) { }
+
 }

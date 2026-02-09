@@ -1,4 +1,5 @@
-namespace LSUtils.ECS;
+﻿namespace LSUtils.ECS;
+
 using System;
 using System.Collections.Generic;
 
@@ -11,12 +12,12 @@ public interface IWorld {
     /// <summary>
     /// Cria uma nova entidade no mundo.
     /// </summary>
-    IEntity CreateEntity();
+    TEntity CreateEntity<TEntity>() where TEntity : IEntity, new();
 
     /// <summary>
     /// Cria uma entidade com um ID específico.
     /// </summary>
-    IEntity CreateEntity(Guid id);
+    TEntity CreateEntity<TEntity>(Guid id, string? name = null) where TEntity : IEntity, new();
 
     /// <summary>
     /// Remove uma entidade do mundo.
@@ -34,6 +35,7 @@ public interface IWorld {
     /// Obtém todas as entidades que possuem um conjunto específico de componentes.
     /// </summary>
     IEnumerable<IEntity> GetEntitiesWith<T1>() where T1 : IComponent;
+    IEnumerable<IEntity> GetEntitiesWith<T1>(out IEnumerable<T1>? components) where T1 : IComponent;
     IEnumerable<IEntity> GetEntitiesWith<T1, T2>() where T1 : IComponent where T2 : IComponent;
     IEnumerable<IEntity> GetEntitiesWith<T1, T2, T3>() where T1 : IComponent where T2 : IComponent where T3 : IComponent;
 
