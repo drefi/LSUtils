@@ -54,7 +54,7 @@ public class LSOperandTests {
         }
     }
 
-    public class MockVariableProvider : IVariableProvider<float> {
+    public class MockVariableProvider : ILSVariableProvider<float> {
         protected readonly Dictionary<string, MockEntity> _entities = new();
         public MockVariableProvider(MockEntity[]? entities = null) {
             if (entities != null) {
@@ -82,12 +82,12 @@ public class LSOperandTests {
             Value = value;
         }
 
-        public float Resolve(IOperandVisitor visitor) {
+        public float Resolve(ILSOperandVisitor visitor) {
             ResolveCount++;
             return Value;
         }
 
-        TOperand ILSOperand.Resolve<TOperand>(IOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+        TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
     }
     #endregion
 
