@@ -18,9 +18,4 @@ public abstract class SystemBase : ISystem {
     public abstract void Update(float deltaTime);
 
     public virtual void Shutdown() { }
-
-    public virtual void RegisterEntity(IEntity entity) { }
-
-    public virtual void UnregisterEntity(IEntity entity) { }
-
 }

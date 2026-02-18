@@ -25,7 +25,4 @@ public interface ISystem {
     /// Chamado quando o sistema é desativado ou destruído.
     /// </summary>
     void Shutdown();
-
-    void RegisterEntity(IEntity entity);
-    void UnregisterEntity(IEntity entity);
 }

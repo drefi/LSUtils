@@ -34,6 +34,20 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
     /// </summary>
     public static implicit operator LSConstantOperand<T>(T value) => new(value);
 }
+public class LSBooleanConstantOperand : ILSBooleanOperand {
+    public bool Value { get; }
+
+    public LSBooleanConstantOperand(bool value) {
+        Value = value;
+    }
+    public bool Resolve(ILSOperandVisitor visitor) => visitor.Visit(this);
+    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+
+    /// <summary>
+    /// Implicit conversion from a boolean value to a BooleanConstantOperand.
+    /// </summary>
+    public static implicit operator LSBooleanConstantOperand(bool value) => new(value);
+}
 public class LSVarOperand<T> : ILSVarOperand<T> where T : System.Numerics.INumber<T> {
     public string ID { get; }
     public object Key { get; }
@@ -96,6 +110,7 @@ public class LSConditionalOperand : ILSConditionalOperand {
     public ComparisonOperator Operator { get; }
     public ILSOperand Left { get; }
     public ILSOperand Right { get; }
+    public bool Value => throw new LSNotImplementedException("Value property is not implemented for LSConditionalOperand. Use Resolve method with a visitor instead.");
 
     /// <summary>
     /// Creates a comparison operation between two operands.
@@ -125,7 +140,7 @@ public class LSBinaryConditionalOperand : ILSBinaryConditionalOperand {
     public BooleanOperator Operator { get; }
     public ILSBooleanOperand Left { get; }
     public ILSBooleanOperand Right { get; }
-
+    public bool Value => throw new LSNotImplementedException("Value property is not implemented for LSBinaryConditionalOperand. Use Resolve method with a visitor instead.");
     /// <summary>
     /// Creates a binary boolean operation.
     /// </summary>
@@ -226,8 +241,9 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
 /// Negates a boolean operand, inverting its true/false value.
 /// Implements the logical NOT operation.
 /// </summary>
-public class LSUnaryBooleanOperand : ILSUnaryBooleanOperand {
+public class LSUnaryBooleanOperand : ILSNegateBooleanOperand {
     public ILSBooleanOperand Operand { get; }
+    public bool Value => throw new LSNotImplementedException("Value property is not implemented for LSUnaryBooleanOperand. Use Resolve method with a visitor instead.");
 
     /// <summary>
     /// Creates a unary boolean negation operation.

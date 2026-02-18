@@ -54,7 +54,7 @@ public class LSOperandTests {
         }
     }
 
-    public class MockVariableProvider : ILSVariableProvider<float> {
+    public class MockVariableProvider : ILSVariableProvider {
         protected readonly Dictionary<string, MockEntity> _entities = new();
         public MockVariableProvider(MockEntity[]? entities = null) {
             if (entities != null) {
@@ -64,7 +64,7 @@ public class LSOperandTests {
             }
 
         }
-        public float GetValue(string id, object key) {
+        public object GetValue(string id, object key) {
             if (key is not string strKey) {
                 throw new LSException($"Invalid key type: {key.GetType().Name}. Expected string.");
             }

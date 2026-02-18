@@ -3,6 +3,7 @@
 /// Operand interface specifically for boolean operations and conditions.
 /// </summary>
 public interface ILSBooleanOperand : ILSOperand<bool> {
+    bool Value { get; }
     public static bool BooleanOperation(BooleanOperator @operator, ILSBooleanOperand l, ILSBooleanOperand right, ILSOperandVisitor visitor) {
         var leftValue = l.Resolve<bool>(visitor);
 

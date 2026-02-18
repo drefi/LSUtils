@@ -3,7 +3,7 @@
 /// <summary>
 /// Interface for unary boolean operations that negate a boolean operand.
 /// </summary>
-public interface ILSUnaryBooleanOperand : ILSBooleanOperand {
+public interface ILSNegateBooleanOperand : ILSBooleanOperand {
     /// <summary>
     /// Gets the boolean operand to negate.
     /// </summary>
