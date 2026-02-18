@@ -35,7 +35,7 @@ public interface IWorld {
     /// Obtém todas as entidades que possuem um conjunto específico de componentes.
     /// </summary>
     IEnumerable<IEntity> GetEntitiesWith<T1>() where T1 : IComponent;
-    IEnumerable<IEntity> GetEntitiesWith<T1>(out IEnumerable<T1>? components) where T1 : IComponent;
+    IEnumerable<IEntity> GetEntitiesWith<T1>(out IEnumerable<T1?> components) where T1 : IComponent;
     IEnumerable<IEntity> GetEntitiesWith<T1, T2>() where T1 : IComponent where T2 : IComponent;
     IEnumerable<IEntity> GetEntitiesWith<T1, T2, T3>() where T1 : IComponent where T2 : IComponent where T3 : IComponent;
 

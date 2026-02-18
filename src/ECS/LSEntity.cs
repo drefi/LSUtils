@@ -3,20 +3,20 @@
 using System;
 using System.Collections.Generic;
 /// <summary>
-/// Implementação padrão de uma entidade ECS.
-/// Gerencia componentes associados a esta entidade.
+/// Standard implementation of an entity in the ECS framework.
+/// Manages components associated with this entity.
 /// </summary>
-public class Entity : IEntity {
+public class LSEntity : IEntity {
     public Guid ID { get; private set; }
 
     private Dictionary<Type, IComponent> _components = new();
     public string? Name { get; private set; }
 
-    public Entity() {
+    public LSEntity() {
         ID = Guid.NewGuid();
     }
 
-    public Entity(Guid? id = null, string? name = null) {
+    public LSEntity(Guid? id = null, string? name = null) {
         ID = id ?? Guid.NewGuid();
         Name = name;
     }
