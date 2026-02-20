@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 [TestFixture]
 public class LSOperandTests {
-    LSEvaluator<float> _evaluator;
+    LSEvaluator _evaluator;
 
     private MockVariableProvider _provider;
     private MockEntity _entityA;
@@ -64,12 +64,14 @@ public class LSOperandTests {
             }
 
         }
-        public object GetValue(string id, object key) {
-            if (key is not string strKey) {
-                throw new LSException($"Invalid key type: {key.GetType().Name}. Expected string.");
+        public object? GetValue(params object?[] parameters) {
+            if (parameters.Length != 2) {
+                throw new LSException($"Invalid number of parameters. Expected 2, got {parameters.Length}.");
             }
+            string id = parameters[0]?.ToString() ?? throw new LSException("Invalid id parameter.");
+            string key = parameters[1]?.ToString() ?? throw new LSException("Invalid key parameter.");
             if (_entities.TryGetValue(id, out var value)) {
-                return value.GetAttributeValue(_attributes[strKey]);
+                return value.GetAttributeValue(_attributes[key]);
             }
             throw new LSException($"Variable '{id}' not found.");
         }
@@ -88,6 +90,10 @@ public class LSOperandTests {
         }
 
         TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+
+        object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
+            return Resolve(visitor);
+        }
     }
     #endregion
 
@@ -100,7 +106,7 @@ public class LSOperandTests {
         _entityB.AddAttribute(_attributes["Health"], 150);
         _entityB.AddAttribute(_attributes["Damage"], 20);
         _provider = new MockVariableProvider(new[] { _entityA, _entityB });
-        _evaluator = new LSEvaluator<float>(_provider);
+        _evaluator = new LSEvaluator(_provider);
     }
 
     [Test]
@@ -121,14 +127,14 @@ public class LSOperandTests {
     }
     [Test]
     public void VarOperand_ShouldRetrieveValueFromProvider() {
-        var operand = new LSVarOperand<float>("EntityA", "Health");
+        var operand = new LSVarOperand("EntityA", "Health");
         Assert.That(operand.Resolve(_evaluator), Is.EqualTo(100));
     }
     [Test]
     public void ComplexExpression_ShouldEvaluateCorrectly() {
         // (EntityA.Health + EntityB.Health) / 2
-        var healthA = new LSVarOperand<float>("EntityA", "Health");
-        var healthB = new LSVarOperand<float>("EntityB", "Health");
+        var healthA = new LSNumericVarOperand<float>("EntityA", "Health");
+        var healthB = new LSNumericVarOperand<float>("EntityB", "Health");
         var sum = new LSBinaryOperand<float>(healthA, healthB, MathOperator.Add);
         var average = new LSBinaryOperand<float>(sum, new LSConstantOperand<float>(2), MathOperator.Divide);
 
@@ -137,8 +143,8 @@ public class LSOperandTests {
     [Test]
     public void Visitor_ShouldEvaluateNestedExpressions() {
         // (EntityA.Damage * 2) + (EntityB.Damage * 3)
-        var damageA = new LSVarOperand<float>("EntityA", "Damage");
-        var damageB = new LSVarOperand<float>("EntityB", "Damage");
+        var damageA = new LSNumericVarOperand<float>("EntityA", "Damage");
+        var damageB = new LSNumericVarOperand<float>("EntityB", "Damage");
         var doubleDamageA = new LSBinaryOperand<float>(damageA, new LSConstantOperand<float>(2), MathOperator.Multiply);
         var tripleDamageB = new LSBinaryOperand<float>(damageB, new LSConstantOperand<float>(3), MathOperator.Multiply);
         var totalDamage = new LSBinaryOperand<float>(doubleDamageA, tripleDamageB, MathOperator.Add);
@@ -207,25 +213,25 @@ public class LSOperandTests {
     [Test]
     public void IntegrationTest_ShouldEvaluateAttributeChange() {
         // Simulate an attribute change: NewHealth = CurrentHealth - Damage
-        var currentHealth = new LSVarOperand<float>("EntityA", "Health");
-        var damage = new LSVarOperand<float>("EntityA", "Damage");
+        var currentHealth = new LSNumericVarOperand<float>("EntityA", "Health");
+        var damage = new LSNumericVarOperand<float>("EntityA", "Damage");
         var newHealth = new LSBinaryOperand<float>(currentHealth, damage, MathOperator.Subtract);
         var result = newHealth.Resolve(_evaluator);
         Assert.That(result, Is.EqualTo(90));
         _entityA.SetAttribute((_attributes["Health"]), result);
-        var updatedHealth = new LSVarOperand<float>("EntityA", "Health");
+        var updatedHealth = new LSNumericVarOperand<float>("EntityA", "Health");
         Assert.That(updatedHealth.Resolve(_evaluator), Is.EqualTo(90));
     }
     [Test]
     public void IntegrationTest_ShouldEvaluateAttributeChangeBetweenEntities() {
         // Simulate an attribute change: EntityA's new Health = CurrentHealth - EntityB's Damage
-        var currentHealth = new LSVarOperand<float>("EntityA", "Health");
-        var damageFromB = new LSVarOperand<float>("EntityB", "Damage");
+        var currentHealth = new LSNumericVarOperand<float>("EntityA", "Health");
+        var damageFromB = new LSNumericVarOperand<float>("EntityB", "Damage");
         var newHealth = new LSBinaryOperand<float>(currentHealth, damageFromB, MathOperator.Subtract);
         var result = newHealth.Resolve(_evaluator);
         Assert.That(result, Is.EqualTo(80));
         _entityA.SetAttribute((_attributes["Health"]), result);
-        var updatedHealth = new LSVarOperand<float>("EntityA", "Health");
+        var updatedHealth = new LSNumericVarOperand<float>("EntityA", "Health");
         Assert.That(updatedHealth.Resolve(_evaluator), Is.EqualTo(80));
     }
 

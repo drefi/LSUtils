@@ -1,4 +1,6 @@
-﻿namespace LSUtils;
+﻿using System.Collections.Generic;
+
+namespace LSUtils;
 #region Operand Implementations
 
 /// <summary>
@@ -16,18 +18,25 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
     public LSConstantOperand(T value) {
         Value = value;
     }
-    public T Resolve(ILSOperandVisitor visitor) {
+    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
+        return (T?)Resolve(visitor);
+    }
+
+    public TOperand? Resolve<TOperand>(ILSOperandVisitor visitor) {
+        return (TOperand?)(object?)Resolve(visitor);
+    }
+
+    public T? Resolve(ILSOperandVisitor visitor) {
         if (typeof(T) == typeof(float)) {
             return (T)(object)visitor.Visit((ILSConstantOperand<float>)(object)this);
         } else if (typeof(T) == typeof(int)) {
             return (T)(object)visitor.Visit((ILSConstantOperand<int>)(object)this);
         }
         throw new LSNotImplementedException($"Constant operand of type {typeof(T)} is not supported in the visitor.");
+
     }
-    /// <inheritdoc/>
-    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) {
-        return (TOperand)(object)Resolve(visitor);
-    }
+
+
 
     /// <summary>
     /// Implicit conversion from a numeric value to a ConstantOperand.
@@ -42,31 +51,37 @@ public class LSBooleanConstantOperand : ILSBooleanOperand {
     }
     public bool Resolve(ILSOperandVisitor visitor) => visitor.Visit(this);
     TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+    object? ILSOperand.Resolve(ILSOperandVisitor visitor) => Resolve(visitor);
+
 
     /// <summary>
     /// Implicit conversion from a boolean value to a BooleanConstantOperand.
     /// </summary>
     public static implicit operator LSBooleanConstantOperand(bool value) => new(value);
 }
-public class LSVarOperand<T> : ILSVarOperand<T> where T : System.Numerics.INumber<T> {
-    public string ID { get; }
-    public object Key { get; }
-
-    public LSVarOperand(string id, object key) {
-        ID = id;
-        Key = key;
+public class LSVarOperand : ILSVarOperand {
+    public IReadOnlyList<object?> Parameters { get; }
+    public LSVarOperand(params object?[] parameters) {
+        Parameters = parameters ?? new object[0];
     }
 
-    public T Resolve(ILSOperandVisitor visitor) {
-        if (typeof(T) == typeof(float)) {
-            return (T)(object)visitor.Visit((ILSVarOperand<float>)(object)this);
-        } else if (typeof(T) == typeof(int)) {
-            return (T)(object)visitor.Visit((ILSVarOperand<int>)(object)this);
+    public object? Resolve(ILSOperandVisitor visitor) {
+        return visitor.Visit(this);
+    }
+
+    public TOperand? Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand?)Resolve(visitor)!;
+}
+public class LSNumericVarOperand<T> : LSVarOperand, ILSNumericOperand<T> where T : System.Numerics.INumber<T> {
+    public LSNumericVarOperand(params object?[] parameters) : base(parameters) { }
+
+    T? ILSOperand<T>.Resolve(ILSOperandVisitor visitor) {
+        var result = Resolve(visitor);
+        if (result is T typedResult) {
+            return typedResult;
         }
-        throw new LSNotImplementedException($"Variable operand of type {typeof(T)} is not supported in the visitor.");
+        throw new LSInvalidOperationException($"Variable operand resolved to a value of type {result?.GetType().Name}, but expected type was {typeof(T).Name}.");
     }
 
-    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 }
 
 /// <summary>
@@ -92,14 +107,18 @@ public class LSBinaryOperand<T> : ILSBinaryOperand<T> where T : System.Numerics.
     }
     public T Resolve(ILSOperandVisitor visitor) {
         if (typeof(T) == typeof(float)) {
-            return (T)(object)visitor.Visit((ILSBinaryOperand<float>)(object)this);
+            return (T)(object)visitor.Visit((ILSBinaryOperand<float>)this);
         } else if (typeof(T) == typeof(int)) {
-            return (T)(object)visitor.Visit((ILSBinaryOperand<int>)(object)this);
+            return (T)(object)visitor.Visit((ILSBinaryOperand<int>)this);
         }
         throw new LSNotImplementedException($"Binary operand of type {typeof(T)} is not supported in the visitor.");
+
     }
     TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 
+    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
+        return Resolve(visitor);
+    }
 }
 
 /// <summary>
@@ -130,6 +149,9 @@ public class LSConditionalOperand : ILSConditionalOperand {
     /// <inheritdoc/>
     TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 
+    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
+        return Resolve(visitor);
+    }
 }
 
 /// <summary>
@@ -163,6 +185,11 @@ public class LSBinaryConditionalOperand : ILSBinaryConditionalOperand {
 
     /// <inheritdoc/>
     TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+
+    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
+        return Resolve(visitor);
+    }
+
 }
 
 /// <summary>
@@ -196,6 +223,11 @@ public class LSUnaryOperand<T> : ILSUnaryOperand<T> where T : System.Numerics.IN
 
     /// <inheritdoc/>
     TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+
+    /// <inheritdoc/>
+    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
+        return Resolve(visitor);
+    }
 }
 
 /// <summary>
@@ -235,6 +267,11 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
 
     /// <inheritdoc/>
     TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+
+    /// <inheritdoc/>
+    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
+        return Resolve(visitor);
+    }
 }
 
 /// <summary>
@@ -258,6 +295,11 @@ public class LSUnaryBooleanOperand : ILSNegateBooleanOperand {
 
     /// <inheritdoc/>
     TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+
+    /// <inheritdoc/>
+    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
+        return Resolve(visitor);
+    }
 }
 
 #endregion
