@@ -88,20 +88,21 @@ public class LSOperandVisitor : ILSOperandVisitor {
     }
 
     public virtual bool Visit(ILSConditionalOperand node, out bool? value, params object?[] parameters) {
-        if (node.Left.Accept(this, out var leftValue, parameters) == false) {
+        if (node.Left.Accept(this, out var leftValue, parameters) == false || leftValue == null) {
             value = default;
             return false;
         }
-        if (node.Right.Accept(this, out var rightValue, parameters) == false) {
-            value = default;
-            return false;
+        if (node.Right.Accept(this, out var rightValue, parameters) && rightValue.HasValue) {
+            value = ILSBooleanOperand.BooleanOperation(node.Operator, leftValue.Value, rightValue.Value);
+            return true;
+        } else {
+            value = ILSBooleanOperand.BooleanOperation(node.Operator, leftValue.Value, false);
         }
-        value = ILSBooleanOperand.BooleanOperation(node.Operator, node.Left, node.Right, this);
         return true;
     }
 
     public virtual bool Visit(ILSNegateBooleanOperand node, out bool? value, params object?[] parameters) {
-        if (node.Operand.Accept(this, out var operandValue, parameters) == false) {
+        if (node.Operand.Accept(this, out var operandValue, parameters) == false || operandValue == null) {
             value = default;
             return false;
         }
