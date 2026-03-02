@@ -2,17 +2,25 @@
 /// <summary>
 /// Operand interface specifically for boolean operations and conditions.
 /// </summary>
-public interface ILSBooleanOperand : ILSOperand<bool> {
-    bool Value { get; }
-    public static bool BooleanOperation(BooleanOperator @operator, ILSBooleanOperand l, ILSBooleanOperand right, ILSOperandVisitor visitor) {
-        var leftValue = l.Resolve<bool>(visitor);
+public interface ILSBooleanOperand : ILSOperand<bool?> {
+    bool? Value { get; }
+    public static bool BooleanOperation(BooleanOperator @operator, ILSBooleanOperand left, ILSBooleanOperand right, ILSOperandVisitor visitor) {
+        if (left.Accept(visitor, out var leftValue) == false || leftValue == null) {
+            throw new LSInvalidOperationException("Failed to resolve left operand for boolean operation.");
+        }
+        var resolveRight = (ILSBooleanOperand operand) => {
+            if (operand.Accept(visitor, out var rightValue) == false || rightValue == null) {
+                throw new LSInvalidOperationException("Failed to resolve right operand for boolean operation.");
+            }
+            return rightValue.Value;
+        };
 
         return @operator switch {
-            BooleanOperator.And => leftValue && right.Resolve<bool>(visitor),
-            BooleanOperator.Or => leftValue || right.Resolve<bool>(visitor),
-            BooleanOperator.Xor => leftValue ^ right.Resolve<bool>(visitor),
-            BooleanOperator.Nand => !(leftValue && right.Resolve<bool>(visitor)),
-            BooleanOperator.Nor => !(leftValue || right.Resolve<bool>(visitor)),
+            BooleanOperator.And => leftValue.Value && resolveRight(right),
+            BooleanOperator.Or => leftValue.Value || resolveRight(right),
+            BooleanOperator.Xor => leftValue.Value ^ resolveRight(right),
+            BooleanOperator.Nand => !(leftValue.Value && resolveRight(right)),
+            BooleanOperator.Nor => !(leftValue.Value || resolveRight(right)),
             _ => throw new LSNotImplementedException($"Boolean operator {@operator} not implemented.")
         };
     }

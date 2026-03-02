@@ -1,4 +1,4 @@
-namespace LSUtils.ECS;
+﻿namespace LSUtils.ECS;
 
 /// <summary>
 /// Interface base para todos os componentes.
@@ -7,4 +7,5 @@ namespace LSUtils.ECS;
 /// </summary>
 public interface IComponent {
     string ComponentName { get; }
+    void Initialize(params object?[] args);
 }

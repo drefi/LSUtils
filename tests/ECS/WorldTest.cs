@@ -13,16 +13,25 @@ public class WorldTest {
         public string ComponentName => "TestComponent";
         public int Value { get; set; }
 
+        public virtual void Initialize(params object?[] args) {
+            throw new System.NotImplementedException();
+        }
     }
     public class AnotherTestComponent : IComponent {
         public string ComponentName => "AnotherTestComponent";
         public int Value { get; set; }
 
+        public virtual void Initialize(params object?[] args) {
+            throw new System.NotImplementedException();
+        }
     }
     public class ThirdTestComponent : IComponent {
         public string ComponentName => "ThirdTestComponent";
         public int Value { get; set; }
 
+        public virtual void Initialize(params object?[] args) {
+            throw new System.NotImplementedException();
+        }
     }
     public class TestSystem : ISystem {
         public string SystemName => "TestSystem";

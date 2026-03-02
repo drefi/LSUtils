@@ -1,4 +1,4 @@
-namespace LSUtils.ECS;
+﻿namespace LSUtils.ECS;
 
 using System;
 using System.Collections.Generic;
@@ -31,7 +31,7 @@ public interface IEntity {
     /// <summary>
     /// Tenta obter um componente da entidade.
     /// </summary>
-    bool TryGetComponent<T>(out T component) where T : IComponent;
+    bool TryGetComponent<T>(out T? component) where T : IComponent;
 
     /// <summary>
     /// Verifica se a entidade possui um componente específico.
@@ -41,5 +41,5 @@ public interface IEntity {
     /// <summary>
     /// Obtém todos os componentes da entidade.
     /// </summary>
-    IEnumerable<IComponent> GetAllComponents();
+    IEnumerable<IComponent?> GetAllComponents();
 }

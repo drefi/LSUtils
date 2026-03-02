@@ -1,4 +1,4 @@
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
 namespace LSUtils;
 /// <summary>
@@ -113,5 +113,19 @@ public static class LSMath {
     public static double Sqrt(double s) {
         return System.Math.Sqrt(s);
     }
-    
+    public static bool IsNumeric(System.Type type) {
+        // Handle nullable types
+        System.Type underlyingType = System.Nullable.GetUnderlyingType(type) ?? type;
+
+        return System.Type.GetTypeCode(underlyingType) switch {
+            System.TypeCode.Byte or System.TypeCode.SByte or
+            System.TypeCode.UInt16 or System.TypeCode.UInt32 or System.TypeCode.UInt64 or
+            System.TypeCode.Int16 or System.TypeCode.Int32 or System.TypeCode.Int64 or
+            System.TypeCode.Decimal or System.TypeCode.Double or System.TypeCode.Single => true,
+            _ => false
+        };
+    }
+    public static bool IsNumeric<TValue>() {
+        return IsNumeric(typeof(TValue));
+    }
 }

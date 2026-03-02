@@ -1,17 +1,14 @@
 ﻿namespace LSUtils;
 
-public interface ILSOperandVisitor {
-    object? Visit(ILSVarOperand node);
-    float Visit(ILSConstantOperand<float> node);
-    bool Visit(ILSBooleanOperand node);
-    float Visit(ILSBinaryOperand<float> node);
-    float Visit(ILSUnaryOperand<float> node);
-    float Visit(ILSTernaryConditionalOperand<float> node);
-    int Visit(ILSConstantOperand<int> node);
-    int Visit(ILSBinaryOperand<int> node);
-    int Visit(ILSUnaryOperand<int> node);
-    int Visit(ILSTernaryConditionalOperand<int> node);
-    bool Visit(ILSConditionalOperand node);
-    bool Visit(ILSBinaryConditionalOperand node);
-    bool Visit(ILSNegateBooleanOperand node);
+public interface ILSOperandVisitor : ILSVisitor {
+    bool Visit<TValue>(ILSVarOperand node, out TValue? value, params object?[] parameters);
+    bool Visit<TValue>(ILSConstantOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : System.Numerics.INumber<TValue>;
+    bool Visit<TValue>(ILSBinaryOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : System.Numerics.INumber<TValue>;
+    bool Visit<TValue>(ILSUnaryOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : System.Numerics.INumber<TValue>;
+    bool Visit<TValue>(ILSTernaryConditionalOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : System.Numerics.INumber<TValue>;
+    bool Visit(ILSBooleanOperand node, out bool? value, params object?[] parameters);
+    bool Visit(ILSComparerOperand node, out bool? value, params object?[] parameters);
+    bool Visit(ILSConditionalOperand node, out bool? value, params object?[] parameters);
+    bool Visit(ILSNegateBooleanOperand node, out bool? value, params object?[] parameters);
+    
 }

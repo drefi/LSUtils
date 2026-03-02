@@ -1,6 +1,7 @@
 ﻿namespace LSUtils;
 
 public interface ILSVariableProvider {
-    object? GetValue(params object?[] parameters);
-    T? GetValue<T>(params object?[] parameters) => (T?)GetValue(parameters);
+    void SetValue<TValue>(TValue value, params object?[] parameters);
+    TValue? GetValue<TValue>(params object?[] parameters);
+    bool TryGetValue<TValue>(out TValue? value, params object?[] parameters);
 }

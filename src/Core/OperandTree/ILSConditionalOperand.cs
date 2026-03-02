@@ -1,20 +1,20 @@
 ﻿namespace LSUtils;
 /// <summary>
-/// Interface for conditional comparison operations that compare two values and return a boolean result.
+/// Interface for binary boolean operations that combine two boolean operands using logical operators.
 /// </summary>
 public interface ILSConditionalOperand : ILSBooleanOperand {
     /// <summary>
-    /// Gets the comparison operator used to compare the operands.
+    /// Gets the boolean operator used to combine the operands.
     /// </summary>
-    ComparisonOperator Operator { get; }
+    BooleanOperator Operator { get; }
 
     /// <summary>
-    /// Gets the left operand to compare.
+    /// Gets the left boolean operand.
     /// </summary>
-    ILSOperand Left { get; }
+    ILSBooleanOperand Left { get; }
 
     /// <summary>
-    /// Gets the right operand to compare.
+    /// Gets the right boolean operand.
     /// </summary>
-    ILSOperand Right { get; }
+    ILSBooleanOperand Right { get; }
 }

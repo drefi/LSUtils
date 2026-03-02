@@ -18,25 +18,28 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
     public LSConstantOperand(T value) {
         Value = value;
     }
-    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
-        return (T?)Resolve(visitor);
+
+
+    public virtual bool Accept(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
+        return visitor.Visit(this, out value, parameters);
     }
 
-    public TOperand? Resolve<TOperand>(ILSOperandVisitor visitor) {
-        return (TOperand?)(object?)Resolve(visitor);
-    }
-
-    public T? Resolve(ILSOperandVisitor visitor) {
-        if (typeof(T) == typeof(float)) {
-            return (T)(object)visitor.Visit((ILSConstantOperand<float>)(object)this);
-        } else if (typeof(T) == typeof(int)) {
-            return (T)(object)visitor.Visit((ILSConstantOperand<int>)(object)this);
+    public virtual bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (Accept(visitor, out T? typedValue, parameters) == false || typedValue is not TValue castValue) {
+            value = default;
+            return false;
         }
-        throw new LSNotImplementedException($"Constant operand of type {typeof(T)} is not supported in the visitor.");
-
+        value = castValue;
+        return true;
     }
 
-
+    public virtual bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (visitor is not ILSOperandVisitor operandVisitor) {
+            value = default;
+            return false;
+        }
+        return Accept(operandVisitor, out value, parameters);
+    }
 
     /// <summary>
     /// Implicit conversion from a numeric value to a ConstantOperand.
@@ -44,44 +47,38 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
     public static implicit operator LSConstantOperand<T>(T value) => new(value);
 }
 public class LSBooleanConstantOperand : ILSBooleanOperand {
-    public bool Value { get; }
+    public bool? Value { get; }
 
     public LSBooleanConstantOperand(bool value) {
         Value = value;
     }
-    public bool Resolve(ILSOperandVisitor visitor) => visitor.Visit(this);
-    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
-    object? ILSOperand.Resolve(ILSOperandVisitor visitor) => Resolve(visitor);
+    public virtual bool Accept(ILSOperandVisitor visitor, out bool? value, params object?[] parameters) {
+        return visitor.Visit(this, out value, parameters);
+    }
+
+    public virtual bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (Accept(visitor, out bool? typedValue, parameters) == false || typedValue is not TValue castValue) {
+            value = default;
+            return false;
+        }
+        value = castValue;
+        return true;
+    }
+
+    public virtual bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (visitor is not ILSOperandVisitor operandVisitor) {
+            value = default;
+            return false;
+        }
+        return Accept(operandVisitor, out value, parameters);
+    }
+
 
 
     /// <summary>
     /// Implicit conversion from a boolean value to a BooleanConstantOperand.
     /// </summary>
     public static implicit operator LSBooleanConstantOperand(bool value) => new(value);
-}
-public class LSVarOperand : ILSVarOperand {
-    public IReadOnlyList<object?> Parameters { get; }
-    public LSVarOperand(params object?[] parameters) {
-        Parameters = parameters ?? new object[0];
-    }
-
-    public object? Resolve(ILSOperandVisitor visitor) {
-        return visitor.Visit(this);
-    }
-
-    public TOperand? Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand?)Resolve(visitor)!;
-}
-public class LSNumericVarOperand<T> : LSVarOperand, ILSNumericOperand<T> where T : System.Numerics.INumber<T> {
-    public LSNumericVarOperand(params object?[] parameters) : base(parameters) { }
-
-    T? ILSOperand<T>.Resolve(ILSOperandVisitor visitor) {
-        var result = Resolve(visitor);
-        if (result is T typedResult) {
-            return typedResult;
-        }
-        throw new LSInvalidOperationException($"Variable operand resolved to a value of type {result?.GetType().Name}, but expected type was {typeof(T).Name}.");
-    }
-
 }
 
 /// <summary>
@@ -105,31 +102,38 @@ public class LSBinaryOperand<T> : ILSBinaryOperand<T> where T : System.Numerics.
         Right = right;
         Operator = op;
     }
-    public T Resolve(ILSOperandVisitor visitor) {
-        if (typeof(T) == typeof(float)) {
-            return (T)(object)visitor.Visit((ILSBinaryOperand<float>)this);
-        } else if (typeof(T) == typeof(int)) {
-            return (T)(object)visitor.Visit((ILSBinaryOperand<int>)this);
+    public virtual bool Accept(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
+        return visitor.Visit(this, out value, parameters);
+    }
+
+    public virtual bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (Accept(visitor, out T? typedValue, parameters) == false || typedValue is not TValue castValue) {
+            value = default;
+            return false;
         }
-        throw new LSNotImplementedException($"Binary operand of type {typeof(T)} is not supported in the visitor.");
-
+        value = castValue;
+        return true;
     }
-    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
 
-    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
-        return Resolve(visitor);
+    public virtual bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (visitor is not ILSOperandVisitor operandVisitor) {
+            value = default;
+            return false;
+        }
+        return Accept(operandVisitor, out value, parameters);
     }
+
 }
 
 /// <summary>
 /// Compares two comparable values and returns a boolean result.
 /// Supports all standard comparison operators (==, !=, &lt;, &gt;, &lt;=, &gt;=).
 /// </summary>
-public class LSConditionalOperand : ILSConditionalOperand {
+public class LSConditionalOperand : ILSComparerOperand {
     public ComparisonOperator Operator { get; }
     public ILSOperand Left { get; }
     public ILSOperand Right { get; }
-    public bool Value => throw new LSNotImplementedException("Value property is not implemented for LSConditionalOperand. Use Resolve method with a visitor instead.");
+    public bool? Value { get; protected set; }
 
     /// <summary>
     /// Creates a comparison operation between two operands.
@@ -141,28 +145,40 @@ public class LSConditionalOperand : ILSConditionalOperand {
         Operator = @operator;
         Left = left;
         Right = right;
+        Value = null;
+    }
+    public virtual bool Accept(ILSOperandVisitor visitor, out bool? value, params object?[] parameters) {
+        return visitor.Visit(this, out value, parameters);
     }
 
-    /// <inheritdoc/>
-    public bool Resolve(ILSOperandVisitor visitor) => visitor.Visit(this);
-
-    /// <inheritdoc/>
-    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
-
-    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
-        return Resolve(visitor);
+    public virtual bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (Accept(visitor, out bool? typedValue, parameters) == false || typedValue is not TValue castValue) {
+            value = default;
+            return false;
+        }
+        value = castValue;
+        return true;
     }
+
+    public virtual bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (visitor is not ILSOperandVisitor operandVisitor) {
+            value = default;
+            return false;
+        }
+        return Accept(operandVisitor, out value, parameters);
+    }
+
 }
 
 /// <summary>
 /// Performs binary boolean operations on two boolean operands.
 /// Implements short-circuit evaluation for AND and OR operators to improve performance.
 /// </summary>
-public class LSBinaryConditionalOperand : ILSBinaryConditionalOperand {
+public class LSBinaryConditionalOperand : ILSConditionalOperand {
     public BooleanOperator Operator { get; }
     public ILSBooleanOperand Left { get; }
     public ILSBooleanOperand Right { get; }
-    public bool Value => throw new LSNotImplementedException("Value property is not implemented for LSBinaryConditionalOperand. Use Resolve method with a visitor instead.");
+    public bool? Value => null; // Value is determined by evaluating the operands, not stored directly.
     /// <summary>
     /// Creates a binary boolean operation.
     /// </summary>
@@ -175,21 +191,26 @@ public class LSBinaryConditionalOperand : ILSBinaryConditionalOperand {
         Right = right;
     }
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// Uses short-circuit evaluation for AND and OR:
-    /// - AND: if left is false, right is not evaluated
-    /// - OR: if left is true, right is not evaluated
-    /// </remarks>
-    public bool Resolve(ILSOperandVisitor visitor) => visitor.Visit(this);
-
-    /// <inheritdoc/>
-    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
-
-    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
-        return Resolve(visitor);
+    public virtual bool Accept(ILSOperandVisitor visitor, out bool? value, params object?[] parameters) {
+        return visitor.Visit(this, out value, parameters);
     }
 
+    public virtual bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (Accept(visitor, out var typedValue, parameters) == false || typedValue is not TValue castValue) {
+            value = default;
+            return false;
+        }
+        value = castValue;
+        return true;
+    }
+
+    public bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (visitor is not ILSOperandVisitor operandVisitor) {
+            value = default;
+            return false;
+        }
+        return Accept(operandVisitor, out value, parameters);
+    }
 }
 
 /// <summary>
@@ -211,22 +232,25 @@ public class LSUnaryOperand<T> : ILSUnaryOperand<T> where T : System.Numerics.IN
         Operator = op;
     }
 
-    /// <inheritdoc/>
-    public T Resolve(ILSOperandVisitor visitor) {
-        if (typeof(T) == typeof(float)) {
-            return (T)(object)visitor.Visit((ILSUnaryOperand<float>)(object)this);
-        } else if (typeof(T) == typeof(int)) {
-            return (T)(object)visitor.Visit((ILSUnaryOperand<int>)(object)this);
-        }
-        throw new LSNotImplementedException($"Unary operand of type {typeof(T)} is not supported");
+    public bool Accept(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
+        return visitor.Visit(this, out value, parameters);
     }
 
-    /// <inheritdoc/>
-    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+    public bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (Accept(visitor, out T? typedValue, parameters) == false || typedValue is not TValue castValue) {
+            value = default;
+            return false;
+        }
+        value = castValue;
+        return true;
+    }
 
-    /// <inheritdoc/>
-    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
-        return Resolve(visitor);
+    public bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (visitor is not ILSOperandVisitor operandVisitor) {
+            value = default;
+            return false;
+        }
+        return Accept(operandVisitor, out value, parameters);
     }
 }
 
@@ -252,25 +276,25 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
         FalseOperand = falseOperand;
     }
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// Only the selected branch is evaluated, avoiding unnecessary computation.
-    /// </remarks>
-    public T Resolve(ILSOperandVisitor visitor) {
-        if (typeof(T) == typeof(float)) {
-            return (T)(object)visitor.Visit((ILSTernaryConditionalOperand<float>)(object)this);
-        } else if (typeof(T) == typeof(int)) {
-            return (T)(object)visitor.Visit((ILSTernaryConditionalOperand<int>)(object)this);
-        }
-        throw new LSNotImplementedException($"Ternary conditional operand of type {typeof(T)} is not supported");
+    public bool Accept(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
+        return visitor.Visit(this, out value, parameters);
     }
 
-    /// <inheritdoc/>
-    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+    public bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (Accept(visitor, out T? typedValue, parameters) == false || typedValue is not TValue castValue) {
+            value = default;
+            return false;
+        }
+        value = castValue;
+        return true;
+    }
 
-    /// <inheritdoc/>
-    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
-        return Resolve(visitor);
+    public bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (visitor is not ILSOperandVisitor operandVisitor) {
+            value = default;
+            return false;
+        }
+        return Accept(operandVisitor, out value, parameters);
     }
 }
 
@@ -278,27 +302,38 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
 /// Negates a boolean operand, inverting its true/false value.
 /// Implements the logical NOT operation.
 /// </summary>
-public class LSUnaryBooleanOperand : ILSNegateBooleanOperand {
+public class LSNegateBooleanOperand : ILSNegateBooleanOperand {
     public ILSBooleanOperand Operand { get; }
-    public bool Value => throw new LSNotImplementedException("Value property is not implemented for LSUnaryBooleanOperand. Use Resolve method with a visitor instead.");
+    public bool? Value { get; protected set; }
 
     /// <summary>
     /// Creates a unary boolean negation operation.
     /// </summary>
     /// <param name="operand">The boolean operand to negate.</param>
-    public LSUnaryBooleanOperand(ILSBooleanOperand operand) {
+    public LSNegateBooleanOperand(ILSBooleanOperand operand) {
         Operand = operand;
+        Value = null;
     }
 
-    /// <inheritdoc/>
-    public bool Resolve(ILSOperandVisitor visitor) => visitor.Visit(this);
+    public bool Accept(ILSOperandVisitor visitor, out bool? value, params object?[] parameters) {
+        return visitor.Visit(this, out value, parameters);
+    }
 
-    /// <inheritdoc/>
-    TOperand ILSOperand.Resolve<TOperand>(ILSOperandVisitor visitor) => (TOperand)(object)Resolve(visitor);
+    public bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (Accept(visitor, out bool? typedValue, parameters) == false || typedValue is not TValue castValue) {
+            value = default;
+            return false;
+        }
+        value = castValue;
+        return true;
+    }
 
-    /// <inheritdoc/>
-    object? ILSOperand.Resolve(ILSOperandVisitor visitor) {
-        return Resolve(visitor);
+    public bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
+        if (visitor is not ILSOperandVisitor operandVisitor) {
+            value = default;
+            return false;
+        }
+        return Accept(operandVisitor, out value, parameters);
     }
 }
 
