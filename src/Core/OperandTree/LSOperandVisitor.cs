@@ -10,9 +10,18 @@ public class LSOperandVisitor : ILSOperandVisitor {
         _variableProvider = variableProvider;
     }
 
-    public virtual bool Visit<TValue>(ILSVarOperand node, out TValue? value, params object?[] parameters) {
-        value = _variableProvider.GetValue<TValue>(parameters);
-        return value != null;
+    // public virtual bool Visit<TValue>(ILSVarOperand node, out TValue? value, params object?[] parameters) {
+    //     value = _variableProvider.GetValue<TValue>(parameters);
+    //     return value != null;
+    // }
+    public virtual bool Visit<TValue>(ILSNumericOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : INumber<TValue> {
+        return node switch {
+            ILSConstantOperand<TValue> attributeOperand => Visit(attributeOperand, out value, parameters),
+            ILSBinaryOperand<TValue> binaryOperand => Visit(binaryOperand, out value, parameters),
+            ILSUnaryOperand<TValue> unaryOperand => Visit(unaryOperand, out value, parameters),
+            ILSTernaryConditionalOperand<TValue> ternaryOperand => Visit(ternaryOperand, out value, parameters),
+            _ => (value = _variableProvider.GetValue<TValue>(parameters)) != null
+        };
     }
 
     public virtual bool Visit<TValue>(ILSConstantOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : INumber<TValue> {
@@ -106,7 +115,7 @@ public class LSOperandVisitor : ILSOperandVisitor {
             value = default;
             return false;
         }
-        value = !operandValue;
+        value = !operandValue.Value;
         return true;
     }
 

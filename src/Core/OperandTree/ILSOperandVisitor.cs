@@ -1,7 +1,8 @@
 ﻿namespace LSUtils;
 
 public interface ILSOperandVisitor : ILSVisitor {
-    bool Visit<TValue>(ILSVarOperand node, out TValue? value, params object?[] parameters);
+    //bool Visit<TValue>(ILSVarOperand node, out TValue? value, params object?[] parameters);
+    bool Visit<TValue>(ILSNumericOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : System.Numerics.INumber<TValue>;
     bool Visit<TValue>(ILSConstantOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : System.Numerics.INumber<TValue>;
     bool Visit<TValue>(ILSBinaryOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : System.Numerics.INumber<TValue>;
     bool Visit<TValue>(ILSUnaryOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : System.Numerics.INumber<TValue>;

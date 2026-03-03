@@ -53,22 +53,15 @@ public class LSOperandTests {
             throw new LSException($"Attribute '{definer.Name}' not found in entity '{Name}'.");
         }
     }
-    private class MockVarOperand : ILSVarOperand, ILSNumericOperand<float> {
+    private class MockVarOperand : ILSNumericOperand<float> {
         public string Id { get; }
         public string Key { get; }
-        private object? _value;
         public MockVarOperand(string id, string key) {
             Id = id;
             Key = key;
         }
         public bool Accept(ILSOperandVisitor visitor, out float value, params object?[] parameters) {
-            if (visitor.Visit(this, out value, Id, Key, parameters) == false) {
-                value = default;
-                return false;
-            }
-
-            SetValue(value, Id, Key, parameters);
-            return true;
+            return visitor.Visit(this, out value, Id, Key, parameters);
         }
         public bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
             if (Accept(visitor, out var floatValue, parameters) == false || floatValue is not TValue castValue) {
@@ -85,26 +78,6 @@ public class LSOperandTests {
                 return false;
             }
             return Accept(operandVisitor, out value, parameters);
-        }
-
-        public TValue? GetValue<TValue>(params object?[] parameters) {
-            if (_value is TValue castValue) {
-                return castValue;
-            }
-            throw new LSException($"Invalid type parameter. Expected {typeof(TValue).Name}, got {_value?.GetType().Name ?? "null"}.");
-        }
-
-        public void SetValue<TValue>(TValue value, params object?[] parameters) {
-            _value = value;
-        }
-
-        public bool TryGetValue<TValue>(out TValue? value, params object?[] parameters) {
-            if (_value is TValue castValue) {
-                value = castValue;
-                return true;
-            }
-            value = default;
-            return false;
         }
     }
     private class MockVariableProvider : ILSVariableProvider {
