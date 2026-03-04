@@ -35,7 +35,7 @@ public class LSWorld : IWorld {
         return _entities.Values.Where(e => e.HasComponent<T1>());
     }
 
-    public IEnumerable<IEntity> GetEntitiesWith<T1>(out IEnumerable<T1?> components) where T1 : IComponent {
+    public IEnumerable<IEntity> GetEntitiesWith<T1>(out IEnumerable<T1?>? components) where T1 : IComponent {
         var result = GetEntitiesWith<T1>().ToList();
         components = result.Select(e => e.GetComponent<T1>()).ToList();
         return result;

@@ -1,8 +1,6 @@
 ﻿namespace LSUtils.ECS;
 
-using System;
 using System.Collections.Generic;
-
 /// <summary>
 /// Interface para o mundo ECS.
 /// O mundo gerencia entidades e sistemas.
@@ -17,27 +15,27 @@ public interface IWorld {
     /// <summary>
     /// Cria uma entidade com um ID específico.
     /// </summary>
-    TEntity CreateEntity<TEntity>(Guid id, string? name = null) where TEntity : IEntity, new();
+    TEntity CreateEntity<TEntity>(System.Guid id, string? name = null) where TEntity : IEntity, new();
 
     /// <summary>
     /// Remove uma entidade do mundo.
     /// </summary>
-    bool DestroyEntity(Guid entityId);
+    bool DestroyEntity(System.Guid entityId);
 
     /// <summary>
     /// Obtém uma entidade pelo ID.
     /// </summary>
-    IEntity GetEntity(Guid entityId);
+    IEntity GetEntity(System.Guid entityId);
 
-    bool TryGetEntity(Guid entityId, out IEntity? entity);
+    bool TryGetEntity(System.Guid entityId, out IEntity? entity);
 
     /// <summary>
     /// Obtém todas as entidades que possuem um conjunto específico de componentes.
     /// </summary>
-    IEnumerable<IEntity> GetEntitiesWith<T1>() where T1 : IComponent;
-    IEnumerable<IEntity> GetEntitiesWith<T1>(out IEnumerable<T1?> components) where T1 : IComponent;
-    IEnumerable<IEntity> GetEntitiesWith<T1, T2>() where T1 : IComponent where T2 : IComponent;
-    IEnumerable<IEntity> GetEntitiesWith<T1, T2, T3>() where T1 : IComponent where T2 : IComponent where T3 : IComponent;
+    IEnumerable<IEntity> GetEntitiesWith<TComponent>() where TComponent : IComponent;
+    IEnumerable<IEntity> GetEntitiesWith<TComponent>(out IEnumerable<TComponent?>? components) where TComponent : IComponent;
+    IEnumerable<IEntity> GetEntitiesWith<TComponent, TComponent2>() where TComponent : IComponent where TComponent2 : IComponent;
+    IEnumerable<IEntity> GetEntitiesWith<TComponent, TComponent2, TComponent3>() where TComponent : IComponent where TComponent2 : IComponent where TComponent3 : IComponent;
 
     /// <summary>
     /// Registra um sistema no mundo.
@@ -54,7 +52,7 @@ public interface IWorld {
     /// </summary>
     T GetSystem<T>() where T : ISystem;
 
-    bool TryGetSystem<T>(out T system) where T : ISystem;
+    bool TryGetSystem<T>(out T? system) where T : ISystem;
 
     /// <summary>
     /// Executa todos os sistemas registrados.

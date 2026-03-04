@@ -127,17 +127,19 @@ public class WorldTest {
         var component2 = new TestComponent { Value = 20 };
         entity1.AddComponent(component1);
         entity2.AddComponent(component2);
-
-        var entitiesWithComponent1 = _world.GetEntitiesWith<TestComponent>(out var components).ToList();
-        Assert.That(entitiesWithComponent1.Count, Is.EqualTo(2));
+        var entities = _world.GetEntitiesWith<TestComponent>(out var components).ToList();
+        Assert.That(entities.Count, Is.EqualTo(2));
+        Assert.That(components, Is.Not.Null);
         Assert.That(components.Count(), Is.EqualTo(2));
         Assert.That(components.Any(c => c != null && c.Value == 10), Is.True);
         Assert.That(components.Any(c => c != null && c.Value == 20), Is.True);
+
     }
     [Test]
     public void GetEntitiesWith_ShouldReturnEmptyWhenNoEntitiesHaveComponent() {
         var entities = _world.GetEntitiesWith<TestComponent>(out var components).ToList();
         Assert.That(entities.Count, Is.EqualTo(0));
+        Assert.That(components, Is.Not.Null);
         Assert.That(components.Count(), Is.EqualTo(0));
     }
     [Test]
