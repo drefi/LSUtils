@@ -46,6 +46,7 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
     /// </summary>
     public static implicit operator LSConstantOperand<T>(T value) => new(value);
 }
+
 public class LSBooleanConstantOperand : ILSBooleanOperand {
     public bool? Value { get; }
 

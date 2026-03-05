@@ -10,10 +10,6 @@ public class LSOperandVisitor : ILSOperandVisitor {
         _variableProvider = variableProvider;
     }
 
-    // public virtual bool Visit<TValue>(ILSVarOperand node, out TValue? value, params object?[] parameters) {
-    //     value = _variableProvider.GetValue<TValue>(parameters);
-    //     return value != null;
-    // }
     public virtual bool Visit<TValue>(ILSNumericOperand<TValue> node, out TValue? value, params object?[] parameters) where TValue : INumber<TValue> {
         return node switch {
             ILSConstantOperand<TValue> attributeOperand => Visit(attributeOperand, out value, parameters),
