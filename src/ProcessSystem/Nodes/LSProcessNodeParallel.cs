@@ -87,29 +87,11 @@ public partial class LSProcessNodeParallel : ILSProcessLayerNode {
     /// Number of child nodes that must reach SUCCESS state for this parallel node to succeed.
     /// </summary>
     /// <value>Threshold value for success condition. Must be &gt; 0 and &lt;= total available children.</value>
-    /// <remarks>
-    /// <para>
-    /// <b>Success Threshold Logic:</b><br/>
-    /// • Value 1: Any child success triggers parallel success (OR logic)<br/>
-    /// • Value = children count: All children must succeed (AND logic)<br/>
-    /// • Value &gt; 1 and &lt; children count: Majority or specific count required<br/>
-    /// • Runtime Validation: Threshold checked against actual available children during processing
-    /// </para>
-    /// </remarks>
     public int SuccessThreshold { get; }
     /// <summary>
     /// Number of child nodes that must reach FAILURE state for this parallel node to fail.
     /// </summary>
     /// <value>Threshold value for failure condition. Must be &gt; 0 and &lt;= total available children.</value>
-    /// <remarks>
-    /// <para>
-    /// <b>Failure Threshold Logic:</b><br/>
-    /// • Value 1: Any child failure triggers parallel failure (fail-fast approach)<br/>
-    /// • Value = children count: All children must fail for parallel failure (resilient approach)<br/>
-    /// • Value &gt; 1 and &lt; children count: Specific failure count triggers overall failure<br/>
-    /// • Runtime Validation: Threshold checked against actual available children during processing
-    /// </para>
-    /// </remarks>
     public int FailureThreshold { get; }
 
     public ParallelThresholdMode ThresholdMode { get; }
@@ -120,6 +102,7 @@ public partial class LSProcessNodeParallel : ILSProcessLayerNode {
     /// <param name="order">Execution order among sibling nodes with the same priority.</param>
     /// <param name="numRequiredToSucceed">Number of children that must succeed for parallel success.</param>
     /// <param name="numRequiredToFailure">Number of children that must fail for parallel failure.</param>
+    /// <param name="thresholdMode">Mode for evaluating success and failure thresholds (default: SUCCESS_PRIORITY).</param>
     /// <param name="priority">Processing priority level (default: NORMAL).</param>
     /// <param name="withInverter">If true, inverts the success/failure logic of the parallel node.</param>
     /// <param name="conditions">Optional array of conditions that must be met for execution.</param>
@@ -304,25 +287,46 @@ public partial class LSProcessNodeParallel : ILSProcessLayerNode {
                     break;
             }
         }
-        // Priority: Success or Failure threshold, then waiting, then fallback
-        if (SuccessThreshold >= FailureThreshold) {
-            if (success >= SuccessThreshold) return LSProcessResultStatus.SUCCESS;
+        if (ThresholdMode == ParallelThresholdMode.SUCCESS_PRIORITY) {
+            // If no SuccessThreshold is set, and the threshold mode prioritizes success, the parallel node always succeds
+            if (SuccessThreshold == 0) return LSProcessResultStatus.SUCCESS;
+            // otherwise test success threshold first, then waiting, then failure, if the number of success are equal to the total children, can succeed early
+            if ((success >= SuccessThreshold && SuccessThreshold > 0) || success == total) return LSProcessResultStatus.SUCCESS;
             if (waiting) return LSProcessResultStatus.WAITING;
-            if (failure >= FailureThreshold) return LSProcessResultStatus.FAILURE;
+            // If SuccessThreshold is -1, all children must succeed for the parallel node to succeed, otherwise fails;
+            if (SuccessThreshold < 0 && success == total) return LSProcessResultStatus.SUCCESS;
+            // any other case, check failure threshold, if the number of failures are equal to the total children can fail early
+            if ((failure >= FailureThreshold && FailureThreshold > 0) || failure == total)
+                return LSProcessResultStatus.FAILURE;
+        } else if (ThresholdMode == ParallelThresholdMode.FAILURE_PRIORITY) {
+            // If no FailureThreshold is set, and the threshold mode prioritizes failure, the parallel node always fails
+            if (FailureThreshold == 0) return LSProcessResultStatus.FAILURE;
+            // this mode prioritizes failure, so check failure threshold first, then waiting, then success, if the number of failures are equal to the total children can fail early
+            if ((failure >= FailureThreshold && FailureThreshold > 0) || failure == total)
+                return LSProcessResultStatus.FAILURE;
+            if (waiting) return LSProcessResultStatus.WAITING;
+            if ((success >= SuccessThreshold && SuccessThreshold > 0) || success == total) return LSProcessResultStatus.SUCCESS;
         } else {
-            if (failure >= FailureThreshold) return LSProcessResultStatus.FAILURE;
             if (waiting) return LSProcessResultStatus.WAITING;
-            if (success >= SuccessThreshold) return LSProcessResultStatus.SUCCESS;
+            if ((success >= SuccessThreshold && SuccessThreshold > 0) || success == total) return LSProcessResultStatus.SUCCESS;
+            if ((failure >= FailureThreshold && FailureThreshold > 0) || failure == total) return LSProcessResultStatus.FAILURE;
         }
-
-        if (waiting) return LSProcessResultStatus.WAITING;
-
-        // Fallback: all succeeded or failed
-        if (SuccessThreshold < 0)
-            return success == total ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
-
-        return LSProcessResultStatus.FAILURE;
+        // if no checks are met, return UNKNOWN and log a warning since this should not happen.
+        LSLogger.Singleton.Warning($"{ClassName}.GetNodeStatus reached an unexpected status.",
+              source: ("LSProcessSystem", null),
+              properties: new (string, object)[] {
+                ("nodeID", NodeID),
+                ("availableChildren", total),
+                ("success", success),
+                ("failure", failure),
+                ("waiting", waiting),
+                ("successThreshold", SuccessThreshold),
+                ("failureThreshold", FailureThreshold),
+                ("thresholdMode", ThresholdMode)
+            });
+        return LSProcessResultStatus.UNKNOWN;
     }
+
     /// <summary>
     /// Propagates failure to specified children or all waiting children according to parallel logic.
     /// </summary>

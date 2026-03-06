@@ -40,6 +40,25 @@ public class LSProcessPriorityTests {
 }
 
 [TestFixture]
+public class ParallelThresholdModeTests {
+    [Test]
+    public void ParallelThresholdMode_ShouldHaveExpectedValues() {
+        Assert.That(
+            Enum.IsDefined(typeof(LSProcessNodeParallel.ParallelThresholdMode),
+                LSProcessNodeParallel.ParallelThresholdMode.NONE),
+            Is.True);
+        Assert.That(
+            Enum.IsDefined(typeof(LSProcessNodeParallel.ParallelThresholdMode),
+                LSProcessNodeParallel.ParallelThresholdMode.SUCCESS_PRIORITY),
+            Is.True);
+        Assert.That(
+            Enum.IsDefined(typeof(LSProcessNodeParallel.ParallelThresholdMode),
+                LSProcessNodeParallel.ParallelThresholdMode.FAILURE_PRIORITY),
+            Is.True);
+    }
+}
+
+[TestFixture]
 public class ILSProcessableTests {
     private class TestProcessable : ILSProcessable {
         public Guid ID { get; } = Guid.NewGuid();

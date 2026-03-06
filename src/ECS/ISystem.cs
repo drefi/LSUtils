@@ -13,7 +13,7 @@ public interface ISystem {
     /// <summary>
     /// Called once when the system is initialized in the world.
     /// </summary>
-    void Initialize(IWorld world);
+    void Initialize(IWorld world, params object?[] args);
 
     /// <summary>
     /// Called every frame.

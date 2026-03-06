@@ -46,8 +46,8 @@ public class LSTick : ILSProcessable {
                     _resetTickCount = 0;
                     _tickTimer = 0f;
                     return LSProcessResultStatus.SUCCESS;
-                }, priority: LSProcessPriority.CRITICAL)
-                .Sequence(nameof(onInitializeSequence), onInitializeSequence)
+                }, priority: LSProcessPriority.CRITICAL, updatePolicy: NodeUpdatePolicy.PROTECT_NODE)
+                .Sequence(nameof(onInitializeSequence), onInitializeSequence, priority: LSProcessPriority.NORMAL, updatePolicy: NodeUpdatePolicy.PROTECT_NODE)
         ).Execute(_manager ?? LSProcessManager.Singleton, LSProcessManager.LSProcessContextMode.ALL);
     }
     /// <summary>

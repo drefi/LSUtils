@@ -219,7 +219,7 @@ public class LSProcessManager {
         }
     }
     public static ILSProcessLayerNode CreateRootNode(string nodeID) {
-        var sequence = new LSProcessNodeSequence(nodeID, 0, LSProcessPriority.NORMAL, NodeUpdatePolicy.DEFAULT_LAYER | NodeUpdatePolicy.IGNORE_CHANGES);
+        var sequence = new LSProcessNodeSequence(nodeID, 0, LSProcessPriority.NORMAL, NodeUpdatePolicy.PROTECT_NODE);
         return sequence;
     }
     [Flags]

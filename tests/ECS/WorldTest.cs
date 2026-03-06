@@ -36,7 +36,7 @@ public class WorldTest {
     public class TestSystem : ISystem {
         public string SystemName => "TestSystem";
         IWorld? _world;
-        public void Initialize(IWorld world) {
+        public void Initialize(IWorld world, params object?[] args) {
             _world = world;
             _world.RegisterSystem(this);
         }
@@ -53,7 +53,7 @@ public class WorldTest {
         public int UpdateCount { get; private set; }
         IWorld? _world;
 
-        public void Initialize(IWorld world) {
+        public void Initialize(IWorld world, params object?[] args) {
             _world = world;
             _world.RegisterSystem(this);
         }

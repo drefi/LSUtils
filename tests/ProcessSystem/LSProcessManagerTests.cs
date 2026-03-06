@@ -99,7 +99,6 @@ public class LSProcessManagerTests {
         var processable = new TestProcessable();
         // Use WithProcessing to create the tree using public API
         process.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
-        var localRoot = process.GetType().GetField("_root", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(process) as ILSProcessLayerNode;
 
         // Act
         var rootNode = _manager!.GetRootNode(
