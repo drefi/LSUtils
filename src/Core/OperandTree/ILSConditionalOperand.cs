@@ -1,4 +1,4 @@
-﻿namespace LSUtils;
+﻿namespace LSUtils.OperandTree;
 /// <summary>
 /// Interface for binary boolean operations that combine two boolean operands using logical operators.
 /// </summary>

@@ -1,4 +1,4 @@
-﻿namespace LSUtils;
+﻿namespace LSUtils.OperandTree;
 /// <summary>
 /// Interface for conditional comparison operations that compare two values and return a boolean result.
 /// </summary>

@@ -1,4 +1,4 @@
-﻿namespace LSUtils;
+﻿namespace LSUtils.OperandTree;
 
 /// <summary>
 /// Interface for unary boolean operations that negate a boolean operand.

@@ -1,11 +1,12 @@
-﻿namespace LSUtils.Tests.Core;
+﻿namespace LSUtils.Tests.OperandTree;
 
 using System;
 using System.Collections.Generic;
+using LSUtils.OperandTree;
 using NUnit.Framework;
 [TestFixture]
 public class LSOperandTests {
-    LSOperandVisitor _evaluator;
+    StandardOperandVisitor _evaluator;
 
     private MockVariableProvider _provider;
     private MockEntity _entityA;
@@ -21,6 +22,9 @@ public class LSOperandTests {
         public MockAttributeDefiner(string name) {
             Name = name;
         }
+    }
+    private class MockOperandEvaluator : StandardOperandVisitor {
+        public MockOperandEvaluator(ILSValueProvider? valueProvider = null) : base(valueProvider) { }
     }
     private class MockAttribute {
         public MockAttributeDefiner Definer { get; }
@@ -60,11 +64,11 @@ public class LSOperandTests {
             Id = id;
             Key = key;
         }
-        public bool Accept(ILSOperandVisitor visitor, out float value, params object?[] parameters) {
+        public bool Evaluate(ILSOperandVisitor visitor, out float value, params object?[] parameters) {
             return visitor.Visit(this, out value, Id, Key, parameters);
         }
-        public bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-            if (Accept(visitor, out var floatValue, parameters) == false || floatValue is not TValue castValue) {
+        public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+            if (Evaluate(visitor, out var floatValue, parameters) == false || floatValue is not TValue castValue) {
                 value = default;
                 return false;
             }
@@ -77,10 +81,10 @@ public class LSOperandTests {
                 value = default;
                 return false;
             }
-            return Accept(operandVisitor, out value, parameters);
+            return Evaluate(operandVisitor, out value, parameters);
         }
     }
-    private class MockVariableProvider : ILSVariableProvider {
+    private class MockVariableProvider : ILSValueProvider {
         protected readonly Dictionary<string, MockEntity> _entities = new();
         public MockVariableProvider(MockEntity[]? entities = null) {
             if (entities != null) {
@@ -131,18 +135,18 @@ public class LSOperandTests {
         public CountingOperand(float value) {
             Value = value;
         }
-        public bool Accept(ILSOperandVisitor visitor, out float value, params object?[] parameters) {
+        public bool Evaluate(ILSOperandVisitor visitor, out float value, params object?[] parameters) {
             ResolveCount++;
             value = Value;
             return true;
         }
 
-        public bool Accept<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
+        public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
             value = default;
             if (typeof(TValue) != typeof(float)) {
                 throw new LSException($"Invalid type parameter. Expected float, got {typeof(TValue).Name}.");
             }
-            if (Accept(visitor, out var floatValue, parameters) == false || floatValue is not TValue castValue) {
+            if (Evaluate(visitor, out var floatValue, parameters) == false || floatValue is not TValue castValue) {
                 throw new LSException("Failed to accept operand.");
             }
             value = castValue;
@@ -150,7 +154,7 @@ public class LSOperandTests {
         }
 
         public bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
-            return Accept(visitor as LSOperandVisitor ?? throw new LSException("Invalid visitor type."), out value, parameters);
+            return Evaluate(visitor as StandardOperandVisitor ?? throw new LSException("Invalid visitor type."), out value, parameters);
         }
     }
     #endregion
@@ -164,13 +168,13 @@ public class LSOperandTests {
         _entityB.AddAttribute(_attributes["Health"], 150);
         _entityB.AddAttribute(_attributes["Damage"], 20);
         _provider = new MockVariableProvider(new[] { _entityA, _entityB });
-        _evaluator = new LSOperandVisitor(_provider);
+        _evaluator = new MockOperandEvaluator(_provider);
     }
 
     [Test]
     public void ConstantOperand_ShouldReturnValue() {
         var operand = new LSConstantOperand<float>(3.14f);
-        operand.Accept(_evaluator, out var value);
+        operand.Evaluate(_evaluator, out var value);
         Assert.That(value, Is.EqualTo(3.14f));
     }
 
@@ -181,8 +185,8 @@ public class LSOperandTests {
         var addOperand = new LSBinaryOperand<float>(left, right, MathOperator.Add);
         var mulOperand = new LSBinaryOperand<float>(left, right, MathOperator.Multiply);
 
-        addOperand.Accept(_evaluator, out var addValue);
-        mulOperand.Accept(_evaluator, out var mulValue);
+        addOperand.Evaluate(_evaluator, out var addValue);
+        mulOperand.Evaluate(_evaluator, out var mulValue);
 
 
         Assert.That(addValue, Is.EqualTo(5));
@@ -192,7 +196,7 @@ public class LSOperandTests {
     public void VarOperand_ShouldRetrieveValueFromProvider() {
         MockVariableProvider provider = new MockVariableProvider();
         var operand = new MockVarOperand("EntityA", "Health");
-        operand.Accept<float>(_evaluator, out var value);
+        operand.Evaluate<float>(_evaluator, out var value);
         Assert.That(value, Is.EqualTo(100));
     }
     [Test]
@@ -201,11 +205,11 @@ public class LSOperandTests {
         var healthA = new MockVarOperand("EntityA", "Health");
         var healthB = new MockVarOperand("EntityB", "Health");
         var sum = new LSBinaryOperand<float>(healthA, healthB, MathOperator.Add);
-        sum.Accept<float>(_evaluator, out var sumValue);
+        sum.Evaluate<float>(_evaluator, out var sumValue);
         Assert.That(sumValue, Is.EqualTo(250));
         var average = new LSBinaryOperand<float>(sum, new LSConstantOperand<float>(2), MathOperator.Divide);
 
-        average.Accept<float>(_evaluator, out var averageValue);
+        average.Evaluate<float>(_evaluator, out var averageValue);
         Assert.That(averageValue, Is.EqualTo(125));
     }
     [Test]
@@ -216,14 +220,14 @@ public class LSOperandTests {
         var doubleDamageA = new LSBinaryOperand<float>(damageA, new LSConstantOperand<float>(2), MathOperator.Multiply);
         var tripleDamageB = new LSBinaryOperand<float>(damageB, new LSConstantOperand<float>(3), MathOperator.Multiply);
         var totalDamage = new LSBinaryOperand<float>(doubleDamageA, tripleDamageB, MathOperator.Add);
-        totalDamage.Accept<float>(_evaluator, out var value);
+        totalDamage.Evaluate<float>(_evaluator, out var value);
         Assert.That(value, Is.EqualTo(80));
     }
 
     [Test]
     public void UnaryOperand_ShouldApplyNegate() {
         var operand = new LSUnaryOperand<float>(new LSConstantOperand<float>(5f), UnaryOperator.Negate);
-        operand.Accept<float>(_evaluator, out var value);
+        operand.Evaluate<float>(_evaluator, out var value);
         Assert.That(value, Is.EqualTo(-5f));
     }
 
@@ -232,9 +236,9 @@ public class LSOperandTests {
         var left = new LSConstantOperand<int>(5);
         var right = new LSConstantOperand<int>(3);
         var greaterThan = new LSConditionalOperand(ComparisonOperator.GreaterThan, left, right);
-        greaterThan.Accept<bool>(_evaluator, out var gtValue);
+        greaterThan.Evaluate<bool>(_evaluator, out var gtValue);
         var lessThan = new LSConditionalOperand(ComparisonOperator.LessThan, left, right);
-        lessThan.Accept<bool>(_evaluator, out var ltValue);
+        lessThan.Evaluate<bool>(_evaluator, out var ltValue);
 
         Assert.That(gtValue, Is.True);
         Assert.That(ltValue, Is.False);
@@ -248,8 +252,8 @@ public class LSOperandTests {
         var andOp = new LSBinaryConditionalOperand(BooleanOperator.And, t, f);
         var orOp = new LSBinaryConditionalOperand(BooleanOperator.Or, t, f);
 
-        andOp.Accept<bool>(_evaluator, out var andValue);
-        orOp.Accept<bool>(_evaluator, out var orValue);
+        andOp.Evaluate<bool>(_evaluator, out var andValue);
+        orOp.Evaluate<bool>(_evaluator, out var orValue);
 
         Assert.That(andValue, Is.False);
         Assert.That(orValue, Is.True);
@@ -282,7 +286,7 @@ public class LSOperandTests {
         var falseBranch = new CountingOperand(20f);
 
         var ternary = new LSTernaryConditionalOperand<float>(condition, trueBranch, falseBranch);
-        ternary.Accept<float>(_evaluator, out var result);
+        ternary.Evaluate<float>(_evaluator, out var result);
 
         Assert.That(result, Is.EqualTo(10f));
         Assert.That(trueBranch.ResolveCount, Is.EqualTo(1));
@@ -295,7 +299,7 @@ public class LSOperandTests {
         var right = new CountingOperand(3f);
         var add = new LSBinaryOperand<float>(left, right, MathOperator.Add);
 
-        add.Accept<float>(_evaluator, out var result);
+        add.Evaluate<float>(_evaluator, out var result);
 
         Assert.That(result, Is.EqualTo(5f));
         Assert.That(left.ResolveCount, Is.EqualTo(1), "Left operand evaluated more than once.");
@@ -310,11 +314,11 @@ public class LSOperandTests {
         var currentHealth = new MockVarOperand("EntityA", "Health");
         var damage = new MockVarOperand("EntityA", "Damage");
         var newHealth = new LSBinaryOperand<float>(currentHealth, damage, MathOperator.Subtract);
-        newHealth.Accept<float>(_evaluator, out var result);
+        newHealth.Evaluate<float>(_evaluator, out var result);
         Assert.That(result, Is.EqualTo(90));
         _entityA.SetAttribute((_attributes["Health"]), result);
         var updatedHealth = new MockVarOperand("EntityA", "Health");
-        updatedHealth.Accept<float>(_evaluator, out var updatedResult);
+        updatedHealth.Evaluate<float>(_evaluator, out var updatedResult);
         Assert.That(updatedResult, Is.EqualTo(90));
     }
     [Test]
@@ -323,11 +327,11 @@ public class LSOperandTests {
         var currentHealth = new MockVarOperand("EntityA", "Health");
         var damageFromB = new MockVarOperand("EntityB", "Damage");
         var newHealth = new LSBinaryOperand<float>(currentHealth, damageFromB, MathOperator.Subtract);
-        newHealth.Accept<float>(_evaluator, out var result);
+        newHealth.Evaluate<float>(_evaluator, out var result);
         Assert.That(result, Is.EqualTo(80));
         _entityA.SetAttribute((_attributes["Health"]), result);
         var updatedHealth = new MockVarOperand("EntityA", "Health");
-        updatedHealth.Accept<float>(_evaluator, out var updatedResult);
+        updatedHealth.Evaluate<float>(_evaluator, out var updatedResult);
         Assert.That(updatedResult, Is.EqualTo(80));
     }
 

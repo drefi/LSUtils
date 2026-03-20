@@ -7,5 +7,4 @@
 /// </summary>
 public interface IComponent {
     string ComponentName { get; }
-    void Initialize(params object?[] args);
 }

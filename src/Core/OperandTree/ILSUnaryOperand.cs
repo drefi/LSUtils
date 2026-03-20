@@ -1,4 +1,4 @@
-﻿namespace LSUtils;
+﻿namespace LSUtils.OperandTree;
 /// <summary>
 /// Interface for unary mathematical operations that transform a single numeric operand.
 /// </summary>

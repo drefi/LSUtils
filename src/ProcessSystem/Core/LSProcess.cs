@@ -145,13 +145,12 @@ public abstract class LSProcess {
     /// <param name="contextMode">Flags controlling which context levels to include in the merge</param>
     /// <param name="manager">Process manager for context merging (uses singleton if null)</param>
     /// <returns>Final execution status (may be WAITING if contains async operations)</returns>
-    public LSProcessResultStatus Execute(LSProcessManager manager, LSProcessManager.LSProcessContextMode contextMode = LSProcessManager.LSProcessContextMode.ALL, params ILSProcessable[]? instances) {
+    public LSProcessResultStatus Execute(LSProcessManager? manager = null, LSProcessManager.LSProcessContextMode contextMode = LSProcessManager.LSProcessContextMode.ALL, params ILSProcessable[]? instances) {
         // Flow debug logging LSProcessSystem
         LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root.NodeID}] instance: {(instances == null ? "n/a" : $"{string.Join(", ", instances.Select(i => i.ID))}")}.",
             source: ("LSProcessSystem", null),
             properties: ("hideNodeID", true));
-        if (manager == null) throw new LSException("Process manager cannot be null.");
-        _manager = manager;
+        _manager = manager ?? LSProcessManager.Singleton;
         if (IsExecuted) {
             //log warning
             LSLogger.Singleton.Warning($"Process already executed. Returning current status.",

@@ -1,10 +1,13 @@
-﻿namespace LSUtils;
+﻿namespace LSUtils.OperandTree;
 /// <summary>
 /// Operand interface for numeric types that support mathematical operations.
 /// </summary>
 /// <typeparam name="TValue">The numeric type, must implement INumber&lt;T&gt;.</typeparam>
 public interface ILSNumericOperand<TValue> : ILSOperand<TValue> where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
-    public static TValue UnaryOperation(UnaryOperator @operator, TValue value) {
+}
+
+public static class NumericOperandExtensions {
+    public static TValue UnaryOperation<TValue>(this TValue value, UnaryOperator @operator) where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
         return @operator switch {
             UnaryOperator.Negate => -value,
             UnaryOperator.Abs => TValue.Abs(value),
@@ -13,11 +16,11 @@ public interface ILSNumericOperand<TValue> : ILSOperand<TValue> where TValue : S
             UnaryOperator.Round => TValue.CreateChecked(LSMath.Round(double.CreateChecked(value))),
             UnaryOperator.Sqrt => TValue.CreateChecked(LSMath.Sqrt(double.CreateChecked(value))),
             UnaryOperator.Square => value * value,
-            _ => throw new LSNotImplementedException($"Unary operator {@operator} not implemented.")
+            _ => throw new LSNotImplementedException($"Unary operator {@operator} not implemented in {nameof(NumericOperandExtensions)}.{nameof(UnaryOperation)}.")
         };
     }
-    public static TValue BinaryOperation(MathOperator operation, TValue left, TValue right) {
-        return operation switch {
+    public static TValue BinaryOperation<TValue>(this TValue left, MathOperator @operator, TValue right) where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
+        return @operator switch {
             MathOperator.None => right,
             MathOperator.Add => left + right,
             MathOperator.Subtract => left - right,
@@ -27,7 +30,7 @@ public interface ILSNumericOperand<TValue> : ILSOperand<TValue> where TValue : S
             MathOperator.Min => TValue.Min(left, right),
             MathOperator.Max => TValue.Max(left, right),
             MathOperator.Modulo => left % right,
-            _ => throw new LSNotImplementedException($"Operator {operation} not implemented in {nameof(ILSNumericOperand<TValue>)}."),
+            _ => throw new LSNotImplementedException($"Operator {@operator} not implemented in {nameof(NumericOperandExtensions)}.{nameof(BinaryOperation)}."),
         };
     }
 }

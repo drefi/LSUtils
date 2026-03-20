@@ -1,4 +1,4 @@
-﻿namespace LSUtils;
+﻿namespace LSUtils.OperandTree;
 /// <summary>
 /// Interface for binary mathematical operations that combine two numeric operands.
 /// </summary>

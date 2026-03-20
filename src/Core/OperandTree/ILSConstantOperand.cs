@@ -1,4 +1,4 @@
-﻿namespace LSUtils;
+﻿namespace LSUtils.OperandTree;
 /// <summary>
 /// Interface for constant operands that hold a single immutable numeric value.
 /// </summary>

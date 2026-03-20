@@ -141,6 +141,7 @@ public class LSProcessManager {
     /// <param name="instance">Processable instance for targeted registration (null = global context)</param>
     /// <exception cref="LSException">Thrown if concurrent dictionary operations fail</exception>
     public void Register(System.Type processType, LSProcessBuilderAction builder, ILSProcessable? instance = null) {
+        if (builder == null) return;
         var processDict = _globalNodes.GetOrAdd(processType, _ => new ConcurrentDictionary<ILSProcessable, ILSProcessLayerNode>());
 
         LSLogger.Singleton.Debug($"{ClassName}.Register<{processType.Name}>: {(instance != null ? instance.ID.ToString() : "global")}",

@@ -1,4 +1,4 @@
-﻿namespace LSUtils;
+﻿namespace LSUtils.OperandTree;
 /// <summary>
 /// Interface for ternary conditional operations that select between two numeric operands based on a boolean condition.
 /// Implements the pattern: condition ? trueValue : falseValue
