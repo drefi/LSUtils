@@ -1,4 +1,6 @@
-﻿namespace LSUtils.ECS;
+﻿// LSUtils ECS is currently not functional, it needs too much work
+/**
+namespace LSUtils.ECS;
 
 /// <summary>
 /// Interface base para todos os componentes.
@@ -6,5 +8,6 @@
 /// Não contêm lógica de comportamento - essa responsabilidade é dos Sistemas.
 /// </summary>
 public interface IComponent {
-    string ComponentName { get; }
+    
 }
+**/

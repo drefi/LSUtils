@@ -3,7 +3,15 @@
 /// Operand interface for numeric types that support mathematical operations.
 /// </summary>
 /// <typeparam name="TValue">The numeric type, must implement INumber&lt;T&gt;.</typeparam>
-public interface ILSNumericOperand<TValue> : ILSOperand<TValue> where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
+public interface ILSNumericOperand<TValue> : ILSOperand where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
+    /// <summary>
+    /// Gets the numeric value of this operand, if it can be evaluated.
+    /// </summary>
+    /// <param name="visitor">The visitor to use for evaluating any sub-operands.</param>
+    /// <param name="value">The resulting value if evaluation is successful; otherwise, default.</param>
+    /// <param name="args">Additional arguments that may be needed for evaluation.</param>
+    /// <returns>True if the operand was successfully evaluated to a value; otherwise, false.</returns>
+    bool Evaluate(ILSOperandVisitor visitor, out TValue? value, params object?[] args);
 }
 
 public static class NumericOperandExtensions {

@@ -2,8 +2,9 @@
 /// <summary>
 /// Operand interface specifically for boolean operations and conditions.
 /// </summary>
-public interface ILSBooleanOperand : ILSOperand<bool?> {
+public interface ILSBooleanOperand : ILSOperand {
     bool? Value { get; }
+    bool Evaluate(ILSOperandVisitor visitor, out bool? value, params object?[] args);
 }
 
 public static class BooleanOperandExtensions {

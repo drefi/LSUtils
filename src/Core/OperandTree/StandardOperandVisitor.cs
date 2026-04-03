@@ -78,14 +78,21 @@ public abstract class StandardOperandVisitor : ILSOperandVisitor {
     }
 
     public virtual bool Visit(ILSComparerOperand node, out bool? value, params object?[] args) {
-        if (node.Left.Evaluate<System.IComparable>(this, out var leftValue, args) == false || leftValue == null) {
+        List<int> values = new();
+        if (node.Left.Accept(this, values, args) == false) {
             value = default;
             return false;
         }
-        if (node.Right.Evaluate<System.IComparable>(this, out var rightValue, args) == false || rightValue == null) {
+        if (node.Right.Accept(this, values, args) == false) {
             value = default;
             return false;
         }
+        if (values.Count < 2) {
+            value = default;
+            return false;
+        }
+        int leftValue = values[0];
+        int rightValue = values[1];
         value = leftValue.Compare(rightValue, node.Operator);
         return true;
     }
@@ -113,17 +120,16 @@ public abstract class StandardOperandVisitor : ILSOperandVisitor {
         return true;
     }
 
-    public virtual bool Visit<TValue>(out TValue? value, params object?[] args) {
-        Queue<object?> parameterQueue = new Queue<object?>(args);
-        while (parameterQueue.Count > 0) {
-            var parameter = parameterQueue.Dequeue();
-            if (parameter is ILSOperand operand) {
-                if (operand.Evaluate(this, out value, parameterQueue.ToArray())) {
+    public virtual bool Visit(params object?[] args) {
+        Queue<object?> argQueue = new(args);
+        while (argQueue.Count > 0) {
+            var arg = argQueue.Dequeue();
+            if (arg is ILSOperand operand) {
+                if (operand.Accept(this, argQueue.ToArray()) == true) {
                     return true;
                 }
             }
         }
-        value = default;
         return false;
     }
 }

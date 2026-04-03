@@ -21,17 +21,12 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
     }
 
 
-    public virtual bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
-        return visitor.Visit(this, out value, parameters);
+    public virtual bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] args) {
+        return visitor.Visit(this, out value, args);
     }
 
-    public virtual bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (Evaluate(visitor, out T? typedValue, parameters) && typedValue is TValue castValue) {
-            value = castValue;
-            return true;
-        }
-        value = default;
-        return false;
+    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        return visitor.Visit(this, args);
     }
 
     /// <summary>
@@ -48,16 +43,11 @@ public class LSBooleanConstantOperand : ILSBooleanOperand {
         Value = value;
     }
 
-    public virtual bool Evaluate(ILSOperandVisitor visitor, out bool? value, params object?[] parameters) {
-        return visitor.Visit(this, out value, parameters);
+    public virtual bool Evaluate(ILSOperandVisitor visitor, out bool? value, params object?[] args) {
+        return visitor.Visit(this, out value, args);
     }
-    public virtual bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (Evaluate(visitor, out bool? typedValue, parameters) == false || typedValue is not TValue castValue) {
-            value = default;
-            return false;
-        }
-        value = castValue;
-        return true;
+    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        return visitor.Visit(this, args);
     }
 
     /// <summary>
@@ -91,13 +81,8 @@ public class LSBinaryOperand<T> : ILSBinaryOperand<T> where T : System.Numerics.
         return visitor.Visit(this, out value, parameters);
     }
 
-    public virtual bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (Evaluate(visitor, out T? typedValue, parameters) == false || typedValue is not TValue castValue) {
-            value = default;
-            return false;
-        }
-        value = castValue;
-        return true;
+    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        return visitor.Visit(this, args);
     }
     public static implicit operator LSBinaryOperand<T>((ILSNumericOperand<T> left, ILSNumericOperand<T> right, MathOperator op) tuple) => new(tuple.left, tuple.right, tuple.op);
 }
@@ -124,25 +109,12 @@ public class LSConditionalOperand : ILSComparerOperand {
         Right = right;
         Value = null;
     }
-    public virtual bool Evaluate(ILSOperandVisitor visitor, out bool? value, params object?[] parameters) {
-        return visitor.Visit(this, out value, parameters);
+    public virtual bool Evaluate(ILSOperandVisitor visitor, out bool? value, params object?[] args) {
+        return visitor.Visit(this, out value, args);
     }
 
-    public virtual bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (Evaluate(visitor, out bool? typedValue, parameters) == false || typedValue is not TValue castValue) {
-            value = default;
-            return false;
-        }
-        value = castValue;
-        return true;
-    }
-
-    public virtual bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (visitor is not ILSOperandVisitor operandVisitor) {
-            value = default;
-            return false;
-        }
-        return Evaluate(operandVisitor, out value, parameters);
+    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        return visitor.Visit(this, args);
     }
 
 }
@@ -172,21 +144,8 @@ public class LSBinaryConditionalOperand : ILSConditionalOperand {
         return visitor.Visit(this, out value, parameters);
     }
 
-    public virtual bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (Evaluate(visitor, out var typedValue, parameters) == false || typedValue is not TValue castValue) {
-            value = default;
-            return false;
-        }
-        value = castValue;
-        return true;
-    }
-
-    public bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (visitor is not ILSOperandVisitor operandVisitor) {
-            value = default;
-            return false;
-        }
-        return Evaluate(operandVisitor, out value, parameters);
+    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        return visitor.Visit(this, args);
     }
 }
 
@@ -213,21 +172,8 @@ public class LSUnaryOperand<T> : ILSUnaryOperand<T> where T : System.Numerics.IN
         return visitor.Visit(this, out value, parameters);
     }
 
-    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (Evaluate(visitor, out T? typedValue, parameters) == false || typedValue is not TValue castValue) {
-            value = default;
-            return false;
-        }
-        value = castValue;
-        return true;
-    }
-
-    public bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (visitor is not ILSOperandVisitor operandVisitor) {
-            value = default;
-            return false;
-        }
-        return Evaluate(operandVisitor, out value, parameters);
+    public bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        return visitor.Visit(this, args);
     }
 }
 
@@ -256,22 +202,8 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
     public bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
-
-    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (Evaluate(visitor, out T? typedValue, parameters) == false || typedValue is not TValue castValue) {
-            value = default;
-            return false;
-        }
-        value = castValue;
-        return true;
-    }
-
-    public bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (visitor is not ILSOperandVisitor operandVisitor) {
-            value = default;
-            return false;
-        }
-        return Evaluate(operandVisitor, out value, parameters);
+    public bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        return visitor.Visit(this, args);
     }
 }
 
@@ -295,22 +227,8 @@ public class LSNegateBooleanOperand : ILSNegateBooleanOperand {
     public bool Evaluate(ILSOperandVisitor visitor, out bool? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
-
-    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (Evaluate(visitor, out bool? typedValue, parameters) == false || typedValue is not TValue castValue) {
-            value = default;
-            return false;
-        }
-        value = castValue;
-        return true;
-    }
-
-    public bool Accept<TValue>(ILSVisitor visitor, out TValue? value, params object?[] parameters) {
-        if (visitor is not ILSOperandVisitor operandVisitor) {
-            value = default;
-            return false;
-        }
-        return Evaluate(operandVisitor, out value, parameters);
+    public bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        return visitor.Visit(this, args);
     }
 }
 
@@ -374,6 +292,19 @@ public enum MathOperator {
     Max,
     /// <summary>Modulo operation (%)</summary>
     Modulo,
+
+
+}
+public static class MathOperatorExtensions {
+    public static MathOperator Negate(this MathOperator op) {
+        return op switch {
+            MathOperator.Add => MathOperator.Subtract,
+            MathOperator.Subtract => MathOperator.Add,
+            MathOperator.Multiply => MathOperator.Divide,
+            MathOperator.Divide => MathOperator.Multiply,
+            _ => op
+        };
+    }
 }
 
 /// <summary>

@@ -1,4 +1,5 @@
-﻿namespace LSUtils.Tests.ECS;
+﻿/**
+namespace LSUtils.Tests.ECS;
 
 using System.Linq;
 using LSUtils.ECS;
@@ -10,61 +11,46 @@ public class WorldTest {
     #region Mock Classes
 
     public class TestComponent : IComponent {
-        public string ComponentName => "TestComponent";
         public int Value { get; set; }
-
-        public virtual void Initialize(params object?[] args) {
-            throw new System.NotImplementedException();
-        }
     }
     public class AnotherTestComponent : IComponent {
-        public string ComponentName => "AnotherTestComponent";
         public int Value { get; set; }
-
-        public virtual void Initialize(params object?[] args) {
-            throw new System.NotImplementedException();
-        }
     }
     public class ThirdTestComponent : IComponent {
-        public string ComponentName => "ThirdTestComponent";
         public int Value { get; set; }
 
-        public virtual void Initialize(params object?[] args) {
-            throw new System.NotImplementedException();
-        }
     }
     public class TestSystem : ISystem {
-        public string SystemName => "TestSystem";
-        IWorld? _world;
-        public void Initialize(IWorld world, params object?[] args) {
-            _world = world;
-            _world.RegisterSystem(this);
-        }
-        public void Update(float deltaTime) {
+        public string SystemName => throw new System.NotImplementedException();
 
+        public void Initialize(LSWorld world, params object?[] args) {
+            throw new System.NotImplementedException();
         }
+
         public void Shutdown() {
-            if (_world == null) throw new LSNullReferenceException("World reference is null.");
-            _world.UnregisterSystem<TestSystem>();
+            throw new System.NotImplementedException();
+        }
+
+        public void Update(float deltaTime) {
+            throw new System.NotImplementedException();
         }
     }
     public class CountingSystem : ISystem {
         public string SystemName => "CountingSystem";
         public int UpdateCount { get; private set; }
-        IWorld? _world;
+        LSWorld? _world;
 
-        public void Initialize(IWorld world, params object?[] args) {
-            _world = world;
-            _world.RegisterSystem(this);
-        }
+
 
         public void Update(float deltaTime) {
             UpdateCount++;
         }
 
         public void Shutdown() {
-            if (_world == null) throw new LSNullReferenceException("World reference is null.");
-            _world.UnregisterSystem<CountingSystem>();
+        }
+
+        public void Initialize(LSWorld world, params object?[] args) {
+            _world = world;
         }
     }
 
@@ -75,65 +61,39 @@ public class WorldTest {
     [SetUp]
     public void Setup() {
         _world = new LSWorld();
+
     }
 
     [Test]
     public void CreateEntity_ShouldAddEntityToWorld() {
-        var entity = _world.CreateEntity<LSEntity>();
-        Assert.That(_world.GetEntity(entity.ID), Is.Not.Null);
-    }
-
-    [Test]
-    public void CreateEntity_WithIdAndName_ShouldUseProvidedValues() {
-        var id = System.Guid.NewGuid();
-        var name = "Test Entity";
-
-        var entity = _world.CreateEntity<LSEntity>(id, name);
-
-        Assert.That(entity.ID, Is.EqualTo(id));
-        Assert.That(entity.Name, Is.EqualTo(name));
-        Assert.That(_world.GetEntity(id), Is.SameAs(entity));
+        var entity = _world.EntityManager.CreateEntity();
+        var retrievedEntity = _world.EntityManager.GetEntity(entity.Index);
+        Assert.That(retrievedEntity.Index, Is.EqualTo(entity.Index));
+        Assert.That(retrievedEntity, Is.EqualTo(entity));
     }
 
     [Test]
     public void DestroyEntity_ShouldRemoveEntityFromWorld() {
-        var entity = _world.CreateEntity<LSEntity>();
-        var result = _world.DestroyEntity(entity.ID);
-        Assert.That(result, Is.True);
-        Assert.Throws<LSNullReferenceException>(() => _world.GetEntity(entity.ID));
-    }
-    [Test]
-    public void RegisterSystem_ShouldAddSystemToWorld() {
-        var system = new TestSystem();
-        system.Initialize(_world);
-        var retrievedSystem = _world.GetSystem<TestSystem>();
-        Assert.That(retrievedSystem, Is.Not.Null);
-        Assert.That(retrievedSystem.SystemName, Is.EqualTo(system.SystemName));
-    }
-    [Test]
-    public void UnregisterSystem_ShouldRemoveSystemFromWorld() {
-        var system = new TestSystem();
-        system.Initialize(_world);
-        Assert.That(_world.GetSystem<TestSystem>(), Is.Not.Null);
-        system.Shutdown();
-        Assert.Throws<LSNullReferenceException>(() => _world.GetSystem<TestSystem>());
+        var entity = _world.EntityManager.CreateEntity();
+        _world.EntityManager.DestroyEntity(entity);
+        Assert.Throws<System.InvalidOperationException>(() => _world.EntityManager.GetEntity(entity.Index));
     }
 
     [Test]
     public void GetEntitiesWith_ShouldReturnCorrectEntities() {
-        var entity1 = _world.CreateEntity<LSEntity>();
-        var entity2 = _world.CreateEntity<LSEntity>();
+        var e1 = _world.EntityManager.CreateEntity();
+        var e2 = _world.EntityManager.CreateEntity();
         var component1 = new TestComponent { Value = 10 };
         var component2 = new TestComponent { Value = 20 };
-        entity1.AddComponent(component1);
-        entity2.AddComponent(component2);
+        _world.EntityManager.AddComponent(e1, new ComponentType(component1));
+        _world.EntityManager.AddComponent(e2, new ComponentType(component2));
+        _world.EntityManager.En
         var entities = _world.GetEntitiesWith<TestComponent>(out var components).ToList();
         Assert.That(entities.Count, Is.EqualTo(2));
         Assert.That(components, Is.Not.Null);
         Assert.That(components.Count(), Is.EqualTo(2));
         Assert.That(components.Any(c => c != null && c.Value == 10), Is.True);
         Assert.That(components.Any(c => c != null && c.Value == 20), Is.True);
-
     }
     [Test]
     public void GetEntitiesWith_ShouldReturnEmptyWhenNoEntitiesHaveComponent() {
@@ -195,3 +155,4 @@ public class WorldTest {
         Assert.That(entitiesWithAllThree[0].ID, Is.EqualTo(entity1.ID));
     }
 }
+**/
