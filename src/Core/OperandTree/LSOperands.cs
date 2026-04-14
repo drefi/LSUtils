@@ -25,7 +25,7 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
         return visitor.Visit(this, out value, args);
     }
 
-    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+    public virtual bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
     }
 
@@ -46,7 +46,7 @@ public class LSBooleanConstantOperand : ILSBooleanOperand {
     public virtual bool Evaluate(ILSOperandVisitor visitor, out bool? value, params object?[] args) {
         return visitor.Visit(this, out value, args);
     }
-    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+    public virtual bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
     }
 
@@ -81,7 +81,7 @@ public class LSBinaryOperand<T> : ILSBinaryOperand<T> where T : System.Numerics.
         return visitor.Visit(this, out value, parameters);
     }
 
-    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+    public virtual bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
     }
     public static implicit operator LSBinaryOperand<T>((ILSNumericOperand<T> left, ILSNumericOperand<T> right, MathOperator op) tuple) => new(tuple.left, tuple.right, tuple.op);
@@ -113,7 +113,7 @@ public class LSConditionalOperand : ILSComparerOperand {
         return visitor.Visit(this, out value, args);
     }
 
-    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+    public virtual bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
     }
 
@@ -144,7 +144,7 @@ public class LSBinaryConditionalOperand : ILSConditionalOperand {
         return visitor.Visit(this, out value, parameters);
     }
 
-    public virtual bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+    public virtual bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
     }
 }
@@ -172,7 +172,7 @@ public class LSUnaryOperand<T> : ILSUnaryOperand<T> where T : System.Numerics.IN
         return visitor.Visit(this, out value, parameters);
     }
 
-    public bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+    public bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
     }
 }
@@ -202,7 +202,7 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
     public bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
-    public bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+    public bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
     }
 }
@@ -227,7 +227,7 @@ public class LSNegateBooleanOperand : ILSNegateBooleanOperand {
     public bool Evaluate(ILSOperandVisitor visitor, out bool? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
-    public bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+    public bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
     }
 }

@@ -76,7 +76,7 @@ public class LSOperandTests {
             return true;
         }
 
-        public bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        public bool Accept(ILSVisitor visitor, params object?[] args) {
             return visitor.Visit(this, args);
         }
     }
@@ -137,7 +137,7 @@ public class LSOperandTests {
             return true;
         }
 
-        public bool Accept(ILSOperandVisitor visitor, params object?[] args) {
+        public bool Accept(ILSVisitor visitor, params object?[] args) {
             return visitor.Visit(this, args);
         }
     }

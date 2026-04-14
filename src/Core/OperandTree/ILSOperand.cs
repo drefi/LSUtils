@@ -4,5 +4,5 @@
 /// Forms the foundation of a composable formula system.
 /// </summary>
 public interface ILSOperand {
-    bool Accept(ILSOperandVisitor visitor, params object?[] args);
+    bool Accept(ILSVisitor visitor, params object?[] args);
 }
