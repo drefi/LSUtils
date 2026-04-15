@@ -11,10 +11,10 @@ public interface ILSComparerOperand : ILSBooleanOperand {
     /// <summary>
     /// Gets the left operand to compare.
     /// </summary>
-    ILSOperand Left { get; }
+    ILSNumericOperand Left { get; }
 
     /// <summary>
     /// Gets the right operand to compare.
     /// </summary>
-    ILSOperand Right { get; }
+    ILSNumericOperand Right { get; }
 }

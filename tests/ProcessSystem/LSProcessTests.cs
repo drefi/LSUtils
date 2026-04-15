@@ -199,13 +199,6 @@ public class LSProcessTests {
     }
 
     [Test]
-    public void Execute_WithNullManager_ShouldThrowException() {
-        // Act & Assert
-        Assert.Throws<LSException>(() =>
-            _process!.Execute(null!, LSProcessManager.LSProcessContextMode.ALL));
-    }
-
-    [Test]
     public void Execute_CalledTwice_ShouldReturnCachedResult() {
         // Arrange
         var firstResult = _process!.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);

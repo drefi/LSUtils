@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using LSUtils.OperandTree;
 using NUnit.Framework;
 [TestFixture]
@@ -64,20 +65,22 @@ public class LSOperandTests {
             Id = id;
             Key = key;
         }
-        public bool Evaluate(ILSOperandVisitor visitor, out float value, params object?[] parameters) {
-            return visitor.Visit(this, out value, Id, Key, parameters);
+        public bool Evaluate(ILSOperandVisitor visitor, out float result, params object?[] args) {
+            return visitor.Visit(this, out result, Id, Key, args);
         }
-        public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? value, params object?[] parameters) {
-            if (Evaluate(visitor, out var floatValue, parameters) == false || floatValue is not TValue castValue) {
-                value = default;
-                return false;
-            }
-            value = castValue;
-            return true;
-        }
+
 
         public bool Accept(ILSVisitor visitor, params object?[] args) {
             return visitor.Visit(this, args);
+        }
+
+        public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+            if (Evaluate(visitor, out var floatValue, args) == false || floatValue is not TValue castValue) {
+                result = default;
+                return false;
+            }
+            result = castValue;
+            return true;
         }
     }
     private class MockVariableProvider : ILSValueProvider {
@@ -91,10 +94,10 @@ public class LSOperandTests {
 
         }
 
-        public TValue? GetValue<TValue>(params object?[] parameters) {
+        public TValue? GetValue<TValue>(params object?[] args) {
             //if (parameters.Length != 2) throw new LSException($"Invalid number of parameters. Expected 2, got {parameters.Length}.");
-            string id = parameters[0]?.ToString() ?? throw new LSException("Invalid id parameter.");
-            string key = parameters[1]?.ToString() ?? throw new LSException("Invalid key parameter.");
+            string id = args[0]?.ToString() ?? throw new LSException("Invalid id parameter.");
+            string key = args[1]?.ToString() ?? throw new LSException("Invalid key parameter.");
             if (_entities.TryGetValue(id, out var entity)) {
                 var attributeDefiner = _attributes[key];
                 return (TValue)(object)entity.GetAttributeValue(attributeDefiner);
@@ -102,10 +105,10 @@ public class LSOperandTests {
             throw new LSException($"Variable '{id}' not found.");
         }
 
-        public void SetValue<TValue>(TValue value, params object?[] parameters) {
-            if (parameters.Length != 2) throw new LSException($"Invalid number of parameters. Expected 2, got {parameters.Length}.");
-            string id = parameters[0]?.ToString() ?? throw new LSException("Invalid id parameter.");
-            string key = parameters[1]?.ToString() ?? throw new LSException("Invalid key parameter.");
+        public void SetValue<TValue>(TValue value, params object?[] args) {
+            if (args.Length != 2) throw new LSException($"Invalid number of parameters. Expected 2, got {args.Length}.");
+            string id = args[0]?.ToString() ?? throw new LSException("Invalid id parameter.");
+            string key = args[1]?.ToString() ?? throw new LSException("Invalid key parameter.");
             if (_entities.TryGetValue(id, out var entity)) {
                 var attributeDefiner = _attributes[key];
                 entity.SetAttribute(attributeDefiner, Convert.ToSingle(value));
@@ -131,7 +134,7 @@ public class LSOperandTests {
         public CountingOperand(float value) {
             Value = value;
         }
-        public bool Evaluate(ILSOperandVisitor visitor, out float value, params object?[] parameters) {
+        public bool Evaluate(ILSOperandVisitor visitor, out float value, params object?[] args) {
             ResolveCount++;
             value = Value;
             return true;
@@ -139,6 +142,15 @@ public class LSOperandTests {
 
         public bool Accept(ILSVisitor visitor, params object?[] args) {
             return visitor.Visit(this, args);
+        }
+
+        public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+            if (Evaluate(visitor, out var floatValue, args) == false || floatValue is not TValue castValue) {
+                result = default;
+                return false;
+            }
+            result = castValue;
+            return true;
         }
     }
     #endregion
@@ -246,22 +258,16 @@ public class LSOperandTests {
     [Test]
     public void GenericVisitorVisit_ShouldResolveBooleanOperand() {
         var condition = new LSConditionalOperand(ComparisonOperator.GreaterThan, new LSConstantOperand<int>(2), new LSConstantOperand<int>(1));
-        List<bool> values = new();
-        var resolved = _evaluator.Visit(condition, values);
-
-        Assert.That(resolved, Is.True);
-        Assert.That(values[0], Is.True);
+        condition.Evaluate(_evaluator, out var conditionValue);
+        Assert.That(conditionValue, Is.True);
     }
 
     [Test]
     public void GenericVisitorVisit_ShouldResolveBooleanConstantOperand() {
         var constant = new LSBooleanConstantOperand(true);
 
-        List<bool> values = new();
-        var resolved = _evaluator.Visit(constant, values);
-
-        Assert.That(resolved, Is.True);
-        Assert.That(values[0], Is.True);
+        constant.Evaluate(_evaluator, out var constantValue);
+        Assert.That(constantValue, Is.True);
     }
 
     [Test]
@@ -284,10 +290,9 @@ public class LSOperandTests {
         var right = new CountingOperand(3f);
         var add = new LSBinaryOperand<float>(left, right, MathOperator.Add);
 
-        List<int> result = new();
-        add.Accept(_evaluator, result);
+        add.Evaluate(_evaluator, out var resultValue);
 
-        Assert.That(result[0], Is.EqualTo(5f));
+        Assert.That(resultValue, Is.EqualTo(5f));
         Assert.That(left.ResolveCount, Is.EqualTo(1), "Left operand evaluated more than once.");
         Assert.That(right.ResolveCount, Is.EqualTo(1), "Right operand evaluated more than once.");
     }
@@ -300,10 +305,9 @@ public class LSOperandTests {
         var currentHealth = new MockVarOperand("EntityA", "Health");
         var damage = new MockVarOperand("EntityA", "Damage");
         var newHealth = new LSBinaryOperand<float>(currentHealth, damage, MathOperator.Subtract);
-        var result = new List<float>();
-        newHealth.Accept(_evaluator, result);
-        Assert.That(result[0], Is.EqualTo(90));
-        _entityA.SetAttribute((_attributes["Health"]), result[0]);
+        newHealth.Evaluate(_evaluator, out var resultValue);
+        Assert.That(resultValue, Is.EqualTo(90));
+        _entityA.SetAttribute((_attributes["Health"]), resultValue);
         var updatedHealth = new MockVarOperand("EntityA", "Health");
         updatedHealth.Evaluate<float>(_evaluator, out var updatedResult);
         Assert.That(updatedResult, Is.EqualTo(90));
@@ -314,10 +318,9 @@ public class LSOperandTests {
         var currentHealth = new MockVarOperand("EntityA", "Health");
         var damageFromB = new MockVarOperand("EntityB", "Damage");
         var newHealth = new LSBinaryOperand<float>(currentHealth, damageFromB, MathOperator.Subtract);
-        var result = new List<float>();
-        newHealth.Accept(_evaluator, result);
-        Assert.That(result[0], Is.EqualTo(80));
-        _entityA.SetAttribute((_attributes["Health"]), result[0]);
+        newHealth.Evaluate(_evaluator, out var resultValue);
+        Assert.That(resultValue, Is.EqualTo(80));
+        _entityA.SetAttribute((_attributes["Health"]), resultValue);
         var updatedHealth = new MockVarOperand("EntityA", "Health");
         updatedHealth.Evaluate<float>(_evaluator, out var updatedResult);
         Assert.That(updatedResult, Is.EqualTo(80));

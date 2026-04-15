@@ -1,8 +1,12 @@
 ﻿namespace LSUtils.OperandTree;
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 
 #region Operand Implementations
+
 
 /// <summary>
 /// Represents a constant value that doesn't change during evaluation.
@@ -28,6 +32,20 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
     public virtual bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
     }
+
+    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+        if (Evaluate(visitor, out var value, args) == false || value == null) {
+            result = default;
+            return false;
+        }
+        if (value is TValue castValue) {
+            result = castValue;
+            return true;
+        }
+        result = default;
+        return false;
+    }
+
 
     /// <summary>
     /// Implicit conversion from a numeric value to a ConstantOperand.
@@ -80,6 +98,18 @@ public class LSBinaryOperand<T> : ILSBinaryOperand<T> where T : System.Numerics.
     public virtual bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
+    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+        if (Evaluate(visitor, out var value, args) == false || value == null) {
+            result = default;
+            return false;
+        }
+        if (value is TValue castValue) {
+            result = castValue;
+            return true;
+        }
+        result = default;
+        return false;
+    }
 
     public virtual bool Accept(ILSVisitor visitor, params object?[] args) {
         return visitor.Visit(this, args);
@@ -93,8 +123,8 @@ public class LSBinaryOperand<T> : ILSBinaryOperand<T> where T : System.Numerics.
 /// </summary>
 public class LSConditionalOperand : ILSComparerOperand {
     public ComparisonOperator Operator { get; }
-    public ILSOperand Left { get; }
-    public ILSOperand Right { get; }
+    public ILSNumericOperand Left { get; }
+    public ILSNumericOperand Right { get; }
     public bool? Value { get; protected set; }
 
     /// <summary>
@@ -103,7 +133,7 @@ public class LSConditionalOperand : ILSComparerOperand {
     /// <param name="operator">The comparison operator to use.</param>
     /// <param name="left">Left operand to compare.</param>
     /// <param name="right">Right operand to compare.</param>
-    public LSConditionalOperand(ComparisonOperator @operator, ILSOperand left, ILSOperand right) {
+    public LSConditionalOperand(ComparisonOperator @operator, ILSNumericOperand left, ILSNumericOperand right) {
         Operator = @operator;
         Left = left;
         Right = right;
@@ -145,7 +175,8 @@ public class LSBinaryConditionalOperand : ILSConditionalOperand {
     }
 
     public virtual bool Accept(ILSVisitor visitor, params object?[] args) {
-        return visitor.Visit(this, args);
+        List<object?> resultList = args.OfType<List<object?>>().FirstOrDefault() ?? new List<object?>();
+        return visitor.Visit(this, resultList, args);
     }
 }
 
@@ -171,9 +202,22 @@ public class LSUnaryOperand<T> : ILSUnaryOperand<T> where T : System.Numerics.IN
     public bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
+    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+        if (Evaluate(visitor, out var value, args) == false || value == null) {
+            result = default;
+            return false;
+        }
+        if (value is TValue castValue) {
+            result = castValue;
+            return true;
+        }
+        result = default;
+        return false;
+    }
 
     public bool Accept(ILSVisitor visitor, params object?[] args) {
-        return visitor.Visit(this, args);
+        List<object?> resultList = args.OfType<List<object?>>().FirstOrDefault() ?? new List<object?>();
+        return visitor.Visit(this, resultList, args);
     }
 }
 
@@ -202,8 +246,22 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
     public bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
+    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+        if (Evaluate(visitor, out var value, args) == false || value == null) {
+            result = default;
+            return false;
+        }
+        if (value is TValue castValue) {
+            result = castValue;
+            return true;
+        }
+        result = default;
+        return false;
+    }
+
     public bool Accept(ILSVisitor visitor, params object?[] args) {
-        return visitor.Visit(this, args);
+        List<object?> resultList = args.OfType<List<object?>>().FirstOrDefault() ?? new List<object?>();
+        return visitor.Visit(this, resultList, args);
     }
 }
 
@@ -228,7 +286,8 @@ public class LSNegateBooleanOperand : ILSNegateBooleanOperand {
         return visitor.Visit(this, out value, parameters);
     }
     public bool Accept(ILSVisitor visitor, params object?[] args) {
-        return visitor.Visit(this, args);
+        List<object?> resultList = args.OfType<List<object?>>().FirstOrDefault() ?? new List<object?>();
+        return visitor.Visit(this, resultList, args);
     }
 }
 

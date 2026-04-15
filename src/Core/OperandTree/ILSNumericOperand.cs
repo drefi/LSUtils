@@ -1,9 +1,14 @@
 ﻿namespace LSUtils.OperandTree;
+
+
+public interface ILSNumericOperand : ILSOperand {
+    bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue>;
+}
 /// <summary>
 /// Operand interface for numeric types that support mathematical operations.
 /// </summary>
 /// <typeparam name="TValue">The numeric type, must implement INumber&lt;T&gt;.</typeparam>
-public interface ILSNumericOperand<TValue> : ILSOperand where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
+public interface ILSNumericOperand<TValue> : ILSNumericOperand where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
     /// <summary>
     /// Gets the numeric value of this operand, if it can be evaluated.
     /// </summary>
