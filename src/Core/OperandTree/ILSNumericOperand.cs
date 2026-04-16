@@ -2,13 +2,13 @@
 
 
 public interface ILSNumericOperand : ILSOperand {
-    bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue>;
+    bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : System.Numerics.INumber<TValue>;
 }
 /// <summary>
 /// Operand interface for numeric types that support mathematical operations.
 /// </summary>
 /// <typeparam name="TValue">The numeric type, must implement INumber&lt;T&gt;.</typeparam>
-public interface ILSNumericOperand<TValue> : ILSNumericOperand where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
+public interface ILSNumericOperand<TValue> : ILSNumericOperand where TValue : System.Numerics.INumber<TValue> {
     /// <summary>
     /// Gets the numeric value of this operand, if it can be evaluated.
     /// </summary>
@@ -20,7 +20,7 @@ public interface ILSNumericOperand<TValue> : ILSNumericOperand where TValue : Sy
 }
 
 public static class NumericOperandExtensions {
-    public static TValue UnaryOperation<TValue>(this TValue value, UnaryOperator @operator) where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
+    public static TValue UnaryOperation<TValue>(this TValue value, UnaryOperator @operator) where TValue : System.Numerics.INumber<TValue> {
         return @operator switch {
             UnaryOperator.Negate => -value,
             UnaryOperator.Abs => TValue.Abs(value),
@@ -32,7 +32,7 @@ public static class NumericOperandExtensions {
             _ => throw new LSNotImplementedException($"Unary operator {@operator} not implemented in {nameof(NumericOperandExtensions)}.{nameof(UnaryOperation)}.")
         };
     }
-    public static TValue BinaryOperation<TValue>(this TValue left, MathOperator @operator, TValue right) where TValue : System.Numerics.INumber<TValue>, System.IComparable<TValue> {
+    public static TValue BinaryOperation<TValue>(this TValue left, MathOperator @operator, TValue right) where TValue : System.Numerics.INumber<TValue> {
         return @operator switch {
             MathOperator.None => right,
             MathOperator.Add => left + right,

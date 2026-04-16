@@ -33,7 +33,7 @@ public class LSConstantOperand<T> : ILSConstantOperand<T> where T : System.Numer
         return visitor.Visit(this, args);
     }
 
-    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue> {
         if (Evaluate(visitor, out var value, args) == false || value == null) {
             result = default;
             return false;
@@ -98,7 +98,7 @@ public class LSBinaryOperand<T> : ILSBinaryOperand<T> where T : System.Numerics.
     public virtual bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
-    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue> {
         if (Evaluate(visitor, out var value, args) == false || value == null) {
             result = default;
             return false;
@@ -202,7 +202,7 @@ public class LSUnaryOperand<T> : ILSUnaryOperand<T> where T : System.Numerics.IN
     public bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
-    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue> {
         if (Evaluate(visitor, out var value, args) == false || value == null) {
             result = default;
             return false;
@@ -246,7 +246,7 @@ public class LSTernaryConditionalOperand<T> : ILSTernaryConditionalOperand<T> wh
     public bool Evaluate(ILSOperandVisitor visitor, out T? value, params object?[] parameters) {
         return visitor.Visit(this, out value, parameters);
     }
-    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+    public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue> {
         if (Evaluate(visitor, out var value, args) == false || value == null) {
             result = default;
             return false;

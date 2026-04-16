@@ -74,7 +74,7 @@ public class LSOperandTests {
             return visitor.Visit(this, args);
         }
 
-        public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+        public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue> {
             if (Evaluate(visitor, out var floatValue, args) == false || floatValue is not TValue castValue) {
                 result = default;
                 return false;
@@ -144,7 +144,7 @@ public class LSOperandTests {
             return visitor.Visit(this, args);
         }
 
-        public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue>, IComparable<TValue> {
+        public bool Evaluate<TValue>(ILSOperandVisitor visitor, out TValue? result, params object?[] args) where TValue : INumber<TValue> {
             if (Evaluate(visitor, out var floatValue, args) == false || floatValue is not TValue castValue) {
                 result = default;
                 return false;
