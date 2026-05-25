@@ -118,7 +118,6 @@ public abstract class BTTask {
     /// <summary>Called after <see cref="Tick"/> returns SUCCESS or FAILURE.</summary>
     protected virtual void Exit() { }
 
-    /// <summary>Performs the task's work for one frame. Must return a <see cref="BTStatus"/> value.</summary>
     protected abstract BTStatus Tick(float delta);
 
     /// <summary>
