@@ -1,8 +1,7 @@
-namespace LSUtils.Spatial;
+﻿namespace LSUtils.Spatial;
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 /// <summary>
 /// Implementação de QuadTree para particionamento espacial hierárquico 2D.
 /// Divide recursivamente o espaço em quadrantes para consultas espaciais eficientes.
@@ -55,6 +54,18 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         if (!_bounds.Intersects(bounds))
             return false;
 
+        if (_isDivided) {
+            QuadTree<T>? child = GetContainingChild(bounds);
+            if (child != null) {
+                if (!child.Insert(item, bounds)) {
+                    return false;
+                }
+
+                _count++;
+                return true;
+            }
+        }
+
         // Se não está subdividida e há espaço, adiciona aqui
         if (!_isDivided && _entries.Count < _capacity) {
             _entries.Add(new QuadTreeEntry(item, bounds));
@@ -67,19 +78,19 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
             Subdivide();
         }
 
-        // Tenta inserir nos filhos
-        bool inserted = false;
-        foreach (var child in _children!) {
-            if (child.Insert(item, bounds)) {
-                inserted = true;
+        QuadTree<T>? containingChild = GetContainingChild(bounds);
+        if (containingChild != null) {
+            if (!containingChild.Insert(item, bounds)) {
+                return false;
             }
-        }
 
-        if (inserted) {
             _count++;
+            return true;
         }
 
-        return inserted;
+        _entries.Add(new QuadTreeEntry(item, bounds));
+        _count++;
+        return true;
     }
 
     /// <summary>
@@ -87,18 +98,19 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// </summary>
     public IReadOnlyList<T> Query(Bounds area) {
         var result = new List<T>();
-        Query(area, result);
+        var seen = new HashSet<T>();
+        Query(area, result, seen);
         return result;
     }
 
-    private void Query(Bounds area, List<T> result) {
+    private void Query(Bounds area, List<T> result, HashSet<T> seen) {
         // Se a área não intersecta, retorna vazio
         if (!_bounds.Intersects(area))
             return;
 
         // Adiciona objetos deste nó que intersectam a área
         foreach (var entry in _entries) {
-            if (area.Intersects(entry.Bounds)) {
+            if (area.Intersects(entry.Bounds) && seen.Add(entry.Item)) {
                 result.Add(entry.Item);
             }
         }
@@ -106,9 +118,25 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         // Consulta recursivamente nos filhos
         if (_isDivided) {
             foreach (var child in _children!) {
-                child.Query(area, result);
+                child.Query(area, result, seen);
             }
         }
+    }
+
+    /// <summary>
+    /// Atualiza os limites de um objeto na árvore.
+    /// </summary>
+    public bool Update(T item, Bounds oldBounds, Bounds newBounds) {
+        if (!Remove(item)) {
+            return false;
+        }
+
+        if (Insert(item, newBounds)) {
+            return true;
+        }
+
+        Insert(item, oldBounds);
+        return false;
     }
 
     /// <summary>
@@ -172,22 +200,33 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         _isDivided = true;
 
         // Redistribui objetos existentes para os filhos
-        var entriesToRedistribute = _entries.ToList();
+        var entriesToRedistribute = new List<QuadTreeEntry>(_entries);
         _entries.Clear();
 
         foreach (var entry in entriesToRedistribute) {
-            bool inserted = false;
-            foreach (var child in _children) {
-                if (child.Insert(entry.Item, entry.Bounds)) {
-                    inserted = true;
-                }
+            QuadTree<T>? child = GetContainingChild(entry.Bounds);
+            if (child != null) {
+                child.Insert(entry.Item, entry.Bounds);
+                continue;
             }
 
-            // Se não coube em nenhum filho, mantém no pai
-            if (!inserted) {
-                _entries.Add(entry);
+            // Se cruza mais de um quadrante, mantém no pai.
+            _entries.Add(entry);
+        }
+    }
+
+    private QuadTree<T>? GetContainingChild(Bounds bounds) {
+        if (!_isDivided || _children == null) {
+            return null;
+        }
+
+        foreach (var child in _children) {
+            if (child.Bounds.Contains(bounds)) {
+                return child;
             }
         }
+
+        return null;
     }
 
     /// <summary>

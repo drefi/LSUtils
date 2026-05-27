@@ -1,4 +1,4 @@
-namespace LSUtils.Spatial;
+﻿namespace LSUtils.Spatial;
 
 using System.Collections.Generic;
 /// <summary>
@@ -20,6 +20,15 @@ public interface ISpatialIndex<T> where T : notnull {
     /// <param name="area">A área de consulta.</param>
     /// <returns>Lista de objetos dentro da área.</returns>
     IReadOnlyList<T> Query(Bounds area);
+
+    /// <summary>
+    /// Atualiza os limites espaciais de um objeto já indexado.
+    /// </summary>
+    /// <param name="item">O objeto a ser atualizado.</param>
+    /// <param name="oldBounds">Os limites anteriores do objeto.</param>
+    /// <param name="newBounds">Os novos limites do objeto.</param>
+    /// <returns>True se atualizado com sucesso, false caso contrário.</returns>
+    bool Update(T item, Bounds oldBounds, Bounds newBounds);
 
     /// <summary>
     /// Remove um objeto do índice espacial.

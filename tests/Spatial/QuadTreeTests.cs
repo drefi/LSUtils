@@ -1,6 +1,7 @@
-namespace LSUtils.Tests.Spatial;
+﻿namespace LSUtils.Tests.Spatial;
 
 using System;
+using System.Linq;
 using NUnit.Framework;
 using LSUtils.Spatial;
 [TestFixture]
@@ -125,6 +126,19 @@ public class QuadTreeTests {
     }
 
     [Test]
+    public void Query_ItemSpanningMultipleQuadrants_ReturnsItemOnce() {
+        var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100), 1);
+
+        quadTree.Insert("LargeItem", new Bounds(0, 0, 60, 60));
+        quadTree.Insert("OtherItem", new Bounds(30, 30, 5, 5));
+
+        var results = quadTree.Query(new Bounds(0, 0, 100, 100));
+
+        Assert.That(results, Has.Count.EqualTo(2));
+        Assert.That(results.Count(item => item == "LargeItem"), Is.EqualTo(1));
+    }
+
+    [Test]
     public void Remove_ExistingItem_ReturnsTrue() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
         quadTree.Insert("Item1", new Bounds(10, 10, 5, 5));
@@ -161,6 +175,18 @@ public class QuadTreeTests {
 
         var results = quadTree.Query(new Bounds(0, 0, 100, 100));
         Assert.That(results, Does.Not.Contain("Item2"));
+    }
+
+    [Test]
+    public void Update_ExistingItem_MovesItemToNewArea() {
+        var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100), 1);
+        quadTree.Insert("Item1", new Bounds(-20, -20, 5, 5));
+
+        bool updated = quadTree.Update("Item1", new Bounds(-20, -20, 5, 5), new Bounds(20, 20, 5, 5));
+
+        Assert.That(updated, Is.True);
+        Assert.That(quadTree.Query(new Bounds(-20, -20, 10, 10)), Does.Not.Contain("Item1"));
+        Assert.That(quadTree.Query(new Bounds(20, 20, 10, 10)), Does.Contain("Item1"));
     }
 
     [Test]
