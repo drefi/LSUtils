@@ -322,13 +322,9 @@ public abstract class LSProcess {
                 });
             return this;
         }
-        LSProcessTreeBuilder builder;
-        if (_root == null) {
-            // create a new root sequence node to match the global/instanced context style
-            builder = new LSProcessTreeBuilder().Sequence($"{GetType().Name}");
-        } else {
-            builder = new LSProcessTreeBuilder(_root);
-        }
+        //LSProcessTreeBuilder builder;
+        _root ??= LSProcessManager.CreateRootNode($"{GetType().Name}");
+        LSProcessTreeBuilder builder = new LSProcessTreeBuilder(_root);
         // use the builderAction to modify or extend the root.
         _root = builderAction(builder).Build();
 

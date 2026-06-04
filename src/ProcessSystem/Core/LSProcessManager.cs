@@ -212,7 +212,9 @@ public class LSProcessManager {
         }
 
         try {
-            // Build the final merged tree, if no nodes were merged, this will throw an exception
+            // to avoid throw exception during execute if no instance or global context were registered, this works for availableInstances because it will be empty even when the GlobalProcessable.Instance is not registered. Alternatively, we could always create the builder already with CreateRootNode, but this could potentially break the merging logic.
+            if (availableInstances.Length == 0) return CreateRootNode(processType.Name);
+            // Build the final merged tree
             return builder.Build();
         } catch (LSException) {
             // Graceful fallback: empty root using process type name

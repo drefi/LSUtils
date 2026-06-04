@@ -1,6 +1,8 @@
-namespace LSUtils.Grids;
+﻿namespace LSUtils.Grids;
 
 public interface IGridPosition {
-    int X { get; }
-    int Y { get; }
+    int ColIndex { get; }
+    int RowIndex { get; }
+    float PosX { get; }
+    float PosY { get; }
 }

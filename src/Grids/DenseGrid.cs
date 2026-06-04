@@ -1,4 +1,4 @@
-namespace LSUtils.Grids;
+﻿namespace LSUtils.Grids;
 
 using System.Collections.Generic;
 public class DenseGrid<TData> : IGrid<GridPosition, TData> {
@@ -12,21 +12,21 @@ public class DenseGrid<TData> : IGrid<GridPosition, TData> {
         _data = new TData[width * height];
     }
 
-    public TData? GetCell(GridPosition pos) => IsValidPosition(pos) ? _data[pos.Y * Width + pos.X] : default;
+    public TData? GetCell(GridPosition pos) => IsValidPosition(pos) ? _data[pos.RowIndex * Width + pos.ColIndex] : default;
     public bool SetCell(GridPosition pos, TData value) {
         if (!IsValidPosition(pos)) return false;
-        _data[pos.Y * Width + pos.X] = value;
+        _data[pos.RowIndex * Width + pos.ColIndex] = value;
         return true;
     }
-    public bool IsValidPosition(GridPosition pos) => pos.X >= 0 && pos.X < Width && pos.Y >= 0 && pos.Y < Height;
+    public bool IsValidPosition(GridPosition pos) => pos.ColIndex >= 0 && pos.ColIndex < Width && pos.RowIndex >= 0 && pos.RowIndex < Height;
     public IEnumerable<GridPosition> GetNeighbors(GridPosition pos, bool includeDiagonals = false) {
         var directions = includeDiagonals
             ? new[] { (-1, -1), (0, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (0, 1), (1, 1) }
             : new[] { (0, -1), (1, 0), (0, 1), (-1, 0) };
         
         foreach (var (dx, dy) in directions) {
-            int nx = pos.X + dx;
-            int ny = pos.Y + dy;
+            int nx = pos.ColIndex + dx;
+            int ny = pos.RowIndex + dy;
             var npos = new GridPosition(nx, ny);
             if (IsValidPosition(npos)) yield return npos;
         }

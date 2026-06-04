@@ -1,4 +1,4 @@
-namespace LSUtils.Tests.Grids;
+﻿namespace LSUtils.Tests.Grids;
 
 using NUnit.Framework;
 using LSUtils.Grids;
@@ -11,8 +11,8 @@ public class GridPositionTests {
         var pos = new GridPosition(5, 7);
 
         // Assert
-        Assert.That(pos.X, Is.EqualTo(5));
-        Assert.That(pos.Y, Is.EqualTo(7));
+        Assert.That(pos.ColIndex, Is.EqualTo(5));
+        Assert.That(pos.RowIndex, Is.EqualTo(7));
     }
 
     [Test]
@@ -37,10 +37,10 @@ public class GridPositionTests {
         pos2 = new GridPosition(3, 4);
 
         // Assert - pos1 should not be affected
-        Assert.That(pos1.X, Is.EqualTo(1));
-        Assert.That(pos1.Y, Is.EqualTo(2));
-        Assert.That(pos2.X, Is.EqualTo(3));
-        Assert.That(pos2.Y, Is.EqualTo(4));
+        Assert.That(pos1.ColIndex, Is.EqualTo(1));
+        Assert.That(pos1.RowIndex, Is.EqualTo(2));
+        Assert.That(pos2.ColIndex, Is.EqualTo(3));
+        Assert.That(pos2.RowIndex, Is.EqualTo(4));
     }
 
     [Test]
@@ -62,8 +62,8 @@ public class GridPositionTests {
         var pos = new GridPosition(-5, -10);
 
         // Assert
-        Assert.That(pos.X, Is.EqualTo(-5));
-        Assert.That(pos.Y, Is.EqualTo(-10));
+        Assert.That(pos.ColIndex, Is.EqualTo(-5));
+        Assert.That(pos.RowIndex, Is.EqualTo(-10));
     }
 
     [Test]
@@ -72,7 +72,7 @@ public class GridPositionTests {
         var pos = new GridPosition(0, 0);
 
         // Assert
-        Assert.That(pos.X, Is.EqualTo(0));
-        Assert.That(pos.Y, Is.EqualTo(0));
+        Assert.That(pos.ColIndex, Is.EqualTo(0));
+        Assert.That(pos.RowIndex, Is.EqualTo(0));
     }
 }
