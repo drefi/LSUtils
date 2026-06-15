@@ -11,8 +11,9 @@ public interface ISpatialIndex<T> where T : notnull {
     /// </summary>
     /// <param name="item">O objeto a ser inserido.</param>
     /// <param name="bounds">Os limites espaciais do objeto.</param>
+    /// <param name="allowOverlap">Indica se sobreposições são permitidas.</param>
     /// <returns>True se inserido com sucesso, false caso contrário.</returns>
-    bool Insert(T item, Bounds bounds);
+    bool Insert(T item, Bounds bounds, bool allowOverlap = false);
 
     /// <summary>
     /// Consulta objetos dentro de uma área específica.
@@ -25,17 +26,18 @@ public interface ISpatialIndex<T> where T : notnull {
     /// Atualiza os limites espaciais de um objeto já indexado.
     /// </summary>
     /// <param name="item">O objeto a ser atualizado.</param>
-    /// <param name="oldBounds">Os limites anteriores do objeto.</param>
     /// <param name="newBounds">Os novos limites do objeto.</param>
+    /// <param name="allowOverlap">Indica se sobreposições são permitidas.</param>
     /// <returns>True se atualizado com sucesso, false caso contrário.</returns>
-    bool Update(T item, Bounds oldBounds, Bounds newBounds);
+    bool Update(T item, Bounds newBounds, bool allowOverlap = false);
 
     /// <summary>
     /// Remove um objeto do índice espacial.
     /// </summary>
     /// <param name="item">O objeto a ser removido.</param>
+    /// <param name="oldBounds">Os limites anteriores do objeto.</param>
     /// <returns>True se removido com sucesso, false caso contrário.</returns>
-    bool Remove(T item);
+    bool Remove(T item, out Bounds oldBounds);
 
     /// <summary>
     /// Remove todos os objetos do índice espacial.

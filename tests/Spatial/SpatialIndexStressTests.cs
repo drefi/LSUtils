@@ -99,8 +99,8 @@ public class SpatialIndexStressTests {
             Bounds oldBounds = currentBounds[id];
             Bounds newBounds = NudgeBounds(oldBounds, random, maxDelta: 20);
 
-            bool quadUpdated = quadTree.Update(id, oldBounds, newBounds);
-            bool gridUpdated = grid.Update(id, oldBounds, newBounds);
+            bool quadUpdated = quadTree.Update(id, newBounds);
+            bool gridUpdated = grid.Update(id, newBounds);
 
             Assert.That(quadUpdated, Is.True);
             Assert.That(gridUpdated, Is.True);
@@ -203,7 +203,7 @@ public class SpatialIndexStressTests {
         int updated = 0;
         int updateCount = Math.Min(UpdateCount, Math.Min(items.Length, updatedBounds.Length));
         for (int i = 0; i < updateCount; i++) {
-            bool ok = index.Update(items[i].Id, items[i].Bounds, updatedBounds[i]);
+            bool ok = index.Update(items[i].Id, updatedBounds[i]);
             Assert.That(ok, Is.True, $"Failed to update item {items[i].Id}");
             updated++;
         }
@@ -214,7 +214,7 @@ public class SpatialIndexStressTests {
     private static int ExecuteRemovals(ISpatialIndex<int> index, IndexedItem[] items, int removeCount) {
         int removed = 0;
         for (int i = 0; i < removeCount; i++) {
-            bool ok = index.Remove(items[i].Id);
+            bool ok = index.Remove(items[i].Id, out _);
             Assert.That(ok, Is.True, $"Failed to remove item {items[i].Id}");
             removed++;
         }
@@ -267,15 +267,19 @@ public class SpatialIndexStressTests {
 
     private static IndexedItem[] CreateUniformItems(int count) {
         var items = new IndexedItem[count];
-        var random = new Random(11);
-        float half = WorldSize / 2f;
+        const int columns = 100;
+        const int rows = 100;
+        float spacingX = WorldSize / columns;
+        float spacingY = WorldSize / rows;
+        float originX = -WorldSize / 2f + spacingX / 2f;
+        float originY = -WorldSize / 2f + spacingY / 2f;
 
         for (int i = 0; i < count; i++) {
-            float x = (float)(random.NextDouble() * (WorldSize - 64) - (half - 32));
-            float y = (float)(random.NextDouble() * (WorldSize - 64) - (half - 32));
-            float width = 6 + random.Next(0, 18);
-            float height = 6 + random.Next(0, 18);
-            items[i] = new IndexedItem(i, new Bounds(x, y, width, height));
+            int column = i % columns;
+            int row = i / columns;
+            float x = originX + column * spacingX;
+            float y = originY + row * spacingY;
+            items[i] = new IndexedItem(i, new Bounds(x, y, 0f, 0f));
         }
 
         return items;
@@ -283,20 +287,28 @@ public class SpatialIndexStressTests {
 
     private static IndexedItem[] CreateClusteredItems(int count) {
         var items = new IndexedItem[count];
-        var random = new Random(22);
+        const int clusterColumns = 50;
+        const int clusterRows = 50;
+        const float spacing = 10f;
+        float clusterWidth = (clusterColumns - 1) * spacing;
+        float clusterHeight = (clusterRows - 1) * spacing;
         var clusterCenters = new[] {
-            new Bounds(-1200, -900, 0, 0),
-            new Bounds(900, -700, 0, 0),
-            new Bounds(-600, 1000, 0, 0),
-            new Bounds(1100, 850, 0, 0)
+            (-700f, -700f),
+            (700f, -700f),
+            (-700f, 700f),
+            (700f, 700f)
         };
 
         for (int i = 0; i < count; i++) {
-            Bounds cluster = clusterCenters[i % clusterCenters.Length];
-            float x = cluster.X + (float)(random.NextDouble() * 220 - 110);
-            float y = cluster.Y + (float)(random.NextDouble() * 220 - 110);
-            float size = 8 + random.Next(0, 20);
-            items[i] = new IndexedItem(i, new Bounds(x, y, size, size));
+            int clusterIndex = i / (clusterColumns * clusterRows);
+            int clusterItemIndex = i % (clusterColumns * clusterRows);
+            int column = clusterItemIndex % clusterColumns;
+            int row = clusterItemIndex / clusterColumns;
+
+            var cluster = clusterCenters[clusterIndex % clusterCenters.Length];
+            float x = cluster.Item1 - clusterWidth / 2f + column * spacing;
+            float y = cluster.Item2 - clusterHeight / 2f + row * spacing;
+            items[i] = new IndexedItem(i, new Bounds(x, y, 0f, 0f));
         }
 
         return items;

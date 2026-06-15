@@ -40,9 +40,11 @@ public class SpatialHashGridTests {
     [Test]
     public void Update_ExistingItem_MovesItemToNewArea() {
         ISpatialIndex<string> spatialIndex = new SpatialHashGrid<string>(10);
-        spatialIndex.Insert("Item1", new Bounds(5, 5, 4, 4));
+        var itemBounds = new Bounds(5, 5, 4, 4);
+        spatialIndex.Insert("Item1", itemBounds);
 
-        bool updated = spatialIndex.Update("Item1", new Bounds(5, 5, 4, 4), new Bounds(35, 35, 4, 4));
+        var newItemBounds = new Bounds(35, 35, 4, 4);
+        bool updated = spatialIndex.Update("Item1", newItemBounds);
 
         Assert.That(updated, Is.True);
         Assert.That(spatialIndex.Query(new Bounds(5, 5, 10, 10)), Does.Not.Contain("Item1"));
@@ -52,9 +54,10 @@ public class SpatialHashGridTests {
     [Test]
     public void Remove_ExistingItem_ReturnsTrue() {
         var grid = new SpatialHashGrid<string>(10);
-        grid.Insert("Item1", new Bounds(5, 5, 4, 4));
+        var itemBounds = new Bounds(5, 5, 4, 4);
+        grid.Insert("Item1", itemBounds);
 
-        bool removed = grid.Remove("Item1");
+        bool removed = grid.Remove("Item1", out _);
 
         Assert.That(removed, Is.True);
         Assert.That(grid.Count, Is.EqualTo(0));
