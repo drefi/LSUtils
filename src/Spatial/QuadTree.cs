@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+
 /// <summary>
 /// Implementação de QuadTree para particionamento espacial hierárquico 2D.
 /// Divide recursivamente o espaço em quadrantes para consultas espaciais eficientes.
@@ -11,7 +13,8 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     private readonly Bounds _bounds;
     private readonly int _capacity;
     private readonly List<QuadTreeEntry> _entries;
-    private QuadTree<T>[]? _children;
+    //private QuadTree<T>[]? _children;
+    private QuadTree<T>? _nw, _ne, _sw, _se;
     private bool _isDivided;
     private int _count;
     private readonly Dictionary<T, QuadTree<T>> _itemNodes;
@@ -39,6 +42,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         _itemNodes = itemNodes;
         _itemBounds = itemBounds;
         _entries = new List<QuadTreeEntry>(_capacity);
+        _nw = _ne = _sw = _se = null;
         _isDivided = false;
         _count = 0;
     }
@@ -79,11 +83,11 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
 
         if (_isDivided) {
             QuadTree<T>? child = getContainingChild(bounds);
-            if (child == null) return false; // straddles multiple quadrants, reject
-
-            if (!child.Insert(item, bounds, allowOverlap)) return false;
-            _count++;
-            return true;
+            if (child != null) {
+                if (!child.Insert(item, bounds, allowOverlap)) return false;
+                _count++;
+                return true;
+            }
         }
 
         // Leaf node with space
@@ -100,10 +104,14 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     public IReadOnlyList<T> Query(Bounds area) {
         var result = new List<T>();
         query(area, result);
-        return result;
+        return result.ToList();
     }
-
-    private void query(Bounds area, List<T> result) {
+    public void Query(Bounds area, ICollection<T> result) {
+        if (result == null) result = new List<T>();
+        else if (result.Count > 0) result.Clear();
+        query(area, result);
+    }
+    private void query(Bounds area, ICollection<T> result) {
         if (!_bounds.Intersects(area))
             return;
 
@@ -113,15 +121,23 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         }
 
         if (_isDivided) {
-            foreach (var child in _children!)
-                child.query(area, result);
+            _nw!.query(area, result);
+            _ne!.query(area, result);
+            _sw!.query(area, result);
+            _se!.query(area, result);
         }
     }
-
     /// <summary>
     /// Atualiza os limites de um objeto na árvore.
     /// </summary>
     public bool Update(T item, Bounds newBounds, bool allowOverlap = false) {
+        if (!_itemNodes.TryGetValue(item, out var node)) return false;
+
+        // Fast path: still fits in the same leaf node
+        if (node.Bounds.Contains(newBounds)) {
+            // update in-place
+            if (!node.updateEntry(item, newBounds, allowOverlap)) return false;
+        }
         if (!Remove(item, out Bounds oldBounds)) return false;
 
         if (Insert(item, newBounds, allowOverlap) == false) {
@@ -130,6 +146,16 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         }
 
         return true;
+    }
+    private bool updateEntry(T item, Bounds newBounds, bool allowOverlap = false) {
+        if (!allowOverlap && hasCollision(newBounds)) return false;
+        for (int i = 0; i < _entries.Count; i++) {
+            if (EqualityComparer<T>.Default.Equals(_entries[i].Item, item)) {
+                _entries[i] = new QuadTreeEntry(item, newBounds);
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -154,13 +180,14 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         return true;
     }
     private bool removeLocal(T item) {
-        for (int i = _entries.Count - 1; i >= 0; i--) {
+        for (int i = 0; i < _entries.Count; i++) {
             if (EqualityComparer<T>.Default.Equals(_entries[i].Item, item)) {
-                _entries.RemoveAt(i);
+                int last = _entries.Count - 1;
+                _entries[i] = _entries[last];   // swap with last
+                _entries.RemoveAt(last);         // O(1) removal
                 return true;
             }
         }
-
         return false;
     }
     /// <summary>
@@ -173,7 +200,10 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     }
     private void clearNode() {
         _entries.Clear();
-        _children = null;
+        _nw = null;
+        _ne = null;
+        _sw = null;
+        _se = null;
         _isDivided = false;
         _count = 0;
     }
@@ -193,12 +223,10 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         var sw = new Bounds(x - hw, y + hh, w, h); // Southwest
         var se = new Bounds(x + hw, y + hh, w, h); // Southeast
 
-        _children = new[] {
-            new QuadTree<T>(this, nw, _itemNodes, _itemBounds),
-            new QuadTree<T>(this, ne, _itemNodes, _itemBounds),
-            new QuadTree<T>(this, sw, _itemNodes, _itemBounds),
-            new QuadTree<T>(this, se, _itemNodes, _itemBounds)
-        };
+        _nw = new QuadTree<T>(this, nw, _itemNodes, _itemBounds);
+        _ne = new QuadTree<T>(this, ne, _itemNodes, _itemBounds);
+        _sw = new QuadTree<T>(this, sw, _itemNodes, _itemBounds);
+        _se = new QuadTree<T>(this, se, _itemNodes, _itemBounds);
 
         _isDivided = true;
 
@@ -217,33 +245,16 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
             _entries.Add(entry);
         }
     }
-    // private void insertExisting(QuadTreeEntry entry) {
-    //     if (!_isDivided && _entries.Count >= _capacity && _depth < _maxDepth)
-    //         subdivide();
-
-    //     if (_isDivided) {
-    //         var child = getContainingChild(entry.Bounds);
-    //         if (child != null) {
-    //             child.insertExisting(entry);
-    //             return;
-    //         }
-    //     }
-
-    //     _entries.Add(entry);
-    //     _itemNodes[entry.Item] = this;
-    //     _itemBounds[entry.Item] = entry.Bounds;
-    // }
 
     private QuadTree<T>? getContainingChild(Bounds bounds) {
-        if (!_isDivided || _children == null) {
+        if (!_isDivided) {
             return null;
         }
 
-        foreach (var child in _children) {
-            if (child.Bounds.Contains(bounds)) {
-                return child;
-            }
-        }
+        if (_nw != null && _nw.Bounds.Contains(bounds)) return _nw;
+        if (_ne != null && _ne.Bounds.Contains(bounds)) return _ne;
+        if (_sw != null && _sw.Bounds.Contains(bounds)) return _sw;
+        if (_se != null && _se.Bounds.Contains(bounds)) return _se;
 
         return null;
     }
@@ -257,14 +268,10 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
             }
         }
 
-        if (_isDivided && _children != null) {
-            foreach (var child in _children) {
-                if (child.hasCollision(bounds)) {
-                    return true;
-                }
-            }
+        var child = getContainingChild(bounds);
+        if (child != null) {
+            return child.hasCollision(bounds);
         }
-
         return false;
     }
 
