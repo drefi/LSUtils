@@ -147,7 +147,17 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         _cells.Clear();
         _itemBounds.Clear();
     }
+    public int GetCellCount(float x, float y) {
+        int cellX = toCellCoordinate(x);
+        int cellY = toCellCoordinate(y);
+        var key = new CellKey(cellX, cellY);
 
+        if (_cells.TryGetValue(key, out var itemsInCell)) {
+            return itemsInCell.Count; // O(1)
+        }
+
+        return 0;
+    }
     private void addToCell(CellKey cell, T item) {
         if (!_cells.TryGetValue(cell, out HashSet<T>? itemsInCell)) {
             itemsInCell = new HashSet<T>();

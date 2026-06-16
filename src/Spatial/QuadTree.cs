@@ -107,8 +107,9 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         return result.ToList();
     }
     public void Query(Bounds area, ICollection<T> result) {
-        if (result == null) result = new List<T>();
-        else if (result.Count > 0) result.Clear();
+        //IA continua me incomodando para não criar uma nova lista a cada consulta.
+        //if (result == null) result = new List<T>();
+        //else if (result.Count > 0) result.Clear();
         query(area, result);
     }
     private void query(Bounds area, ICollection<T> result) {
