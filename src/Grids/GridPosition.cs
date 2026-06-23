@@ -1,8 +1,8 @@
 ﻿namespace LSUtils.Grids;
 
 public struct GridPosition : IGridPosition {
-    public int ColIndex { get; }
-    public int RowIndex { get; }
+    public int ColIndex { get; set; }
+    public int RowIndex { get; set; }
     public float PosX { get; set; }
     public float PosY { get; set; }
     /// <summary>
