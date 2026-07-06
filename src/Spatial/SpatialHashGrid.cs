@@ -1,6 +1,5 @@
 ﻿namespace LSUtils.Spatial;
 
-using System;
 using System.Collections.Generic;
 /// <summary>
 /// Implementação de grade hash espacial para consultas 2D com atualização frequente.
@@ -17,7 +16,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
     /// <param name="cellSize">Tamanho de cada célula da grade.</param>
     public SpatialHashGrid(float cellSize) {
         if (cellSize <= 0) {
-            throw new ArgumentException("Cell size must be greater than 0", nameof(cellSize));
+            throw new LSArgumentException("Cell size must be greater than 0", nameof(cellSize));
         }
 
         _cellSize = cellSize;
@@ -56,7 +55,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         return true;
     }
 
-    private bool HasCollision(Bounds bounds) {
+    public bool HasCollision(Bounds bounds) {
         var seen = new HashSet<T>();
         foreach (var cell in getOverlappingCells(bounds)) {
             if (!_cells.TryGetValue(cell, out var itemsInCell))
@@ -69,7 +68,56 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         }
         return false;
     }
+    public bool HasCollision(T item, Bounds bounds) {
+        // Pegamos onde o item estava antes do movimento
+        bool tinhaBoundsAntigo = _itemBounds.TryGetValue(item, out Bounds oldBounds);
 
+        var seen = new HashSet<T>();
+        foreach (var cell in getOverlappingCells(bounds)) {
+            if (!_cells.TryGetValue(cell, out var itemsInCell))
+                continue;
+
+            foreach (var otherItem in itemsInCell) {
+                if (otherItem.Equals(item)) continue; // Ignora a si mesmo
+
+                if (seen.Add(otherItem)) {
+                    // Se já colidiam ANTES, ignoramos para permitir que se separem
+                    if (tinhaBoundsAntigo && _itemBounds[otherItem].Intersects(oldBounds)) {
+                        continue;
+                    }
+
+                    if (_itemBounds[otherItem].Intersects(bounds))
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+    public bool HasCollision(T item, Bounds oldBounds, Bounds newBounds) {
+        var seen = new HashSet<T>();
+
+        foreach (var cell in getOverlappingCells(newBounds)) {
+            if (!_cells.TryGetValue(cell, out var itemsInCell))
+                continue;
+
+            foreach (var otherItem in itemsInCell) {
+                if (otherItem.Equals(item))
+                    continue; // Ignora a si mesmo (posição antiga nas células)
+
+                if (seen.Add(otherItem)) {
+                    // Se eles JÁ estavam colidindo na posição antiga, 
+                    // ignoramos para permitir que eles se separem naturalmente.
+                    if (_itemBounds[otherItem].Intersects(oldBounds)) {
+                        continue;
+                    }
+
+                    if (_itemBounds[otherItem].Intersects(newBounds))
+                        return true; // Colisão real detectada
+                }
+            }
+        }
+        return false;
+    }
     /// <summary>
     /// Consulta objetos dentro de uma área.
     /// </summary>
@@ -105,11 +153,12 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
     public bool Update(T item, Bounds newBounds, bool allowOverlap = false) {
         if (!_itemBounds.TryGetValue(item, out Bounds currentBounds))
             return false;
-
+        if (currentBounds == newBounds) return true; //mesmo bounds retorna true
         if (!allowOverlap) {
             // Temporarily remove to avoid self-collision
-            removeFromCells(item, currentBounds);
-            if (HasCollision(newBounds)) {
+            //removeFromCells(item, currentBounds);
+            // Passamos o 'item' para avaliar colisões permitidas (separação)
+            if (HasCollision(item, newBounds)) {
                 // Rollback
                 foreach (var cell in getOverlappingCells(currentBounds))
                     addToCell(cell, item);
@@ -125,7 +174,82 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         _itemBounds[item] = newBounds;
         return true;
     }
+    /// <summary>
+    /// Move um objeto para uma nova posição se for válido, ou força o movimento se allowOverlap for true.
+    /// </summary>
+    /// <returns>True se o objeto se moveu com sucesso, false se colidiu e não se moveu.</returns>
+    public bool Move(T item, Bounds newBounds, bool allowOverlap = false) {
+        // 1. Se o item não existe, não faz nada
+        if (!_itemBounds.TryGetValue(item, out Bounds currentBounds))
+            return false;
 
+        // 2. Se a posição é idêntica, não gasta processamento
+        if (currentBounds == newBounds)
+            return true;
+
+        // 3. Se não permite sobreposição, testamos o futuro ANTES de mexer nas células
+        if (!allowOverlap) {
+            // Passamos 'item' e 'currentBounds' para o HasCollision ignorar colisões antigas/consigo mesmo
+            if (HasCollision(item, currentBounds, newBounds)) {
+                return false; // Colidiu! Cancela o movimento sem ter alterado nada na grade.
+            }
+        }
+
+        // 4. Se passou no teste (ou allowOverlap é true), atualizamos a grade de forma eficiente
+        // Otimização: Só mexemos nas células que realmente mudaram!
+        updateCellsForMove(item, currentBounds, newBounds);
+
+        _itemBounds[item] = newBounds;
+        return true;
+    }
+    public bool Move(T item, Bounds newBounds, bool allowOverlap, out T? collidedWith) {
+        collidedWith = default;
+
+        if (!_itemBounds.TryGetValue(item, out Bounds currentBounds))
+            return false;
+
+        if (currentBounds == newBounds)
+            return true;
+
+        if (!allowOverlap) {
+            // Agora o HasCollision devolve o item que causou o bloqueio
+            if (HasCollision(item, currentBounds, newBounds, out collidedWith)) {
+                return false;
+            }
+        }
+
+        updateCellsForMove(item, currentBounds, newBounds);
+        _itemBounds[item] = newBounds;
+        return true;
+    }
+
+    private bool HasCollision(T item, Bounds oldBounds, Bounds newBounds, out T? collidedWith) {
+        collidedWith = default;
+        var seen = new HashSet<T>();
+
+        foreach (var cell in getOverlappingCells(newBounds)) {
+            if (!_cells.TryGetValue(cell, out var itemsInCell))
+                continue;
+
+            foreach (var otherItem in itemsInCell) {
+                if (otherItem.Equals(item)) continue;
+
+                if (seen.Add(otherItem)) {
+                    // Se JÁ estavam colidindo antes, ignoramos para o movimento NÃO travar,
+                    // mas o afastamento natural vai acontecer via física no loop principal.
+                    if (_itemBounds[otherItem].Intersects(oldBounds)) {
+                        continue;
+                    }
+
+                    if (_itemBounds[otherItem].Intersects(newBounds)) {
+                        collidedWith = otherItem; // Guarda quem causou a colisão
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
     /// <summary>
     /// Remove um objeto da grade.
     /// </summary>
@@ -166,6 +290,67 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
 
         itemsInCell.Add(item);
     }
+    private void updateCellsForMove(T item, Bounds oldBounds, Bounds newBounds) {
+        int oldMinX = toCellCoordinate(oldBounds.MinX);
+        int oldMaxX = toCellCoordinate(oldBounds.MaxX);
+        int oldMinY = toCellCoordinate(oldBounds.MinY);
+        int oldMaxY = toCellCoordinate(oldBounds.MaxY);
+
+        int newMinX = toCellCoordinate(newBounds.MinX);
+        int newMaxX = toCellCoordinate(newBounds.MaxX);
+        int newMinY = toCellCoordinate(newBounds.MinY);
+        int newMaxY = toCellCoordinate(newBounds.MaxY);
+
+        // 1. Se continuam exatamente nas mesmas células, sai imediatamente (O(1))
+        if (oldMinX == newMinX && oldMaxX == newMaxX && oldMinY == newMinY && oldMaxY == newMaxY) {
+            return;
+        }
+
+        // 2. OTIMIZAÇÃO DE MEMÓRIA: Se a nova área não intersecta em NADA a antiga,
+        // é mais rápido limpar tudo da antiga e colocar tudo na nova do que testar célula por célula.
+        bool intersectam = !(newMinX > oldMaxX || newMaxX < oldMinX || newMinY > oldMaxY || newMaxY < oldMinY);
+
+        if (!intersectam) {
+            // Remove de todas as antigas diretamente
+            for (int x = oldMinX; x <= oldMaxX; x++) {
+                for (int y = oldMinY; y <= oldMaxY; y++) {
+                    if (_cells.TryGetValue(new CellKey(x, y), out var itemsInCell)) {
+                        itemsInCell.Remove(item);
+                        // NOTA: Removeu-se o _cells.Remove(key) para evitar alocação/desalocação de memória do dicionário principal.
+                    }
+                }
+            }
+            // Adiciona em todas as novas diretamente
+            for (int x = newMinX; x <= newMaxX; x++) {
+                for (int y = newMinY; y <= newMaxY; y++) {
+                    addToCell(new CellKey(x, y), item);
+                }
+            }
+            return;
+        }
+
+        // 3. Se elas se intersectam, removemos apenas das bordas que deixaram de existir
+        for (int x = oldMinX; x <= oldMaxX; x++) {
+            for (int y = oldMinY; y <= oldMaxY; y++) {
+                // Se a célula antiga NÃO está na nova área
+                if (x < newMinX || x > newMaxX || y < newMinY || y > newMaxY) {
+                    if (_cells.TryGetValue(new CellKey(x, y), out var itemsInCell)) {
+                        itemsInCell.Remove(item);
+                    }
+                }
+            }
+        }
+
+        // Adiciona apenas nas novas bordas que entraram
+        for (int x = newMinX; x <= newMaxX; x++) {
+            for (int y = newMinY; y <= newMaxY; y++) {
+                // Se a célula nova NÃO estava na área antiga
+                if (x < oldMinX || x > oldMaxX || y < oldMinY || y > oldMaxY) {
+                    addToCell(new CellKey(x, y), item);
+                }
+            }
+        }
+    }
 
     private void removeFromCells(T item, Bounds bounds) {
         foreach (var cell in getOverlappingCells(bounds)) {
@@ -194,7 +379,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
     }
 
     private int toCellCoordinate(float value) {
-        return (int)MathF.Floor(value / _cellSize);
+        return (int)LSMath.Floor(value / _cellSize);
     }
 
     private readonly record struct CellKey(int X, int Y);
