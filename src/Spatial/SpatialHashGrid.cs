@@ -1,386 +1,188 @@
 ﻿namespace LSUtils.Spatial;
 
+using System;
 using System.Collections.Generic;
-/// <summary>
-/// Implementação de grade hash espacial para consultas 2D com atualização frequente.
-/// </summary>
-/// <typeparam name="T">Tipo dos objetos armazenados.</typeparam>
+using System.Linq;
+
 public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
+    public readonly record struct CellKey(int X, int Y);
     private readonly float _cellSize;
     private readonly Dictionary<CellKey, HashSet<T>> _cells;
-    private readonly Dictionary<T, Bounds> _itemBounds;
+    private readonly Dictionary<T, Bounds> _itemsBounds;
 
-    /// <summary>
-    /// Cria uma nova grade hash espacial.
-    /// </summary>
-    /// <param name="cellSize">Tamanho de cada célula da grade.</param>
+    public float CellSize => _cellSize;
+    public int Count => _itemsBounds.Count;
+    //public CellKey[] ActiveCells => _cells.Keys.ToArray();
+
     public SpatialHashGrid(float cellSize) {
         if (cellSize <= 0) {
             throw new LSArgumentException("Cell size must be greater than 0", nameof(cellSize));
         }
 
         _cellSize = cellSize;
-        _cells = new Dictionary<CellKey, HashSet<T>>();
-        _itemBounds = new Dictionary<T, Bounds>();
+        _cells = new();
+        _itemsBounds = new();
+    }
+
+    public int ToCellCoordinate(float value) {
+        return (int)MathF.Floor(value / CellSize);
     }
 
     /// <summary>
-    /// Tamanho de cada célula da grade.
+    /// Insere ou atualiza um objeto na grade com alocação zero de memória.
     /// </summary>
-    public float CellSize => _cellSize;
+    public bool InsertOrUpdate(T item, Bounds bounds) {
+        bool itemExiste = _itemsBounds.TryGetValue(item, out var oldBounds);
 
-    /// <summary>
-    /// Número total de objetos únicos indexados.
-    /// </summary>
-    public int Count => _itemBounds.Count;
+        if (itemExiste) {
+            if (oldBounds == bounds) return true; // Mesmo local, não faz nada
 
-    /// <summary>
-    /// Insere um objeto na grade.
-    /// </summary>
-    /// <param name="item">O objeto a ser inserido.</param>
-    /// <param name="bounds">Os limites espaciais do objeto.</param>
-    /// <param name="allowOverlap">Indica se sobreposições são permitidas.</param>
-    /// <returns>True se inserido com sucesso, false caso contrário.</returns>
-    public bool Insert(T item, Bounds bounds, bool allowOverlap = false) {
-        if (_itemBounds.ContainsKey(item))
-            return false;
+            // Remove cirurgicamente das células antigas usando loops numéricos planos (Sem gerar lixo)
+            int oldMinX = ToCellCoordinate(oldBounds.MinX);
+            int oldMaxX = ToCellCoordinate(oldBounds.MaxX);
+            int oldMinY = ToCellCoordinate(oldBounds.MinY);
+            int oldMaxY = ToCellCoordinate(oldBounds.MaxY);
 
-        if (!allowOverlap && HasCollision(bounds))
-            return false;
-
-        foreach (var cell in getOverlappingCells(bounds))
-            addToCell(cell, item);
-
-        _itemBounds[item] = bounds;
-        return true;
-    }
-
-    public bool HasCollision(Bounds bounds) {
-        var seen = new HashSet<T>();
-        foreach (var cell in getOverlappingCells(bounds)) {
-            if (!_cells.TryGetValue(cell, out var itemsInCell))
-                continue;
-
-            foreach (var item in itemsInCell) {
-                if (seen.Add(item) && _itemBounds[item].Intersects(bounds))
-                    return true;
-            }
-        }
-        return false;
-    }
-    public bool HasCollision(T item, Bounds bounds) {
-        // Pegamos onde o item estava antes do movimento
-        bool tinhaBoundsAntigo = _itemBounds.TryGetValue(item, out Bounds oldBounds);
-
-        var seen = new HashSet<T>();
-        foreach (var cell in getOverlappingCells(bounds)) {
-            if (!_cells.TryGetValue(cell, out var itemsInCell))
-                continue;
-
-            foreach (var otherItem in itemsInCell) {
-                if (otherItem.Equals(item)) continue; // Ignora a si mesmo
-
-                if (seen.Add(otherItem)) {
-                    // Se já colidiam ANTES, ignoramos para permitir que se separem
-                    if (tinhaBoundsAntigo && _itemBounds[otherItem].Intersects(oldBounds)) {
-                        continue;
-                    }
-
-                    if (_itemBounds[otherItem].Intersects(bounds))
-                        return true;
-                }
-            }
-        }
-        return false;
-    }
-    public bool HasCollision(T item, Bounds oldBounds, Bounds newBounds) {
-        var seen = new HashSet<T>();
-
-        foreach (var cell in getOverlappingCells(newBounds)) {
-            if (!_cells.TryGetValue(cell, out var itemsInCell))
-                continue;
-
-            foreach (var otherItem in itemsInCell) {
-                if (otherItem.Equals(item))
-                    continue; // Ignora a si mesmo (posição antiga nas células)
-
-                if (seen.Add(otherItem)) {
-                    // Se eles JÁ estavam colidindo na posição antiga, 
-                    // ignoramos para permitir que eles se separem naturalmente.
-                    if (_itemBounds[otherItem].Intersects(oldBounds)) {
-                        continue;
-                    }
-
-                    if (_itemBounds[otherItem].Intersects(newBounds))
-                        return true; // Colisão real detectada
-                }
-            }
-        }
-        return false;
-    }
-    /// <summary>
-    /// Consulta objetos dentro de uma área.
-    /// </summary>
-    public IReadOnlyList<T> Query(Bounds area) {
-        var result = new List<T>();
-        var seen = new HashSet<T>();
-
-        foreach (var cell in getOverlappingCells(area)) {
-            if (!_cells.TryGetValue(cell, out HashSet<T>? itemsInCell)) {
-                continue;
-            }
-
-            foreach (var item in itemsInCell) {
-                if (!seen.Add(item)) {
-                    continue;
-                }
-
-                if (_itemBounds[item].Intersects(area)) {
-                    result.Add(item);
-                }
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Atualiza os limites de um objeto na grade.
-    /// </summary>
-    /// <param name="item">O objeto a ser atualizado.</param>
-    /// <param name="newBounds">Os novos limites espaciais do objeto.</param>
-    /// <returns>True se atualizado com sucesso, false caso contrário.</returns>
-    public bool Update(T item, Bounds newBounds, bool allowOverlap = false) {
-        if (!_itemBounds.TryGetValue(item, out Bounds currentBounds))
-            return false;
-        if (currentBounds == newBounds) return true; //mesmo bounds retorna true
-        if (!allowOverlap) {
-            // Temporarily remove to avoid self-collision
-            //removeFromCells(item, currentBounds);
-            // Passamos o 'item' para avaliar colisões permitidas (separação)
-            if (HasCollision(item, newBounds)) {
-                // Rollback
-                foreach (var cell in getOverlappingCells(currentBounds))
-                    addToCell(cell, item);
-                return false;
-            }
-        } else {
-            removeFromCells(item, currentBounds);
-        }
-
-        foreach (var cell in getOverlappingCells(newBounds))
-            addToCell(cell, item);
-
-        _itemBounds[item] = newBounds;
-        return true;
-    }
-    /// <summary>
-    /// Move um objeto para uma nova posição se for válido, ou força o movimento se allowOverlap for true.
-    /// </summary>
-    /// <returns>True se o objeto se moveu com sucesso, false se colidiu e não se moveu.</returns>
-    public bool Move(T item, Bounds newBounds, bool allowOverlap = false) {
-        // 1. Se o item não existe, não faz nada
-        if (!_itemBounds.TryGetValue(item, out Bounds currentBounds))
-            return false;
-
-        // 2. Se a posição é idêntica, não gasta processamento
-        if (currentBounds == newBounds)
-            return true;
-
-        // 3. Se não permite sobreposição, testamos o futuro ANTES de mexer nas células
-        if (!allowOverlap) {
-            // Passamos 'item' e 'currentBounds' para o HasCollision ignorar colisões antigas/consigo mesmo
-            if (HasCollision(item, currentBounds, newBounds)) {
-                return false; // Colidiu! Cancela o movimento sem ter alterado nada na grade.
-            }
-        }
-
-        // 4. Se passou no teste (ou allowOverlap é true), atualizamos a grade de forma eficiente
-        // Otimização: Só mexemos nas células que realmente mudaram!
-        updateCellsForMove(item, currentBounds, newBounds);
-
-        _itemBounds[item] = newBounds;
-        return true;
-    }
-    public bool Move(T item, Bounds newBounds, bool allowOverlap, out T? collidedWith) {
-        collidedWith = default;
-
-        if (!_itemBounds.TryGetValue(item, out Bounds currentBounds))
-            return false;
-
-        if (currentBounds == newBounds)
-            return true;
-
-        if (!allowOverlap) {
-            // Agora o HasCollision devolve o item que causou o bloqueio
-            if (HasCollision(item, currentBounds, newBounds, out collidedWith)) {
-                return false;
-            }
-        }
-
-        updateCellsForMove(item, currentBounds, newBounds);
-        _itemBounds[item] = newBounds;
-        return true;
-    }
-
-    private bool HasCollision(T item, Bounds oldBounds, Bounds newBounds, out T? collidedWith) {
-        collidedWith = default;
-        var seen = new HashSet<T>();
-
-        foreach (var cell in getOverlappingCells(newBounds)) {
-            if (!_cells.TryGetValue(cell, out var itemsInCell))
-                continue;
-
-            foreach (var otherItem in itemsInCell) {
-                if (otherItem.Equals(item)) continue;
-
-                if (seen.Add(otherItem)) {
-                    // Se JÁ estavam colidindo antes, ignoramos para o movimento NÃO travar,
-                    // mas o afastamento natural vai acontecer via física no loop principal.
-                    if (_itemBounds[otherItem].Intersects(oldBounds)) {
-                        continue;
-                    }
-
-                    if (_itemBounds[otherItem].Intersects(newBounds)) {
-                        collidedWith = otherItem; // Guarda quem causou a colisão
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-    /// <summary>
-    /// Remove um objeto da grade.
-    /// </summary>
-    public bool Remove(T item, out Bounds oldBounds) {
-        if (!_itemBounds.TryGetValue(item, out oldBounds)) {
-            oldBounds = default;
-            return false;
-        }
-
-        removeFromCells(item, oldBounds);
-        _itemBounds.Remove(item);
-        return true;
-    }
-
-    /// <summary>
-    /// Remove todos os objetos da grade.
-    /// </summary>
-    public void Clear() {
-        _cells.Clear();
-        _itemBounds.Clear();
-    }
-    public int GetCellCount(float x, float y) {
-        int cellX = toCellCoordinate(x);
-        int cellY = toCellCoordinate(y);
-        var key = new CellKey(cellX, cellY);
-
-        if (_cells.TryGetValue(key, out var itemsInCell)) {
-            return itemsInCell.Count; // O(1)
-        }
-
-        return 0;
-    }
-    private void addToCell(CellKey cell, T item) {
-        if (!_cells.TryGetValue(cell, out HashSet<T>? itemsInCell)) {
-            itemsInCell = new HashSet<T>();
-            _cells[cell] = itemsInCell;
-        }
-
-        itemsInCell.Add(item);
-    }
-    private void updateCellsForMove(T item, Bounds oldBounds, Bounds newBounds) {
-        int oldMinX = toCellCoordinate(oldBounds.MinX);
-        int oldMaxX = toCellCoordinate(oldBounds.MaxX);
-        int oldMinY = toCellCoordinate(oldBounds.MinY);
-        int oldMaxY = toCellCoordinate(oldBounds.MaxY);
-
-        int newMinX = toCellCoordinate(newBounds.MinX);
-        int newMaxX = toCellCoordinate(newBounds.MaxX);
-        int newMinY = toCellCoordinate(newBounds.MinY);
-        int newMaxY = toCellCoordinate(newBounds.MaxY);
-
-        // 1. Se continuam exatamente nas mesmas células, sai imediatamente (O(1))
-        if (oldMinX == newMinX && oldMaxX == newMaxX && oldMinY == newMinY && oldMaxY == newMaxY) {
-            return;
-        }
-
-        // 2. OTIMIZAÇÃO DE MEMÓRIA: Se a nova área não intersecta em NADA a antiga,
-        // é mais rápido limpar tudo da antiga e colocar tudo na nova do que testar célula por célula.
-        bool intersectam = !(newMinX > oldMaxX || newMaxX < oldMinX || newMinY > oldMaxY || newMaxY < oldMinY);
-
-        if (!intersectam) {
-            // Remove de todas as antigas diretamente
             for (int x = oldMinX; x <= oldMaxX; x++) {
                 for (int y = oldMinY; y <= oldMaxY; y++) {
                     if (_cells.TryGetValue(new CellKey(x, y), out var itemsInCell)) {
                         itemsInCell.Remove(item);
-                        // NOTA: Removeu-se o _cells.Remove(key) para evitar alocação/desalocação de memória do dicionário principal.
-                    }
-                }
-            }
-            // Adiciona em todas as novas diretamente
-            for (int x = newMinX; x <= newMaxX; x++) {
-                for (int y = newMinY; y <= newMaxY; y++) {
-                    addToCell(new CellKey(x, y), item);
-                }
-            }
-            return;
-        }
-
-        // 3. Se elas se intersectam, removemos apenas das bordas que deixaram de existir
-        for (int x = oldMinX; x <= oldMaxX; x++) {
-            for (int y = oldMinY; y <= oldMaxY; y++) {
-                // Se a célula antiga NÃO está na nova área
-                if (x < newMinX || x > newMaxX || y < newMinY || y > newMaxY) {
-                    if (_cells.TryGetValue(new CellKey(x, y), out var itemsInCell)) {
-                        itemsInCell.Remove(item);
+                        // Mantemos o HashSet na memória (_cells.Remove removido de propósito para performance)
                     }
                 }
             }
         }
 
-        // Adiciona apenas nas novas bordas que entraram
+        // Insere nas novas células calculando as coordenadas em tempo de execução
+        int newMinX = ToCellCoordinate(bounds.MinX);
+        int newMaxX = ToCellCoordinate(bounds.MaxX);
+        int newMinY = ToCellCoordinate(bounds.MinY);
+        int newMaxY = ToCellCoordinate(bounds.MaxY);
+
         for (int x = newMinX; x <= newMaxX; x++) {
             for (int y = newMinY; y <= newMaxY; y++) {
-                // Se a célula nova NÃO estava na área antiga
-                if (x < oldMinX || x > oldMaxX || y < oldMinY || y > oldMaxY) {
-                    addToCell(new CellKey(x, y), item);
+                var key = new CellKey(x, y);
+                if (!_cells.TryGetValue(key, out var itemsInCell)) {
+                    itemsInCell = new HashSet<T>();
+                    _cells[key] = itemsInCell;
+                }
+                itemsInCell.Add(item);
+            }
+        }
+
+        _itemsBounds[item] = bounds;
+        return true;
+    }
+
+    /// <summary>
+    /// Consulta objetos de forma altamente otimizada compartilhando o HashSet de controle.
+    /// </summary>
+    public void Query(Bounds area, ICollection<T> result, HashSet<T>? reuseSeenSet = null) {
+        HashSet<T> seen = reuseSeenSet ?? new HashSet<T>();
+        if (reuseSeenSet != null) seen.Clear();
+
+        int minX = ToCellCoordinate(area.MinX);
+        int maxX = ToCellCoordinate(area.MaxX);
+        int minY = ToCellCoordinate(area.MinY);
+        int maxY = ToCellCoordinate(area.MaxY);
+
+        for (int x = minX; x <= maxX; x++) {
+            // Calcula os limites matemáticos desta célula específica em tempo de execução
+            float cellMinX = x * CellSize;
+            float cellMaxX = cellMinX + CellSize;
+
+            // Se a busca cobre totalmente o eixo X desta célula
+            bool xTotalmenteContido = area.MinX <= cellMinX && area.MaxX >= cellMaxX;
+
+            for (int y = minY; y <= maxY; y++) {
+                if (!_cells.TryGetValue(new CellKey(x, y), out var itemsInCell) || itemsInCell.Count == 0)
+                    continue;
+
+                float cellMinY = y * CellSize;
+                float cellMaxY = cellMinY + CellSize;
+
+                // Se a busca cobre totalmente o eixo Y desta célula
+                bool yTotalmenteContido = area.MinY <= cellMinY && area.MaxY >= cellMaxY;
+
+                // Se a célula inteira está dentro da área de Query, ignoramos o teste de Intersects individual!
+                bool celulaTotalmenteContida = xTotalmenteContido && yTotalmenteContido;
+
+                foreach (var item in itemsInCell) {
+                    // 1. Primeiro checa se já viu (O(1)). Se já viu, ignora o resto.
+                    if (!seen.Add(item))
+                        continue;
+
+                    // 2. Se a célula está 100% contida na busca, adiciona direto sem testar o Intersects (Salva milhões de cálculos)
+                    if (celulaTotalmenteContida) {
+                        result.Add(item);
+                        continue;
+                    }
+
+                    // 3. Fallback apenas para as células das bordas da área de Query
+                    if (_itemsBounds[item].Intersects(area)) {
+                        result.Add(item);
+                    }
                 }
             }
         }
     }
 
-    private void removeFromCells(T item, Bounds bounds) {
-        foreach (var cell in getOverlappingCells(bounds)) {
-            if (!_cells.TryGetValue(cell, out HashSet<T>? itemsInCell)) {
-                continue;
-            }
-
-            itemsInCell.Remove(item);
-            if (itemsInCell.Count == 0) {
-                _cells.Remove(cell);
-            }
-        }
+    public bool TryGetBounds(T item, out Bounds bounds) {
+        return _itemsBounds.TryGetValue(item, out bounds);
+    }
+    public Bounds GetBounds(T item) {
+        return TryGetBounds(item, out var bounds) ? bounds : throw new LSException($"{item} not found.");
     }
 
-    private IEnumerable<CellKey> getOverlappingCells(Bounds bounds) {
-        int minX = toCellCoordinate(bounds.MinX);
-        int maxX = toCellCoordinate(bounds.MaxX);
-        int minY = toCellCoordinate(bounds.MinY);
-        int maxY = toCellCoordinate(bounds.MaxY);
+
+    public bool Remove(T item) {
+        if (!_itemsBounds.TryGetValue(item, out var oldBounds)) {
+            return false;
+        }
+
+        int minX = ToCellCoordinate(oldBounds.MinX);
+        int maxX = ToCellCoordinate(oldBounds.MaxX);
+        int minY = ToCellCoordinate(oldBounds.MinY);
+        int maxY = ToCellCoordinate(oldBounds.MaxY);
 
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
-                yield return new CellKey(x, y);
+                if (_cells.TryGetValue(new CellKey(x, y), out var itemsInCell)) {
+                    itemsInCell.Remove(item);
+                }
             }
         }
+
+        _itemsBounds.Remove(item);
+        return true;
     }
 
-    private int toCellCoordinate(float value) {
-        return (int)LSMath.Floor(value / _cellSize);
+    public void Clear() {
+        _cells.Clear();
+        _itemsBounds.Clear();
+    }
+    // HashSet<T>? _itemsCellTmp = new();
+    // public HashSet<T> GetItemsInCell(CellKey cellKey) {
+    //     if (!_cells.TryGetValue(cellKey, out _itemsCellTmp)) {
+    //         _itemsCellTmp = new();
+    //     }
+    //     return _itemsCellTmp;
+    // }
+    private readonly HashSet<T> _emptySet = new();
+
+    // 2. Altere o ActiveCells para filtrar APENAS quem realmente tem itens dentro
+    public IEnumerable<CellKey> ActiveCells => _cells.Where(pair => pair.Value.Count > 0).Select(pair => pair.Key);
+
+    // Se preferir manter como array para indexação rápida, faça com filtragem eficiente:
+    public CellKey[] GetActiveCells() {
+        // Lista auxiliar reutilizável na classe para evitar o ToArray() bruto do LINQ se quiser, 
+        // mas a filtragem abaixo já mata o problema das células fantasma:
+        return _cells.Where(pair => pair.Value.Count > 0).Select(pair => pair.Key).ToArray();
     }
 
-    private readonly record struct CellKey(int X, int Y);
+    // 3. Corrija o GetItemsInCell removendo a variável global mutável perigosa
+    public HashSet<T> GetItemsInCell(CellKey cellKey) {
+        // Retorna o set real se houver, ou o set vazio compartilhado estável
+        return _cells.TryGetValue(cellKey, out var itemsInCell) ? itemsInCell : _emptySet;
+    }
 }

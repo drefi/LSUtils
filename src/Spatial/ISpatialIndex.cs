@@ -7,37 +7,31 @@ using System.Collections.Generic;
 /// <typeparam name="T">Tipo dos objetos indexados.</typeparam>
 public interface ISpatialIndex<T> where T : notnull {
     /// <summary>
-    /// Insere um objeto no índice espacial.
+    /// Insere ou atualiza um objeto no índice espacial.
     /// </summary>
     /// <param name="item">O objeto a ser inserido.</param>
     /// <param name="bounds">Os limites espaciais do objeto.</param>
-    /// <param name="allowOverlap">Indica se sobreposições são permitidas.</param>
     /// <returns>True se inserido com sucesso, false caso contrário.</returns>
-    bool Insert(T item, Bounds bounds, bool allowOverlap = false);
+    bool InsertOrUpdate(T item, Bounds bounds);
 
     /// <summary>
     /// Consulta objetos dentro de uma área específica.
     /// </summary>
     /// <param name="area">A área de consulta.</param>
     /// <returns>Lista de objetos dentro da área.</returns>
-    IReadOnlyList<T> Query(Bounds area);
+    //IReadOnlyList<T> Query(Bounds area, HashSet<T>? ignore = null);
 
-    /// <summary>
-    /// Atualiza os limites espaciais de um objeto já indexado.
-    /// </summary>
-    /// <param name="item">O objeto a ser atualizado.</param>
-    /// <param name="newBounds">Os novos limites do objeto.</param>
-    /// <param name="allowOverlap">Indica se sobreposições são permitidas.</param>
-    /// <returns>True se atualizado com sucesso, false caso contrário.</returns>
-    bool Update(T item, Bounds newBounds, bool allowOverlap = false);
+    void Query(Bounds area, ICollection<T> result, HashSet<T>? ignore = null);
+
+    bool TryGetBounds(T item, out Bounds bounds);
+    Bounds GetBounds(T item);
 
     /// <summary>
     /// Remove um objeto do índice espacial.
     /// </summary>
     /// <param name="item">O objeto a ser removido.</param>
-    /// <param name="oldBounds">Os limites anteriores do objeto.</param>
     /// <returns>True se removido com sucesso, false caso contrário.</returns>
-    bool Remove(T item, out Bounds oldBounds);
+    bool Remove(T item);
 
     /// <summary>
     /// Remove todos os objetos do índice espacial.

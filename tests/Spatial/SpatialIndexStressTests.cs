@@ -99,16 +99,20 @@ public class SpatialIndexStressTests {
             Bounds oldBounds = currentBounds[id];
             Bounds newBounds = NudgeBounds(oldBounds, random, maxDelta: 20);
 
-            bool quadUpdated = quadTree.Update(id, newBounds);
-            bool gridUpdated = grid.Update(id, newBounds);
+            bool quadUpdated = quadTree.InsertOrUpdate(id, newBounds);
+            bool gridUpdated = grid.InsertOrUpdate(id, newBounds);
 
             Assert.That(quadUpdated, Is.True);
             Assert.That(gridUpdated, Is.True);
             currentBounds[id] = newBounds;
 
             Bounds probe = new Bounds(newBounds.X, newBounds.Y, 80, 80);
-            var quadResults = quadTree.Query(probe).OrderBy(value => value).ToArray();
-            var gridResults = grid.Query(probe).OrderBy(value => value).ToArray();
+            var hitsQuad = new HashSet<int>();
+            var hitsGrid = new HashSet<int>();
+            quadTree.Query(probe, hitsQuad);
+            var quadResults = hitsQuad.OrderBy(value => value).ToArray();
+            grid.Query(probe, hitsGrid);
+            var gridResults = hitsGrid.OrderBy(value => value).ToArray();
 
             Assert.That(gridResults, Is.EqualTo(quadResults), $"Mismatch after step {step}");
         }
@@ -181,15 +185,18 @@ public class SpatialIndexStressTests {
 
     private static void SeedIndex(ISpatialIndex<int> index, IndexedItem[] items) {
         foreach (var item in items) {
-            bool inserted = index.Insert(item.Id, item.Bounds);
+            bool inserted = index.InsertOrUpdate(item.Id, item.Bounds);
             Assert.That(inserted, Is.True, $"Failed to insert item {item.Id}");
         }
     }
 
     private static int ExecuteQueries(ISpatialIndex<int> index, Bounds[] queries) {
         int checksum = 0;
+        HashSet<int> hits = new();
         foreach (var query in queries) {
-            var results = index.Query(query).OrderBy(item => item);
+            hits.Clear();
+            index.Query(query, hits);
+            var results = hits.OrderBy(item => item);
             checksum ^= results.Count();
             foreach (var item in results) {
                 checksum = unchecked((checksum * 397) ^ item);
@@ -203,7 +210,7 @@ public class SpatialIndexStressTests {
         int updated = 0;
         int updateCount = Math.Min(UpdateCount, Math.Min(items.Length, updatedBounds.Length));
         for (int i = 0; i < updateCount; i++) {
-            bool ok = index.Update(items[i].Id, updatedBounds[i]);
+            bool ok = index.InsertOrUpdate(items[i].Id, updatedBounds[i]);
             Assert.That(ok, Is.True, $"Failed to update item {items[i].Id}");
             updated++;
         }
@@ -214,7 +221,7 @@ public class SpatialIndexStressTests {
     private static int ExecuteRemovals(ISpatialIndex<int> index, IndexedItem[] items, int removeCount) {
         int removed = 0;
         for (int i = 0; i < removeCount; i++) {
-            bool ok = index.Remove(items[i].Id, out _);
+            bool ok = index.Remove(items[i].Id);
             Assert.That(ok, Is.True, $"Failed to remove item {items[i].Id}");
             removed++;
         }

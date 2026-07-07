@@ -29,7 +29,7 @@ public class QuadTreeTests {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
         var itemBounds = new Bounds(10, 10, 5, 5);
 
-        bool result = quadTree.Insert("Item1", itemBounds);
+        bool result = quadTree.InsertOrUpdate("Item1", itemBounds);
 
         Assert.That(result, Is.True);
         Assert.That(quadTree.Count, Is.EqualTo(1));
@@ -40,31 +40,19 @@ public class QuadTreeTests {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
         var itemBounds = new Bounds(200, 200, 5, 5);
 
-        bool result = quadTree.Insert("OutsideItem", itemBounds);
+        bool result = quadTree.InsertOrUpdate("OutsideItem", itemBounds);
 
         Assert.That(result, Is.False);
         Assert.That(quadTree.Count, Is.EqualTo(0));
     }
 
     [Test]
-    public void Insert_OverlappingItem_ReturnsFalse() {
-        var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
-
-        bool firstInsert = quadTree.Insert("Item1", new Bounds(10, 10, 5, 5));
-        bool secondInsert = quadTree.Insert("Item2", new Bounds(10, 10, 5, 5));
-
-        Assert.That(firstInsert, Is.True);
-        Assert.That(secondInsert, Is.False);
-        Assert.That(quadTree.Count, Is.EqualTo(1));
-    }
-
-    [Test]
     public void Insert_MultipleItemsWithinCapacity_StoresInSameNode() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100), 4);
 
-        quadTree.Insert("Item1", new Bounds(10, 10, 5, 5));
-        quadTree.Insert("Item2", new Bounds(20, 20, 5, 5));
-        quadTree.Insert("Item3", new Bounds(30, 30, 5, 5));
+        quadTree.InsertOrUpdate("Item1", new Bounds(10, 10, 5, 5));
+        quadTree.InsertOrUpdate("Item2", new Bounds(20, 20, 5, 5));
+        quadTree.InsertOrUpdate("Item3", new Bounds(30, 30, 5, 5));
 
         Assert.That(quadTree.Count, Is.EqualTo(3));
     }
@@ -73,10 +61,10 @@ public class QuadTreeTests {
     public void Insert_ExceedsCapacity_Subdivides() {
         var quadTree = new QuadTree<int>(new Bounds(0, 0, 100, 100), 2);
 
-        quadTree.Insert(1, new Bounds(-20, -20, 5, 5));
-        quadTree.Insert(2, new Bounds(20, -20, 5, 5));
-        quadTree.Insert(3, new Bounds(-20, 20, 5, 5));
-        quadTree.Insert(4, new Bounds(20, 20, 5, 5));
+        quadTree.InsertOrUpdate(1, new Bounds(-20, -20, 5, 5));
+        quadTree.InsertOrUpdate(2, new Bounds(20, -20, 5, 5));
+        quadTree.InsertOrUpdate(3, new Bounds(-20, 20, 5, 5));
+        quadTree.InsertOrUpdate(4, new Bounds(20, 20, 5, 5));
 
         Assert.That(quadTree.Count, Is.EqualTo(4));
     }
@@ -95,9 +83,9 @@ public class QuadTreeTests {
     public void Query_ItemsInArea_ReturnsMatchingItems() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
 
-        quadTree.Insert("Item1", new Bounds(10, 10, 5, 5));
-        quadTree.Insert("Item2", new Bounds(80, 80, 5, 5));
-        quadTree.Insert("Item3", new Bounds(18, 18, 5, 5));
+        quadTree.InsertOrUpdate("Item1", new Bounds(10, 10, 5, 5));
+        quadTree.InsertOrUpdate("Item2", new Bounds(80, 80, 5, 5));
+        quadTree.InsertOrUpdate("Item3", new Bounds(18, 18, 5, 5));
 
         var searchArea = new Bounds(10, 10, 20, 20);
         var results = quadTree.Query(searchArea);
@@ -112,8 +100,8 @@ public class QuadTreeTests {
     public void Query_NoIntersection_ReturnsEmpty() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
 
-        quadTree.Insert("Item1", new Bounds(-40, -40, 5, 5));
-        quadTree.Insert("Item2", new Bounds(-30, -30, 5, 5));
+        quadTree.InsertOrUpdate("Item1", new Bounds(-40, -40, 5, 5));
+        quadTree.InsertOrUpdate("Item2", new Bounds(-30, -30, 5, 5));
 
         var searchArea = new Bounds(40, 40, 20, 20);
         var results = quadTree.Query(searchArea);
@@ -125,10 +113,10 @@ public class QuadTreeTests {
     public void Query_AfterSubdivision_ReturnsCorrectItems() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100), 2);
 
-        quadTree.Insert("NW", new Bounds(-20, -20, 5, 5));
-        quadTree.Insert("NE", new Bounds(20, -20, 5, 5));
-        quadTree.Insert("SW", new Bounds(-20, 20, 5, 5));
-        quadTree.Insert("SE", new Bounds(20, 20, 5, 5));
+        quadTree.InsertOrUpdate("NW", new Bounds(-20, -20, 5, 5));
+        quadTree.InsertOrUpdate("NE", new Bounds(20, -20, 5, 5));
+        quadTree.InsertOrUpdate("SW", new Bounds(-20, 20, 5, 5));
+        quadTree.InsertOrUpdate("SE", new Bounds(20, 20, 5, 5));
 
         var searchNW = new Bounds(-25, -25, 20, 20);
         var resultsNW = quadTree.Query(searchNW);
@@ -141,8 +129,8 @@ public class QuadTreeTests {
     public void Query_ItemSpanningMultipleQuadrants_ReturnsItemOnce() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100), 1);
 
-        quadTree.Insert("LargeItem", new Bounds(0, 0, 60, 60));
-        quadTree.Insert("OtherItem", new Bounds(40, 40, 5, 5));
+        quadTree.InsertOrUpdate("LargeItem", new Bounds(0, 0, 60, 60));
+        quadTree.InsertOrUpdate("OtherItem", new Bounds(40, 40, 5, 5));
 
         var results = quadTree.Query(new Bounds(0, 0, 100, 100));
 
@@ -154,9 +142,9 @@ public class QuadTreeTests {
     [Test]
     public void Remove_ExistingItem_ReturnsTrue() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
-        quadTree.Insert("Item1", new Bounds(10, 10, 5, 5));
+        quadTree.InsertOrUpdate("Item1", new Bounds(10, 10, 5, 5));
 
-        bool removed = quadTree.Remove("Item1", out _);
+        bool removed = quadTree.Remove("Item1");
 
         Assert.That(removed, Is.True);
         Assert.That(quadTree.Count, Is.EqualTo(0));
@@ -165,9 +153,9 @@ public class QuadTreeTests {
     [Test]
     public void Remove_NonExistingItem_ReturnsFalse() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
-        quadTree.Insert("Item1", new Bounds(10, 10, 5, 5));
+        quadTree.InsertOrUpdate("Item1", new Bounds(10, 10, 5, 5));
 
-        bool removed = quadTree.Remove("Item2", out _);
+        bool removed = quadTree.Remove("Item2");
 
         Assert.That(removed, Is.False);
         Assert.That(quadTree.Count, Is.EqualTo(1));
@@ -177,11 +165,11 @@ public class QuadTreeTests {
     public void Remove_ItemFromSubdividedTree_ReturnsTrue() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100), 2);
 
-        quadTree.Insert("Item1", new Bounds(-20, -20, 5, 5));
-        quadTree.Insert("Item2", new Bounds(20, -20, 5, 5));
-        quadTree.Insert("Item3", new Bounds(-20, 20, 5, 5));
+        quadTree.InsertOrUpdate("Item1", new Bounds(-20, -20, 5, 5));
+        quadTree.InsertOrUpdate("Item2", new Bounds(20, -20, 5, 5));
+        quadTree.InsertOrUpdate("Item3", new Bounds(-20, 20, 5, 5));
 
-        bool removed = quadTree.Remove("Item2", out _);
+        bool removed = quadTree.Remove("Item2");
 
         Assert.That(removed, Is.True);
         Assert.That(quadTree.Count, Is.EqualTo(2));
@@ -194,9 +182,9 @@ public class QuadTreeTests {
     public void Update_ExistingItem_MovesItemToNewArea() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100), 1);
         var itemBounds = new Bounds(-20, -20, 5, 5);
-        quadTree.Insert("Item1", itemBounds);
+        quadTree.InsertOrUpdate("Item1", itemBounds);
         var newItemBounds = new Bounds(20, 20, 5, 5);
-        bool updated = quadTree.Update("Item1", newItemBounds);
+        bool updated = quadTree.InsertOrUpdate("Item1", newItemBounds);
 
         Assert.That(updated, Is.True);
         Assert.That(quadTree.Query(new Bounds(-20, -20, 10, 10)), Does.Not.Contain("Item1"));
@@ -207,9 +195,9 @@ public class QuadTreeTests {
     public void Clear_RemovesAllItems() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
 
-        quadTree.Insert("Item1", new Bounds(10, 10, 5, 5));
-        quadTree.Insert("Item2", new Bounds(20, 20, 5, 5));
-        quadTree.Insert("Item3", new Bounds(30, 30, 5, 5));
+        quadTree.InsertOrUpdate("Item1", new Bounds(10, 10, 5, 5));
+        quadTree.InsertOrUpdate("Item2", new Bounds(20, 20, 5, 5));
+        quadTree.InsertOrUpdate("Item3", new Bounds(30, 30, 5, 5));
 
         quadTree.Clear();
 
@@ -228,7 +216,7 @@ public class QuadTreeTests {
         for (int i = 0; i < itemCount; i++) {
             float x = (i % columns) * spacing - 450f;
             float y = (i / columns) * spacing - 450f;
-            quadTree.Insert(i, new Bounds(x, y, 0f, 0f));
+            quadTree.InsertOrUpdate(i, new Bounds(x, y, 0f, 0f));
         }
 
         Assert.That(quadTree.Count, Is.EqualTo(itemCount));
@@ -238,9 +226,9 @@ public class QuadTreeTests {
     public void Query_LargeArea_ReturnsAllItems() {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
 
-        quadTree.Insert("Item1", new Bounds(-30, -30, 5, 5));
-        quadTree.Insert("Item2", new Bounds(30, -30, 5, 5));
-        quadTree.Insert("Item3", new Bounds(0, 0, 5, 5));
+        quadTree.InsertOrUpdate("Item1", new Bounds(-30, -30, 5, 5));
+        quadTree.InsertOrUpdate("Item2", new Bounds(30, -30, 5, 5));
+        quadTree.InsertOrUpdate("Item3", new Bounds(0, 0, 5, 5));
 
         var results = quadTree.Query(new Bounds(0, 0, 100, 100));
 
@@ -252,7 +240,7 @@ public class QuadTreeTests {
         var quadTree = new QuadTree<string>(new Bounds(0, 0, 100, 100));
         var itemBounds = new Bounds(50, 50, 5, 5); // At edge
 
-        bool result = quadTree.Insert("EdgeItem", itemBounds);
+        bool result = quadTree.InsertOrUpdate("EdgeItem", itemBounds);
 
         Assert.That(result, Is.True);
         Assert.That(quadTree.Count, Is.EqualTo(1));
