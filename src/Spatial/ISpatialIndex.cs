@@ -7,21 +7,19 @@ using System.Collections.Generic;
 /// <typeparam name="T">Tipo dos objetos indexados.</typeparam>
 public interface ISpatialIndex<T> where T : notnull {
     /// <summary>
-    /// Insere ou atualiza um objeto no índice espacial.
+    /// Insere um objeto no índice espacial.
     /// </summary>
     /// <param name="item">O objeto a ser inserido.</param>
     /// <param name="bounds">Os limites espaciais do objeto.</param>
     /// <returns>True se inserido com sucesso, false caso contrário.</returns>
-    bool InsertOrUpdate(T item, Bounds bounds);
+    bool Insert(T item, Bounds bounds);
 
     /// <summary>
     /// Consulta objetos dentro de uma área específica.
     /// </summary>
     /// <param name="area">A área de consulta.</param>
-    /// <returns>Lista de objetos dentro da área.</returns>
-    //IReadOnlyList<T> Query(Bounds area, HashSet<T>? ignore = null);
-
-    void Query(Bounds area, ICollection<T> result, HashSet<T>? ignore = null);
+    /// <param name="result">Resultado da consulta.</param>
+    void Query(Bounds area, ICollection<T> result);
 
     bool TryGetBounds(T item, out Bounds bounds);
     Bounds GetBounds(T item);
@@ -52,25 +50,26 @@ public interface ISpatialIndex<T> where T : notnull {
 /// <param name="Width">Largura do retângulo.</param>
 /// <param name="Height">Altura do retângulo.</param>
 public readonly record struct Bounds(float X, float Y, float Width, float Height) {
+
     /// <summary>
     /// Coordenada X mínima.
     /// </summary>
-    public float MinX => X - Width / 2;
+    public readonly float MinX = X - Width / 2;
 
     /// <summary>
     /// Coordenada X máxima.
     /// </summary>
-    public float MaxX => X + Width / 2;
+    public readonly float MaxX = X + Width / 2;
 
     /// <summary>
     /// Coordenada Y mínima.
     /// </summary>
-    public float MinY => Y - Height / 2;
+    public readonly float MinY = Y - Height / 2;
 
     /// <summary>
     /// Coordenada Y máxima.
     /// </summary>
-    public float MaxY => Y + Height / 2;
+    public readonly float MaxY = Y + Height / 2;
 
     /// <summary>
     /// Verifica se este bounds contém um ponto.

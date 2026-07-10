@@ -1,188 +1,209 @@
-﻿namespace LSUtils.Spatial;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Runtime.CompilerServices;
+
+namespace LSUtils.Spatial;
 
 public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
-    public readonly record struct CellKey(int X, int Y);
-    private readonly float _cellSize;
-    private readonly Dictionary<CellKey, HashSet<T>> _cells;
-    private readonly Dictionary<T, Bounds> _itemsBounds;
-
-    public float CellSize => _cellSize;
-    public int Count => _itemsBounds.Count;
-    //public CellKey[] ActiveCells => _cells.Keys.ToArray();
+    private readonly Dictionary<long, Cell> _cells = new();
+    private readonly Dictionary<T, Entry> _entries = new();
+    private uint _queryId;
+    private float _cellSize;
+    private float _invCellSize;
+    public int Count => _entries.Count;
 
     public SpatialHashGrid(float cellSize) {
-        if (cellSize <= 0) {
-            throw new LSArgumentException("Cell size must be greater than 0", nameof(cellSize));
-        }
-
+        if (cellSize <= 0) throw new LSArgumentException($"cellSize cennot be {cellSize}");
         _cellSize = cellSize;
-        _cells = new();
-        _itemsBounds = new();
+        _invCellSize = 1f / cellSize;
     }
 
-    public int ToCellCoordinate(float value) {
-        return (int)MathF.Floor(value / CellSize);
+    public void Clear() {
+        foreach (var cell in _cells.Values)
+            cell.Entries.Clear();
+
+        _cells.Clear();
+        _entries.Clear();
     }
 
-    /// <summary>
-    /// Insere ou atualiza um objeto na grade com alocação zero de memória.
-    /// </summary>
-    public bool InsertOrUpdate(T item, Bounds bounds) {
-        bool itemExiste = _itemsBounds.TryGetValue(item, out var oldBounds);
+    public bool Insert(T item, Bounds bounds) {
 
-        if (itemExiste) {
-            if (oldBounds == bounds) return true; // Mesmo local, não faz nada
+        if (!_entries.TryGetValue(item, out var entry)) {
+            int newMinX = ToCell(bounds.MinX);
+            int newMaxX = ToCell(bounds.MaxX);
+            int newMinY = ToCell(bounds.MinY);
+            int newMaxY = ToCell(bounds.MaxY);
 
-            // Remove cirurgicamente das células antigas usando loops numéricos planos (Sem gerar lixo)
-            int oldMinX = ToCellCoordinate(oldBounds.MinX);
-            int oldMaxX = ToCellCoordinate(oldBounds.MaxX);
-            int oldMinY = ToCellCoordinate(oldBounds.MinY);
-            int oldMaxY = ToCellCoordinate(oldBounds.MaxY);
+            entry = new Entry(item, bounds);
 
-            for (int x = oldMinX; x <= oldMaxX; x++) {
-                for (int y = oldMinY; y <= oldMaxY; y++) {
-                    if (_cells.TryGetValue(new CellKey(x, y), out var itemsInCell)) {
-                        itemsInCell.Remove(item);
-                        // Mantemos o HashSet na memória (_cells.Remove removido de propósito para performance)
-                    }
+            _entries.Add(item, entry);
+
+            AddToCells(entry,
+                newMinX, newMaxX,
+                newMinY, newMaxY);
+
+            return true;
+        }
+        return false;
+    }
+    private void AddToCells(
+        Entry entry,
+        int minX,
+        int maxX,
+        int minY,
+        int maxY) {
+        entry.CellKeys.Clear();
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                long key = MakeKey(x, y);
+
+                if (!_cells.TryGetValue(key, out var cell)) {
+                    cell = new Cell(x, y);
+                    _cells.Add(key, cell);
+                }
+
+                cell.Entries.Add(entry);
+
+                entry.CellKeys.Add(key);
+            }
+        }
+    }
+    private void RemoveFromCells(Entry entry) {
+        foreach (long key in entry.CellKeys) {
+            if (!_cells.TryGetValue(key, out var cell))
+                continue;
+
+            cell.Entries.Remove(entry);
+
+            // Opcional: remover células vazias
+            if (cell.Entries.Count == 0)
+                _cells.Remove(key);
+        }
+
+        entry.CellKeys.Clear();
+    }
+    public void Query(Bounds area, ICollection<T> result) {
+        _queryId++;
+
+        int minX = ToCell(area.MinX);
+        int maxX = ToCell(area.MaxX);
+        int minY = ToCell(area.MinY);
+        int maxY = ToCell(area.MaxY);
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                if (!_cells.TryGetValue(MakeKey(x, y), out var cell))
+                    continue;
+
+                var entries = cell.Entries;
+
+                for (int i = 0; i < entries.Count; i++) {
+                    var entry = entries[i];
+
+                    if (entry.LastQueryId == _queryId)
+                        continue;
+
+                    entry.LastQueryId = _queryId;
+
+                    if (entry.Bounds.Intersects(area))
+                        result.Add(entry.Item);
                 }
             }
         }
+    }
+    public delegate void PairAction(Entry EntryA, Entry EntryB, Cell Cell);
+    private record struct CellPair(Entry EntryA, Entry EntryB) {
+        public bool Equals(CellPair other) {
+            return (EqualityComparer<Entry>.Default.Equals(EntryA, other.EntryA) && EqualityComparer<Entry>.Default.Equals(EntryB, other.EntryB)) ||
+                   (EqualityComparer<Entry>.Default.Equals(EntryA, other.EntryB) && EqualityComparer<Entry>.Default.Equals(EntryB, other.EntryA));
+        }
+        public override int GetHashCode() {
+            // Usamos XOR (^) ou combinamos os hashes de forma que a ordem não importe
+            int hashA = EntryA?.GetHashCode() ?? 0;
+            int hashB = EntryB?.GetHashCode() ?? 0;
 
-        // Insere nas novas células calculando as coordenadas em tempo de execução
-        int newMinX = ToCellCoordinate(bounds.MinX);
-        int newMaxX = ToCellCoordinate(bounds.MaxX);
-        int newMinY = ToCellCoordinate(bounds.MinY);
-        int newMaxY = ToCellCoordinate(bounds.MaxY);
-
-        for (int x = newMinX; x <= newMaxX; x++) {
-            for (int y = newMinY; y <= newMaxY; y++) {
-                var key = new CellKey(x, y);
-                if (!_cells.TryGetValue(key, out var itemsInCell)) {
-                    itemsInCell = new HashSet<T>();
-                    _cells[key] = itemsInCell;
+            // Garante que GetHashCode(1, 2) seja igual a GetHashCode(2, 1)
+            return hashA ^ hashB;
+        }
+    }
+    public void ForEachPotentialPair(PairAction callback) {
+        HashSet<CellPair> seen = new();
+        foreach (var cell in _cells.Values) {
+            int count = cell.Entries.Count;
+            for (int i = 0; i < count - 1; i++) {
+                var entryA = cell.Entries[i];
+                for (int j = i + 1; j < count; j++) {
+                    var entryB = cell.Entries[j];
+                    if (!seen.Add(new CellPair(entryA, entryB))) continue;
+                    callback(entryA, entryB, cell);
                 }
-                itemsInCell.Add(item);
             }
         }
+    }
+    public bool Remove(T item) {
+        if (!_entries.TryGetValue(item, out var entry))
+            return false;
 
-        _itemsBounds[item] = bounds;
+        RemoveFromCells(entry);
+
+        _entries.Remove(item);
+
         return true;
     }
 
-    /// <summary>
-    /// Consulta objetos de forma altamente otimizada compartilhando o HashSet de controle.
-    /// </summary>
-    public void Query(Bounds area, ICollection<T> result, HashSet<T>? reuseSeenSet = null) {
-        HashSet<T> seen = reuseSeenSet ?? new HashSet<T>();
-        if (reuseSeenSet != null) seen.Clear();
-
-        int minX = ToCellCoordinate(area.MinX);
-        int maxX = ToCellCoordinate(area.MaxX);
-        int minY = ToCellCoordinate(area.MinY);
-        int maxY = ToCellCoordinate(area.MaxY);
-
-        for (int x = minX; x <= maxX; x++) {
-            // Calcula os limites matemáticos desta célula específica em tempo de execução
-            float cellMinX = x * CellSize;
-            float cellMaxX = cellMinX + CellSize;
-
-            // Se a busca cobre totalmente o eixo X desta célula
-            bool xTotalmenteContido = area.MinX <= cellMinX && area.MaxX >= cellMaxX;
-
-            for (int y = minY; y <= maxY; y++) {
-                if (!_cells.TryGetValue(new CellKey(x, y), out var itemsInCell) || itemsInCell.Count == 0)
-                    continue;
-
-                float cellMinY = y * CellSize;
-                float cellMaxY = cellMinY + CellSize;
-
-                // Se a busca cobre totalmente o eixo Y desta célula
-                bool yTotalmenteContido = area.MinY <= cellMinY && area.MaxY >= cellMaxY;
-
-                // Se a célula inteira está dentro da área de Query, ignoramos o teste de Intersects individual!
-                bool celulaTotalmenteContida = xTotalmenteContido && yTotalmenteContido;
-
-                foreach (var item in itemsInCell) {
-                    // 1. Primeiro checa se já viu (O(1)). Se já viu, ignora o resto.
-                    if (!seen.Add(item))
-                        continue;
-
-                    // 2. Se a célula está 100% contida na busca, adiciona direto sem testar o Intersects (Salva milhões de cálculos)
-                    if (celulaTotalmenteContida) {
-                        result.Add(item);
-                        continue;
-                    }
-
-                    // 3. Fallback apenas para as células das bordas da área de Query
-                    if (_itemsBounds[item].Intersects(area)) {
-                        result.Add(item);
-                    }
-                }
-            }
-        }
-    }
-
     public bool TryGetBounds(T item, out Bounds bounds) {
-        return _itemsBounds.TryGetValue(item, out bounds);
+        if (!_entries.TryGetValue(item, out var entry) || entry == null) {
+            bounds = default;
+            return false;
+        }
+        bounds = entry.Bounds;
+        return true;
     }
     public Bounds GetBounds(T item) {
         return TryGetBounds(item, out var bounds) ? bounds : throw new LSException($"{item} not found.");
     }
 
+    private int ToCell(float value) {
+        return (int)LSMath.Floor(value * _invCellSize);
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static long MakeKey(int x, int y) {
+        return ((long)x << 32) | (uint)y;
+    }
 
-    public bool Remove(T item) {
-        if (!_itemsBounds.TryGetValue(item, out var oldBounds)) {
-            return false;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void DecodeKey(long key, out int x, out int y) {
+        x = (int)(key >> 32);
+        y = (int)key;
+    }
+
+    public sealed class Cell {
+        public readonly long CellKey;
+        public readonly int X;
+        public readonly int Y;
+
+        public readonly List<Entry> Entries = new();
+
+        public Cell(int x, int y) {
+            X = x;
+            Y = y;
+            CellKey = MakeKey(X, Y);
         }
+    }
 
-        int minX = ToCellCoordinate(oldBounds.MinX);
-        int maxX = ToCellCoordinate(oldBounds.MaxX);
-        int minY = ToCellCoordinate(oldBounds.MinY);
-        int maxY = ToCellCoordinate(oldBounds.MaxY);
+    public sealed class Entry {
+        public readonly T Item;
+        public readonly Bounds Bounds;
 
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                if (_cells.TryGetValue(new CellKey(x, y), out var itemsInCell)) {
-                    itemsInCell.Remove(item);
-                }
-            }
+        public uint LastQueryId;
+
+        // células ocupadas
+        public readonly List<long> CellKeys = new();
+
+        internal Entry(T item, Bounds bounds) {
+            Item = item;
+            Bounds = bounds;
         }
-
-        _itemsBounds.Remove(item);
-        return true;
-    }
-
-    public void Clear() {
-        _cells.Clear();
-        _itemsBounds.Clear();
-    }
-    // HashSet<T>? _itemsCellTmp = new();
-    // public HashSet<T> GetItemsInCell(CellKey cellKey) {
-    //     if (!_cells.TryGetValue(cellKey, out _itemsCellTmp)) {
-    //         _itemsCellTmp = new();
-    //     }
-    //     return _itemsCellTmp;
-    // }
-    private readonly HashSet<T> _emptySet = new();
-
-    // 2. Altere o ActiveCells para filtrar APENAS quem realmente tem itens dentro
-    public IEnumerable<CellKey> ActiveCells => _cells.Where(pair => pair.Value.Count > 0).Select(pair => pair.Key);
-
-    // Se preferir manter como array para indexação rápida, faça com filtragem eficiente:
-    public CellKey[] GetActiveCells() {
-        // Lista auxiliar reutilizável na classe para evitar o ToArray() bruto do LINQ se quiser, 
-        // mas a filtragem abaixo já mata o problema das células fantasma:
-        return _cells.Where(pair => pair.Value.Count > 0).Select(pair => pair.Key).ToArray();
-    }
-
-    // 3. Corrija o GetItemsInCell removendo a variável global mutável perigosa
-    public HashSet<T> GetItemsInCell(CellKey cellKey) {
-        // Retorna o set real se houver, ou o set vazio compartilhado estável
-        return _cells.TryGetValue(cellKey, out var itemsInCell) ? itemsInCell : _emptySet;
     }
 }

@@ -44,6 +44,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// Capacidade máxima de objetos antes de subdividir.
     /// </summary>
     public int Capacity => _capacity;
+    public int Depth { get; }
 
     protected QuadTree(QuadTree<T> parent, Bounds bounds, Dictionary<T, QuadTreeEntry> entries) {
         _parent = parent;
@@ -61,6 +62,13 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
             new Bounds(_bounds.X + hw, _bounds.Y - hh, w, h),
             new Bounds(_bounds.X - hw, _bounds.Y + hh, w, h),
             new Bounds(_bounds.X + hw, _bounds.Y + hh, w, h));
+        var depthParent = parent._parent;
+        var depth = 0;
+        while (depthParent != null) {
+            depth++;
+            depthParent = depthParent._parent;
+        }
+        Depth = depth;
     }
 
     /// <summary>
@@ -89,42 +97,69 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         _items.Clear();
         _count = 0;
     }
+
+    /// <summary>
+    /// Checks if bounds can fit into any of the child quadrants.
+    /// </summary>
+    private bool CanFitInQuadrants(Bounds bounds) {
+        return _quadrantBounds.NW.Contains(bounds) ||
+               _quadrantBounds.NE.Contains(bounds) ||
+               _quadrantBounds.SW.Contains(bounds) ||
+               _quadrantBounds.SE.Contains(bounds);
+    }
     /// <summary>
     /// Insere um objeto na árvore.
     /// </summary>
     /// <param name="item">O objeto a ser inserido.</param>
     /// <param name="bounds">Os limites espaciais do objeto.</param>
     /// <returns>True se inserido com sucesso, false caso contrário.</returns>
-    public bool InsertOrUpdate(T item, Bounds bounds) {
+    public bool Insert(T item, Bounds bounds) {
         // out of this quadtree bounds
         if (!_bounds.Intersects(bounds))
             return false;
-
+       
         // Subdivide if at capacity and not yet divided
         if (!_quadrants.HasValue && _count >= _capacity) {
-            _quadrants = (new QuadTree<T>(this, _quadrantBounds.NW, _quadTreeEntries),
-                new QuadTree<T>(this, _quadrantBounds.NE, _quadTreeEntries),
-                new QuadTree<T>(this, _quadrantBounds.SW, _quadTreeEntries),
-                new QuadTree<T>(this, _quadrantBounds.SE, _quadTreeEntries)
-            );
-            var entriesToRemove = new List<T>();
-
-            foreach (var currItem in _items) {
-                if (_quadTreeEntries.TryGetValue(currItem, out var quadTreeEntry) == false) throw new LSException($"{currItem} entry not found.");
-                var child = GetQuadrant(quadTreeEntry.Bounds);
-                if (child == null) continue;
-                if (child.InsertOrUpdate(currItem, quadTreeEntry.Bounds) == false) throw new LSException($"{currItem} cannot be inserted in child {child}.");
-                //_count++;
-                entriesToRemove.Add(currItem);
+            // Check if the new item or any existing items can fit into child quadrants
+            // to prevent subdivision when items are too large for the sub-quadrants
+            bool canFitInQuadrants = CanFitInQuadrants(bounds);
+            
+            if (!canFitInQuadrants) {
+                foreach (var currItem in _items) {
+                    if (_quadTreeEntries.TryGetValue(currItem, out var quadTreeEntry) == false) 
+                        throw new LSException($"{currItem} entry not found.");
+                    if (CanFitInQuadrants(quadTreeEntry.Bounds)) {
+                        canFitInQuadrants = true;
+                        break;
+                    }
+                }
             }
-            //remove only entries that where added to children
-            _count -= _items.RemoveWhere(e => entriesToRemove.Contains(e));
+            
+            // Only subdivide if at least one item can fit into child quadrants
+            if (canFitInQuadrants) {
+                _quadrants = (new QuadTree<T>(this, _quadrantBounds.NW, _quadTreeEntries),
+                    new QuadTree<T>(this, _quadrantBounds.NE, _quadTreeEntries),
+                    new QuadTree<T>(this, _quadrantBounds.SW, _quadTreeEntries),
+                    new QuadTree<T>(this, _quadrantBounds.SE, _quadTreeEntries)
+                );
+                var entriesToRemove = new List<T>();
 
+                foreach (var currItem in _items) {
+                    if (_quadTreeEntries.TryGetValue(currItem, out var quadTreeEntry) == false) throw new LSException($"{currItem} entry not found.");
+                    var child = GetQuadrant(quadTreeEntry.Bounds);
+                    if (child == null) continue;
+                    if (child.Insert(currItem, quadTreeEntry.Bounds) == false) throw new LSException($"{currItem} cannot be inserted in child {child}.");
+                    //_count++;
+                    entriesToRemove.Add(currItem);
+                }
+                //remove only entries that where added to children
+                _count -= _items.RemoveWhere(e => entriesToRemove.Contains(e));
+            }
         }
 
         if (_quadrants.HasValue) {
             var child = GetQuadrant(bounds);
-            if (child != null && child.InsertOrUpdate(item, bounds)) {
+            if (child != null && child.Insert(item, bounds)) {
                 //_count++;
                 return true;
             }
@@ -135,16 +170,9 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         _count++;
         return true;
     }
-    /// <summary>
-    /// Consulta objetos dentro de uma área.
-    /// </summary>
-    public IReadOnlyList<T> Query(Bounds area, HashSet<T>? ignore = null) {
-        var result = new HashSet<T>();
-        Query(area, result, ignore);
-        return result.ToList();
-    }
-    public void Query(Bounds area, ICollection<T> result, HashSet<T>? ignore = null) {
-        HashSet<T> seen = ignore == null ? new HashSet<T>() : ignore;
+
+    public void Query(Bounds area, ICollection<T> result) {
+        HashSet<T> seen = new HashSet<T>();
         if (!_bounds.Intersects(area))
             return;
 
