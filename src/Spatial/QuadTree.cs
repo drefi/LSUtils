@@ -117,16 +117,16 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         // out of this quadtree bounds
         if (!_bounds.Intersects(bounds))
             return false;
-       
+
         // Subdivide if at capacity and not yet divided
         if (!_quadrants.HasValue && _count >= _capacity) {
             // Check if the new item or any existing items can fit into child quadrants
             // to prevent subdivision when items are too large for the sub-quadrants
             bool canFitInQuadrants = CanFitInQuadrants(bounds);
-            
+
             if (!canFitInQuadrants) {
                 foreach (var currItem in _items) {
-                    if (_quadTreeEntries.TryGetValue(currItem, out var quadTreeEntry) == false) 
+                    if (_quadTreeEntries.TryGetValue(currItem, out var quadTreeEntry) == false)
                         throw new LSException($"{currItem} entry not found.");
                     if (CanFitInQuadrants(quadTreeEntry.Bounds)) {
                         canFitInQuadrants = true;
@@ -134,7 +134,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
                     }
                 }
             }
-            
+
             // Only subdivide if at least one item can fit into child quadrants
             if (canFitInQuadrants) {
                 _quadrants = (new QuadTree<T>(this, _quadrantBounds.NW, _quadTreeEntries),
@@ -171,17 +171,16 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         return true;
     }
 
-    public void Query(Bounds area, ICollection<T> result) {
+    public void Query(Bounds area, ICollection<T> result, T[]? mask = null) {
         HashSet<T> seen = new HashSet<T>();
-        if (!_bounds.Intersects(area))
-            return;
+        if (!_bounds.Intersects(area)) return;
 
         foreach (var item in _items) {
+            if (mask != null && mask.Contains(item)) continue;
             if (_quadTreeEntries.TryGetValue(item, out var quadTreeEntry) == false) throw new LSException($"_items[{_items.Count}]: {item} does not exist in _quadTreeEntries[{_quadTreeEntries.Count}].");
-            if (area.Intersects(quadTreeEntry.Bounds)) {
-                if (!seen.Add(item)) continue;
-                result.Add(item);
-            }
+            if (!seen.Add(item)) continue;
+            if (!area.Intersects(quadTreeEntry.Bounds)) continue;
+            result.Add(item);
         }
 
         if (_quadrants.HasValue) {

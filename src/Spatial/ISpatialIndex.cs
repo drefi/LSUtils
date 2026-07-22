@@ -19,7 +19,7 @@ public interface ISpatialIndex<T> where T : notnull {
     /// </summary>
     /// <param name="area">A área de consulta.</param>
     /// <param name="result">Resultado da consulta.</param>
-    void Query(Bounds area, ICollection<T> result);
+    void Query(Bounds area, ICollection<T> result, T[]? mask = null);
 
     bool TryGetBounds(T item, out Bounds bounds);
     Bounds GetBounds(T item);

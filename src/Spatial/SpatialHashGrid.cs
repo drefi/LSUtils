@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace LSUtils.Spatial;
@@ -24,6 +25,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
 
         _cells.Clear();
         _entries.Clear();
+        _queryId = 0;
     }
 
     public bool Insert(T item, Bounds bounds) {
@@ -83,14 +85,14 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
 
         entry.CellKeys.Clear();
     }
-    public void Query(Bounds area, ICollection<T> result) {
-        _queryId++;
 
+    public bool IsAreaAvailable(Bounds area, T[]? mask = null) {
         int minX = ToCell(area.MinX);
         int maxX = ToCell(area.MaxX);
         int minY = ToCell(area.MinY);
         int maxY = ToCell(area.MaxY);
 
+        _queryId++;
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 if (!_cells.TryGetValue(MakeKey(x, y), out var cell))
@@ -101,13 +103,40 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
                 for (int i = 0; i < entries.Count; i++) {
                     var entry = entries[i];
 
+                    if (mask != null && mask.Contains(entry.Item))
+                        continue;
+
                     if (entry.LastQueryId == _queryId)
                         continue;
 
                     entry.LastQueryId = _queryId;
 
                     if (entry.Bounds.Intersects(area))
-                        result.Add(entry.Item);
+                        return false;
+                }
+            }
+        }
+        return true;
+    }
+    public void Query(Bounds area, ICollection<T> result, T[]? mask = null) {
+        _queryId++;
+
+        int minX = ToCell(area.MinX);
+        int maxX = ToCell(area.MaxX);
+        int minY = ToCell(area.MinY);
+        int maxY = ToCell(area.MaxY);
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                if (!_cells.TryGetValue(MakeKey(x, y), out var cell)) continue;
+                var entries = cell.Entries;
+                for (int i = 0; i < entries.Count; i++) {
+                    var entry = entries[i];
+                    if (mask != null && mask.Contains(entry.Item)) continue;
+                    if (entry.LastQueryId == _queryId) continue;
+                    entry.LastQueryId = _queryId;
+                    if (!entry.Bounds.Intersects(area)) continue;
+                    result.Add(entry.Item);
                 }
             }
         }
@@ -127,17 +156,17 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
             return hashA ^ hashB;
         }
     }
-    public void ForEachPotentialPair(PairAction callback) {
+    public void ForEachIntersect(T item, PairAction callback) {
+        if (!_entries.TryGetValue(item, out var entryA)) return;
+
         HashSet<CellPair> seen = new();
-        foreach (var cell in _cells.Values) {
-            int count = cell.Entries.Count;
-            for (int i = 0; i < count - 1; i++) {
-                var entryA = cell.Entries[i];
-                for (int j = i + 1; j < count; j++) {
-                    var entryB = cell.Entries[j];
-                    if (!seen.Add(new CellPair(entryA, entryB))) continue;
-                    callback(entryA, entryB, cell);
-                }
+        foreach (var cellKey in entryA.CellKeys) {
+            if (!_cells.TryGetValue(cellKey, out var cell)) continue;
+            foreach (var entryB in cell.Entries) {
+                if (entryA == entryB) continue;
+                if (!entryA.Bounds.Intersects(entryB.Bounds)) continue;
+                if (!seen.Add(new CellPair(entryA, entryB))) continue;
+                callback(entryA, entryB, cell);
             }
         }
     }
