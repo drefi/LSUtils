@@ -13,6 +13,7 @@ Bem-vindo à documentação completa do LSUtils!
 - **[Process System Guide](guides/process-system-guide.md)** - Guia completo do sistema de processos
 - **[Logging Guide](guides/logging-guide.md)** - Configure e use o sistema de logging
 - **[Graph Guide](guides/graph-guide.md)** - Trabalhe com grafos e pathfinding
+- **[Terrain World Guide](guides/terrain-world-guide.md)** - Modele terrenos, conteudos, regioes e biomas sem grid
 
 ### Referência da API
 
@@ -27,6 +28,7 @@ Bem-vindo à documentação completa do LSUtils!
 - **[Process System Examples](examples/process-system-examples.md)** - Exemplos do sistema de processos
 - **[Logging Examples](examples/logging-examples.md)** - Exemplos de logging
 - **[Graph Examples](examples/graph-examples.md)** - Exemplos de grafos
+- **[Terrain World Examples](examples/terrain-world-examples.md)** - Exemplos de terrenos e regioes
 
 ## 🎯 Por Onde Começar?
 

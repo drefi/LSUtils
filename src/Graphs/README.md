@@ -128,7 +128,7 @@ NodeDistanceFunc<GridPosition> manhattanDistance = (from, to) => {
 NodeDistanceFunc<GridPosition> unitCost = (from, to) => 1.0f;
 ```
 
-### A* (Planejado)
+### A*
 
 ```csharp
 // Uso futuro do A*
