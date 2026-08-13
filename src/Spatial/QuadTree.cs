@@ -11,17 +11,12 @@ using System.Linq;
 /// <typeparam name="T">Tipo dos objetos armazenados.</typeparam>
 public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     private (QuadTree<T> NW, QuadTree<T> NE, QuadTree<T> SW, QuadTree<T> SE)? _quadrants = null;
+    public readonly record struct QuadTreeEntry(QuadTree<T> Node, Bounds Bounds);
     private (Bounds NW, Bounds NE, Bounds SW, Bounds SE) _quadrantBounds;
 
     private readonly Bounds _bounds;
     private readonly int _capacity;
-    //private QuadTree<T>? _nw, _ne, _sw, _se;
-    //private SubQuadTree? _quadrant;
-    //private bool _isDivided;
-    private int _count;
-    public readonly record struct QuadTreeEntry(QuadTree<T> Node, Bounds Bounds);
-    //private readonly Dictionary<T, QuadTree<T>> _entryNodes;
-    //private readonly Dictionary<T, Bounds> _entryBounds;
+    //private int _count;
     private readonly Dictionary<T, QuadTreeEntry> _quadTreeEntries = new();
     private readonly HashSet<T> _items = new();
     private readonly QuadTree<T>? _parent;
@@ -29,11 +24,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// <summary>
     /// Número total de objetos na árvore.
     /// </summary>
-    public int Count {
-        get {
-            return _quadTreeEntries.Count;
-        }
-    }
+    public int Count => _quadTreeEntries.Count;
 
     /// <summary>
     /// Limites espaciais desta árvore.
@@ -46,7 +37,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     public int Capacity => _capacity;
     public int Depth { get; }
 
-    protected QuadTree(QuadTree<T> parent, Bounds bounds, Dictionary<T, QuadTreeEntry> entries) {
+    protected QuadTree(QuadTree<T> parent, Bounds bounds, int depth, Dictionary<T, QuadTreeEntry> entries) {
         _parent = parent;
         _bounds = bounds;
         _capacity = parent.Capacity;
@@ -58,16 +49,15 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         var w = _bounds.Width / 2;
         var hw = w / 2;
         _quadrantBounds = (
-            new Bounds(_bounds.X - hw, _bounds.Y - hh, w, h),
-            new Bounds(_bounds.X + hw, _bounds.Y - hh, w, h),
+            // NW (cima-esquerda)
             new Bounds(_bounds.X - hw, _bounds.Y + hh, w, h),
-            new Bounds(_bounds.X + hw, _bounds.Y + hh, w, h));
-        var depthParent = parent._parent;
-        var depth = 0;
-        while (depthParent != null) {
-            depth++;
-            depthParent = depthParent._parent;
-        }
+            // NE (cima-direita)
+            new Bounds(_bounds.X + hw, _bounds.Y + hh, w, h),
+            // SW (baixo-esquerda)
+            new Bounds(_bounds.X - hw, _bounds.Y - hh, w, h),
+            // SE (baixo-direita)
+            new Bounds(_bounds.X + hw, _bounds.Y - hh, w, h)
+    );
         Depth = depth;
     }
 
@@ -76,14 +66,15 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// </summary>
     /// <param name="bounds">Limites espaciais da árvore.</param>
     /// <param name="capacity">Número máximo de objetos por nó antes de subdividir (padrão: 64).</param>
-    public QuadTree(Bounds bounds, int capacity = 64) {
+    public QuadTree(int depth, Bounds bounds, int capacity = 64) {
         if (capacity <= 0)
-            throw new ArgumentException("Capacity must be greater than 0", nameof(capacity));
+            throw new LSArgumentException("Capacity must be greater than 0", nameof(capacity));
         _parent = null;
         _bounds = bounds;
         _capacity = capacity;
         _quadTreeEntries = new();
         _quadrants = null;
+        Depth = depth;
     }
 
     private void clearNode() {
@@ -95,7 +86,6 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
             _quadrants = null;
         }
         _items.Clear();
-        _count = 0;
     }
 
     /// <summary>
@@ -107,6 +97,65 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
                _quadrantBounds.SW.Contains(bounds) ||
                _quadrantBounds.SE.Contains(bounds);
     }
+
+    /// <summary>
+    /// Tenta subdividir o nó atual.
+    /// Retorna true se a subdivisão ocorreu.
+    /// </summary>
+    private bool trySubdivide(Bounds newItemBounds) {
+        // Já subdividido ou sem profundidade restante
+        if (_quadrants.HasValue || Depth <= 0)
+            return false;
+
+        // Ainda há espaço neste nó
+        if (_items.Count < _capacity)
+            return false;
+
+        // Só subdivide se pelo menos um item (existente ou o novo) puder caber em algum filho
+        bool anyCanFit = CanFitInQuadrants(newItemBounds);
+
+        if (!anyCanFit) {
+            foreach (var item in _items) {
+                if (_quadTreeEntries.TryGetValue(item, out var entry) &&
+                    CanFitInQuadrants(entry.Bounds)) {
+                    anyCanFit = true;
+                    break;
+                }
+            }
+        }
+
+        if (!anyCanFit)
+            return false;
+
+        _quadrants = (
+            new QuadTree<T>(this, _quadrantBounds.NW, Depth - 1, _quadTreeEntries),
+            new QuadTree<T>(this, _quadrantBounds.NE, Depth - 1, _quadTreeEntries),
+            new QuadTree<T>(this, _quadrantBounds.SW, Depth - 1, _quadTreeEntries),
+            new QuadTree<T>(this, _quadrantBounds.SE, Depth - 1, _quadTreeEntries)
+        );
+
+        // Redistribui os itens que cabem nos filhos
+        var toRemove = new List<T>();
+
+        foreach (var item in _items) {
+            if (!_quadTreeEntries.TryGetValue(item, out var entry))
+                throw new LSException($"{item} entry not found during subdivide.");
+
+            var child = GetQuadrant(entry.Bounds);
+            if (child == null)
+                continue; // continua neste nó
+
+            // Inserção direta no filho (ele ainda é folha)
+            child._items.Add(item);
+            _quadTreeEntries[item] = new QuadTreeEntry(child, entry.Bounds);
+            toRemove.Add(item);
+        }
+
+        foreach (var item in toRemove)
+            _items.Remove(item);
+
+        return true;
+    }
     /// <summary>
     /// Insere um objeto na árvore.
     /// </summary>
@@ -114,63 +163,104 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// <param name="bounds">Os limites espaciais do objeto.</param>
     /// <returns>True se inserido com sucesso, false caso contrário.</returns>
     public bool Insert(T item, Bounds bounds) {
-        // out of this quadtree bounds
+        // 1. Rejeição rápida
         if (!_bounds.Intersects(bounds))
             return false;
 
-        // Subdivide if at capacity and not yet divided
-        if (!_quadrants.HasValue && _count >= _capacity) {
-            // Check if the new item or any existing items can fit into child quadrants
-            // to prevent subdivision when items are too large for the sub-quadrants
-            bool canFitInQuadrants = CanFitInQuadrants(bounds);
+        // 2. Já existe? (evita bagunça no count e na entry)
+        if (_quadTreeEntries.ContainsKey(item))
+            return false; // ou Update interno, se preferir
 
-            if (!canFitInQuadrants) {
-                foreach (var currItem in _items) {
-                    if (_quadTreeEntries.TryGetValue(currItem, out var quadTreeEntry) == false)
-                        throw new LSException($"{currItem} entry not found.");
-                    if (CanFitInQuadrants(quadTreeEntry.Bounds)) {
-                        canFitInQuadrants = true;
-                        break;
-                    }
+        // 3. Tenta descer o mais fundo possível
+        if (_quadrants.HasValue) {
+            var child = GetQuadrant(bounds);
+            if (child != null && child.Insert(item, bounds))
+                return true;
+            // se não coube em nenhum filho, cai para este nó
+        } else {
+            // só tenta subdividir se realmente necessário
+            if (_items.Count >= _capacity && Depth > 0) {
+                if (trySubdivide(bounds)) {
+                    var child = GetQuadrant(bounds);
+                    if (child != null && child.Insert(item, bounds))
+                        return true;
                 }
-            }
-
-            // Only subdivide if at least one item can fit into child quadrants
-            if (canFitInQuadrants) {
-                _quadrants = (new QuadTree<T>(this, _quadrantBounds.NW, _quadTreeEntries),
-                    new QuadTree<T>(this, _quadrantBounds.NE, _quadTreeEntries),
-                    new QuadTree<T>(this, _quadrantBounds.SW, _quadTreeEntries),
-                    new QuadTree<T>(this, _quadrantBounds.SE, _quadTreeEntries)
-                );
-                var entriesToRemove = new List<T>();
-
-                foreach (var currItem in _items) {
-                    if (_quadTreeEntries.TryGetValue(currItem, out var quadTreeEntry) == false) throw new LSException($"{currItem} entry not found.");
-                    var child = GetQuadrant(quadTreeEntry.Bounds);
-                    if (child == null) continue;
-                    if (child.Insert(currItem, quadTreeEntry.Bounds) == false) throw new LSException($"{currItem} cannot be inserted in child {child}.");
-                    //_count++;
-                    entriesToRemove.Add(currItem);
-                }
-                //remove only entries that where added to children
-                _count -= _items.RemoveWhere(e => entriesToRemove.Contains(e));
             }
         }
+
+        // 4. Armazena neste nó
+        _items.Add(item);
+        _quadTreeEntries[item] = new QuadTreeEntry(this, bounds);
+        return true;
+    }
+    /// <summary>
+    /// Atualiza os bounds de um item já presente na árvore.
+    /// Tenta manter o item no mesmo nó quando possível.
+    /// </summary>
+    public bool Update(T item, Bounds newBounds) {
+        if (!_quadTreeEntries.TryGetValue(item, out var entry))
+            return false;
+
+        var currentNode = entry.Node;
+
+        // Caso rápido: continua cabendo no mesmo nó
+        if (currentNode._bounds.Contains(newBounds)) {
+            // Ainda é o melhor lugar? (opcional: verificar se agora cabe em um filho)
+            if (currentNode._quadrants.HasValue) {
+                var betterChild = currentNode.GetQuadrant(newBounds);
+                if (betterChild != null) {
+                    // Move para o filho
+                    currentNode._items.Remove(item);
+                    betterChild.Insert(item, newBounds); // Insert já atualiza a entry
+                    return true;
+                }
+            }
+
+            // Só atualiza os bounds
+            _quadTreeEntries[item] = new QuadTreeEntry(currentNode, newBounds);
+            return true;
+        }
+
+        // Não cabe mais no nó atual → precisa subir e reinserir
+        // Remove do nó atual sem apagar a entry global ainda
+        if (!currentNode._items.Remove(item))
+            throw new LSException($"Inconsistent state removing {item}");
+
+        // Sobe até encontrar um ancestral que contenha o novo bounds
+        // (ou vai direto no root se preferir simplicidade)
+        QuadTree<T> node = currentNode;
+        while (node._parent != null && !node._bounds.Contains(newBounds)) {
+            node = node._parent;
+        }
+
+        // Reinsere a partir desse nó (ou do root)
+        // Como a entry ainda existe, o Insert precisa de uma variante "force" ou
+        // fazemos a inserção manualmente.
+
+        return node.InsertAfterMove(item, newBounds);
+    }
+
+    // Variante interna usada só pelo Update
+    private bool InsertAfterMove(T item, Bounds bounds) {
+        if (!_bounds.Intersects(bounds))
+            return false;
 
         if (_quadrants.HasValue) {
             var child = GetQuadrant(bounds);
-            if (child != null && child.Insert(item, bounds)) {
-                //_count++;
-                return true;
+            if (child != null)
+                return child.InsertAfterMove(item, bounds);
+        } else if (_items.Count >= _capacity && Depth > 0) {
+            if (trySubdivide(bounds)) {
+                var child = GetQuadrant(bounds);
+                if (child != null)
+                    return child.InsertAfterMove(item, bounds);
             }
         }
-        // Leaf node
+
         _items.Add(item);
         _quadTreeEntries[item] = new QuadTreeEntry(this, bounds);
-        _count++;
         return true;
     }
-
     public void Query(Bounds area, ICollection<T> result, T[]? mask = null) {
         HashSet<T> seen = new HashSet<T>();
         if (!_bounds.Intersects(area)) return;
@@ -184,10 +274,10 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         }
 
         if (_quadrants.HasValue) {
-            _quadrants.Value.NW.Query(area, result);
-            _quadrants.Value.NE.Query(area, result);
-            _quadrants.Value.SW.Query(area, result);
-            _quadrants.Value.SE.Query(area, result);
+            _quadrants.Value.NW.Query(area, result, mask);
+            _quadrants.Value.NE.Query(area, result, mask);
+            _quadrants.Value.SW.Query(area, result, mask);
+            _quadrants.Value.SE.Query(area, result, mask);
         }
     }
 
@@ -218,13 +308,53 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// Remove um objeto da árvore.
     /// </summary>
     public bool Remove(T item) {
-        if (!_quadTreeEntries.TryGetValue(item, out var quadTreeEntry)) {
+        if (!_quadTreeEntries.TryGetValue(item, out var entry))
             return false;
+
+        // Garante que estamos no nó dono do item
+        if (entry.Node != this)
+            return entry.Node.Remove(item);
+
+        if (!_items.Remove(item))
+            throw new LSException($"Cannot remove {item} from node items.");
+
+        _quadTreeEntries.Remove(item);
+
+        // Tenta colapsar a partir deste nó para cima
+        TryCollapseUpwards();
+
+        return true;
+    }
+
+    private void TryCollapseUpwards() {
+        // Se este nó ainda tem itens locais, não colapsa
+        if (_items.Count > 0)
+            return;
+
+        // Se tem filhos, só colapsa se todos estiverem vazios
+        if (_quadrants.HasValue) {
+            if (!IsEmptyRecursive())
+                return;
+
+            // Descartar filhos
+            _quadrants = null;
         }
-        if (quadTreeEntry.Node != this)
-            return quadTreeEntry.Node.Remove(item);
-        if (!_items.Remove(item)) throw new LSException($"Cannot remove {item} from entries.");
-        return _quadTreeEntries.Remove(item);
+
+        // Nós raiz não têm pai para notificar
+        _parent?.TryCollapseUpwards();
+    }
+
+    private bool IsEmptyRecursive() {
+        if (_items.Count > 0)
+            return false;
+
+        if (!_quadrants.HasValue)
+            return true;
+
+        return _quadrants.Value.NW.IsEmptyRecursive()
+            && _quadrants.Value.NE.IsEmptyRecursive()
+            && _quadrants.Value.SW.IsEmptyRecursive()
+            && _quadrants.Value.SE.IsEmptyRecursive();
     }
 
     /// <summary>
@@ -233,5 +363,15 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     public void Clear() {
         clearNode();
         _quadTreeEntries.Clear();
+    }
+    internal int GetSubtreeCount() {
+        int count = _items.Count;
+        if (_quadrants.HasValue) {
+            count += _quadrants.Value.NW.GetSubtreeCount();
+            count += _quadrants.Value.NE.GetSubtreeCount();
+            count += _quadrants.Value.SW.GetSubtreeCount();
+            count += _quadrants.Value.SE.GetSubtreeCount();
+        }
+        return count;
     }
 }

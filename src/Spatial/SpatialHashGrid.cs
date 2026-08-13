@@ -1,10 +1,8 @@
-﻿using System;
+﻿namespace LSUtils.Spatial;
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-
-namespace LSUtils.Spatial;
-
 public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
     private readonly Dictionary<long, Cell> _cells = new();
     private readonly Dictionary<T, Entry> _entries = new();
@@ -47,6 +45,16 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
             return true;
         }
         return false;
+    }
+    /// <summary>
+    /// Lazy implementantion
+    /// </summary>
+    /// <param name="item"></param>
+    /// <param name="bounds"></param>
+    /// <returns></returns>
+    public bool Update(T item, Bounds bounds) {
+        Remove(item);
+        return Insert(item, bounds);
     }
     private void AddToCells(
         Entry entry,

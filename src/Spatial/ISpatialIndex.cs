@@ -13,6 +13,7 @@ public interface ISpatialIndex<T> where T : notnull {
     /// <param name="bounds">Os limites espaciais do objeto.</param>
     /// <returns>True se inserido com sucesso, false caso contrário.</returns>
     bool Insert(T item, Bounds bounds);
+    bool Update(T item, Bounds bounds);
 
     /// <summary>
     /// Consulta objetos dentro de uma área específica.

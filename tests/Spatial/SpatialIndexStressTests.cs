@@ -28,7 +28,7 @@ public class SpatialIndexStressTests {
     private static readonly Bounds WorldBounds = new(0, 0, WorldSize, WorldSize);
 
     private static readonly Func<ISpatialIndex<int>> QuadTreeFactory =
-        () => new QuadTree<int>(WorldBounds, capacity: 8);
+        () => new QuadTree<int>(16, WorldBounds, capacity: 8);
 
     private static readonly Func<ISpatialIndex<int>> SpatialHashGridFactory =
         () => new SpatialHashGrid<int>(CellSize);
@@ -90,7 +90,7 @@ public class SpatialIndexStressTests {
 
         int denseUpdateCount = Math.Min(500, items.Length);  // Limit updates to items we have
         int denseRemoveCount = Math.Min(250, items.Length / 4);
-        
+
         var quadTree = RunScenarioWithCustomCounts("QuadTree", QuadTreeFactory, items, queries, updatedBounds, denseUpdateCount, denseRemoveCount);
         var grid = RunScenarioWithCustomCounts("SpatialHashGrid", SpatialHashGridFactory, items, queries, updatedBounds, denseUpdateCount, denseRemoveCount);
 
@@ -403,11 +403,7 @@ public class SpatialIndexStressTests {
         int updated = 0;
         int updateCount = Math.Min(UpdateCount, Math.Min(items.Length, updatedBounds.Length));
         for (int i = 0; i < updateCount; i++) {
-            // Remove old position and insert at new position (no in-place updates)
-            bool removed = index.Remove(items[i].Id);
-            Assert.That(removed, Is.True, $"Failed to remove item {items[i].Id}");
-            
-            bool ok = index.Insert(items[i].Id, updatedBounds[i]);
+            bool ok = index.Update(items[i].Id, updatedBounds[i]);
             Assert.That(ok, Is.True, $"Failed to update item {items[i].Id}");
             updated++;
         }
@@ -419,11 +415,7 @@ public class SpatialIndexStressTests {
         int updated = 0;
         int actualUpdateCount = Math.Min(updateCount, Math.Min(items.Length, updatedBounds.Length));
         for (int i = 0; i < actualUpdateCount; i++) {
-            // Remove old position and insert at new position (no in-place updates)
-            bool removed = index.Remove(items[i].Id);
-            Assert.That(removed, Is.True, $"Failed to remove item {items[i].Id}");
-            
-            bool ok = index.Insert(items[i].Id, updatedBounds[i]);
+            bool ok = index.Update(items[i].Id, updatedBounds[i]);
             Assert.That(ok, Is.True, $"Failed to update item {items[i].Id}");
             updated++;
         }
