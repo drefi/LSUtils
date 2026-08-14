@@ -2,6 +2,8 @@ namespace LSUtils.Terrain;
 
 using System.Collections.Generic;
 using System.Linq;
+using LSUtils;
+using LSUtils.Terrain.Navigation;
 using LSUtils.Spatial;
 
 public class TerrainWorld<TTerrainType, TContentType> {
@@ -88,5 +90,12 @@ public class TerrainWorld<TTerrainType, TContentType> {
             .OrderByDescending(patch => patch.Layer)
             .ThenByDescending(patch => patch.Priority)
             .FirstOrDefault();
+    }
+
+    public List<LSVector2> FindPath(
+        LSVector2 start,
+        LSVector2 goal,
+        TerrainNavigationSettings<TTerrainType, TContentType> settings) {
+        return TerrainPathfinder.FindPath(this, start, goal, settings);
     }
 }
