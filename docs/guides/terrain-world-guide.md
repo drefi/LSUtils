@@ -84,3 +84,13 @@ A descoberta de relacoes usa bounds como classificacao inicial. Ela e rapida e a
 ## Thread safety
 
 Os tipos do modulo nao devem ser alterados concorrentemente sem sincronizacao externa.
+
+## Navegacao por poligonos
+
+`TerrainWorld.FindPath` recebe um `TerrainNavigationSettings` para definir a mobilidade de um agente. O custo e resolvido por patch, conteudos podem bloquear a passagem e `AgentRadius` cria a margem de seguranca ao redor dos obstaculos.
+
+Para reutilizar a estrutura, chame `TerrainWorld.BakeNavigationMesh(settings)`. Patches e conteudos estaticos formam o bake; as fronteiras completas dos patches passaveis restringem a triangulacao e separam celulas com custos diferentes. Conteudos com `TerrainContentMobility.Dynamic` sao incorporados somente na consulta e podem se mover sem invalidar o bake estatico.
+
+O bake preserva seus triangulos e portais. Cada triangulo conhece o custo e o patch dominante de sua face. A* escolhe um corredor considerando o custo de entrada e saida pelo portal, e Funnel produz o caminho final dentro desse corredor, evitando que o agente seja obrigado a visitar os vertices usados apenas para construir a malha.
+
+O bake cria uma subdivisao planar com os limites do mundo, fronteiras de patches e arcos de clearance dos obstaculos, sem grid. Intersecoes sao divididas em vertices e as fronteiras sao recuperadas como arestas obrigatorias da triangulacao. Patches passaveis podem ser concavos e sobrepostos; conteudos e patches bloqueadores ainda devem ser convexos para o calculo de clearance.

@@ -1,5 +1,6 @@
 namespace LSUtils.Geometry;
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LSUtils.Spatial;
@@ -8,11 +9,15 @@ using LSUtils.Spatial;
 /// A simple immutable 2D polygon backed by ordered vertices.
 /// </summary>
 public sealed class Polygon2D : IShape2D {
+    private const float BoundaryEpsilon = 0.00001f;
     private readonly List<LSVector2> _vertices;
 
     public IReadOnlyList<LSVector2> Vertices => _vertices;
     public Bounds Bounds { get; }
     public float Area { get; }
+    public float SignedArea { get; }
+    public bool IsClockwise => SignedArea < 0f;
+    public bool IsConvex => CalculateIsConvex(_vertices);
 
     public Polygon2D(IEnumerable<ILSVector2> vertices) {
         if (vertices == null) throw new LSArgumentNullException(nameof(vertices));
@@ -21,7 +26,8 @@ public sealed class Polygon2D : IShape2D {
         if (_vertices.Count < 3) throw new LSArgumentException("A polygon needs at least 3 vertices.", nameof(vertices));
 
         Bounds = CalculateBounds(_vertices);
-        Area = CalculateArea(_vertices);
+        SignedArea = CalculateSignedArea(_vertices);
+        Area = LSMath.Abs(SignedArea);
     }
 
     public Polygon2D(IEnumerable<LSVector2> vertices) {
@@ -31,7 +37,8 @@ public sealed class Polygon2D : IShape2D {
         if (_vertices.Count < 3) throw new LSArgumentException("A polygon needs at least 3 vertices.", nameof(vertices));
 
         Bounds = CalculateBounds(_vertices);
-        Area = CalculateArea(_vertices);
+        SignedArea = CalculateSignedArea(_vertices);
+        Area = LSMath.Abs(SignedArea);
     }
 
     public bool Contains(float x, float y) {
@@ -44,6 +51,8 @@ public sealed class Polygon2D : IShape2D {
             var a = _vertices[current];
             var b = _vertices[previous];
 
+            if (PointIsOnSegment(x, y, a, b)) return true;
+
             if ((a.Y > y) != (b.Y > y) &&
                 x < (b.X - a.X) * (y - a.Y) / (b.Y - a.Y + float.Epsilon) + a.X) {
                 inside = !inside;
@@ -53,6 +62,18 @@ public sealed class Polygon2D : IShape2D {
         }
 
         return inside;
+    }
+
+    private static bool PointIsOnSegment(float x, float y, LSVector2 a, LSVector2 b) {
+        var point = new LSVector2(x, y);
+        var segment = b - a;
+        float lengthSquared = segment.LengthSquared();
+        if (lengthSquared <= BoundaryEpsilon * BoundaryEpsilon) return point.DistanceTo(a) <= BoundaryEpsilon;
+
+        float projection = (point - a).Dot(segment) / lengthSquared;
+        if (projection < -BoundaryEpsilon || projection > 1f + BoundaryEpsilon) return false;
+        var closest = a + segment * Math.Clamp(projection, 0f, 1f);
+        return (point - closest).LengthSquared() <= BoundaryEpsilon * BoundaryEpsilon;
     }
 
     private static Bounds CalculateBounds(IReadOnlyList<LSVector2> vertices) {
@@ -74,7 +95,7 @@ public sealed class Polygon2D : IShape2D {
         return new Bounds(minX + width * 0.5f, minY + height * 0.5f, width, height);
     }
 
-    private static float CalculateArea(IReadOnlyList<LSVector2> vertices) {
+    private static float CalculateSignedArea(IReadOnlyList<LSVector2> vertices) {
         float area = 0f;
 
         for (int i = 0; i < vertices.Count; i++) {
@@ -83,6 +104,24 @@ public sealed class Polygon2D : IShape2D {
             area += a.X * b.Y - b.X * a.Y;
         }
 
-        return LSMath.Abs(area) * 0.5f;
+        return area * 0.5f;
+    }
+
+    private static bool CalculateIsConvex(IReadOnlyList<LSVector2> vertices) {
+        bool? hasPositiveTurn = null;
+
+        for (int index = 0; index < vertices.Count; index++) {
+            var previous = vertices[(index + vertices.Count - 1) % vertices.Count];
+            var current = vertices[index];
+            var next = vertices[(index + 1) % vertices.Count];
+            float cross = (current - previous).Cross(next - current);
+            if (LSMath.Abs(cross) <= float.Epsilon) continue;
+
+            bool positiveTurn = cross > 0f;
+            if (hasPositiveTurn.HasValue && hasPositiveTurn.Value != positiveTurn) return false;
+            hasPositiveTurn = positiveTurn;
+        }
+
+        return hasPositiveTurn.HasValue;
     }
 }

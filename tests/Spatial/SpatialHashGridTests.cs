@@ -53,6 +53,50 @@ public class SpatialHashGridTests {
     }
 
     [Test]
+    public void Update_WithinSameCells_UpdatesBoundsWithoutChangingRegistration() {
+        var grid = new SpatialHashGrid<string>(10);
+        grid.Insert("Item1", new Bounds(5, 5, 4, 4));
+
+        bool updated = grid.Update("Item1", new Bounds(7, 7, 4, 4));
+        HashSet<string> oldAreaHits = new();
+        HashSet<string> newAreaHits = new();
+        grid.Query(new Bounds(3, 3, 1, 1), oldAreaHits);
+        grid.Query(new Bounds(7, 7, 1, 1), newAreaHits);
+
+        Assert.That(updated, Is.True);
+        Assert.That(grid.Count, Is.EqualTo(1));
+        Assert.That(oldAreaHits, Is.Empty);
+        Assert.That(newAreaHits, Does.Contain("Item1"));
+        Assert.That(grid.GetBounds("Item1"), Is.EqualTo(new Bounds(7, 7, 4, 4)));
+    }
+
+    [Test]
+    public void Update_AcrossCells_RemovesOldCellReferencesAndAddsNewOnes() {
+        var grid = new SpatialHashGrid<string>(10);
+        grid.Insert("Item1", new Bounds(5, 5, 8, 8));
+
+        bool updated = grid.Update("Item1", new Bounds(35, 25, 8, 8));
+        HashSet<string> oldAreaHits = new();
+        HashSet<string> newAreaHits = new();
+        grid.Query(new Bounds(5, 5, 8, 8), oldAreaHits);
+        grid.Query(new Bounds(35, 25, 8, 8), newAreaHits);
+
+        Assert.That(updated, Is.True);
+        Assert.That(oldAreaHits, Is.Empty);
+        Assert.That(newAreaHits, Does.Contain("Item1"));
+    }
+
+    [Test]
+    public void Update_MissingItem_ReturnsFalseAndDoesNotInsert() {
+        var grid = new SpatialHashGrid<string>(10);
+
+        bool updated = grid.Update("Missing", new Bounds(5, 5, 4, 4));
+
+        Assert.That(updated, Is.False);
+        Assert.That(grid.Count, Is.Zero);
+    }
+
+    [Test]
     public void Clear_RemovesAllItems() {
         var grid = new SpatialHashGrid<string>(10);
         grid.Insert("Item1", new Bounds(5, 5, 4, 4));

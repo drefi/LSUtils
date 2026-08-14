@@ -8,6 +8,13 @@ Tipos geometricos 2D usados por modulos que precisam modelar areas, limites e re
 - `Polygon2D`: poligono simples definido por vertices `LSVector2`.
 - `ShapeRelation`: resultado de uma comparacao espacial.
 - `GeometryRelations`: classificacao inicial entre duas formas.
+- `ConstrainedTriangulation2D`: triangulacao de segmentos com fronteiras obrigatorias.
+
+## Triangulacao restrita
+
+`ConstrainedTriangulation2D.Triangulate` recebe segmentos independentes de qualquer dominio. O algoritmo divide cruzamentos e sobreposicoes colineares em vertices, gera uma triangulacao de Delaunay inicial e recupera cada segmento obrigatorio por troca de arestas ou retriangulacao local da cavidade atravessada. O resultado expoe vertices, triangulos e as constraints ja divididas.
+
+O triangulador nao classifica interior, exterior, custo ou obstaculos. Modulos consumidores, como `Terrain.Navigation`, fazem essa classificacao sobre os triangulos resultantes.
 
 ## Exemplo
 
