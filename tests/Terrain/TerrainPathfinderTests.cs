@@ -82,6 +82,30 @@ public class TerrainPathfinderTests {
     }
 
     [Test]
+    [Category("Performance")]
+    public void NavigationMesh_RepeatedQueries_DoNotConnectEndpointsToEveryNode() {
+        var world = CreateWorld();
+        for (int index = 0; index < 16; index++) {
+            int column = index % 4;
+            int row = index / 4;
+            world.AddContent(new TerrainContent<ContentType>(ContentType.Tree, Rectangle(14 + column * 22, 14 + row * 22, 8, 8)));
+        }
+        var mesh = world.BuildNavigationMesh(Settings());
+        mesh.FindPath(new LSVector2(5, 5), new LSVector2(95, 95));
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        for (int index = 0; index < 40; index++) {
+            float offset = index % 8;
+            mesh.FindPath(new LSVector2(5, 5 + offset), new LSVector2(95, 95 - offset));
+        }
+        stopwatch.Stop();
+        double averageMilliseconds = stopwatch.Elapsed.TotalMilliseconds / 40d;
+        TestContext.Progress.WriteLine($"Navigation query average: {averageMilliseconds:F2} ms across {mesh.NodeCount} nodes");
+
+        Assert.That(averageMilliseconds, Is.LessThan(50d));
+    }
+
+    [Test]
     public void FindPath_AvoidsImpassableWaterWithClearance() {
         var world = CreateWorld();
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Water, Rectangle(40, 20, 20, 60), layer: 1));
@@ -181,7 +205,20 @@ public class TerrainPathfinderTests {
         var path = world.FindPath(new LSVector2(15, 50), new LSVector2(85, 50), Settings());
 
         Assert.That(path, Is.Not.Empty);
+        Assert.That(path, Has.Count.LessThanOrEqualTo(6));
         Assert.That(path.Zip(path.Skip(1), (from, to) => SegmentIntersectsRectangle(from, to, 42, 35, 16, 30)).All(intersects => !intersects), Is.True);
+    }
+
+    [Test]
+    public void FindPath_AcrossPassableTriangleBoundaries_DoesNotZigZag() {
+        var world = CreateWorld();
+        world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, Rectangle(20, 0, 20, 100), layer: 1));
+        world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, Rectangle(60, 0, 20, 100), layer: 1));
+        var mesh = world.BuildNavigationMesh(Settings());
+
+        var path = mesh.FindPath(new LSVector2(10, 20), new LSVector2(90, 20));
+
+        Assert.That(path, Has.Count.EqualTo(2));
     }
 
     [Test]

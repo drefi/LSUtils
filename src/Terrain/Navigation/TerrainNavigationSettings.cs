@@ -11,15 +11,18 @@ public sealed class TerrainNavigationSettings<TTerrainType, TContentType> {
     public Func<TerrainContent<TContentType>, bool> BlocksContent { get; }
     public float AgentRadius { get; }
     public float MinimumCost { get; }
+    public int ClearanceArcSegments { get; }
 
     public TerrainNavigationSettings(
         Func<TerrainPatch<TTerrainType>?, float> getTerrainCost,
         Func<TerrainContent<TContentType>, bool>? blocksContent = null,
         float agentRadius = 0f,
-        float minimumCost = 1f) {
+        float minimumCost = 1f,
+        int clearanceArcSegments = 3) {
         GetTerrainCost = getTerrainCost ?? throw new LSArgumentNullException(nameof(getTerrainCost));
         BlocksContent = blocksContent ?? (_ => true);
         AgentRadius = MathF.Max(0f, agentRadius);
         MinimumCost = MathF.Max(float.Epsilon, minimumCost);
+        ClearanceArcSegments = Math.Clamp(clearanceArcSegments, 1, 16);
     }
 }

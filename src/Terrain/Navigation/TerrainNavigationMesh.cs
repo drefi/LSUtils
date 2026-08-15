@@ -17,9 +17,10 @@ using LSUtils.Spatial;
 /// </summary>
 public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
     private const float Epsilon = 0.01f;
-    private const int CornerArcSegments = 6;
     private const int ComponentBridgeCandidateCount = 8;
     private const int LocalVisibilityNeighborCount = 16;
+    private const int EndpointVisibilityConnectionCount = 24;
+    private const float TerrainCostSampleSpacing = 4f;
     private readonly TerrainWorld<TTerrainType, TContentType> _world;
     private readonly TerrainNavigationSettings<TTerrainType, TContentType> _settings;
     private readonly List<Polygon2D> _obstacles;
@@ -270,18 +271,16 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         if (!IsCurrent) throw new InvalidOperationException("Navigation mesh is stale. Rebuild it after changing the terrain world.");
         var resolvedStart = FindNearestWalkable(start);
         var resolvedGoal = FindNearestWalkable(goal);
+        if (!GetDynamicObstacles().Any()) {
+            var funnelPath = FindFunnelPath(resolvedStart, resolvedGoal);
+            if (funnelPath.Count > 0) return OptimizePath(funnelPath);
+        }
+
         var graph = new PathQueryGraph(this, resolvedStart, resolvedGoal);
         if (!graph.HasNode(graph.Start) || !graph.HasNode(graph.Goal)) return new List<LSVector2>();
         var vertexPath = GraphAlgorithms.AStar(graph, graph.Start, graph.Goal,
             (from, to) => from.DistanceTo(to) * _settings.MinimumCost, GetTravelCost);
-        vertexPath = OptimizePath(vertexPath);
-
-        if (GetDynamicObstacles().Any()) return vertexPath;
-        var funnelPath = FindFunnelPath(resolvedStart, resolvedGoal);
-        if (funnelPath.Count == 0) return vertexPath;
-        return vertexPath.Count == 0 || GetPathCost(funnelPath) <= GetPathCost(vertexPath) + Epsilon
-            ? funnelPath
-            : vertexPath;
+        return OptimizePath(vertexPath);
     }
 
     private List<LSVector2> FindFunnelPath(LSVector2 start, LSVector2 goal) {
@@ -400,12 +399,6 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         return true;
     }
 
-    private float GetPathCost(IReadOnlyList<LSVector2> path) {
-        float cost = 0f;
-        for (int index = 0; index < path.Count - 1; index++) cost += GetTravelCost(path[index], path[index + 1]);
-        return cost;
-    }
-
     private static bool PointIsInTriangle(LSVector2 point, LSVector2 a, LSVector2 b, LSVector2 c) {
         float ab = (b - a).Cross(point - a);
         float bc = (c - b).Cross(point - b);
@@ -421,28 +414,24 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
 
     private List<LSVector2> OptimizePath(IReadOnlyList<LSVector2> path) {
         if (path.Count <= 2) return path.ToList();
+        var prefixCosts = new float[path.Count];
+        for (int index = 1; index < path.Count; index++) {
+            prefixCosts[index] = prefixCosts[index - 1] + GetTravelCost(path[index - 1], path[index]);
+        }
 
-        var costs = Enumerable.Repeat(float.PositiveInfinity, path.Count).ToArray();
-        var previous = Enumerable.Repeat(-1, path.Count).ToArray();
-        costs[0] = 0f;
-
-        for (int to = 1; to < path.Count; to++) {
-            for (int from = 0; from < to; from++) {
-                if (float.IsPositiveInfinity(costs[from]) || !CanTraverse(path[from], path[to])) continue;
-                float candidateCost = costs[from] + GetTravelCost(path[from], path[to]);
-                if (candidateCost >= costs[to]) continue;
-                costs[to] = candidateCost;
-                previous[to] = from;
+        var optimized = new List<LSVector2> { path[0] };
+        int current = 0;
+        while (current < path.Count - 1) {
+            int next = path.Count - 1;
+            for (; next > current + 1; next--) {
+                if (!CanTraverse(path[current], path[next])) continue;
+                float directCost = GetTravelCost(path[current], path[next]);
+                float replacedCost = prefixCosts[next] - prefixCosts[current];
+                if (directCost <= replacedCost + Epsilon) break;
             }
+            optimized.Add(path[next]);
+            current = next;
         }
-
-        if (previous[^1] < 0) return path.ToList();
-        var optimized = new List<LSVector2>();
-        for (int current = path.Count - 1; current >= 0; current = previous[current]) {
-            optimized.Add(path[current]);
-            if (current == 0) break;
-        }
-        optimized.Reverse();
         return optimized;
     }
 
@@ -515,10 +504,11 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         private void AddEndpoint(TerrainNavigationMesh<TTerrainType, TContentType> mesh, LSVector2 endpoint) {
             if (!mesh.IsWalkable(endpoint) || _neighbors.ContainsKey(endpoint)) return;
             _neighbors.Add(endpoint, new List<LSVector2>());
-            foreach (var node in mesh._topology.Keys) {
+            foreach (var node in mesh._topology.Keys.OrderBy(node => (node - endpoint).LengthSquared())) {
                 if (!mesh.CanTraverse(endpoint, node)) continue;
                 _neighbors[endpoint].Add(node);
                 _neighbors[node].Add(endpoint);
+                if (_neighbors[endpoint].Count >= EndpointVisibilityConnectionCount) break;
             }
         }
     }
@@ -563,10 +553,11 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
             if (!polygon.IsClockwise) while (endAngle < startAngle) endAngle += MathF.Tau;
             else while (endAngle > startAngle) endAngle -= MathF.Tau;
 
-            float stepAngle = MathF.Abs(endAngle - startAngle) / CornerArcSegments;
+            int cornerArcSegments = _settings.ClearanceArcSegments;
+            float stepAngle = MathF.Abs(endAngle - startAngle) / cornerArcSegments;
             float radius = (_settings.AgentRadius + Epsilon) / MathF.Cos(stepAngle * 0.5f) + Epsilon;
-            for (int segment = 0; segment <= CornerArcSegments; segment++) {
-                float weight = segment / (float)CornerArcSegments;
+            for (int segment = 0; segment <= cornerArcSegments; segment++) {
+                float weight = segment / (float)cornerArcSegments;
                 yield return current + LSVector2.FromAngle(startAngle + (endAngle - startAngle) * weight) * radius;
             }
         }
@@ -605,7 +596,7 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
 
     private float GetTravelCost(LSVector2 from, LSVector2 to) {
         float distance = from.DistanceTo(to);
-        int samples = Math.Max(1, (int)MathF.Ceiling(distance / 16f));
+        int samples = Math.Max(1, (int)MathF.Ceiling(distance / TerrainCostSampleSpacing));
         _terrainCostSamples += samples;
         float cost = 0f;
         var delta = to - from;

@@ -29,6 +29,8 @@ Veja `docs/guides/terrain-world-guide.md` para um fluxo completo e `docs/example
 
 `TerrainWorld.FindPath` usa um perfil de navegacao por agente. O perfil decide o custo de cada patch, quais conteudos bloqueiam passagem e o raio do agente. A implementacao trabalha com `Polygon2D`, cria clearance no espaco de configuracao e nao usa grid.
 
+`TerrainNavigationSettings.ClearanceArcSegments` controla quantos segmentos aproximam cada canto do clearance. O padrao 3 preserva uma margem conservadora e evita multiplicar nos em mapas com muitas paredes retangulares.
+
 Para varias consultas no mesmo mundo, use `TerrainWorld.BakeNavigationMesh(settings)` e mantenha a instancia retornada. `BuildNavigationMesh` continua disponivel como alias de compatibilidade.
 
 O bake estatico inclui os limites do mundo, vertices de patches passaveis que representam fronteiras de custo, patches intransitaveis e `TerrainContent` com mobilidade `Static`. Ele fica obsoleto (`IsCurrent == false`) somente quando essa camada estatica muda.
@@ -41,6 +43,6 @@ Depois da triangulacao, a malha verifica a conectividade resultante e pode adici
 
 A topologia tambem recebe um numero limitado de conexoes visiveis entre vizinhos proximos. Essas arestas oferecem alternativas locais ao A* e reduzem desvios causados pela triangulacao, mantendo o crescimento muito abaixo do grafo de visibilidade completo.
 
-Os triangulos validos sao preservados como celulas navegaveis. Cada `TerrainNavigationTriangle` expoe seu `Cost`, e `GetTrianglePatch(index)` retorna o patch dominante usado no bake. Para consultas sem obstaculos dinamicos, o pathfinder executa A* entre triangulos adjacentes usando o custo das duas faces e aplica Funnel sobre os portais compartilhados. O caminho pode atravessar qualquer ponto de um portal e nao fica restrito aos vertices da triangulacao. A topologia de vertices permanece como fallback para camadas dinamicas e degeneracoes geometricas.
+Os triangulos validos sao preservados como celulas navegaveis. Cada `TerrainNavigationTriangle` expoe seu `Cost`, e `GetTrianglePatch(index)` retorna o patch dominante usado no bake. Para consultas sem obstaculos dinamicos, o pathfinder executa diretamente A* entre triangulos adjacentes usando o custo das duas faces e aplica Funnel sobre os portais compartilhados. O grafo auxiliar de vertices so e consultado como fallback ou quando existem obstaculos dinamicos.
 
 Patches passaveis podem ser concavos e sobrepostos; suas intersecoes sao segmentadas durante a subdivisao. Obstaculos bloqueadores ainda precisam ser convexos para que o gerador de clearance por vertices seja correto.
