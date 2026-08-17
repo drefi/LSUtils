@@ -33,10 +33,11 @@ world.AddPatch(sand);
 world.AddPatch(puddle);
 
 puddle.SetShape(Square(7, 7, 8));
-world.UpdatePatch(puddle);
 
 var terrain = world.ResolveTerrainTypeAt(8, 8); // Water
 ```
+
+`SetShape` notifica o mundo automaticamente. `UpdatePatch` ainda pode aparecer em integracoes antigas, mas e idempotente quando a mudanca ja foi sincronizada.
 
 ## Conteudo e regioes aninhadas
 

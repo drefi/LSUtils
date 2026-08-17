@@ -10,7 +10,9 @@ public class TerrainWorld<TTerrainType, TContentType> {
     private readonly ISpatialIndex<TerrainPatch<TTerrainType>> _patchIndex;
     private readonly ISpatialIndex<TerrainContent<TContentType>> _contentIndex;
     private readonly HashSet<TerrainPatch<TTerrainType>> _patches = new();
+    private readonly Dictionary<TerrainPatch<TTerrainType>, long> _patchVersions = new();
     private readonly HashSet<TerrainContent<TContentType>> _contents = new();
+    private readonly Dictionary<TerrainContent<TContentType>, long> _contentVersions = new();
     private readonly Dictionary<TerrainContent<TContentType>, TerrainContentMobility> _contentMobility = new();
     private readonly HashSet<TerrainRegion<TTerrainType, TContentType>> _regions = new();
 
@@ -34,6 +36,8 @@ public class TerrainWorld<TTerrainType, TContentType> {
     public bool AddPatch(TerrainPatch<TTerrainType> patch) {
         if (!_patches.Add(patch)) return false;
         _patchIndex.Insert(patch);
+        _patchVersions.Add(patch, patch.Version);
+        patch.Changed += OnPatchChanged;
         NavigationVersion++;
         StaticNavigationVersion++;
         return true;
@@ -41,14 +45,19 @@ public class TerrainWorld<TTerrainType, TContentType> {
 
     public bool RemovePatch(TerrainPatch<TTerrainType> patch) {
         if (!_patches.Remove(patch)) return false;
+        patch.Changed -= OnPatchChanged;
         _patchIndex.Remove(patch);
+        _patchVersions.Remove(patch);
         NavigationVersion++;
         StaticNavigationVersion++;
         return true;
     }
 
     public bool UpdatePatch(TerrainPatch<TTerrainType> patch) {
-        if (!_patches.Contains(patch) || !_patchIndex.Update(patch)) return false;
+        if (!_patches.Contains(patch)) return false;
+        if (_patchVersions[patch] == patch.Version) return true;
+        if (!_patchIndex.Update(patch)) return false;
+        _patchVersions[patch] = patch.Version;
         NavigationVersion++;
         StaticNavigationVersion++;
         return true;
@@ -57,7 +66,9 @@ public class TerrainWorld<TTerrainType, TContentType> {
     public bool AddContent(TerrainContent<TContentType> content) {
         if (!_contents.Add(content)) return false;
         _contentIndex.Insert(content);
+        _contentVersions.Add(content, content.Version);
         _contentMobility.Add(content, content.Mobility);
+        content.Changed += OnContentChanged;
         NavigationVersion++;
         IncrementContentVersion(content.Mobility);
         return true;
@@ -65,7 +76,9 @@ public class TerrainWorld<TTerrainType, TContentType> {
 
     public bool RemoveContent(TerrainContent<TContentType> content) {
         if (!_contents.Remove(content)) return false;
+        content.Changed -= OnContentChanged;
         _contentIndex.Remove(content);
+        _contentVersions.Remove(content);
         var mobility = _contentMobility[content];
         _contentMobility.Remove(content);
         NavigationVersion++;
@@ -74,13 +87,24 @@ public class TerrainWorld<TTerrainType, TContentType> {
     }
 
     public bool UpdateContent(TerrainContent<TContentType> content) {
-        if (!_contents.Contains(content) || !_contentIndex.Update(content)) return false;
+        if (!_contents.Contains(content)) return false;
+        if (_contentVersions[content] == content.Version) return true;
+        if (!_contentIndex.Update(content)) return false;
         var previousMobility = _contentMobility[content];
+        _contentVersions[content] = content.Version;
         _contentMobility[content] = content.Mobility;
         NavigationVersion++;
         IncrementContentVersion(previousMobility);
         if (previousMobility != content.Mobility) IncrementContentVersion(content.Mobility);
         return true;
+    }
+
+    private void OnPatchChanged(TerrainPatch<TTerrainType> patch) {
+        UpdatePatch(patch);
+    }
+
+    private void OnContentChanged(TerrainContent<TContentType> content) {
+        UpdateContent(content);
     }
 
     private void IncrementContentVersion(TerrainContentMobility mobility) {

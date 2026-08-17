@@ -47,10 +47,9 @@ Patches sobrepostos sao intencionais. O mundo resolve uma posicao usando, nesta 
 
 ```csharp
 water.SetShape(Square(4, 4, 8));
-world.UpdatePatch(water);
 ```
 
-O segundo passo e obrigatorio quando o patch ja esta no mundo: o indice espacial precisa receber os novos bounds. A mesma regra vale para `TerrainContent`.
+O mundo recebe a alteracao automaticamente e atualiza o indice espacial e a versao de navegacao. A mesma regra vale para mudancas de tipo, layer e prioridade e para os setters de `TerrainContent`. `UpdatePatch` e `UpdateContent` permanecem como chamadas compativeis e idempotentes para codigo antigo.
 
 ## Regioes e biomas
 
@@ -65,6 +64,8 @@ worldRegion.AddChild(coastRegion);
 ```
 
 `worldRegion` e `coastRegion` compartilham `sand`. A regiao filha nao agrega area ao pai automaticamente; use a hierarquia para organizacao e regras de dominio, deixando claro o criterio de cada calculo.
+
+Uma regiao pode ter somente um pai. Adiciona-la a outro pai realiza o reparenting, e tentativas de criar ciclos sao rejeitadas. `MembershipArea` soma as areas dos membros, enquanto `PolygonCoverageArea` calcula a uniao dos patches `Polygon2D` sem contar sobreposicoes duas vezes. `Area` permanece como alias de `MembershipArea`.
 
 Para classificar uma regiao, implemente `ITerrainRegionRule<TBiomeType, TTerrainType, TContentType>`. O avaliador seleciona a regra compativel de maior prioridade e retorna seu resultado.
 
@@ -91,6 +92,6 @@ Os tipos do modulo nao devem ser alterados concorrentemente sem sincronizacao ex
 
 Para reutilizar a estrutura, chame `TerrainWorld.BakeNavigationMesh(settings)`. Patches e conteudos estaticos formam o bake; as fronteiras completas dos patches passaveis restringem a triangulacao e separam celulas com custos diferentes. Conteudos com `TerrainContentMobility.Dynamic` sao incorporados somente na consulta e podem se mover sem invalidar o bake estatico.
 
-O bake preserva seus triangulos e portais. Cada triangulo conhece o custo e o patch dominante de sua face. A* escolhe um corredor considerando o custo de entrada e saida pelo portal, e Funnel produz o caminho final dentro desse corredor, evitando que o agente seja obrigado a visitar os vertices usados apenas para construir a malha.
+O bake preserva triangulos e o patch dominante de cada face para inspecao. A navegacao usa A* sobre um grafo geometrico esparso formado por arestas visiveis. Os pesos estaticos, incluindo os custos de terreno, sao calculados uma vez no bake; cada consulta conecta origem e destino a um numero limitado de vizinhos visiveis e reutiliza o restante da topologia.
 
 O bake cria uma subdivisao planar com os limites do mundo, fronteiras de patches e arcos de clearance dos obstaculos, sem grid. Intersecoes sao divididas em vertices e as fronteiras sao recuperadas como arestas obrigatorias da triangulacao. Patches passaveis podem ser concavos e sobrepostos; conteudos e patches bloqueadores ainda devem ser convexos para o calculo de clearance.

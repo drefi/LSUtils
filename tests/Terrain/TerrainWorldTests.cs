@@ -54,6 +54,32 @@ public class TerrainWorldTests {
     }
 
     [Test]
+    public void SetShape_AutomaticallyUpdatesWorldSpatialIndex() {
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var water = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, Square(0, 0, 2));
+        world.AddPatch(water);
+
+        water.SetShape(Square(0, 0, 20));
+
+        Assert.That(world.ResolveTerrainTypeAt(8, 0), Is.EqualTo(TestTerrainType.Water));
+        Assert.That(world.StaticNavigationVersion, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void UpdatePatch_AfterAutomaticUpdate_IsIdempotent() {
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var water = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, Square(0, 0, 2));
+        world.AddPatch(water);
+        water.SetShape(Square(0, 0, 20));
+        long version = world.StaticNavigationVersion;
+
+        bool updated = world.UpdatePatch(water);
+
+        Assert.That(updated, Is.True);
+        Assert.That(world.StaticNavigationVersion, Is.EqualTo(version));
+    }
+
+    [Test]
     public void QueryContents_ReturnsContentsInArea() {
         var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
         var tree = new TerrainContent<TestContentType>(TestContentType.Tree, Square(0, 0, 2));
@@ -62,6 +88,18 @@ public class TerrainWorldTests {
         var contents = world.QueryContents(new Bounds(0, 0, 4, 4));
 
         Assert.That(contents, Does.Contain(tree));
+    }
+
+    [Test]
+    public void SetShape_AutomaticallyUpdatesContentSpatialIndex() {
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var tree = new TerrainContent<TestContentType>(TestContentType.Tree, Square(0, 0, 2));
+        world.AddContent(tree);
+
+        tree.SetShape(Square(0, 0, 20));
+
+        Assert.That(world.QueryContents(new Bounds(8, 0, 1, 1)), Does.Contain(tree));
+        Assert.That(world.StaticNavigationVersion, Is.EqualTo(2));
     }
 
     private static Polygon2D Square(float x, float y, float size) {

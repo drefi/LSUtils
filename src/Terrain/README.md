@@ -17,11 +17,17 @@ Patches podem se sobrepor. `Layer` e `Priority` determinam qual patch vence em u
 
 Regioes sao agrupamentos por referencia e nao sao donas de seus patches. Assim, um mesmo patch pode participar de mais de uma regiao. Regioes tambem podem ter filhas; uma regiao de mundo pode, por exemplo, conter regioes de bioma.
 
+Uma regiao possui apenas um pai. `AddChild` transfere a filha do pai anterior e rejeita ciclos diretos ou indiretos. Alteracoes nas formas dos patches e conteudos associados atualizam os bounds da regiao automaticamente.
+
+`TerrainRegion.Area` e `MembershipArea` somam as areas dos patches membros, portanto contam sobreposicoes uma vez por patch. `PolygonCoverageArea` calcula a uniao geometrica e conta cada ponto coberto apenas uma vez; essa operacao requer que todos os patches usem `Polygon2D`.
+
 O terreno padrao do mundo e somente um fallback para pontos sem patch. Ele nao precisa ser modelado como um patch fisico que ocupa todo o mapa.
 
 ## Atualizacao de forma
 
-Depois de chamar `SetShape` em um patch ou conteudo ja registrado, chame `TerrainWorld.UpdatePatch` ou `TerrainWorld.UpdateContent`. Isso atualiza o indice espacial para a nova area.
+Os setters de `TerrainPatch` e `TerrainContent` notificam os mundos e regioes que registraram o objeto. Alterar forma, tipo, layer, prioridade ou mobilidade atualiza automaticamente o indice espacial e as versoes de navegacao correspondentes.
+
+`TerrainWorld.UpdatePatch` e `TerrainWorld.UpdateContent` continuam disponiveis para compatibilidade. Depois de uma notificacao automatica, essas chamadas sao idempotentes e nao incrementam a versao novamente.
 
 Veja `docs/guides/terrain-world-guide.md` para um fluxo completo e `docs/examples/terrain-world-examples.md` para exemplos de codigo.
 
@@ -35,7 +41,7 @@ Para varias consultas no mesmo mundo, use `TerrainWorld.BakeNavigationMesh(setti
 
 O bake estatico inclui os limites do mundo, vertices de patches passaveis que representam fronteiras de custo, patches intransitaveis e `TerrainContent` com mobilidade `Static`. Ele fica obsoleto (`IsCurrent == false`) somente quando essa camada estatica muda.
 
-Conteudos criados com `TerrainContentMobility.Dynamic` nao entram no bake. Durante `FindPath`, eles bloqueiam arestas estaticas afetadas e recebem pontos temporarios de clearance. Assim, mover agentes ou outros obstaculos dinamicos exige apenas `TerrainWorld.UpdateContent`, sem refazer a triangulacao estatica.
+Conteudos criados com `TerrainContentMobility.Dynamic` nao entram no bake. Durante `FindPath`, eles bloqueiam arestas estaticas afetadas e recebem pontos temporarios de clearance. Alterar sua forma com `SetShape` atualiza a camada dinamica sem refazer a triangulacao estatica.
 
 `TerrainNavigationMesh.BuildStatistics` registra quantos nos, conexoes candidatas, candidatos espaciais e amostras de custo foram processados na reconstrucao. Use esses dados para diagnosticar mapas grandes. O bake primeiro divide as fronteiras nos pontos de intersecao e gera uma triangulacao restrita. Arestas de custo e obstaculos sao recuperadas como arestas obrigatorias, portanto nao podem ser atravessadas por um triangulo.
 
@@ -43,6 +49,6 @@ Depois da triangulacao, a malha verifica a conectividade resultante e pode adici
 
 A topologia tambem recebe um numero limitado de conexoes visiveis entre vizinhos proximos. Essas arestas oferecem alternativas locais ao A* e reduzem desvios causados pela triangulacao, mantendo o crescimento muito abaixo do grafo de visibilidade completo.
 
-Os triangulos validos sao preservados como celulas navegaveis. Cada `TerrainNavigationTriangle` expoe seu `Cost`, e `GetTrianglePatch(index)` retorna o patch dominante usado no bake. Para consultas sem obstaculos dinamicos, o pathfinder executa diretamente A* entre triangulos adjacentes usando o custo das duas faces e aplica Funnel sobre os portais compartilhados. O grafo auxiliar de vertices so e consultado como fallback ou quando existem obstaculos dinamicos.
+Os triangulos validos sao preservados como celulas navegaveis e para diagnostico. Cada `TerrainNavigationTriangle` expoe seu `Cost`, e `GetTrianglePatch(index)` retorna o patch dominante usado no bake. A rota usa A* sobre o grafo geometrico de arestas visiveis; os custos das arestas estaticas sao calculados no bake e reutilizados entre consultas. Origem e destino recebem apenas um conjunto limitado de conexoes visiveis, evitando reconstruir um grafo denso por agente.
 
 Patches passaveis podem ser concavos e sobrepostos; suas intersecoes sao segmentadas durante a subdivisao. Obstaculos bloqueadores ainda precisam ser convexos para que o gerador de clearance por vertices seja correto.

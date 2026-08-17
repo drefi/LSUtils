@@ -285,7 +285,6 @@ public class TerrainPathfinderTests {
         var mesh = world.BuildNavigationMesh(Settings());
 
         content.SetShape(Rectangle(60, 35, 16, 30));
-        world.UpdateContent(content);
 
         Assert.That(mesh.IsCurrent, Is.False);
         Assert.Throws<InvalidOperationException>(() => mesh.FindPath(new LSVector2(15, 50), new LSVector2(85, 50)));
@@ -300,7 +299,6 @@ public class TerrainPathfinderTests {
 
         var firstPath = mesh.FindPath(new LSVector2(15, 50), new LSVector2(85, 50));
         content.SetShape(Rectangle(60, 35, 16, 30));
-        world.UpdateContent(content);
         var secondPath = mesh.FindPath(new LSVector2(15, 50), new LSVector2(85, 50));
 
         Assert.That(mesh.IsCurrent, Is.True);

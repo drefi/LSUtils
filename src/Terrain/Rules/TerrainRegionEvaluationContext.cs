@@ -10,6 +10,8 @@ public sealed class TerrainRegionEvaluationContext<TTerrainType, TContentType> {
     public TerrainRegion<TTerrainType, TContentType> Region => _region;
     public IReadOnlyCollection<TerrainPatch<TTerrainType>> Patches => _region.Patches;
     public IReadOnlyCollection<TerrainContent<TContentType>> Contents => _region.Contents;
+    public float MembershipArea => _region.MembershipArea;
+    public float PolygonCoverageArea => _region.PolygonCoverageArea;
     public float Area => _region.Area;
 
     public TerrainRegionEvaluationContext(TerrainRegion<TTerrainType, TContentType> region) {
