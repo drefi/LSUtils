@@ -19,12 +19,13 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
     private const float Epsilon = 0.01f;
     private const int ComponentBridgeCandidateCount = 8;
     private const int LocalVisibilityNeighborCount = 16;
-    private const int EndpointVisibilityConnectionCount = 24;
+    private const int EndpointVisibilityConnectionCount = 8;
     private const float TerrainCostSampleSpacing = 4f;
     private readonly TerrainWorld<TTerrainType, TContentType> _world;
     private readonly TerrainNavigationSettings<TTerrainType, TContentType> _settings;
     private readonly List<Polygon2D> _obstacles;
     private readonly Dictionary<LSVector2, List<LSVector2>> _topology = new();
+    private readonly Dictionary<(LSVector2 From, LSVector2 To), float> _staticTravelCosts = new();
     private readonly List<NavigationTriangle> _navigationTriangles = new();
     private readonly List<float> _triangleCosts = new();
     private readonly List<TerrainPatch<TTerrainType>?> _trianglePatches = new();
@@ -48,6 +49,7 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         BuildTriangleAdjacency(nodes);
         AddLocalVisibilityConnections(nodes);
         RepairDisconnectedComponents(nodes);
+        CacheStaticTravelCosts(nodes);
         Nodes = nodes.AsReadOnly();
         Edges = BuildEdgeSnapshot(nodes).AsReadOnly();
         Triangles = _navigationTriangles
@@ -82,6 +84,18 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
             }
         }
         return edges;
+    }
+
+    private void CacheStaticTravelCosts(IReadOnlyList<LSVector2> nodes) {
+        var indices = nodes.Select((node, index) => (node, index)).ToDictionary(pair => pair.node, pair => pair.index);
+        foreach (var node in nodes) {
+            foreach (var neighbor in _topology[node]) {
+                if (indices[node] >= indices[neighbor]) continue;
+                float cost = GetTravelCost(node, neighbor);
+                _staticTravelCosts[(node, neighbor)] = cost;
+                _staticTravelCosts[(neighbor, node)] = cost;
+            }
+        }
     }
 
     private void BuildConstrainedTopology() {
@@ -271,16 +285,15 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         if (!IsCurrent) throw new InvalidOperationException("Navigation mesh is stale. Rebuild it after changing the terrain world.");
         var resolvedStart = FindNearestWalkable(start);
         var resolvedGoal = FindNearestWalkable(goal);
-        if (!GetDynamicObstacles().Any()) {
-            var funnelPath = FindFunnelPath(resolvedStart, resolvedGoal);
-            if (funnelPath.Count > 0) return OptimizePath(funnelPath);
-        }
-
         var graph = new PathQueryGraph(this, resolvedStart, resolvedGoal);
         if (!graph.HasNode(graph.Start) || !graph.HasNode(graph.Goal)) return new List<LSVector2>();
         var vertexPath = GraphAlgorithms.AStar(graph, graph.Start, graph.Goal,
-            (from, to) => from.DistanceTo(to) * _settings.MinimumCost, GetTravelCost);
+            (from, to) => from.DistanceTo(to) * _settings.MinimumCost, GetGraphTravelCost);
         return OptimizePath(vertexPath);
+    }
+
+    private float GetGraphTravelCost(LSVector2 from, LSVector2 to) {
+        return _staticTravelCosts.TryGetValue((from, to), out float cost) ? cost : GetTravelCost(from, to);
     }
 
     private List<LSVector2> FindFunnelPath(LSVector2 start, LSVector2 goal) {

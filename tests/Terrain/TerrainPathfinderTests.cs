@@ -222,6 +222,31 @@ public class TerrainPathfinderTests {
     }
 
     [Test]
+    public void FindPath_BetweenRoomWalls_ChoosesNearSideOfObstacle() {
+        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(576, 324, 1056, 560), TerrainType.Water);
+        world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, Rectangle(70, 145, 1010, 430)));
+        world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Water, new Polygon2D(new[] {
+            new LSVector2(785, 245), new LSVector2(965, 225),
+            new LSVector2(1010, 355), new LSVector2(815, 385),
+        }), layer: 1));
+        world.AddContent(new TerrainContent<ContentType>(ContentType.Tree, Rectangle(690, 405, 14, 150)));
+        world.AddContent(new TerrainContent<ContentType>(ContentType.Tree, Rectangle(735, 430, 130, 14)));
+        world.AddContent(new TerrainContent<ContentType>(ContentType.Tree, Rectangle(935, 430, 100, 14)));
+        world.AddContent(new TerrainContent<ContentType>(ContentType.Tree, Rectangle(700, 500, 90, 14)));
+        var settings = new TerrainNavigationSettings<TerrainType, ContentType>(
+            patch => patch?.Type switch { TerrainType.Water => 0f, _ => 1f },
+            agentRadius: 8f,
+            clearanceArcSegments: 2);
+        var mesh = world.BakeNavigationMesh(settings);
+
+        var path = mesh.FindPath(new LSVector2(752, 272), new LSVector2(748, 556));
+        TestContext.Progress.WriteLine($"Room route: {string.Join(" -> ", path)}");
+
+        Assert.That(path, Is.Not.Empty);
+        Assert.That(path.Max(point => point.X), Is.LessThan(900f));
+    }
+
+    [Test]
     public void FindPath_FromWorldCorner_ReachesDestinationBehindObstacle() {
         var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(545, 325, 850, 410), TerrainType.Grass);
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, Rectangle(120, 120, 850, 410)));
