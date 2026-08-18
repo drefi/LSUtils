@@ -6,9 +6,13 @@ Tipos geometricos 2D usados por modulos que precisam modelar areas, limites e re
 
 - `IShape2D`: contrato para uma forma com `Bounds`, `Area` e `Contains`.
 - `Polygon2D`: poligono simples definido por vertices `LSVector2`.
+- `IPolygonalShape2D`: contrato comum para areas delimitadas por aneis.
+- `PolygonArea2D`: contorno externo com zero ou mais aneis internos estritamente contidos.
+- `PointLocation`: distingue pontos no interior, exterior ou exatamente na borda.
 - `ShapeRelation`: resultado de uma comparacao espacial.
 - `GeometryRelations`: classificacao inicial entre duas formas.
 - `ConstrainedTriangulation2D`: triangulacao de segmentos com fronteiras obrigatorias.
+- `PolygonTriangulation2D`: triangulacao ja filtrada para uma `IPolygonalShape2D`, incluindo buracos.
 
 ## Triangulacao restrita
 
@@ -27,6 +31,23 @@ var lake = new Polygon2D(new[] {
 bool isInsideLake = lake.Contains(4, 3); // true
 float area = lake.Area; // 48
 ```
+
+Uma area com buraco preserva os aneis como geometria explicita:
+
+```csharp
+var island = new PolygonArea2D(lake, new[] {
+    new Polygon2D(new[] {
+        new LSVector2(2, 2), new LSVector2(2, 4),
+        new LSVector2(6, 4), new LSVector2(6, 2)
+    })
+});
+
+bool isLand = island.Contains(1, 1); // true
+bool isHole = island.Contains(4, 3); // false
+var triangles = PolygonTriangulation2D.Triangulate(island);
+```
+
+`PolygonArea2D` normaliza o contorno externo para anti-horario e os buracos para horario. Aneis autointersectantes, externos, sobrepostos, aninhados ou tangentes sao rejeitados.
 
 ## Precisao atual
 

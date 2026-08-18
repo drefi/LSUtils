@@ -90,6 +90,17 @@ public class TerrainRegionTests {
         Assert.That(region.PolygonCoverageArea, Is.EqualTo(23f).Within(0.001f));
     }
 
+    [Test]
+    public void PolygonCoverageArea_SubtractsPatchHoles() {
+        var shape = new PolygonArea2D(Square(0, 0, 10), new[] { Square(0, 0, 4) });
+        var region = new TerrainRegion<TestTerrainType, TestContentType>(new[] {
+            new TerrainPatch<TestTerrainType>(TestTerrainType.Grass, shape),
+        });
+
+        Assert.That(region.MembershipArea, Is.EqualTo(84f).Within(0.001f));
+        Assert.That(region.PolygonCoverageArea, Is.EqualTo(84f).Within(0.001f));
+    }
+
     private static Polygon2D Square(float x, float y, float size) {
         float half = size * 0.5f;
         return new Polygon2D(new[] {

@@ -118,6 +118,48 @@ public class TerrainPathfinderTests {
     }
 
     [Test]
+    public void FindPath_AvoidsHoleThatExposesImpassableDefaultTerrain() {
+        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(50, 50, 100, 100), TerrainType.Water);
+        var hole = Rectangle(40, 30, 20, 40);
+        var island = new PolygonArea2D(Rectangle(5, 5, 90, 90), new[] { hole });
+        world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, island));
+        var settings = new TerrainNavigationSettings<TerrainType, ContentType>(
+            patch => patch?.Type == TerrainType.Grass ? 1f : 0f,
+            agentRadius: 4f,
+            clearanceArcSegments: 2);
+
+        var path = world.FindPath(new LSVector2(20, 50), new LSVector2(80, 50), settings);
+
+        Assert.That(path, Is.Not.Empty);
+        Assert.That(path.Any(point => point.Y <= 26f || point.Y >= 74f), Is.True);
+        Assert.That(path.All(point => !hole.Contains(point.X, point.Y)), Is.True);
+    }
+
+    [Test]
+    public void NavigationMesh_HoleCanExposePassableLowerCostLayer() {
+        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(50, 50, 100, 100), TerrainType.Water);
+        var lower = new TerrainPatch<TerrainType>(TerrainType.Mud, Rectangle(5, 5, 90, 90), layer: 0);
+        var hole = Rectangle(40, 30, 20, 40);
+        var upper = new TerrainPatch<TerrainType>(
+            TerrainType.Grass,
+            new PolygonArea2D(Rectangle(5, 5, 90, 90), new[] { hole }),
+            layer: 1);
+        world.AddPatch(lower);
+        world.AddPatch(upper);
+
+        var mesh = world.BakeNavigationMesh(Settings());
+        var exposedTriangles = Enumerable.Range(0, mesh.Triangles.Count)
+            .Where(index => hole.Contains(
+                (mesh.Triangles[index].A.X + mesh.Triangles[index].B.X + mesh.Triangles[index].C.X) / 3f,
+                (mesh.Triangles[index].A.Y + mesh.Triangles[index].B.Y + mesh.Triangles[index].C.Y) / 3f))
+            .ToArray();
+
+        Assert.That(exposedTriangles, Is.Not.Empty);
+        Assert.That(exposedTriangles.All(index => mesh.GetTrianglePatch(index) == lower), Is.True);
+        Assert.That(exposedTriangles.All(index => mesh.Triangles[index].Cost == 8f), Is.True);
+    }
+
+    [Test]
     public void FindPath_ChoosesLowerTerrainCostWhenAlternativeExists() {
         var world = CreateWorld();
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Water, Rectangle(40, 20, 20, 60), layer: 1));

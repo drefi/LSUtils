@@ -20,7 +20,7 @@ public class TerrainRegion<TTerrainType, TContentType> : ISpatialObject {
     public float MembershipArea => _patches.Sum(patch => patch.Area);
     /// <summary>Compatibility alias for <see cref="MembershipArea"/>.</summary>
     public float Area => MembershipArea;
-    /// <summary>Geometric union area of all Polygon2D patches.</summary>
+    /// <summary>Geometric union area of all polygonal patches, excluding holes.</summary>
     public float PolygonCoverageArea {
         get {
             if (_coverageAreaDirty) RecalculatePolygonCoverageArea();
@@ -113,9 +113,9 @@ public class TerrainRegion<TTerrainType, TContentType> : ISpatialObject {
     }
 
     private void RecalculatePolygonCoverageArea() {
-        var polygons = _patches.Select(patch => patch.Shape as Polygon2D).ToList();
+        var polygons = _patches.Select(patch => patch.Shape as IPolygonalShape2D).ToList();
         if (polygons.Any(polygon => polygon == null)) {
-            throw new LSInvalidOperationException("PolygonCoverageArea requires every region patch to use Polygon2D.");
+            throw new LSInvalidOperationException("PolygonCoverageArea requires every region patch to use IPolygonalShape2D.");
         }
         if (polygons.Count == 0) {
             _polygonCoverageArea = 0f;
@@ -124,12 +124,8 @@ public class TerrainRegion<TTerrainType, TContentType> : ISpatialObject {
         }
 
         var constraints = new List<TriangulationConstraint>();
-        foreach (var polygon in polygons.Cast<Polygon2D>()) {
-            for (int index = 0; index < polygon.Vertices.Count; index++) {
-                constraints.Add(new TriangulationConstraint(
-                    polygon.Vertices[index],
-                    polygon.Vertices[(index + 1) % polygon.Vertices.Count]));
-            }
+        foreach (var polygon in polygons.Cast<IPolygonalShape2D>()) {
+            foreach (var loop in polygon.BoundaryLoops) constraints.AddRange(PolygonTriangulation2D.CreateLoopConstraints(loop));
         }
 
         var triangulation = ConstrainedTriangulation2D.Triangulate(constraints);

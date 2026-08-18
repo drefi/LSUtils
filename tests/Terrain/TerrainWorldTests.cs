@@ -42,6 +42,20 @@ public class TerrainWorldTests {
     }
 
     [Test]
+    public void ResolveTerrainTypeAt_InsideHoleExposesLowerPatch() {
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var lower = new TerrainPatch<TestTerrainType>(TestTerrainType.Sand, Square(0, 0, 60), layer: 0);
+        var upperShape = new PolygonArea2D(Square(0, 0, 40), new[] { Square(0, 0, 10) });
+        var upper = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, upperShape, layer: 1);
+        world.AddPatch(lower);
+        world.AddPatch(upper);
+
+        Assert.That(world.ResolvePatchAt(15, 0), Is.SameAs(upper));
+        Assert.That(world.ResolvePatchAt(0, 0), Is.SameAs(lower));
+        Assert.That(world.QueryPatchesAt(0, 0), Does.Not.Contain(upper));
+    }
+
+    [Test]
     public void UpdatePatch_UpdatesSpatialIndexAfterGrowth() {
         var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
         var water = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, Square(0, 0, 2));
@@ -100,6 +114,16 @@ public class TerrainWorldTests {
 
         Assert.That(world.QueryContents(new Bounds(8, 0, 1, 1)), Does.Contain(tree));
         Assert.That(world.StaticNavigationVersion, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void TerrainContent_PolygonalFootprintCanExposeInternalCourtyard() {
+        var footprint = new PolygonArea2D(Square(0, 0, 20), new[] { Square(0, 0, 8) });
+        var structure = new TerrainContent<TestContentType>(TestContentType.Tree, footprint);
+
+        Assert.That(structure.Contains(8, 0), Is.True);
+        Assert.That(structure.Contains(0, 0), Is.False);
+        Assert.That(structure.Area, Is.EqualTo(336f).Within(0.001f));
     }
 
     private static Polygon2D Square(float x, float y, float size) {

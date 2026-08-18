@@ -19,7 +19,7 @@ Regioes sao agrupamentos por referencia e nao sao donas de seus patches. Assim, 
 
 Uma regiao possui apenas um pai. `AddChild` transfere a filha do pai anterior e rejeita ciclos diretos ou indiretos. Alteracoes nas formas dos patches e conteudos associados atualizam os bounds da regiao automaticamente.
 
-`TerrainRegion.Area` e `MembershipArea` somam as areas dos patches membros, portanto contam sobreposicoes uma vez por patch. `PolygonCoverageArea` calcula a uniao geometrica e conta cada ponto coberto apenas uma vez; essa operacao requer que todos os patches usem `Polygon2D`.
+`TerrainRegion.Area` e `MembershipArea` somam as areas dos patches membros, portanto contam sobreposicoes uma vez por patch. `PolygonCoverageArea` calcula a uniao geometrica e conta cada ponto coberto apenas uma vez; essa operacao requer que todos os patches usem `IPolygonalShape2D` e desconta seus aneis internos.
 
 O terreno padrao do mundo e somente um fallback para pontos sem patch. Ele nao precisa ser modelado como um patch fisico que ocupa todo o mapa.
 
@@ -33,7 +33,7 @@ Veja `docs/guides/terrain-world-guide.md` para um fluxo completo e `docs/example
 
 ## Navegacao
 
-`TerrainWorld.FindPath` usa um perfil de navegacao por agente. O perfil decide o custo de cada patch, quais conteudos bloqueiam passagem e o raio do agente. A implementacao trabalha com `Polygon2D`, cria clearance no espaco de configuracao e nao usa grid.
+`TerrainWorld.FindPath` usa um perfil de navegacao por agente. O perfil decide o custo de cada patch, quais conteudos bloqueiam passagem e o raio do agente. Patches passaveis aceitam `IPolygonalShape2D`: dentro de um buraco, a resolucao volta ao patch inferior ou ao terreno padrao. Se esse terreno exposto for intransitavel, o anel interno tambem recebe clearance. A implementacao nao usa grid.
 
 `TerrainNavigationSettings.ClearanceArcSegments` controla quantos segmentos aproximam cada canto do clearance. O padrao 3 preserva uma margem conservadora e evita multiplicar nos em mapas com muitas paredes retangulares.
 
@@ -51,4 +51,6 @@ A topologia tambem recebe um numero limitado de conexoes visiveis entre vizinhos
 
 Os triangulos validos sao preservados como celulas navegaveis e para diagnostico. Cada `TerrainNavigationTriangle` expoe seu `Cost`, e `GetTrianglePatch(index)` retorna o patch dominante usado no bake. A rota usa A* sobre o grafo geometrico de arestas visiveis; os custos das arestas estaticas sao calculados no bake e reutilizados entre consultas. Origem e destino recebem apenas um conjunto limitado de conexoes visiveis, evitando reconstruir um grafo denso por agente.
 
-Patches passaveis podem ser concavos e sobrepostos; suas intersecoes sao segmentadas durante a subdivisao. Obstaculos bloqueadores ainda precisam ser convexos para que o gerador de clearance por vertices seja correto.
+Patches passaveis podem ser concavos, sobrepostos e possuir buracos; suas intersecoes sao segmentadas durante a subdivisao. Aneis internos que exponham terreno intransitavel e outros obstaculos bloqueadores ainda precisam ser convexos para que o gerador de clearance por vertices seja correto.
+
+`TerrainContent` continua aceitando qualquer `IShape2D`, portanto `PolygonArea2D` ja pode representar selecao, area e renderizacao de footprints estruturais. Para participar como obstaculo de navegacao, um conteudo ainda precisa de `Polygon2D` convexo; decomposicao estrutural e clearance de patios internos pertencem a uma camada posterior de estruturas.

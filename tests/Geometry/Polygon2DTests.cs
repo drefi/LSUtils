@@ -73,6 +73,9 @@ public class Polygon2DTests {
         Assert.That(polygon.Vertices.All(vertex => polygon.Contains(vertex.X, vertex.Y)), Is.True);
         Assert.That(polygon.Contains(2, 0), Is.True);
         Assert.That(polygon.Contains(4, 2), Is.True);
+        Assert.That(polygon.Locate(2, 0), Is.EqualTo(PointLocation.Boundary));
+        Assert.That(polygon.Locate(2, 2), Is.EqualTo(PointLocation.Inside));
+        Assert.That(polygon.Locate(5, 2), Is.EqualTo(PointLocation.Outside));
     }
 
     [Test]

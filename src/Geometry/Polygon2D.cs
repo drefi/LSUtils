@@ -8,9 +8,10 @@ using LSUtils.Spatial;
 /// <summary>
 /// A simple immutable 2D polygon backed by ordered vertices.
 /// </summary>
-public sealed class Polygon2D : IShape2D {
+public sealed class Polygon2D : IPolygonalShape2D {
     private const float BoundaryEpsilon = 0.00001f;
     private readonly List<LSVector2> _vertices;
+    private readonly IReadOnlyList<Polygon2D> _boundaryLoops;
 
     public IReadOnlyList<LSVector2> Vertices => _vertices;
     public Bounds Bounds { get; }
@@ -18,6 +19,9 @@ public sealed class Polygon2D : IShape2D {
     public float SignedArea { get; }
     public bool IsClockwise => SignedArea < 0f;
     public bool IsConvex => CalculateIsConvex(_vertices);
+    public Polygon2D OuterBoundary => this;
+    public IReadOnlyList<Polygon2D> Holes => System.Array.Empty<Polygon2D>();
+    public IReadOnlyList<Polygon2D> BoundaryLoops => _boundaryLoops;
 
     public Polygon2D(IEnumerable<ILSVector2> vertices) {
         if (vertices == null) throw new LSArgumentNullException(nameof(vertices));
@@ -28,6 +32,7 @@ public sealed class Polygon2D : IShape2D {
         Bounds = CalculateBounds(_vertices);
         SignedArea = CalculateSignedArea(_vertices);
         Area = LSMath.Abs(SignedArea);
+        _boundaryLoops = new[] { this };
     }
 
     public Polygon2D(IEnumerable<LSVector2> vertices) {
@@ -39,10 +44,15 @@ public sealed class Polygon2D : IShape2D {
         Bounds = CalculateBounds(_vertices);
         SignedArea = CalculateSignedArea(_vertices);
         Area = LSMath.Abs(SignedArea);
+        _boundaryLoops = new[] { this };
     }
 
     public bool Contains(float x, float y) {
-        if (!Bounds.Contains(x, y)) return false;
+        return Locate(x, y) != PointLocation.Outside;
+    }
+
+    public PointLocation Locate(float x, float y) {
+        if (!Bounds.Contains(x, y)) return PointLocation.Outside;
 
         bool inside = false;
         int previous = _vertices.Count - 1;
@@ -51,7 +61,7 @@ public sealed class Polygon2D : IShape2D {
             var a = _vertices[current];
             var b = _vertices[previous];
 
-            if (PointIsOnSegment(x, y, a, b)) return true;
+            if (PointIsOnSegment(x, y, a, b)) return PointLocation.Boundary;
 
             if ((a.Y > y) != (b.Y > y) &&
                 x < (b.X - a.X) * (y - a.Y) / (b.Y - a.Y + float.Epsilon) + a.X) {
@@ -61,7 +71,7 @@ public sealed class Polygon2D : IShape2D {
             previous = current;
         }
 
-        return inside;
+        return inside ? PointLocation.Inside : PointLocation.Outside;
     }
 
     private static bool PointIsOnSegment(float x, float y, LSVector2 a, LSVector2 b) {
