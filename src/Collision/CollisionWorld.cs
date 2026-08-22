@@ -82,17 +82,14 @@ public sealed class CollisionWorld<T> where T : notnull {
         _candidates.Clear();
         _index.Query(sweepBounds, _candidates);
 
-        var closestDistance = float.PositiveInfinity;
+        var closestFraction = float.PositiveInfinity;
         var found = false;
         foreach (var candidate in _candidates) {
             if ((predicate != null && !predicate(candidate.Item))
                 || !queryFilter.CanCollideWith(candidate.Filter)
-                || !Collision2D.SweepCircle(from, to, radius, candidate.Shape)) continue;
-            var dx = candidate.Shape.Bounds.X - from.X;
-            var dy = candidate.Shape.Bounds.Y - from.Y;
-            var distance = dx * dx + dy * dy;
-            if (distance >= closestDistance) continue;
-            closestDistance = distance;
+                || !Collision2D.TryGetSweepFraction(from, to, radius, candidate.Shape, out var fraction)
+                || fraction >= closestFraction) continue;
+            closestFraction = fraction;
             hit = candidate.Item;
             found = true;
         }
