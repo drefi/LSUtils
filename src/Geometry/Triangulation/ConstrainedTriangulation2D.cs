@@ -165,6 +165,14 @@ public static class ConstrainedTriangulation2D {
                     recovered.Add(constraint);
                     break;
                 }
+                // A valid constrained boundary may be represented by several
+                // collinear triangulation edges when another boundary ends on
+                // it. Treat that chain as recovered instead of trying to force
+                // a non-existent long edge through intermediate vertices.
+                if (HasCollinearEdgeChain(constraint, vertices, owners)) {
+                    recovered.Add(constraint);
+                    break;
+                }
 
                 (int From, int To)? candidate = null;
                 int[]? candidateOwners = null;
@@ -195,6 +203,36 @@ public static class ConstrainedTriangulation2D {
             }
             if (!recovered.Contains(constraint)) throw new LSException($"Constraint recovery exceeded its iteration limit for {constraint.From}-{constraint.To}.");
         }
+    }
+
+    private static bool HasCollinearEdgeChain(
+        (int From, int To) constraint,
+        IReadOnlyList<LSVector2> vertices,
+        IReadOnlyDictionary<(int From, int To), List<int>> owners) {
+        var adjacency = new Dictionary<int, List<int>>();
+        foreach (var edge in owners.Keys) {
+            if (!PointOnSegment(vertices[edge.From], vertices[constraint.From], vertices[constraint.To])
+                || !PointOnSegment(vertices[edge.To], vertices[constraint.From], vertices[constraint.To])) continue;
+            if (!adjacency.TryGetValue(edge.From, out var fromNeighbors))
+                adjacency.Add(edge.From, fromNeighbors = new List<int>());
+            if (!adjacency.TryGetValue(edge.To, out var toNeighbors))
+                adjacency.Add(edge.To, toNeighbors = new List<int>());
+            fromNeighbors.Add(edge.To);
+            toNeighbors.Add(edge.From);
+        }
+        if (!adjacency.ContainsKey(constraint.From) || !adjacency.ContainsKey(constraint.To)) return false;
+
+        var pending = new Queue<int>();
+        var visited = new HashSet<int> { constraint.From };
+        pending.Enqueue(constraint.From);
+        while (pending.Count > 0) {
+            int current = pending.Dequeue();
+            if (current == constraint.To) return true;
+            foreach (int next in adjacency[current]) {
+                if (visited.Add(next)) pending.Enqueue(next);
+            }
+        }
+        return false;
     }
 
     private static bool RecoverConstraintWithFlipSearch(
