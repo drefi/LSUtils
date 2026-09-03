@@ -455,44 +455,6 @@ public class NodeUpdatePolicyTests {
 
     #endregion
 
-    #region Parallel Node Policy Tests
-
-    [Test]
-    public void OVERRIDE_PARALLEL_Thresholds_ShouldChangeParallelBehavior() {
-        // Scenario: Adjusting parallel thresholds for different game modes
-        var log = new List<string>();
-        var process = new BasicProcess();
-
-        // Initial parallel with strict thresholds
-        _manager!.Register<BasicProcess>(b => b
-            .Parallel("resource-gather", par => par
-                .Handler("wood", s => { log.Add("wood"); return LSProcessResultStatus.SUCCESS; })
-                .Handler("stone", s => { log.Add("stone"); return LSProcessResultStatus.SUCCESS; })
-                .Handler("metal", s => { log.Add("metal"); return LSProcessResultStatus.FAILURE; }),
-                successThreshold: 3, // Need all
-                failureThreshold: 1) // Fail on any failure
-        );
-
-        // Relax thresholds (easy mode)
-        _manager.Register<BasicProcess>(b => b
-            .Parallel("resource-gather", par => par
-                .Handler("food", s => { log.Add("food"); return LSProcessResultStatus.SUCCESS; }),
-                NodeUpdatePolicy.OVERRIDE_PARALLEL_NUM_SUCCESS | NodeUpdatePolicy.OVERRIDE_PARALLEL_NUM_FAILURE,
-                successThreshold: 2, // Only need 2
-                failureThreshold: 2) // Allow 1 failure
-        );
-
-        // Act
-        var result = process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
-
-        // Assert: Should succeed with relaxed thresholds (2 success, 1 failure, 1 new success)
-        using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-            Assert.That(log.Count(s => s.Contains("wood") || s.Contains("stone") || s.Contains("food")), Is.GreaterThanOrEqualTo(2));
-        }
-    }
-
-    #endregion
 
     #region Complex Combination Tests
 
@@ -568,49 +530,6 @@ public class NodeUpdatePolicyTests {
 
         // Assert: Armed attack executes (enemies-near AND has-weapon both true)
         Assert.That(log, Is.EqualTo(new[] { "armed-attack" }));
-    }
-
-    [Test]
-    public void DynamicDifficultyAdjustment_PriorityAndThresholdChanges() {
-        // Scenario: Difficulty system that adjusts priorities and parallel thresholds
-        var log = new List<string>();
-        var process = new BasicProcess();
-        var difficulty = "hard";
-        process.SetData("difficulty", difficulty);
-
-        // Base combat system
-        _manager!.Register<BasicProcess>(b => b
-            .Parallel("combat-resolution", par => par
-                .Handler("player-attack", s => { log.Add("player-attack"); return LSProcessResultStatus.SUCCESS; },
-                    NodeUpdatePolicy.DEFAULT_HANDLER, LSProcessPriority.NORMAL)
-                .Handler("enemy-defense", s => { log.Add("enemy-defense"); return LSProcessResultStatus.FAILURE; },
-                    NodeUpdatePolicy.DEFAULT_HANDLER, LSProcessPriority.NORMAL)
-                .Handler("environmental", s => { log.Add("environmental"); return LSProcessResultStatus.SUCCESS; },
-                    NodeUpdatePolicy.DEFAULT_HANDLER, LSProcessPriority.LOW),
-                successThreshold: 2,
-                failureThreshold: 2)
-        );
-
-        // Hard mode adjustments
-        if (difficulty == "hard") {
-            _manager.Register<BasicProcess>(b => b
-                .Parallel("combat-resolution", par => par
-                    .Handler("enemy-defense", s => { log.Add("buffed-defense"); return LSProcessResultStatus.FAILURE; },
-                        NodeUpdatePolicy.OVERRIDE_HANDLER | NodeUpdatePolicy.OVERRIDE_PRIORITY,
-                        LSProcessPriority.HIGH), // Enemy acts first
-                    NodeUpdatePolicy.OVERRIDE_PARALLEL_NUM_SUCCESS | NodeUpdatePolicy.OVERRIDE_PARALLEL_NUM_FAILURE,
-                    successThreshold: 3, // Need more successes
-                    failureThreshold: 1) // Less forgiving
-            );
-        }
-
-        // Act
-        var result = process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
-        var expected = new[] { "buffed-defense", "player-attack", "environmental" };
-        using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
-            Assert.That(log, Is.EqualTo(expected));
-        }
     }
 
     [Test]

@@ -10,7 +10,7 @@ namespace LSUtils.ProcessSystem;
 /// <para>
 /// LSProcessTreeBuilder implements the Builder Pattern to provide an intuitive, declarative syntax
 /// for constructing complex process hierarchies. It supports all node types (handlers, sequences,
-/// selectors, parallel nodes, and inverters) with automatic node management, type validation,
+/// selectors, and inverters) with automatic node management, type validation,
 /// and hierarchical composition through nested builder actions.
 /// </para>
 /// <para>
@@ -43,7 +43,7 @@ namespace LSUtils.ProcessSystem;
 ///     .Selector("strategy", sel => sel
 ///         .Handler("primary", PrimaryHandler)
 ///         .Handler("fallback", FallbackHandler))
-///     .Parallel("concurrent", par => par
+///     .Sequence("follow-up", steps => steps
 ///         .Handler("task-a", TaskAHandler)
 ///         .Handler("task-b", TaskBHandler)));
 ///

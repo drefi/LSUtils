@@ -27,7 +27,7 @@ using LSUtils.Logging;
 /// <para>
 /// <b>Cloning Behavior:</b><br/>
 /// Cloned nodes maintain independent processing state while sharing execution count
-/// through _baseNode reference, enabling parallel processing with centralized statistics.
+/// through _baseNode reference, enabling independent process executions with centralized statistics.
 /// </para>
 /// </summary>
 /// <example>
@@ -65,7 +65,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para>
     /// When a node is cloned, the new instance references the original as its base node.
     /// This allows execution count to be shared globally while each clone maintains its own processing status,
-    /// enabling accurate analytics across parallel processing scenarios.
+    /// enabling accurate analytics across independent process executions scenarios.
     /// </para>
     /// </remarks>
     protected LSProcessNodeHandler? _baseNode;
@@ -266,7 +266,6 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// Transitions the node from WAITING to SUCCESS, allowing processing to continue.
     /// </summary>
     /// <param name="context">The processing context (not used by handler nodes).</param>
-    /// <param name="nodes">Optional node ID array for targeting (not used by handler nodes as they are leaf nodes).</param>
     /// <returns>The new processing status after resumption.</returns>
     /// <remarks>
     /// <para><strong>Valid Transitions:</strong></para>
@@ -280,7 +279,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// <para>Typically used when external asynchronous operations complete successfully,</para>
     /// <para>allowing the handler to transition from WAITING to SUCCESS without re-executing the handler delegate.</para>
     /// </remarks>
-    public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+    public LSProcessResultStatus Resume(LSProcessSession session) {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.Resume [{NodeID}]",
               source: ("LSProcessSystem", null),
@@ -322,9 +321,8 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// Forces this handler node to transition to FAILURE unless the node was already CANCELLED.
     /// </summary>
     /// <param name="session">The processing session.</param>
-    /// <param name="nodes">Optional node ID array for targeting (not used by handler nodes as they are leaf nodes).</param>
     /// <returns>Node status FAILURE unless node already CANCELLED.</returns>
-    public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
+    public LSProcessResultStatus Fail(LSProcessSession session) {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.Fail [{NodeID}]",
               source: ("LSProcessSystem", null),
@@ -427,7 +425,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     /// </list>
     /// 
     /// <para><strong>Use Cases:</strong></para>
-    /// <para>Enables parallel processing scenarios where the same handler logic needs to be</para>
+    /// <para>Enables independent process executions scenarios where the same handler logic needs to be</para>
     /// <para>executed multiple times while maintaining global execution statistics.</para>
     /// </remarks>
     public ILSProcessNode Clone() {

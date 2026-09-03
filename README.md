@@ -4,7 +4,7 @@ A modular .NET utility library with components for processing, logging, graphs, 
 
 ## ✨ Features
 
-- 🔄 **Process System**: Flexible process and behaviour tree system with async operations support
+- 🔄 **Process System**: Extensible execution trees with registered callbacks and explicit waiting/continuation
 - 📝 **Logging**: Multi-provider logging with hierarchical context
 - 🗺️ **Graphs**: Graph implementations (Grid, Hex, Node) with A* and Dijkstra pathfinding
 - 📦 **Collections**: Specialized data structures (BinaryHeap, CachePool)
@@ -27,25 +27,30 @@ Add manually to your `.csproj`:
 
 ### Process System
 
-Build complex processes with a fluent API:
+Compose a single operation and register participants that can inspect its data or control its result:
 
 ```csharp
 using LSUtils.ProcessSystem;
 
-var process = LSProcess.Create("patrol", builder => builder
-    .Sequence("main", seq => seq
-        .Handler("move-to-point-a", () => MoveToPointA())
-        .Handler("wait", () => Wait(2.0f))
-        .Handler("move-to-point-b", () => MoveToPointB())
-        .Handler("wait", () => Wait(2.0f))
-    )
-);
-
-// Run the process
 var manager = new LSProcessManager();
-manager.AddProcess(process);
-manager.Tick(deltaTime);
+manager.Register<RequestProcess>(b => b
+    .Handler("resolve", session => {
+        session.Process.SetData("result", "accepted");
+        return LSProcessResultStatus.SUCCESS;
+    })
+    .Handler("observe", session => {
+        System.Console.WriteLine(session.Process.GetData<string>("result"));
+        return LSProcessResultStatus.SUCCESS;
+    }));
+var status = new RequestProcess().Execute(manager);
+
+sealed class RequestProcess : LSProcess { }
 ```
+
+Handlers execute on the calling thread. A handler can return `WAITING`; its owner
+later calls `Resume()` or `Fail()`. There is no timer, tick loop, or thread scheduler.
+See the [ProcessSystem guide](src/ProcessSystem/QUICK_GUIDE.md) for composition,
+intervention, lifecycle, migration, and current limitations.
 
 ### Logging System
 

@@ -90,6 +90,29 @@ internal class SequenceProcess : LSProcess {
     }
 }
 
+/// <summary>
+/// Sequence process used to verify that Resume continues with later children.
+/// </summary>
+internal class ResumableSequenceProcess : LSProcess {
+    private readonly List<string> _steps;
+
+    public ResumableSequenceProcess(List<string> steps) {
+        _steps = steps;
+    }
+
+    protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
+        return builder.Sequence("resumable-sequence", seq => seq
+            .Handler("wait", session => {
+                _steps.Add("wait");
+                return LSProcessResultStatus.WAITING;
+            })
+            .Handler("after-wait", session => {
+                _steps.Add("after-wait");
+                return LSProcessResultStatus.SUCCESS;
+            }));
+    }
+}
+
 [TestFixture]
 public class LSProcessTests {
     private LSProcessManager? _manager;
@@ -437,122 +460,6 @@ public class LSProcessTests {
     }
 
     [Test]
-    public void Parallel_ShouldSucceedWhenSuccessThresholdMet() {
-        // Arrange
-        var process = new BasicProcess();
-        process.WithProcessing(builder =>
-            builder.Parallel("parallel-root", par => par
-                .Handler("ok-1", session => LSProcessResultStatus.SUCCESS)
-                .Handler("ok-2", session => LSProcessResultStatus.SUCCESS)
-                .Handler("fail", session => LSProcessResultStatus.FAILURE),
-                successThreshold: 2,
-                failureThreshold: 2,
-                priority: LSProcessPriority.NORMAL)
-            );
-
-        // Act
-        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
-
-        // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-    }
-
-    [Test]
-    public void Parallel_ShouldFailWhenFailureThresholdReached() {
-        // Arrange
-        var process = new BasicProcess();
-        process.WithProcessing(builder => {
-            builder.Parallel("parallel-root", par => par
-                .Handler("ok-1", session => LSProcessResultStatus.SUCCESS)
-                .Handler("ok-2", session => LSProcessResultStatus.SUCCESS)
-                .Handler("fail", session => LSProcessResultStatus.FAILURE),
-                successThreshold: 3,
-                failureThreshold: 1,
-                priority: LSProcessPriority.NORMAL);
-            return builder;
-        });
-
-        // Act
-        var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
-
-        // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
-    }
-
-    [Test]
-    public void Parallel_ResumeSpecificWaitingChildShouldSucceed() {
-        // Arrange
-        int waitExecutions = 0;
-        var process = new BasicProcess();
-        process.WithProcessing(builder => {
-            builder.Parallel("parallel-root", par => par
-                .Handler("wait", session => {
-                    waitExecutions++;
-                    return LSProcessResultStatus.WAITING;
-                })
-                .Handler("ok", session => LSProcessResultStatus.SUCCESS),
-                successThreshold: 2,
-                failureThreshold: 1,
-                priority: LSProcessPriority.NORMAL);
-            return builder;
-        });
-
-        // Act
-        var initial = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
-        var resumed = process.Resume("wait");
-
-        // Assert
-        Assert.That(initial, Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(resumed, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(waitExecutions, Is.EqualTo(1));
-    }
-
-    [Test]
-    public void Parallel_FailSpecificWaitingChildShouldFail() {
-        // Arrange
-        var process = new BasicProcess();
-        process.WithProcessing(builder => {
-            builder.Parallel("parallel-root", par => par
-                .Handler("wait", session => LSProcessResultStatus.WAITING)
-                .Handler("ok", session => LSProcessResultStatus.SUCCESS),
-                successThreshold: 2,
-                failureThreshold: 1,
-                priority: LSProcessPriority.NORMAL);
-            return builder;
-        });
-
-        // Act
-        var initial = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
-        var failed = process.Fail("wait");
-
-        // Assert
-        Assert.That(initial, Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(failed, Is.EqualTo(LSProcessResultStatus.FAILURE));
-    }
-
-    [Test]
-    public void Parallel_CancelShouldCancelWaitingChildren() {
-        // Arrange
-        var process = new BasicProcess();
-        process.WithProcessing(builder => {
-            builder.Parallel("parallel-root", par => par
-                .Handler("wait", session => LSProcessResultStatus.WAITING),
-                successThreshold: 1,
-                failureThreshold: 1,
-                priority: LSProcessPriority.NORMAL);
-            return builder;
-        });
-
-        // Act
-        var initial = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
-        process.Cancel();
-
-        // Assert
-        Assert.That(initial, Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(process.IsCancelled, Is.True);
-    }
-
-    [Test]
     public void Conditions_ShouldSkipHandlersWhenFalse() {
         // Arrange
         bool skippedExecuted = false;
@@ -587,12 +494,28 @@ public class LSProcessTests {
 
         // Act
         var firstResult = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
-        var resumedResult = process.Resume("resumable-handler");
+        var resumedResult = process.Resume();
 
         // Assert
         Assert.That(firstResult, Is.EqualTo(LSProcessResultStatus.WAITING));
         Assert.That(resumedResult, Is.EqualTo(LSProcessResultStatus.SUCCESS));
         Assert.That(process.ExecutionCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Resume_Sequence_ShouldContinueWithRemainingChildren() {
+        var steps = new List<string>();
+        var process = new ResumableSequenceProcess(steps);
+
+        var firstResult = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
+        var resumedResult = process.Resume();
+
+        using (Assert.EnterMultipleScope()) {
+            Assert.That(firstResult, Is.EqualTo(LSProcessResultStatus.WAITING));
+            Assert.That(resumedResult, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(process.IsCompleted, Is.True);
+            Assert.That(steps, Is.EqualTo(new[] { "wait", "after-wait" }));
+        }
     }
 
     [Test]

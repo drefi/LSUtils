@@ -48,21 +48,6 @@ public enum NodeUpdatePolicy {
     /// </summary>
     OVERRIDE_PRIORITY = 1 << 7,
     /// <summary>
-    /// Override existing parallel node success threshold.
-    /// Used only by parallel layer nodes.
-    /// </summary>
-    OVERRIDE_PARALLEL_NUM_SUCCESS = 1 << 8,
-    /// <summary>
-    /// Override existing parallel node failure threshold.
-    /// Used only by parallel layer nodes.
-    /// </summary>
-    OVERRIDE_PARALLEL_NUM_FAILURE = 1 << 9,
-    /// <summary>
-    /// Override existing parallel node threshold mode.
-    /// Used only by parallel layer nodes.
-    /// </summary>
-    OVERRIDE_THRESHOLD_MODE = 1 << 10,
-    /// <summary>
     /// Mark the node as read-only, preventing any modifications.
     /// This includes ignoring changes and builder actions.
     /// </summary>

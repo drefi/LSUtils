@@ -13,7 +13,6 @@
 /// <list type="bullet">
 /// <item><description><strong>LSProcessSequenceNode</strong>: Processes children sequentially until one fails (AND logic)</description></item>
 /// <item><description><strong>LSProcessSelectorNode</strong>: Processes children sequentially until one succeeds (OR logic)</description></item>
-/// <item><description><strong>LSProcessParallelNode</strong>: Processes children simultaneously with threshold-based completion</description></item>
 /// <item><description><strong>LSProcessInverterNode</strong>: Inverts SUCCESS/FAILURE of single child (NOT logic)</description></item>
 /// </list>
 /// 
@@ -28,7 +27,7 @@
 /// <para><strong>Processing Patterns:</strong></para>
 /// <list type="bullet">
 /// <item><description><strong>Unified Processing</strong>: All layer nodes follow consistent pattern with _availableChildren and _processStack</description></item>
-/// <item><description><strong>Status Aggregation</strong>: Logic varies by implementation (sequence vs selector vs parallel)</description></item>
+/// <item><description><strong>Status Aggregation</strong>: Logic varies by implementation (sequence vs selector)</description></item>
 /// <item><description><strong>State Delegation</strong>: Resume/Fail operations delegate to appropriate waiting child nodes</description></item>
 /// <item><description><strong>Recursive Operations</strong>: Support for nested layer nodes and deep hierarchy traversal</description></item>
 /// </list>
@@ -161,7 +160,7 @@ public interface ILSProcessLayerNode : ILSProcessNode {
     /// 
     /// <para><strong>Use Cases:</strong></para>
     /// <list type="bullet">
-    /// <item><description><strong>Parallel Processing</strong>: Create independent processing trees for concurrent execution</description></item>
+    /// <item><description><strong>Independent Trees</strong>: Create independent processing trees for concurrent execution</description></item>
     /// <item><description><strong>Template Instantiation</strong>: Clone processing templates for multiple process instances</description></item>
     /// <item><description><strong>Testing</strong>: Create isolated copies for testing without affecting original hierarchy</description></item>
     /// <item><description><strong>State Rollback</strong>: Maintain clean copies for rollback scenarios</description></item>

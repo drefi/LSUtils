@@ -86,7 +86,7 @@ public class HandlerNodeTests {
         );
 
         var first = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
-        var resumed = process.Resume("wait");
+        var resumed = process.Resume();
 
         using (Assert.EnterMultipleScope()) {
             Assert.That(first, Is.EqualTo(LSProcessResultStatus.WAITING));
@@ -104,7 +104,7 @@ public class HandlerNodeTests {
         );
 
         var first = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
-        var failed = process.Fail("wait");
+        var failed = process.Fail();
 
         using (Assert.EnterMultipleScope()) {
             Assert.That(first, Is.EqualTo(LSProcessResultStatus.WAITING));

@@ -6,37 +6,23 @@ namespace LSUtils.ProcessSystem;
 /// Static utility class providing helper methods for LSProcessing system operations.
 /// <para>
 /// LSProcessHelpers centralizes common processing operations including condition evaluation,
-/// node path parsing, and condition delegate management. This class ensures consistent
+/// and condition delegate management. This class ensures consistent
 /// behavior across all processing scenarios and simplifies condition handling throughout
 /// the system architecture.
 /// </para>
 /// <para>
 /// <b>Core Capabilities:</b><br/>
 /// - Condition evaluation with short-circuit logic and exception safety<br/>
-/// - Node path parsing for hierarchical node addressing<br/>
 /// - Condition delegate composition and update management<br/>
 /// - Standardized evaluation patterns used by all node types
 /// </para>
 /// <para>
 /// <b>Integration Points:</b><br/>
 /// Used extensively by all layer nodes during child filtering, by the builder system
-/// for condition management, and by the processing pipeline for path resolution.
+/// for condition management.
 /// </para>
 /// </summary>
 public static class LSProcessHelpers {
-    public static bool SplitNode(string node, out string child, out string[]? grandChildren) {
-        var parts = node.Split('.');
-        // No grandchildren
-        if (parts.Length <= 1) {
-            child = node;
-            grandChildren = null;
-            return false;
-        }
-        child = parts[0];
-        //join grandchildren
-        grandChildren = parts.Length > 1 ? parts.Skip(1).ToArray() : null;
-        return true;
-    }
     /// <summary>
     /// Evaluates all conditions in a node's condition delegate chain.
     /// All conditions must return true for the node to be considered eligible for processing.

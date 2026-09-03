@@ -169,7 +169,7 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         };
     }
 
-    public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
+    public LSProcessResultStatus Fail(LSProcessSession session) {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.Fail [{NodeID}]",
               source: ("LSProcessSystem", null),
@@ -183,7 +183,6 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
                 processId: session.Process.ID,
                 properties: new (string, object)[] {
                     ("nodeID", NodeID),
-                    ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
                     ("method", nameof(Fail))
                 });
             return LSProcessResultStatus.UNKNOWN;
@@ -194,10 +193,9 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
               properties: new (string, object)[] {
                 ("nodeID", NodeID),
                 ("nodeChild", _childNode.NodeID),
-                ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
                 ("method", nameof(Fail))
             });
-        var result = _childNode.Fail(session, nodes);
+        var result = _childNode.Fail(session);
         // Invert SUCCESS/FAILURE results
         return result switch {
             LSProcessResultStatus.SUCCESS => LSProcessResultStatus.FAILURE,
@@ -206,7 +204,7 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
         };
     }
 
-    public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+    public LSProcessResultStatus Resume(LSProcessSession session) {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.Resume [{NodeID}]",
               source: ("LSProcessSystem", null),
@@ -218,7 +216,6 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
                 source: (ClassName, null),
                 processId: session.Process.ID, properties: new (string, object)[] {
                     ("nodeID", NodeID),
-                    ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
                     ("method", nameof(Resume))
                 });
             return LSProcessResultStatus.UNKNOWN;
@@ -230,10 +227,9 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
               properties: new (string, object)[] {
                 ("nodeID", NodeID),
                 ("nodeChild", _childNode.NodeID),
-                ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
                 ("method", nameof(Resume))
             });
-        var result = _childNode.Resume(session, nodes);
+        var result = _childNode.Resume(session);
         // Invert SUCCESS/FAILURE results
         return result switch {
             LSProcessResultStatus.SUCCESS => LSProcessResultStatus.FAILURE,

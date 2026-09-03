@@ -122,19 +122,14 @@ public class LSProcessSession {
     }
 
     /// <summary>
-    /// Resumes processing from WAITING state for the specified nodes or all waiting nodes.
+    /// Resumes processing from WAITING state for the current waiting branch.
     /// </summary>
-    /// <param name="nodes">Optional array of specific node IDs to resume. If null or empty, resumes all waiting nodes.</param>
     /// <returns>The processing status after the resume operation.</returns>
     /// <remarks>
     /// <b>Delegation:</b><br/>
-    /// This method delegates to the root node's Resume method, which then coordinates resumption across the node hierarchy based on the provided node IDs.<br/>
-    /// <br/>
-    /// <b>Targeting:</b><br/>
-    /// • <b>Specific Nodes:</b> When node IDs are provided, only those nodes are targeted<br/>
-    /// • <b>All Waiting:</b> When no IDs are provided, all waiting nodes in the hierarchy are resumed
+    /// Delegates to the root node, which follows the current waiting branch.
     /// </remarks>
-    public LSProcessResultStatus Resume(params string[]? nodes) {
+    public LSProcessResultStatus Resume() {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.Resume",
               source: ("LSProcessSystem", null),
@@ -150,13 +145,12 @@ public class LSProcessSession {
                 });
             return LSProcessResultStatus.UNKNOWN;
         }
-        return RootNode.Resume(this, nodes);
+        return RootNode.Resume(this);
     }
 
     /// <summary>
-    /// Forces transition from WAITING to FAILURE state for the specified nodes or all waiting nodes.
+    /// Forces transition from WAITING to FAILURE state for the current waiting branch.
     /// </summary>
-    /// <param name="nodes">Optional array of specific node IDs to fail. If null or empty, fails all waiting nodes.</param>
     /// <returns>The processing status after the fail operation.</returns>
     /// <remarks>
     /// <b>Use Cases:</b><br/>
@@ -165,9 +159,9 @@ public class LSProcessSession {
     /// • <b>Resource Constraints:</b> Fail operations when resources are unavailable<br/>
     /// <br/>
     /// <b>Cascading Effects:</b><br/>
-    /// Failing nodes may trigger status changes in parent nodes based on their aggregation logic (sequence, selector, parallel).
+    /// Failing nodes may trigger status changes in parent nodes based on their aggregation logic (sequence, selector).
     /// </remarks>
-    public LSProcessResultStatus Fail(params string[]? nodes) {
+    public LSProcessResultStatus Fail() {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.Fail",
               source: ("LSProcessSystem", null),
@@ -184,7 +178,7 @@ public class LSProcessSession {
                 });
             return LSProcessResultStatus.UNKNOWN;
         }
-        return RootNode.Fail(this, nodes);
+        return RootNode.Fail(this);
     }
 
     /// <summary>

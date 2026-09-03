@@ -52,12 +52,15 @@ Veja a seção [Referência da API](#referência-da-api) acima.
 
 #### Process System
 
-Sistema flexível para criar processos complexos e behaviour trees:
+Sistema de árvores de execução para operações com pontos de intervenção:
 
-- Nodes: Sequence, Selector, Parallel, Handler, Condition, Inverter
-- Operações assíncronas
+- Nós: Sequence, Selector, Handler e Inverter; condições controlam elegibilidade
+- Callbacks registrados via ProcessManager para observar dados e controlar resultados
+- Espera explícita com WAITING e continuação via Resume/Fail, sem agendador de threads
 - Gerenciamento de prioridades
 - Contexto multi-nível
+
+Consulte o [guia atual do ProcessSystem](../src/ProcessSystem/QUICK_GUIDE.md).
 
 #### Logging
 

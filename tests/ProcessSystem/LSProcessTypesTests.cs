@@ -40,25 +40,6 @@ public class LSProcessPriorityTests {
 }
 
 [TestFixture]
-public class ParallelThresholdModeTests {
-    [Test]
-    public void ParallelThresholdMode_ShouldHaveExpectedValues() {
-        Assert.That(
-            Enum.IsDefined(typeof(LSProcessNodeParallel.ParallelThresholdMode),
-                LSProcessNodeParallel.ParallelThresholdMode.NONE),
-            Is.True);
-        Assert.That(
-            Enum.IsDefined(typeof(LSProcessNodeParallel.ParallelThresholdMode),
-                LSProcessNodeParallel.ParallelThresholdMode.SUCCESS_PRIORITY),
-            Is.True);
-        Assert.That(
-            Enum.IsDefined(typeof(LSProcessNodeParallel.ParallelThresholdMode),
-                LSProcessNodeParallel.ParallelThresholdMode.FAILURE_PRIORITY),
-            Is.True);
-    }
-}
-
-[TestFixture]
 public class ILSProcessableTests {
     private class TestProcessable : ILSProcessable {
         public Guid ID { get; } = Guid.NewGuid();
@@ -169,14 +150,14 @@ private class TestProcessNode : ILSProcessNode {
 
     public LSProcessResultStatus GetNodeStatus() => Status;
 
-    public LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodeIDs) {
+    public LSProcessResultStatus Resume(LSProcessSession context) {
         if (Status == LSProcessResultStatus.WAITING) {
             Status = LSProcessResultStatus.SUCCESS;
         }
         return Status;
     }
 
-    public LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodeIDs) {
+    public LSProcessResultStatus Fail(LSProcessSession context) {
         Status = LSProcessResultStatus.FAILURE;
         return Status;
     }

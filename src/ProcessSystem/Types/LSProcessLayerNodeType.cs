@@ -3,6 +3,5 @@
 public enum LSProcessRootNodeType { 
     SEQUENCE,
     SELECTOR,
-    PARALLEL,
-    INVERTER
+    INVERTER = 3
 }

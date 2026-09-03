@@ -226,10 +226,9 @@ public abstract class LSProcess {
     /// <summary>
     /// Resumes processing from WAITING state for the specified node IDs.
     /// </summary>
-    /// <param name="nodeIDs">Array of specific node IDs to resume. If empty, resumes all waiting nodes.</param>
     /// <returns>The processing status after resume attempt.</returns>
     /// <exception cref="LSException">Thrown if the process has not been executed yet.</exception>
-    public LSProcessResultStatus Resume(params string[] nodeIDs) {
+    public LSProcessResultStatus Resume() {
 
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
@@ -248,10 +247,9 @@ public abstract class LSProcess {
                 ("behaviour", _processSession.ContextMode.ToString()),
                 ("instance", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
                 ("contextInstances", _processSession.ContextInstances == null ? "n/a" : $"{string.Join(", ", _processSession.ContextInstances.Select(i => i.ID))}"),
-                ("nodes", string.Join(",", nodeIDs)),
                 ("method", nameof(Resume))
             });
-        return _processSession.Resume(nodeIDs);
+        return _processSession.Resume();
     }
     /// <summary>
     /// Cancels the entire process execution immediately.
@@ -294,7 +292,7 @@ public abstract class LSProcess {
     /// <remarks>
     /// <para><strong>Context Creation:</strong></para>
     /// <list type="bullet">
-    /// <item><description>If no existing context, creates a new parallel root node</description></item>
+    /// <item><description>If no existing context, creates a new sequence root node</description></item>
     /// <item><description>If context exists, extends the existing tree structure</description></item>
     /// </list>
     /// 
@@ -340,14 +338,13 @@ public abstract class LSProcess {
     /// <summary>
     /// Forces transition from WAITING to FAILURE state for the specified node IDs.
     /// </summary>
-    /// <param name="nodeIDs">Array of specific node IDs to fail. If empty, fails all waiting nodes.</param>
     /// <returns>The processing status after failure operation.</returns>
     /// <exception cref="LSException">Thrown if the process has not been executed yet.</exception>
     /// <remarks>
     /// Used for timeout handling, error conditions, or explicit failure injection.
     /// May trigger cascading status changes in parent nodes based on their aggregation logic.
     /// </remarks>
-    public LSProcessResultStatus Fail(params string[] nodeIDs) {
+    public LSProcessResultStatus Fail() {
         // Flow debug logging
         LSLogger.Singleton.Debug("LSProcess.Fail",
               source: ("LSProcessSystem", null),
@@ -365,10 +362,9 @@ public abstract class LSProcess {
                 ("currentNode", _processSession.CurrentNode?.NodeID.ToString() ?? "null"),
                 ("behaviour", _processSession.ContextMode.ToString()),
                 ("instances", _processSession.Instances == null ? "n/a" : $"{string.Join(", ", _processSession.Instances.Select(i => i.ID))}"),
-                ("nodes", string.Join(",", nodeIDs)),
                 ("method", nameof(Fail))
             });
-        return _processSession.Fail(nodeIDs);
+        return _processSession.Fail();
     }
     /// <summary>
     /// Exception-throwing data retrieval from the internal dictionary.

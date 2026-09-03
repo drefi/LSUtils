@@ -19,7 +19,6 @@ namespace LSUtils.ProcessSystem;
 /// - Handler nodes: return delegate execution result directly<br/>
 /// - Sequence nodes: AND logic (all children must succeed)<br/>
 /// - Selector nodes: OR logic (any child success succeeds)<br/>  
-/// - Parallel nodes: threshold-based logic (configurable success/failure counts)<br/>
 /// - Inverter nodes: SUCCESS↔FAILURE inversion, others pass through
 /// </para>
 /// <para>
@@ -54,7 +53,6 @@ public enum LSProcessResultStatus {
     /// • <b>Handler Nodes:</b> The handler delegate returned SUCCESS<br/>
     /// • <b>Sequence Nodes:</b> All children processed successfully (AND logic)<br/>
     /// • <b>Selector Nodes:</b> At least one child processed successfully (OR logic)<br/>
-    /// • <b>Parallel Nodes:</b> Required number of children succeeded (threshold-based)<br/>
     /// <br/>
     /// <b>Terminal State Characteristics:</b><br/>
     /// • No further processing required for this node<br/>
@@ -73,7 +71,6 @@ public enum LSProcessResultStatus {
     /// • <b>Handler Nodes:</b> The handler delegate returned FAILURE<br/>
     /// • <b>Sequence Nodes:</b> At least one child failed (short-circuit on first failure)<br/>
     /// • <b>Selector Nodes:</b> All children failed (continues until all attempts exhausted)<br/>
-    /// • <b>Parallel Nodes:</b> Required number of children failed (threshold-based)<br/>
     /// <br/>
     /// <b>Terminal State Characteristics:</b><br/>
     /// • Processing stopped due to error or failed condition<br/>
@@ -102,7 +99,6 @@ public enum LSProcessResultStatus {
     /// <br/>
     /// <b>Layer Node Behavior:</b><br/>
     /// • Sequence/Selector nodes delegate Resume/Fail to waiting children<br/>
-    /// • Parallel nodes can have multiple waiting children simultaneously<br/>
     /// • Parent nodes remain WAITING while any child is WAITING
     /// </remarks>
     WAITING, // waiting for an external event to resume processing

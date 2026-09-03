@@ -205,7 +205,6 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// Propagates failure to waiting children according to selector logic.
     /// </summary>
     /// <param name="session">The processing context for delegation and cancellation handling.</param>
-    /// <param name="nodes">Optional array of specific node IDs to target for failure.</param>
     /// <returns>The current processing status after the failure operation.</returns>
     /// <remarks>
     /// <b>Selector Failure Logic:</b><br/>
@@ -216,13 +215,23 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// <br/>
     /// If no children are waiting, returns the current selector status without modification.
     /// </remarks>
-    public LSProcessResultStatus Fail(LSProcessSession session, params string[]? nodes) {
+    public LSProcessResultStatus Fail(LSProcessSession session) {
         // Flow debug logging
         LSLogger.Singleton.Debug("LSProcessNodeSelector.Fail",
               source: ("LSProcessSystem", null),
               processId: session.Process.ID);
 
-        if (!_isProcessing) throw new LSException("Cannot fail before processing.");
+        if (!_isProcessing) {
+            //log warning
+            LSLogger.Singleton.Warning($"Cannot fail before processing.",
+                  source: (ClassName, null),
+                  processId: session.Process.ID,
+                  properties: new (string, object)[] {
+                    ("nodeID", NodeID),
+                    ("method", nameof(Fail))
+                });
+            return LSProcessResultStatus.UNKNOWN;
+        }
         if (_currentChild == null) return LSProcessResultStatus.SUCCESS;
         var currentStatus = GetNodeStatus();
         if (currentStatus != LSProcessResultStatus.WAITING && currentStatus != LSProcessResultStatus.UNKNOWN) {
@@ -234,13 +243,12 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
                     ("currentChild", _currentChild?.NodeID ?? "null"),
                     ("currentStatus", currentStatus),
                     ("availableChildren", _availableChildren.Count()),
-                    ("nodes", nodes == null ? "null" : string.Join(",", nodes)),
                     ("method", nameof(Fail))
                 });
             return currentStatus; // nothing to fail
         }
         // NOTE: only a handler node actually fails, a layer node just propagates the fail, this is why when Fail a layer node can have any result
-        var childStatus = _currentChild.Fail(session, nodes);
+        var childStatus = _currentChild.Fail(session);
         if (childStatus == LSProcessResultStatus.SUCCESS || childStatus == LSProcessResultStatus.CANCELLED) {
             endSelector();
             return childStatus;
@@ -249,15 +257,14 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
             return LSProcessResultStatus.WAITING; // still waiting
         }
         _currentChild = nextChild();
-        // continue executing the session
+        // continue executing
 
-        return session.Execute();
+        return Execute(session);
     }
     /// <summary>
     /// Propagates resumption to waiting children according to selector logic.
     /// </summary>
     /// <param name="session">The processing context for delegation and cancellation handling.</param>
-    /// <param name="nodes">Optional array of specific node IDs to target for resumption.</param>
     /// <returns>The current processing status after the resume operation.</returns>
     /// <remarks>
     /// <b>Selector Resume Logic:</b><br/>
@@ -268,7 +275,7 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
     /// <br/>
     /// If no children are waiting, returns the current selector status which may be SUCCESS if any child succeeded.
     /// </remarks>
-    public LSProcessResultStatus Resume(LSProcessSession session, params string[]? nodes) {
+    public LSProcessResultStatus Resume(LSProcessSession session) {
         // Flow debug logging
         LSLogger.Singleton.Debug($"{ClassName}.Resume [{NodeID}]",
               source: ("LSProcessSystem", null),
@@ -282,7 +289,6 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
                   processId: session.Process.ID,
                   properties: new (string, object)[] {
                     ("nodeID", NodeID),
-                    ("nodes", nodes != null ? string.Join(",", nodes) : "null"),
                     ("method", nameof(Resume))
                 });
             return LSProcessResultStatus.UNKNOWN;
@@ -298,38 +304,35 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
                     ("currentChild", _currentChild.NodeID),
                     ("currentStatus", currentStatus),
                     ("availableChildren", _availableChildren.Count()),
-                    ("nodes", nodes == null ? "null" : string.Join(",", nodes)),
                     ("method", nameof(Resume))
                 });
             return currentStatus;
         }
         // NOTE: only a handler node actually resumes, a layer node just propagates the resume, this is why when Resume a layer node can have any result
-        var childStatus = _currentChild.Resume(session, nodes);
-        // this is a gambiarra because I can't figure out the logic to do all operations and then log once, since I want log before exit the method
-        // why this is a gambiarra? because the properties in the log should also have the updated _currentChild after nextChild() call
-        var dribleDaVaca = () => LSLogger.Singleton.Debug($"Node Selector Resume.",
+        var childStatus = _currentChild.Resume(session);
+        void LogContinuation() => LSLogger.Singleton.Debug($"Node Selector Resume.",
             source: (ClassName, null),
             processId: session.Process.ID,
             properties: new (string, object)[] {
                         ("nodeID", NodeID),
-                        ("currentChild", _currentChild.NodeID),
+                        ("currentChild", _currentChild?.NodeID ?? "null"),
                         ("availableChildren", _availableChildren.Count()),
                         ("method", nameof(Resume))
             });
 
         if (childStatus == LSProcessResultStatus.SUCCESS || childStatus == LSProcessResultStatus.CANCELLED) {
-            dribleDaVaca();
+            LogContinuation();
             endSelector();
             return childStatus;
         }
         if (childStatus == LSProcessResultStatus.WAITING) {
-            dribleDaVaca();
+            LogContinuation();
             return LSProcessResultStatus.WAITING; // still waiting
         }
         _currentChild = nextChild();
-        // continue executing the session
-        dribleDaVaca();
-        return session.Execute();
+        // Execute also resolves exhaustion when there is no next child.
+        LogContinuation();
+        return Execute(session);
     }
     LSProcessResultStatus ILSProcessNode.Cancel(LSProcessSession session) {
         // Flow debug logging
@@ -337,21 +340,10 @@ public class LSProcessNodeSelector : ILSProcessLayerNode {
               source: ("LSProcessSystem", null),
               processId: session.Process.ID);
 
-        if (!_isProcessing) throw new LSException("Cannot cancel before processing.");
-        LSLogger.Singleton.Debug($"Selector Node Cancel.",
-              source: (ClassName, null),
-              processId: session.Process.ID,
-              properties: new (string, object)[] {
-                ("nodeID", NodeID),
-                ("currentChild", _currentChild?.NodeID ?? "null"),
-                ("availableChildren", _availableChildren.Count()),
-                ("method", nameof(ILSProcessNode.Cancel))
-            });
         // cancel waiting and unknown children
-        _availableChildren.Where(c => {
-            var cstatus = c.GetNodeStatus();
-            return cstatus == LSProcessResultStatus.WAITING || cstatus == LSProcessResultStatus.UNKNOWN;
-        }).ToList().ForEach(c => c.Cancel(session));
+        _availableChildren.Where(c => c.GetNodeStatus() != LSProcessResultStatus.CANCELLED)
+            .ToList()
+            .ForEach(c => c.Cancel(session));
         // update the node status
         var nodeStatus = GetNodeStatus();
         if (nodeStatus != LSProcessResultStatus.CANCELLED) {

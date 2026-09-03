@@ -16,7 +16,7 @@ namespace LSUtils.ProcessSystem;
 /// </para>
 /// <para>
 /// <b>Common Patterns:</b><br/>
-/// Used extensively in Sequence(), Selector(), Parallel(), and Inverter() methods
+/// Used extensively in Sequence(), Selector(), and Inverter() methods
 /// to enable declarative construction of complex processing workflows with readable,
 /// maintainable code structure.
 /// </para>
@@ -34,14 +34,6 @@ namespace LSUtils.ProcessSystem;
 ///         .Handler("fallback", FallbackHandler))
 ///     .Handler("cleanup", CleanupHandler));
 ///
-/// // Parallel processing with nested workflows  
-/// builder.Parallel("concurrent-tasks", par => par
-///     .Sequence("data-pipeline", data => data
-///         .Handler("load", LoadDataHandler)
-///         .Handler("transform", TransformHandler))
-///     .Sequence("notification-pipeline", notif => notif
-///         .Handler("prepare", PrepareNotificationHandler)
-///         .Handler("send", SendNotificationHandler)));
 /// </code>
 /// </example>
 public delegate LSProcessTreeBuilder LSProcessBuilderAction(LSProcessTreeBuilder subBuilder);

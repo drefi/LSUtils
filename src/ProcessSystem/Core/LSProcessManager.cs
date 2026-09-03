@@ -72,7 +72,6 @@ public class LSProcessManager {
         LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessNodeHandler.ClassName, isEnabled: status));
         LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessNodeSequence.ClassName, isEnabled: status));
         LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessNodeSelector.ClassName, isEnabled: status));
-        LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessNodeParallel.ClassName, isEnabled: status));
         LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessSession.ClassName, isEnabled: status));
         LSLogger.Singleton.SetSourceStatus((sourceID: LSProcessTreeBuilder.ClassName, isEnabled: status));
     }
@@ -102,7 +101,6 @@ public class LSProcessManager {
     /// <typeparam name="TProcess">The process type to register the context for (must implement ILSProcess)</typeparam>
     /// <param name="builder">Builder action that defines the processing hierarchy to add</param>
     /// <param name="instance">Optional processable instance for instance-specific registration (null = global)</param>
-    /// <param name="layerType">Root layer type for new registrations (PARALLEL, SEQUENCE, SELECTOR)</param>
     /// <example>
     /// Registering global and instance-specific contexts:
     /// <code>
@@ -131,7 +129,7 @@ public class LSProcessManager {
     /// Implementation Details:<br/>
     /// 1. Thread-safe dictionary access with TryAdd fallback for new process types<br/>
     /// 2. Uses GlobalProcessable.Instance as key for global (instance-less) registrations<br/>
-    /// 3. Creates new root nodes based on layerType for first-time registrations<br/>
+    /// 3. Creates new root nodes with sequence semantics for first-time registrations<br/>
     /// 4. Extends existing trees when type+instance combination already exists<br/>
     /// 5. Stores the built result back to the concurrent dictionary
     /// </para>

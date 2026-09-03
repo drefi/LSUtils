@@ -23,7 +23,7 @@ namespace LSUtils.ProcessSystem;
 /// </para>
 /// <para>
 /// <b>Implementation Notes:</b><br/>
-/// All layer nodes (Sequence, Selector, Parallel) sort their children by this priority
+/// All layer nodes (Sequence, Selector) sort their children by this priority
 /// system before processing, ensuring consistent execution patterns across different
 /// node types and processing scenarios.
 /// </para>

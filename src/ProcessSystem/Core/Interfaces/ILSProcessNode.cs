@@ -74,7 +74,7 @@ public interface ILSProcessNode {
     /// </summary>
     NodeUpdatePolicy UpdatePolicy { get; }
     /// <summary>
-    /// Creates an independent copy of this node for parallel processing or tree manipulation.
+    /// Creates an independent copy of this node for independent process executions or tree manipulation.
     /// </summary>
     /// <returns>New instance with the same configuration but typically without runtime state.</returns>
     /// <remarks>
@@ -109,7 +109,7 @@ public interface ILSProcessNode {
     /// <para><strong>Behavior by Node Type:</strong></para>
     /// <list type="bullet">
     /// <item><description><strong>Handler Nodes</strong>: Execute the associated handler delegate</description></item>
-    /// <item><description><strong>Layer Nodes</strong>: Process children according to their logic (sequence, selector, parallel)</description></item>
+    /// <item><description><strong>Layer Nodes</strong>: Process children according to their logic (sequence, selector)</description></item>
     /// </list>
     /// 
     /// <para><strong>State Management:</strong></para>
@@ -138,16 +138,15 @@ public interface ILSProcessNode {
     /// </remarks>
     LSProcessResultStatus GetNodeStatus();
     /// <summary>
-    /// Continues processing from WAITING state for this node or specified child nodes.
+    /// Continues processing through the current waiting branch.
     /// </summary>
     /// <param name="context">Processing session for continuation.</param>
-    /// <param name="nodes">Optional array of specific node IDs to target for resumption. If null or empty, resumes all waiting children.</param>
     /// <returns>New processing status after resume attempt.</returns>
     /// <remarks>
     /// <para><strong>Resumption Logic:</strong></para>
     /// <list type="bullet">
     /// <item><description><strong>State Validation</strong>: Only WAITING nodes can be resumed</description></item>
-    /// <item><description><strong>Target Selection</strong>: Specific nodes or all waiting children based on parameters</description></item>
+    /// <item><description><strong>Continuation</strong>: Delegates to the current waiting child</description></item>
     /// <item><description><strong>Cascading Effects</strong>: May trigger parent node status recalculation</description></item>
     /// </list>
     /// 
@@ -160,23 +159,19 @@ public interface ILSProcessNode {
     /// <para><strong>Error Handling:</strong></para>
     /// <list type="bullet">
     /// <item><description><strong>Invalid States</strong>: Returns current status if node is not in WAITING state</description></item>
-    /// <item><description><strong>Missing Targets</strong>: Ignores non-existent or non-waiting node IDs</description></item>
-    /// <item><description><strong>Partial Success</strong>: May resume some nodes even if others cannot be resumed</description></item>
     /// </list>
     /// </remarks>
-    LSProcessResultStatus Resume(LSProcessSession context, params string[]? nodes);
+    LSProcessResultStatus Resume(LSProcessSession context);
     /// <summary>
-    /// Forces transition from WAITING to FAILURE state for this node or specified child nodes.
+    /// Resolves the current waiting handler as FAILURE and continues according to the tree.
     /// </summary>
     /// <param name="context">Processing session for state transition.</param>
-    /// <param name="nodes">Optional array of specific node IDs to target for failure. If null or empty, fails all waiting children.</param>
     /// <returns>New processing status after failure operation.</returns>
     /// <remarks>
     /// <para><strong>Failure Injection Logic:</strong></para>
     /// <list type="bullet">
     /// <item><description><strong>State Transition</strong>: Forces WAITING nodes to FAILURE state</description></item>
-    /// <item><description><strong>Target Selection</strong>: Specific nodes or all waiting children based on parameters</description></item>
-    /// <item><description><strong>Immediate Effect</strong>: State change is applied immediately without further processing</description></item>
+    /// <item><description><strong>Continuation</strong>: A selector may execute its next alternative</description></item>
     /// </list>
     /// 
     /// <para><strong>Cascading Effects:</strong></para>
@@ -194,7 +189,7 @@ public interface ILSProcessNode {
     /// <item><description><strong>User Cancellation</strong>: Handle explicit user-initiated cancellations</description></item>
     /// </list>
     /// </remarks>
-    LSProcessResultStatus Fail(LSProcessSession context, params string[]? nodes);
+    LSProcessResultStatus Fail(LSProcessSession context);
     /// <summary>
     /// Terminates processing with CANCELLED state for this node and its entire subtree.
     /// </summary>
