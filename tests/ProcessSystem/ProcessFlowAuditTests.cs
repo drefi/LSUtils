@@ -112,7 +112,7 @@ public class ProcessFlowAuditTests {
     }
 
     [Test]
-    public void Currently_WithProcessingIsBlocked_ButRuntimeInverterChildCanBeRemoved() {
+    public void WithProcessingIsBlocked_AndRuntimeDoesNotExposeEditableNodes() {
         LSProcessSession? session = null;
         var invoked = false;
         var process = new AuditProcess();
@@ -123,8 +123,9 @@ public class ProcessFlowAuditTests {
         Assert.That(Start(process), Is.EqualTo(LSProcessResultStatus.WAITING));
         process.WithProcessing(b => { invoked = true; return b; });
         Assert.That(invoked, Is.False);
-        var inverter = (ILSProcessLayerNode)((ILSProcessLayerNode)session!.RootNode).GetChild("inverse")!;
-        Assert.That(inverter.RemoveChild("wait"), Is.True);
-        Assert.That(inverter.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
+        var inverter = session!.RootNode.GetChild("inverse")!;
+        Assert.That(inverter, Is.Not.InstanceOf<ILSProcessLayerNode>());
+        Assert.That(inverter.GetChild("wait")!.Status, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(process.Resume(), Is.EqualTo(LSProcessResultStatus.FAILURE));
     }
 }

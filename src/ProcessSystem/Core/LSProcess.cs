@@ -48,9 +48,9 @@ public abstract class LSProcess {
 
     /// <summary>
     /// Local processing tree defined via WithProcessing(). Merged with registered
-    /// contexts during execution, with local context taking highest priority.
+    /// contexts during composition, following builder merge/update policies.
     /// </summary>
-    private ILSProcessLayerNode _root;
+    private ILSProcessLayerNode? _root;
 
     /// <summary>
     /// Reference to the process manager used for execution. Cached from Execute() call.
@@ -110,7 +110,7 @@ public abstract class LSProcess {
 
     /// <summary>
     /// Virtual method that allows concrete process classes to define their processing tree through inheritance.
-    /// This method is called during Execute() before WithProcessing() configuration.
+    /// Called during the first Execute() on the local tree already prepared by WithProcessing().
     /// </summary>
     protected virtual LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
         return builder;
@@ -147,7 +147,7 @@ public abstract class LSProcess {
     /// <returns>Final execution status (may be WAITING if contains async operations)</returns>
     public LSProcessResultStatus Execute(LSProcessManager? manager = null, LSProcessManager.LSProcessContextMode contextMode = LSProcessManager.LSProcessContextMode.ALL, params ILSProcessable[]? instances) {
         // Flow debug logging LSProcessSystem
-        LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root.NodeID}] instance: {(instances == null ? "n/a" : $"{string.Join(", ", instances.Select(i => i.ID))}")}.",
+        LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root?.NodeID ?? _processSession?.RootNode.NodeID}] instance: {(instances == null ? "n/a" : $"{string.Join(", ", instances.Select(i => i.ID))}")}.",
             source: ("LSProcessSystem", null),
             properties: ("hideNodeID", true));
         _manager = manager ?? LSProcessManager.Singleton;
@@ -191,13 +191,14 @@ public abstract class LSProcess {
             if (globalInstance != null) contextInstances.AddRange(globalInstance);
         }
 
-        var sessionRoot = baseBuilder.Build();
+        var definition = LSProcessDefinition.Compile(baseBuilder.Build());
         _processSession = new LSProcessSession(_manager,
             this,
-            sessionRoot,
+            definition,
             contextMode,
             instances,
             contextInstances.ToArray());
+        _root = null;
 
         // Detailed debug logging ClassName
         LSLogger.Singleton.Debug($"Process Execute",

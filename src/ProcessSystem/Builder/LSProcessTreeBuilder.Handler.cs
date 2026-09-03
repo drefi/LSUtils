@@ -66,7 +66,7 @@ public partial class LSProcessTreeBuilder {
         var order = _rootNode.GetChildren().Length;
         if (getChild(nodeID, out var existingNode) == false || existingNode == null) {
             // Create new handler node, except for READONLY update policies does not matter
-            var node = new LSProcessNodeHandler(nodeID, handler, order, priority, null, updatePolicy, conditions);
+            var node = new LSProcessNodeHandler(nodeID, handler, order, priority, updatePolicy, conditions);
             _rootNode.AddChild(node);
             return this;
         }
@@ -118,7 +118,7 @@ public partial class LSProcessTreeBuilder {
 
         _rootNode.RemoveChild(nodeID);
         // updatePolicy is trick, should the new updatePolicy be applied or a combination of existing and new?
-        var updatedNode = new LSProcessNodeHandler(nodeID, policyHandler, policyOrder, policyPriority, null, updatePolicy, policyCondition);
+        var updatedNode = new LSProcessNodeHandler(nodeID, policyHandler, policyOrder, policyPriority, updatePolicy, policyCondition);
         _rootNode.AddChild(updatedNode);
 
         LSLogger.Singleton.Warning($"Handler Node updated [{nodeID}].",

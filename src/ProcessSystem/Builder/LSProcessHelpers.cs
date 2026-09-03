@@ -193,15 +193,7 @@ public static class LSProcessHelpers {
 
         return session => {
             if (session.Process is TProcess typedProcess) {
-                // Create a temporary typed session with the same properties
-                var typedSession = new LSProcessSession<TProcess>(
-                    session.Manager,
-                    typedProcess,
-                    session.RootNode,
-                    session.ContextMode,
-                    session.Instances,
-                    session.ContextInstances
-                );
+                var typedSession = new LSProcessSession<TProcess>(session);
                 return genericHandler(typedSession);
             }
             return LSProcessResultStatus.FAILURE; // Handler fails if process is not of expected type

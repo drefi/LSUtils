@@ -27,8 +27,10 @@ responsibility. A process may wait for a timer's owner; it does not measure time
 - **LSProcessManager**: registered tree fragments by process type and optionally
   by ILSProcessable instance. Register before executing the operation.
 - **LSProcessTreeBuilder**: named nodes and composition policies.
-- **LSProcessSession**: execution context supplied to handlers, including Process.
-  This is an internal operation context, not a game/world session.
+- **LSProcessDefinition**: immutable result of composition, with no execution state.
+- **LSProcessSession**: operation context supplied to handlers, including Process.
+  RootNode/CurrentNode expose read-only execution nodes; typed contexts share the
+  original execution and SessionID. This is not a game/world session.
 - **Handler**: callback returning a status. A callback can observe data without
   changing it; returning FAILURE or WAITING also controls execution.
 
@@ -127,22 +129,40 @@ running; return SUCCESS when observation must not veto the operation.
 - Resume/Fail no longer accept node identifiers: there is one active waiting
   branch. SplitNode and dotted-path routing were removed.
 - Existing numeric values of the remaining root-node enum members are preserved.
+- ILSProcessNode/ILSProcessLayerNode now describe editable templates only. They
+  no longer expose Execute/Resume/Fail/Cancel, statuses, or execution counters.
+- Inspect session.RootNode or session.CurrentNode for runtime status. These are
+  LSProcessExecutionNode objects, not editable templates; inspect Definition for
+  immutable metadata and Children for read-only child states.
+- ExecutionCount now counts completed handler invocations in this execution,
+  not aggregate invocations through template clones. Aggregate telemetry belongs
+  to an explicit observer if needed, not to shared mutable definition metadata.
 
 ## Current limits and next improvements
 
-The execution tree is intended to be configured before execution. WithProcessing
-rejects changes afterward, but direct access to session nodes is not yet a complete
-immutability boundary. Do not mutate those nodes while executing.
+The final definition is copied after local/built-in/instance/global composition,
+before any handler or condition executes. WithProcessing rejects changes after
+execution starts. Retaining a builder or mutating manager registrations cannot
+change an existing definition, including branches not yet visited.
 
-Exception handling and cleanup are not yet a comprehensive failure protocol.
-Do not assume arbitrary delegate exceptions become FAILURE or trigger cleanup.
-The flow-audit tests cover Selector exhaustion when resuming its last inverted
-waiting child, including propagation to a parent fallback. Exception handling and
-structural immutability remain separate work.
+Delegate exceptions propagate and restore CurrentNode. The execution retains the
+exception and rejects further execution/continuation by rethrowing it, preventing
+partial work from being repeated. This is not a comprehensive failure/recovery
+protocol: there is no conversion to FAILURE, rollback, or automatic domain cleanup.
+Repeated LSProcess.Execute still returns the current status as before.
+
+UNKNOWN remains indeterminate; it is not reported as SUCCESS merely because a
+sequence exhausted its children. Resume/Fail only resolve an actual WAITING.
+Explicit Cancel remains supported after completion, matching the existing contract.
+
+The incremental definition/execution migration is tracked in
+[IMMUTABILITY_ROADMAP.md](IMMUTABILITY_ROADMAP.md), including compatibility notes
+and a diagnostic allocation/timing comparison. The new executor is integrated;
+the previous executor has been removed.
 
 Recommended next steps, separately scoped:
 1. Define exception propagation and session cleanup guarantees.
-2. Enforce the boundary between editable templates and execution trees.
+2. Consider explicit custom-node support if a concrete use case requires it.
 3. Validate named extension stages in the White Horse intent/action prototype,
    including rejection, suspended completion, and multiple observers.
 
