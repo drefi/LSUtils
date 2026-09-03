@@ -125,27 +125,27 @@ public static class LSSignals {
     }
     #region Static Methods
 
-    public static LSProcessResultStatus Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f) {
+    public static LSProcessResult Notify(string message, string description = "", bool allowDismiss = false, double timeout = 3f) {
         var process = new NotifyProcess(new NotificationSignal(message, description, allowDismiss, timeout));
         return process.Execute(null);
     }
 
-    public static LSProcessResultStatus Notify(NotificationSignal notificationSignal) {
+    public static LSProcessResult Notify(NotificationSignal notificationSignal) {
         var process = new NotifyProcess(notificationSignal);
         return process.Execute(null);
     }
 
-    public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback) {
+    public static LSProcessResult Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback) {
         var process = new ConfirmationProcess(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, false, null, null));
         return process.Execute(null);
     }
 
-    public static LSProcessResultStatus Confirmation(ConfirmationSignal confirmationSignal) {
+    public static LSProcessResult Confirmation(ConfirmationSignal confirmationSignal) {
         var process = new ConfirmationProcess(confirmationSignal);
         return process.Execute(null);
     }
 
-    public static LSProcessResultStatus Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback) {
+    public static LSProcessResult Confirmation(string title, string description, string buttonConfirmationLabel, LSAction buttonConfirmationCallback, string buttonCancelLabel, LSAction buttonCancelCallback) {
         var process = new ConfirmationProcess(new ConfirmationSignal(title, description, buttonConfirmationLabel, buttonConfirmationCallback, true, buttonCancelLabel, buttonCancelCallback));
         return process.Execute(null);
     }

@@ -15,7 +15,7 @@ public class ProcessDefinitionTests {
         var root = LSProcessManager.CreateRootNode("root");
         new LSProcessTreeBuilder(root).Selector("choice", s => s
             .Inverter("inverse", i => i.Handler("work", _ => {
-                calls++; return LSProcessResultStatus.SUCCESS;
+                calls++; return LSProcessResult.Success;
             }, conditions: conditions)));
 
         var definition = LSProcessDefinition.Compile(root);
@@ -44,9 +44,9 @@ public class ProcessDefinitionTests {
     public void Compile_PreservesOrderPriorityAndPolicies() {
         var root = LSProcessManager.CreateRootNode("root");
         new LSProcessTreeBuilder(root)
-            .Handler("first", _ => LSProcessResultStatus.SUCCESS,
+            .Handler("first", _ => LSProcessResult.Success,
                 NodeUpdatePolicy.READONLY, LSProcessPriority.LOW)
-            .Handler("second", _ => LSProcessResultStatus.SUCCESS,
+            .Handler("second", _ => LSProcessResult.Success,
                 priority: LSProcessPriority.HIGH);
         var definition = LSProcessDefinition.Compile(root);
         var source = root.GetChild("first")!;
@@ -62,9 +62,9 @@ public class ProcessDefinitionTests {
     [Test]
     public void LaterManagerRegistration_DoesNotAlterCompiledDefinition() {
         var manager = new LSProcessManager();
-        manager.Register<PipelineTestProcess>(b => b.Handler("first", _ => LSProcessResultStatus.SUCCESS));
+        manager.Register<PipelineTestProcess>(b => b.Handler("first", _ => LSProcessResult.Success));
         var first = LSProcessDefinition.Compile(manager.GetRootNode(typeof(PipelineTestProcess), out _));
-        manager.Register<PipelineTestProcess>(b => b.Handler("second", _ => LSProcessResultStatus.SUCCESS));
+        manager.Register<PipelineTestProcess>(b => b.Handler("second", _ => LSProcessResult.Success));
         var second = LSProcessDefinition.Compile(manager.GetRootNode(typeof(PipelineTestProcess), out _));
 
         Assert.That(first.Root.Children.Count, Is.EqualTo(1));

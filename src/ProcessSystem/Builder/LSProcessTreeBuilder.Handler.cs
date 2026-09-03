@@ -50,7 +50,7 @@ public partial class LSProcessTreeBuilder {
     public LSProcessTreeBuilder Handler(string nodeID,
             LSProcessHandler handler,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_HANDLER,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             params LSProcessNodeCondition?[] conditions) {
 
         if (_rootNode == null) {
@@ -149,7 +149,7 @@ public partial class LSProcessTreeBuilder {
     public LSProcessTreeBuilder Handler<TProcess>(string nodeID,
             LSProcessHandler<TProcess> handler,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_HANDLER,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
         return Handler(nodeID, handler.ToHandler(), updatePolicy, priority, conditions.ToCondition());
     }
@@ -167,7 +167,7 @@ public partial class LSProcessTreeBuilder {
     public LSProcessTreeBuilder Handler<TProcess>(LSProcessHandler<TProcess> handler,
             out string nodeID,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_HANDLER,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
         nodeID = $"handler-{System.Guid.NewGuid()}";
         return Handler(nodeID, handler.ToHandler(), updatePolicy, priority, conditions.ToCondition());
@@ -182,7 +182,7 @@ public partial class LSProcessTreeBuilder {
     /// <param name="priority"></param>
     /// <param name="conditions"></param>
     /// <returns></returns>
-    public LSProcessTreeBuilder Handler<TProcess>(LSProcessHandler<TProcess> handler, NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_HANDLER, LSProcessPriority priority = LSProcessPriority.NORMAL, params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
+    public LSProcessTreeBuilder Handler<TProcess>(LSProcessHandler<TProcess> handler, NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_HANDLER, LSProcessPriority priority = default, params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
         // use overload that generates a new nodeID with (out _)
         return Handler<TProcess>(handler, out _, updatePolicy, priority, conditions);
     }

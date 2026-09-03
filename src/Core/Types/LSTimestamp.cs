@@ -77,14 +77,14 @@ public class LSTimestamp : ILSProcessable {
         return "[Timestamp: " + TotalMinutes + " => Day = " + Day + " Hour = " + Hour + " Minute = " + Minute + "]";
     }
 
-    public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitializeSequence = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables) {
+    public LSProcessResult Initialize(LSProcessBuilderAction? onInitializeSequence = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables) {
         _manager = manager ?? LSProcessManager.Singleton;
         var process = new InitializeProcess(this);
         return process.WithProcessing(root => root
             .Handler(LSProcessLabels.IS_INITIALIZED_KEY, session => {
-                if (_isInitialized) return LSProcessResultStatus.FAILURE;
+                if (_isInitialized) return LSProcessResult.Failure;
                 _isInitialized = true;
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             }, priority: LSProcessPriority.CRITICAL)
             .Sequence(nameof(onInitializeSequence), onInitializeSequence,
                 priority: LSProcessPriority.HIGH,

@@ -196,7 +196,7 @@ public static class LSProcessHelpers {
                 var typedSession = new LSProcessSession<TProcess>(session);
                 return genericHandler(typedSession);
             }
-            return LSProcessResultStatus.FAILURE; // Handler fails if process is not of expected type
+            return LSProcessResult.Failure; // Handler fails if process is not of expected type
         };
     }
 }

@@ -5,25 +5,39 @@ using System;
 namespace LSUtils.Tests.ProcessSystem;
 
 [TestFixture]
-public class LSProcessResultStatusTests {
+public class LSProcessResultTests {
     [Test]
-    public void LSProcessResultStatus_ShouldHaveExpectedValues() {
-        // Assert
-        Assert.That(Enum.IsDefined(typeof(LSProcessResultStatus), LSProcessResultStatus.UNKNOWN), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessResultStatus), LSProcessResultStatus.SUCCESS), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessResultStatus), LSProcessResultStatus.FAILURE), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessResultStatus), LSProcessResultStatus.WAITING), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessResultStatus), LSProcessResultStatus.CANCELLED), Is.True);
+    public void OutcomesHaveExclusiveSemanticFlags() {
+        Assert.Multiple(() => {
+            Assert.That(LSProcessResult.NotExecuted.IsNotExecuted, Is.True);
+            Assert.That(LSProcessResult.Success.IsSuccess, Is.True);
+            Assert.That(LSProcessResult.Failure.IsFailure, Is.True);
+            Assert.That(LSProcessResult.Waiting.IsWaiting, Is.True);
+            Assert.That(LSProcessResult.Cancelled.IsCancelled, Is.True);
+            Assert.That(LSProcessResult.Undetermined.IsUndetermined, Is.True);
+            Assert.That(LSProcessResult.NotExecuted, Is.Not.EqualTo(LSProcessResult.Undetermined));
+            Assert.That(LSProcessResult.Success.IsTerminal, Is.True);
+            Assert.That(LSProcessResult.Waiting.IsTerminal, Is.False);
+        });
     }
 
     [Test]
-    public void LSProcessResultStatus_ShouldHaveCorrectValues() {
-        // Assert
-        Assert.That((int)LSProcessResultStatus.UNKNOWN, Is.EqualTo(0));
-        Assert.That((int)LSProcessResultStatus.SUCCESS, Is.EqualTo(1));
-        Assert.That((int)LSProcessResultStatus.FAILURE, Is.EqualTo(2));
-        Assert.That((int)LSProcessResultStatus.WAITING, Is.EqualTo(3));
-        Assert.That((int)LSProcessResultStatus.CANCELLED, Is.EqualTo(4));
+    public void TypedPayloadCanBeReadOnlyAsCompatibleType() {
+        var reason = new InvalidOperationException("denied");
+        var result = LSProcessResult.Failed(reason);
+        Assert.That(result.IsFailure, Is.True);
+        Assert.That(result.HasPayload, Is.True);
+        Assert.That(result.PayloadType, Is.EqualTo(typeof(InvalidOperationException)));
+        Assert.That(result.GetPayload<Exception>(), Is.SameAs(reason));
+        Assert.That(result.TryGetPayload<string>(out _), Is.False);
+        Assert.Throws<InvalidOperationException>(() => result.GetPayload<string>());
+    }
+
+    [Test]
+    public void FlowEqualityIgnoresDiagnosticPayload() {
+        Assert.That(LSProcessResult.Failed("first"), Is.EqualTo(LSProcessResult.Failed(42)));
+        Assert.That(LSProcessResult.Failed("first"), Is.EqualTo(LSProcessResult.Failure));
+        Assert.That(LSProcessResult.Failed("first"), Is.Not.EqualTo(LSProcessResult.Success));
     }
 }
 
@@ -31,11 +45,10 @@ public class LSProcessResultStatusTests {
 public class LSProcessPriorityTests {
     [Test]
     public void LSProcessPriority_ShouldHaveExpectedValues() {
-        // Assert
-        Assert.That(Enum.IsDefined(typeof(LSProcessPriority), LSProcessPriority.LOW), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessPriority), LSProcessPriority.NORMAL), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessPriority), LSProcessPriority.HIGH), Is.True);
-        Assert.That(Enum.IsDefined(typeof(LSProcessPriority), LSProcessPriority.CRITICAL), Is.True);
+        Assert.That(LSProcessPriority.MINIMAL.Value, Is.EqualTo(0));
+        Assert.That(LSProcessPriority.LOW.CompareTo(LSProcessPriority.NORMAL), Is.LessThan(0));
+        Assert.That(LSProcessPriority.HIGH.CompareTo(LSProcessPriority.NORMAL), Is.GreaterThan(0));
+        Assert.That(LSProcessPriority.CRITICAL.ToString(), Is.EqualTo("CRITICAL"));
     }
 }
 
@@ -48,13 +61,13 @@ public class ILSProcessableTests {
         public LSProcessManager? LastManager { get; private set; }
         public ILSProcessable[]? LastForwardProcessables { get; private set; }
 
-        public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitialize = null,
+        public LSProcessResult Initialize(LSProcessBuilderAction? onInitialize = null,
             LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables) {
             InitializeCalled = true;
             LastBuilderAction = onInitialize;
             LastManager = manager;
             LastForwardProcessables = forwardProcessables;
-            return LSProcessResultStatus.SUCCESS;
+            return LSProcessResult.Success;
         }
     }
 
@@ -77,7 +90,7 @@ public class ILSProcessableTests {
         var result = processable.Initialize();
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Success));
         Assert.That(processable.InitializeCalled, Is.True);
     }
 
@@ -93,7 +106,7 @@ public class ILSProcessableTests {
         var result = processable.Initialize(builderAction, manager, forwardProcessable);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Success));
         Assert.That(processable.LastBuilderAction, Is.EqualTo(builderAction));
         Assert.That(processable.LastManager, Is.EqualTo(manager));
         Assert.That(processable.LastForwardProcessables, Is.Not.Null);
@@ -110,7 +123,7 @@ public class ILSProcessableTests {
         var result = processable.Initialize(null, null, null);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Success));
         Assert.That(processable.LastBuilderAction, Is.Null);
         Assert.That(processable.LastManager, Is.Null);
         Assert.That(processable.LastForwardProcessables, Is.Null);
@@ -129,7 +142,7 @@ private class TestProcessNode : ILSProcessNode {
     public int Order { get; set; }
     public bool ReadOnly { get; set; }
     
-    public LSProcessResultStatus Status { get; set; } = LSProcessResultStatus.UNKNOWN;
+    public LSProcessResult Status { get; set; } = LSProcessResult.Undetermined;
     public bool ExecuteCalled { get; private set; }
     public bool CancelCalled { get; private set; }
 
@@ -139,32 +152,32 @@ private class TestProcessNode : ILSProcessNode {
             Conditions = Conditions,
             Order = Order,
             ReadOnly = ReadOnly,
-            Status = LSProcessResultStatus.UNKNOWN
+            Status = LSProcessResult.Undetermined
         };
     }
 
-    public LSProcessResultStatus Execute(LSProcessSession context) {
+    public LSProcessResult Execute(LSProcessSession context) {
         ExecuteCalled = true;
         return Status;
     }
 
-    public LSProcessResultStatus GetNodeStatus() => Status;
+    public LSProcessResult GetNodeStatus() => Status;
 
-    public LSProcessResultStatus Resume(LSProcessSession context) {
-        if (Status == LSProcessResultStatus.WAITING) {
-            Status = LSProcessResultStatus.SUCCESS;
+    public LSProcessResult Resume(LSProcessSession context) {
+        if (Status == LSProcessResult.Waiting) {
+            Status = LSProcessResult.Success;
         }
         return Status;
     }
 
-    public LSProcessResultStatus Fail(LSProcessSession context) {
-        Status = LSProcessResultStatus.FAILURE;
+    public LSProcessResult Fail(LSProcessSession context) {
+        Status = LSProcessResult.Failure;
         return Status;
     }
 
-    public LSProcessResultStatus Cancel(LSProcessSession context) {
+    public LSProcessResult Cancel(LSProcessSession context) {
         CancelCalled = true;
-        Status = LSProcessResultStatus.CANCELLED;
+        Status = LSProcessResult.Cancelled;
         return Status;
     }
 }
@@ -186,10 +199,10 @@ public void GetNodeStatus_ShouldReturnCurrentStatus() {
     var node = new TestProcessNode();
 
     // Act & Assert
-    Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.UNKNOWN));
+    Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResult.Undetermined));
 
-    node.Status = LSProcessResultStatus.SUCCESS;
-    Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
+    node.Status = LSProcessResult.Success;
+    Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResult.Success));
 }
 
 [Test]
@@ -208,7 +221,7 @@ public void Execute_ShouldBeCallable() {
 
     // Assert
     Assert.That(node.ExecuteCalled, Is.True);
-    Assert.That(result, Is.EqualTo(LSProcessResultStatus.UNKNOWN));
+    Assert.That(result, Is.EqualTo(LSProcessResult.Undetermined));
 }
 
 [Test]
@@ -220,7 +233,7 @@ public void Cancel_ShouldSetCancelledStatus() {
     process.WithProcessing(builder => builder.Handler("test", session => {
         // This will test the cancel functionality
         var result = node.Cancel(session);
-        return LSProcessResultStatus.SUCCESS;
+        return LSProcessResult.Success;
     }));
 
     // Act
@@ -228,8 +241,8 @@ public void Cancel_ShouldSetCancelledStatus() {
 
     // Assert
     Assert.That(node.CancelCalled, Is.True);
-    Assert.That(result, Is.EqualTo(LSProcessResultStatus.CANCELLED));
-    Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResultStatus.CANCELLED));
+    Assert.That(result, Is.EqualTo(LSProcessResult.Cancelled));
+    Assert.That(node.GetNodeStatus(), Is.EqualTo(LSProcessResult.Cancelled));
 }
 }
 /**/

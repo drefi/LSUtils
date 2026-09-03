@@ -13,21 +13,21 @@ namespace LSUtils.Tests.ProcessSystem;
 public class ProcessFlowAuditTests {
     private sealed class AuditProcess : LSProcess { }
 
-    private static LSProcessResultStatus Start(LSProcess process) => process.Execute(new LSProcessManager());
+    private static LSProcessResult Start(LSProcess process) => process.Execute(new LSProcessManager());
 
     [Test]
     public void NestedSequence_ResumesLocallyAcrossTwoWaits_WithoutRepeatingHandlers() {
         var trace = new List<string>();
         var process = new AuditProcess();
         process.WithProcessing(b => b.Sequence("nested", s => s
-            .Handler("first", _ => { trace.Add("first"); return LSProcessResultStatus.WAITING; })
-            .Handler("second", _ => { trace.Add("second"); return LSProcessResultStatus.WAITING; }))
-            .Handler("tail", _ => { trace.Add("tail"); return LSProcessResultStatus.SUCCESS; }));
+            .Handler("first", _ => { trace.Add("first"); return LSProcessResult.Waiting; })
+            .Handler("second", _ => { trace.Add("second"); return LSProcessResult.Waiting; }))
+            .Handler("tail", _ => { trace.Add("tail"); return LSProcessResult.Success; }));
 
-        Assert.That(Start(process), Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(process.Resume(), Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(Start(process), Is.EqualTo(LSProcessResult.Waiting));
+        Assert.That(process.Resume(), Is.EqualTo(LSProcessResult.Waiting));
         Assert.That(process.IsCompleted, Is.False);
-        Assert.That(process.Resume(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(process.Resume(), Is.EqualTo(LSProcessResult.Success));
         Assert.That(process.IsCompleted, Is.True);
         Assert.That(trace, Is.EqualTo(new[] { "first", "second", "tail" }));
     }
@@ -37,11 +37,11 @@ public class ProcessFlowAuditTests {
         var tailCalls = 0;
         var process = new AuditProcess();
         process.WithProcessing(b => b.Inverter("inverse", i => i
-            .Handler("wait", _ => LSProcessResultStatus.WAITING))
-            .Handler("tail", _ => { tailCalls++; return LSProcessResultStatus.SUCCESS; }));
+            .Handler("wait", _ => LSProcessResult.Waiting))
+            .Handler("tail", _ => { tailCalls++; return LSProcessResult.Success; }));
 
-        Assert.That(Start(process), Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(process.Fail(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(Start(process), Is.EqualTo(LSProcessResult.Waiting));
+        Assert.That(process.Fail(), Is.EqualTo(LSProcessResult.Success));
         Assert.That(process.IsCompleted, Is.True);
         Assert.That(tailCalls, Is.EqualTo(1));
     }
@@ -51,12 +51,12 @@ public class ProcessFlowAuditTests {
         var trace = new List<string>();
         var process = new AuditProcess();
         process.WithProcessing(b => b.Selector("choice", s => s
-            .Handler("wait", _ => { trace.Add("wait"); return LSProcessResultStatus.WAITING; })
-            .Handler("fallback", _ => { trace.Add("fallback"); return LSProcessResultStatus.SUCCESS; }))
-            .Handler("tail", _ => { trace.Add("tail"); return LSProcessResultStatus.SUCCESS; }));
+            .Handler("wait", _ => { trace.Add("wait"); return LSProcessResult.Waiting; })
+            .Handler("fallback", _ => { trace.Add("fallback"); return LSProcessResult.Success; }))
+            .Handler("tail", _ => { trace.Add("tail"); return LSProcessResult.Success; }));
 
-        Assert.That(Start(process), Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(process.Fail(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(Start(process), Is.EqualTo(LSProcessResult.Waiting));
+        Assert.That(process.Fail(), Is.EqualTo(LSProcessResult.Success));
         Assert.That(process.IsCompleted, Is.True);
         Assert.That(trace, Is.EqualTo(new[] { "wait", "fallback", "tail" }));
     }
@@ -65,12 +65,12 @@ public class ProcessFlowAuditTests {
     public void CancelWaitingSequence_WithUnstartedBranch_DoesNotThrowOrExecuteBranch() {
         var pendingCalls = 0;
         var process = new AuditProcess();
-        process.WithProcessing(b => b.Handler("wait", _ => LSProcessResultStatus.WAITING)
+        process.WithProcessing(b => b.Handler("wait", _ => LSProcessResult.Waiting)
             .Sequence("pending", s => s.Handler("work", _ => {
-                pendingCalls++; return LSProcessResultStatus.SUCCESS;
+                pendingCalls++; return LSProcessResult.Success;
             })));
 
-        Assert.That(Start(process), Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(Start(process), Is.EqualTo(LSProcessResult.Waiting));
         Assert.DoesNotThrow(process.Cancel);
         Assert.That(process.IsCancelled, Is.True);
         Assert.That(pendingCalls, Is.Zero);
@@ -81,14 +81,14 @@ public class ProcessFlowAuditTests {
         var tailCalls = 0;
         var process = new AuditProcess();
         process.WithProcessing(b => b.Selector("choice", s => s
-            .Inverter("inverse", i => i.Handler("wait", _ => LSProcessResultStatus.WAITING)))
-            .Handler("tail", _ => { tailCalls++; return LSProcessResultStatus.SUCCESS; }));
+            .Inverter("inverse", i => i.Handler("wait", _ => LSProcessResult.Waiting)))
+            .Handler("tail", _ => { tailCalls++; return LSProcessResult.Success; }));
 
-        Assert.That(Start(process), Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(process.Resume(), Is.EqualTo(LSProcessResultStatus.FAILURE));
+        Assert.That(Start(process), Is.EqualTo(LSProcessResult.Waiting));
+        Assert.That(process.Resume(), Is.EqualTo(LSProcessResult.Failure));
         Assert.That(process.IsCompleted, Is.True);
-        Assert.That(process.Resume(), Is.EqualTo(LSProcessResultStatus.FAILURE));
-        Assert.That(process.Execute(), Is.EqualTo(LSProcessResultStatus.FAILURE));
+        Assert.That(process.Resume(), Is.EqualTo(LSProcessResult.Failure));
+        Assert.That(process.Execute(), Is.EqualTo(LSProcessResult.Failure));
         Assert.That(tailCalls, Is.Zero);
     }
 
@@ -99,15 +99,15 @@ public class ProcessFlowAuditTests {
         process.WithProcessing(b => b.Selector("outer", outer => outer
             .Selector("inner", inner => inner
                 .Inverter("inverse", i => i.Handler("wait", _ => {
-                    trace.Add("wait"); return LSProcessResultStatus.WAITING;
+                    trace.Add("wait"); return LSProcessResult.Waiting;
                 })))
-            .Handler("fallback", _ => { trace.Add("fallback"); return LSProcessResultStatus.SUCCESS; }))
-            .Handler("tail", _ => { trace.Add("tail"); return LSProcessResultStatus.SUCCESS; }));
+            .Handler("fallback", _ => { trace.Add("fallback"); return LSProcessResult.Success; }))
+            .Handler("tail", _ => { trace.Add("tail"); return LSProcessResult.Success; }));
 
-        Assert.That(Start(process), Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(process.Resume(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(Start(process), Is.EqualTo(LSProcessResult.Waiting));
+        Assert.That(process.Resume(), Is.EqualTo(LSProcessResult.Success));
         Assert.That(process.IsCompleted, Is.True);
-        Assert.That(process.Resume(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(process.Resume(), Is.EqualTo(LSProcessResult.Success));
         Assert.That(trace, Is.EqualTo(new[] { "wait", "fallback", "tail" }));
     }
 
@@ -117,15 +117,15 @@ public class ProcessFlowAuditTests {
         var invoked = false;
         var process = new AuditProcess();
         process.WithProcessing(b => b.Inverter("inverse", i => i.Handler("wait", s => {
-            session = s; return LSProcessResultStatus.WAITING;
+            session = s; return LSProcessResult.Waiting;
         })));
 
-        Assert.That(Start(process), Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(Start(process), Is.EqualTo(LSProcessResult.Waiting));
         process.WithProcessing(b => { invoked = true; return b; });
         Assert.That(invoked, Is.False);
         var inverter = session!.RootNode.GetChild("inverse")!;
         Assert.That(inverter, Is.Not.InstanceOf<ILSProcessLayerNode>());
-        Assert.That(inverter.GetChild("wait")!.Status, Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(process.Resume(), Is.EqualTo(LSProcessResultStatus.FAILURE));
+        Assert.That(inverter.GetChild("wait")!.Status, Is.EqualTo(LSProcessResult.Waiting));
+        Assert.That(process.Resume(), Is.EqualTo(LSProcessResult.Failure));
     }
 }

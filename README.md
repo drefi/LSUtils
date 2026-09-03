@@ -36,18 +36,18 @@ var manager = new LSProcessManager();
 manager.Register<RequestProcess>(b => b
     .Handler("resolve", session => {
         session.Process.SetData("result", "accepted");
-        return LSProcessResultStatus.SUCCESS;
+        return LSProcessResult.Success;
     })
     .Handler("observe", session => {
         System.Console.WriteLine(session.Process.GetData<string>("result"));
-        return LSProcessResultStatus.SUCCESS;
+        return LSProcessResult.Success;
     }));
 var status = new RequestProcess().Execute(manager);
 
 sealed class RequestProcess : LSProcess { }
 ```
 
-Handlers execute on the calling thread. A handler can return `WAITING`; its owner
+Handlers execute on the calling thread. A handler can return `LSProcessResult.Waiting`; its owner
 later calls `Resume()` or `Fail()`. There is no timer, tick loop, or thread scheduler.
 See the [ProcessSystem guide](src/ProcessSystem/QUICK_GUIDE.md) for composition,
 intervention, lifecycle, migration, and current limitations.

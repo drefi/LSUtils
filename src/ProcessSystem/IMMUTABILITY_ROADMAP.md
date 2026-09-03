@@ -64,10 +64,10 @@ intentional API/semantics change; aggregate telemetry should use an explicit obs
 Handler and condition closures can still refer to mutable application objects;
 structural immutability neither clones those objects nor makes them thread-safe.
 
-Two narrow consistency guarantees accompany the new interpreter: UNKNOWN is not
+Two narrow consistency guarantees accompany the new interpreter: an undetermined result is not
 converted into a successful return merely because a sequence exhausts its children,
 and callback exceptions restore CurrentNode and are retained to prevent accidental
-continuation of partial work. Exceptions still propagate, never become FAILURE
+continuation of partial work. Exceptions still propagate, never become failure
 implicitly, and do not implement rollback. Broader exception policy remains future work.
 
 ## Verification and measurement
@@ -102,12 +102,11 @@ Run ProcessPerformanceTests.MeasureConstructionAndContinuation explicitly to rep
 - Build and tests pass in LSUtils and the dependent White Horse prototype.
 - Performance claims are based on measurements, not immutability alone.
 
-## Planned stage 6: stronger types and detailed results
+## Stage 6 complete: stronger types and detailed results
 
-Replace enum-only contracts where they cannot express the domain invariants.
-Prioritize LSProcessResultStatus: a status alone cannot explain a rejection,
-identify the result producer, or carry a typed value for registered participants.
-This stage is planned only; no result or enum API is changed yet.
+Enum-only contracts were replaced where they could not express domain invariants.
+The immutable LSProcessResult distinguishes NotExecuted from Undetermined and can
+carry typed payloads for every executed outcome.
 
 1. Review the existing enums by responsibility: execution lifecycle, operation
    outcomes, node kinds, priority, and composition/context policies. Specify each
@@ -118,7 +117,7 @@ This stage is planned only; no result or enum API is changed yet.
    details, without requiring consumers to cast object values or inspect string keys.
    Type names and class/struct representation remain design decisions, not commitments.
 3. Separate lifecycle from outcome: not executed, waiting, and indeterminate must
-   not be ambiguous synonyms for UNKNOWN. Specify whether waiting carries a reason
+   not be ambiguous synonyms. Specify whether waiting carries a reason
    or continuation context without implying completion. Exceptions remain distinct
    from expected business failures unless an explicit conversion policy is adopted.
 4. Formalize payload propagation through Sequence, Selector, and Inverter. Decide
@@ -138,41 +137,57 @@ This stage is planned only; no result or enum API is changed yet.
    reads after completion. Compare allocations and throughput against this roadmap's
    baseline before choosing reference/value representations or retaining adapters.
 
-Acceptance: consumers can distinguish control state from a detailed outcome and
+Verified acceptance: consumers can distinguish control state from a detailed outcome and
 access supported payloads safely; invalid state/payload combinations are prevented
 by the contract; composition and continuation remain deterministic; any compatibility
 changes and performance tradeoffs are documented before old enum APIs are removed.
 
-## Planned final stage 7: documentation overhaul
+Enum audit outcome:
 
-Audit and rewrite the current ProcessSystem documentation using the implementation
+- LSProcessPriority is an ordered value object with named supported values.
+- LSProcessRootNodeType was unused and removed.
+- NodeUpdatePolicy and LSProcessContextMode remain flags because combinations are valid.
+- LSProcessDefinitionNodeKind remains a closed structural discriminator.
+- Flow equality compares outcomes; payloads are inspected explicitly.
+- Sequence exposes its last successful payload; Selector exposes its decisive success
+  or final failure payload; Inverter carries LSProcessInversion provenance.
+
+## Stage 7 complete: documentation overhaul
+
+The ProcessSystem documentation was audited against the implementation and tests.
+README now points to the focused guide, and the guide is organized by responsibility,
+node semantics, composition, intervention, lifecycle, migration, and limitations.
+The implementation remains authoritative whenever historical material conflicts.
+
+The completed audit followed this checklist:
+
+1. Audit and rewrite the current ProcessSystem documentation using the implementation
 and executable tests as evidence. Existing prose is not the source of truth when
-it conflicts with behavior. This is a planned documentation project, not a claim
-that the existing documentation has already been fully corrected.
+it conflicts with behavior.
 
-1. Inventory README entry points, guides, API references, XML comments, examples,
+2. Inventory README entry points, guides, API references, XML comments, examples,
    and dependent integration notes. Identify obsolete APIs, contradictory claims,
    duplicate explanations, broken links, and undocumented public behavior.
-2. Organize documentation by responsibility: purpose and suitability; composition
+3. Organize documentation by responsibility: purpose and suitability; composition
    and registration; immutable definitions; execution/session lifecycle; node
    semantics; typed results and payload propagation; external interventions;
    diagnostics, limitations, migration, and performance measurement.
-3. Explain all four composition sources, actual ordering and merge policies,
+4. Explain all four composition sources, actual ordering and merge policies,
    context selection, and the effect of later registrations on future versus
    already-running processes. Separate composition metadata from execution state.
-4. Document every supported node and control operation, including empty trees,
+5. Document every supported node and control operation, including empty trees,
    conditions and priorities, waiting and continuation, cancellation, exceptions,
    repeated calls, and typed session views. Distinguish verified guarantees from
    known defects, intentionally unsupported behavior, and future proposals.
-5. Provide runnable examples for observer-style callbacks, result inspection and
+6. Provide runnable examples for observer-style callbacks, result inspection and
    modification, veto, fallback, and suspended completion through ProcessManager.
    Explain when a direct method is sufficient and when the process tree adds value.
    Do not describe the system as a thread scheduler, update loop, or event bus.
-6. Reconcile XML documentation with signatures and behavior. Replace obsolete
+7. Reconcile XML documentation with signatures and behavior. Replace obsolete
    examples rather than preserving misleading compatibility descriptions. Move
    historical decisions to clearly labeled migration/history material and make
    the current guide the discoverable starting point from repository indexes.
-7. Link examples and behavioral claims to NUnit coverage, add executable examples
+8. Link examples and behavioral claims to NUnit coverage, add executable examples
    for uncovered contracts, validate documentation links, and review dependent
    prototype instructions. Record measurement conditions for performance claims.
 

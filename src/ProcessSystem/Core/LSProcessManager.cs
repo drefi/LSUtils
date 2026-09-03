@@ -39,22 +39,22 @@ using LSUtils.Logging;
 /// // Register global context for all MockProcess instances
 /// LSProcessManager.Singleton.Register&lt;MockProcess&gt;(builder => builder
 ///     .Sequence("global-sequence", seq => seq
-///         .Handler("global-handler1", session => LSProcessResultStatus.SUCCESS)
-///         .Handler("global-handler2", session => LSProcessResultStatus.SUCCESS)
+///         .Handler("global-handler1", session => LSProcessResult.Success)
+///         .Handler("global-handler2", session => LSProcessResult.Success)
 ///     )
 /// );
 /// 
 /// // Register instance-specific context
 /// var entity = new GameEntity(Guid.NewGuid(), "Player");
 /// LSProcessManager.Singleton.Register&lt;MockProcess&gt;(builder => builder
-///     .Handler("player-specific-logic", session => LSProcessResultStatus.SUCCESS),
+///     .Handler("player-specific-logic", session => LSProcessResult.Success),
 ///     instance: entity
 /// );
 /// 
 /// // Process execution merges all applicable contexts
 /// var process = new MockProcess();
 /// process.WithProcessing(builder => builder  // Local context (highest priority)
-///     .Handler("local-validation", session => LSProcessResultStatus.SUCCESS)
+///     .Handler("local-validation", session => LSProcessResult.Success)
 /// );
 /// 
 /// var result = process.Execute(entity); // Merges local + instance + global contexts
@@ -107,15 +107,15 @@ public class LSProcessManager {
     /// // Global context - applies to all MockProcess instances
     /// LSProcessManager.Singleton.Register&lt;MockProcess&gt;(root => root
     ///     .Sequence("global-logic", seq => seq
-    ///         .Handler("validate", session => LSProcessResultStatus.SUCCESS)
-    ///         .Handler("execute", session => LSProcessResultStatus.SUCCESS)
+    ///         .Handler("validate", session => LSProcessResult.Success)
+    ///         .Handler("execute", session => LSProcessResult.Success)
     ///     )
     /// );
     /// 
     /// // Instance-specific context - only for this particular entity
     /// var playerEntity = new PlayerEntity(Guid.NewGuid(), "Player");
     /// LSProcessManager.Singleton.Register&lt;MockProcess&gt;(root => root
-    ///     .Handler("player-bonus-logic", session => LSProcessResultStatus.SUCCESS),
+    ///     .Handler("player-bonus-logic", session => LSProcessResult.Success),
     ///     instance: playerEntity
     /// );
     /// </code>
@@ -289,7 +289,7 @@ public class LSProcessManager {
         /// <param name="manager">Ignored - not used by sentinel implementation</param>
         /// <returns>Never returns - always throws exception</returns>
         /// <exception cref="NotImplementedException">Always thrown to prevent misuse of this sentinel object</exception>
-        LSProcessResultStatus ILSProcessable.Initialize(LSProcessBuilderAction? initBuilder, LSProcessManager? manager, params ILSProcessable[]? forwardProcessables) {
+        LSProcessResult ILSProcessable.Initialize(LSProcessBuilderAction? initBuilder, LSProcessManager? manager, params ILSProcessable[]? forwardProcessables) {
             throw new System.NotImplementedException("GlobalProcessable is a placeholder class and should never be initialized in the processing pipeline.");
         }
     }

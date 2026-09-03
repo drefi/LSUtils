@@ -15,10 +15,10 @@ internal class TestProcessable : ILSProcessable {
     public bool InitializeCalled { get; private set; }
     public string Name { get; set; } = "Test";
 
-    public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitialize = null,
+    public LSProcessResult Initialize(LSProcessBuilderAction? onInitialize = null,
         LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables) {
         InitializeCalled = true;
-        return LSProcessResultStatus.SUCCESS;
+        return LSProcessResult.Success;
     }
 }
 
@@ -98,7 +98,7 @@ public class LSProcessManagerTests {
         var process = new TestProcess();
         var processable = new TestProcessable();
         // Use WithProcessing to create the tree using public API
-        process.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
+        process.WithProcessing(builder => builder.Handler("test", session => LSProcessResult.Success));
 
         // Act
         var rootNode = _manager!.GetRootNode(
@@ -132,7 +132,7 @@ public class LSProcessManagerTests {
     public void GetRootNode_WithEmptyInstances_ShouldHandleGracefully() {
         // Arrange
         // var tempProcess = new TestProcess(); //this is not needed in this context, GetRootNode does not use local contexts anymore;
-        // tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
+        // tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResult.Success));
 
         // Act
         var rootNode = _manager!.GetRootNode(
@@ -147,7 +147,7 @@ public class LSProcessManagerTests {
     public void GetRootNode_WithNullInstances_ShouldHandleGracefully() {
         // Arrange
         // var tempProcess = new TestProcess();
-        // tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResultStatus.SUCCESS));
+        // tempProcess.WithProcessing(builder => builder.Handler("test", session => LSProcessResult.Success));
         // var localRoot = tempProcess.GetType().GetField("_root", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(tempProcess) as ILSProcessLayerNode;
 
         // Act
@@ -172,10 +172,10 @@ public class LSProcessManagerTests {
 
         // register context for processables
         _manager!.Register<TestProcess>(root => root
-            .Handler("test-handler", session => LSProcessResultStatus.SUCCESS) // we aren't actually executing anything
+            .Handler("test-handler", session => LSProcessResult.Success) // we aren't actually executing anything
         , processable1);
         _manager!.Register<TestProcess>(root => root
-            .Handler("test-handler", session => LSProcessResultStatus.SUCCESS) // we aren't actually executing anything
+            .Handler("test-handler", session => LSProcessResult.Success) // we aren't actually executing anything
         , processable2);
 
         // Act
@@ -212,7 +212,7 @@ public class LSProcessManagerTests {
         var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Success));
         Assert.That(process.IsExecuted, Is.True);
     }
 
@@ -227,8 +227,8 @@ public class LSProcessManagerTests {
         var result2 = process2.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result1, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(result2, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result1, Is.EqualTo(LSProcessResult.Success));
+        Assert.That(result2, Is.EqualTo(LSProcessResult.Success));
         Assert.That(process1.IsExecuted, Is.True);
         Assert.That(process2.IsExecuted, Is.True);
         Assert.That(process1.ID, Is.Not.EqualTo(process2.ID));
@@ -250,7 +250,7 @@ public class LSProcessManagerTests {
                     }
                 }
                 //global_executed.Add(session.SessionID.ToString());
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             })
         );
 
@@ -262,8 +262,8 @@ public class LSProcessManagerTests {
         var result2 = process2.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, processable2);
 
         // Assert: Global handler should execute for both
-        Assert.That(result1, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(result2, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result1, Is.EqualTo(LSProcessResult.Success));
+        Assert.That(result2, Is.EqualTo(LSProcessResult.Success));
         Assert.That(global_executed, Contains.Item("Entity1"));
         Assert.That(global_executed, Contains.Item("Entity2"));
     }
@@ -282,7 +282,7 @@ public class LSProcessManagerTests {
                         instance_executed.Add(tp.Name);
                     }
                 }
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             })
         , targetEntity);
 
@@ -309,15 +309,15 @@ public class LSProcessManagerTests {
 
         _manager!.Register<TestProcess>(root => root
             .Sequence("test-seq", seq => seq
-                .Handler("global-h1", s => { log.Add("global-h1"); return LSProcessResultStatus.SUCCESS; })
-                .Handler("global-h2", s => { log.Add("global-h2"); return LSProcessResultStatus.SUCCESS; })
+                .Handler("global-h1", s => { log.Add("global-h1"); return LSProcessResult.Success; })
+                .Handler("global-h2", s => { log.Add("global-h2"); return LSProcessResult.Success; })
             )
         );
 
         var entity = new TestProcessable();
         _manager.Register<TestProcess>(root => root
             .Sequence("test-seq", seq => seq  // Same ID - decorator MERGES
-                .Handler("instance-h3", s => { log.Add("instance-h3"); return LSProcessResultStatus.SUCCESS; })
+                .Handler("instance-h3", s => { log.Add("instance-h3"); return LSProcessResult.Success; })
             )
         , entity);
 
@@ -325,7 +325,7 @@ public class LSProcessManagerTests {
         var process = new TestProcess();
         process.WithProcessing(b => b
             .Sequence("test-seq", seq => seq  // Same ID - decorator MERGES
-                .Handler("local-h4", s => { log.Add("local-h4"); return LSProcessResultStatus.SUCCESS; })
+                .Handler("local-h4", s => { log.Add("local-h4"); return LSProcessResult.Success; })
             )
         );
 
@@ -344,18 +344,18 @@ public class LSProcessManagerTests {
         var log = new List<string>();
 
         _manager!.Register<TestProcess>(root => root
-            .Handler("override-handler", s => { log.Add("global"); return LSProcessResultStatus.SUCCESS; })
+            .Handler("override-handler", s => { log.Add("global"); return LSProcessResult.Success; })
         );
 
         var entity = new TestProcessable();
         _manager.Register<TestProcess>(root => root
-            .Handler("override-handler", s => { log.Add("instance"); return LSProcessResultStatus.SUCCESS; })  // Same ID - OVERRIDE
+            .Handler("override-handler", s => { log.Add("instance"); return LSProcessResult.Success; })  // Same ID - OVERRIDE
         , entity);
 
         // Act
         var process = new TestProcess();
         process.WithProcessing(b => b
-            .Handler("override-handler", s => { log.Add("local"); return LSProcessResultStatus.SUCCESS; })  // Same ID - OVERRIDE
+            .Handler("override-handler", s => { log.Add("local"); return LSProcessResult.Success; })  // Same ID - OVERRIDE
         );
 
         process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL, entity);
@@ -373,11 +373,11 @@ public class LSProcessManagerTests {
         var entity = new TestProcessable();
 
         _manager!.Register<TestProcess>(root => root
-            .Handler("global-h", s => { log.Add("global"); return LSProcessResultStatus.SUCCESS; })
+            .Handler("global-h", s => { log.Add("global"); return LSProcessResult.Success; })
         );
 
         _manager.Register<TestProcess>(root => root
-            .Handler("instance-h", s => { log.Add("instance"); return LSProcessResultStatus.SUCCESS; })
+            .Handler("instance-h", s => { log.Add("instance"); return LSProcessResult.Success; })
         , entity);
 
         // Act
@@ -397,7 +397,7 @@ public class LSProcessManagerTests {
         var entity3 = new TestProcessable { Name = "E3" };
 
         _manager!.Register<TestProcess>(root => root
-            .Handler("e2-handler", s => LSProcessResultStatus.SUCCESS)
+            .Handler("e2-handler", s => LSProcessResult.Success)
         , entity2);
 
         // Act: Try to match in order E1, E2, E3
@@ -417,11 +417,11 @@ public class LSProcessManagerTests {
         var entity3 = new TestProcessable { Name = "E3" };
 
         _manager!.Register<TestProcess>(root => root
-            .Handler("e1-handler", s => LSProcessResultStatus.SUCCESS)
+            .Handler("e1-handler", s => LSProcessResult.Success)
         , entity1);
 
         _manager.Register<TestProcess>(root => root
-            .Handler("e3-handler", s => LSProcessResultStatus.SUCCESS)
+            .Handler("e3-handler", s => LSProcessResult.Success)
         , entity3);
 
         // Act: Try to match all in E1, E2, E3 with ALL_INSTANCES behavior
@@ -442,12 +442,12 @@ public class LSProcessManagerTests {
 
         // First registration
         _manager!.Register<TestProcess>(root => root
-            .Handler("h1", s => { log.Add("h1"); return LSProcessResultStatus.SUCCESS; })
+            .Handler("h1", s => { log.Add("h1"); return LSProcessResult.Success; })
         );
 
         // Second registration (same type, no instance) - should merge
         _manager.Register<TestProcess>(root => root
-            .Handler("h2", s => { log.Add("h2"); return LSProcessResultStatus.SUCCESS; })
+            .Handler("h2", s => { log.Add("h2"); return LSProcessResult.Success; })
         );
 
         // Act
@@ -465,7 +465,7 @@ public class LSProcessManagerTests {
         var execution_count = 0;
 
         _manager!.Register<TestProcess>(root => root
-            .Handler("count", s => { execution_count++; return LSProcessResultStatus.SUCCESS; })
+            .Handler("count", s => { execution_count++; return LSProcessResult.Success; })
         );
 
         // Act: Execute multiple times
@@ -488,13 +488,13 @@ public class LSProcessManagerTests {
         var log = new List<string>();
 
         _manager!.Register<TestProcess>(root => root
-            .Handler("built-in", s => { log.Add("built-in"); return LSProcessResultStatus.SUCCESS; })
+            .Handler("built-in", s => { log.Add("built-in"); return LSProcessResult.Success; })
         );
 
         // Act
         var process = new TestProcess();
         process.WithProcessing(b => b
-            .Handler("added-runtime", s => { log.Add("added-runtime"); return LSProcessResultStatus.SUCCESS; })
+            .Handler("added-runtime", s => { log.Add("added-runtime"); return LSProcessResult.Success; })
         );
 
         process.Execute(_manager, LSProcessManager.LSProcessContextMode.ALL);
@@ -510,13 +510,13 @@ public class LSProcessManagerTests {
         var log = new List<string>();
 
         _manager!.Register<TestProcess>(root => root
-            .Handler("protected", s => { log.Add("original"); return LSProcessResultStatus.SUCCESS; }, updatePolicy: NodeUpdatePolicy.DEFAULT_HANDLER | NodeUpdatePolicy.IGNORE_CHANGES)
+            .Handler("protected", s => { log.Add("original"); return LSProcessResult.Success; }, updatePolicy: NodeUpdatePolicy.DEFAULT_HANDLER | NodeUpdatePolicy.IGNORE_CHANGES)
         );
 
         // Act: Try to override with instance context
         var entity = new TestProcessable();
         _manager.Register<TestProcess>(root => root
-            .Handler("protected", s => { log.Add("override"); return LSProcessResultStatus.SUCCESS; })  // Will be ignored due to readonly
+            .Handler("protected", s => { log.Add("override"); return LSProcessResult.Success; })  // Will be ignored due to readonly
         , entity);
 
         var process = new TestProcess();
@@ -536,9 +536,9 @@ public class LSProcessManagerTests {
         // Global: all modifiers
         _manager!.Register<TestProcess>(root => root
             .Sequence("modifiers", seq => seq
-                .Handler("mod-1", s => { vipLog.Add("global-mod-1"); return LSProcessResultStatus.SUCCESS; })
-                .Handler("mod-2", s => { vipLog.Add("global-mod-2"); return LSProcessResultStatus.SUCCESS; })
-                .Handler("mod-3", s => { vipLog.Add("global-mod-3"); return LSProcessResultStatus.SUCCESS; },
+                .Handler("mod-1", s => { vipLog.Add("global-mod-1"); return LSProcessResult.Success; })
+                .Handler("mod-2", s => { vipLog.Add("global-mod-2"); return LSProcessResult.Success; })
+                .Handler("mod-3", s => { vipLog.Add("global-mod-3"); return LSProcessResult.Success; },
                     updatePolicy: NodeUpdatePolicy.NONE // this handler will only be executed if no handler overrides it
                 )
             )
@@ -547,10 +547,10 @@ public class LSProcessManagerTests {
         // VIP: override mod-2 with bonus
         _manager.Register<TestProcess>(root => root
             .Sequence("modifiers", seq => seq
-                .Handler("mod-2", s => { vipLog.Add("vip-bonus"); return LSProcessResultStatus.SUCCESS; },
+                .Handler("mod-2", s => { vipLog.Add("vip-bonus"); return LSProcessResult.Success; },
                     updatePolicy: NodeUpdatePolicy.IGNORE_CHANGES // making this handler ignore changes will make prevent any other context from overriding it
                 )
-                .Handler("mod-3", s => { vipLog.Add("vip-mod-3"); return LSProcessResultStatus.SUCCESS; }) // this should be executed instead of the global-mod-3 because of updatePolicy: NodeUpdatePolicy.NONE
+                .Handler("mod-3", s => { vipLog.Add("vip-mod-3"); return LSProcessResult.Success; }) // this should be executed instead of the global-mod-3 because of updatePolicy: NodeUpdatePolicy.NONE
             )
         , vip);
 
@@ -582,7 +582,7 @@ public class LSProcessManagerTests {
             tasks.Add(System.Threading.Tasks.Task.Run(() => {
                 var entity = new TestProcessable { Name = $"Entity{idx}" };
                 _manager!.Register<TestProcess>(root => root
-                    .Handler($"h{idx}", s => LSProcessResultStatus.SUCCESS)
+                    .Handler($"h{idx}", s => LSProcessResult.Success)
                 , entity);
             }));
         }

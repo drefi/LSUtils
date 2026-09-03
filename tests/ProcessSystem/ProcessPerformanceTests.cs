@@ -13,7 +13,7 @@ public class ProcessPerformanceTests {
         manager.Register<PipelineTestProcess>(b => {
             for (var i = 0; i < 32; i++) {
                 var waiting = i == 16;
-                b.Handler("step-" + i, _ => waiting ? LSProcessResultStatus.WAITING : LSProcessResultStatus.SUCCESS);
+                b.Handler("step-" + i, _ => waiting ? LSProcessResult.Waiting : LSProcessResult.Success);
             }
             return b;
         });

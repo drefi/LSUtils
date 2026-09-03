@@ -26,7 +26,7 @@ public partial class LSProcessTreeBuilder {
     public LSProcessTreeBuilder Selector(string nodeID,
             LSProcessBuilderAction? builderAction = null,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             params LSProcessNodeCondition?[] conditions) {
         if (_rootNode == null) {
             LSLogger.Singleton.Warning($"Root not found [{nodeID}].",
@@ -153,7 +153,7 @@ public partial class LSProcessTreeBuilder {
     /// <returns></returns>
     public LSProcessTreeBuilder Selector(LSProcessBuilderAction builderAction,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             params LSProcessNodeCondition?[] conditions) {
         string nodeID = $"{_rootNode?.NodeID ?? "root"}-selector-{System.Guid.NewGuid()}";
         return Selector(nodeID, builderAction, updatePolicy, priority, conditions);
@@ -173,7 +173,7 @@ public partial class LSProcessTreeBuilder {
             string nodeID,
             LSProcessBuilderAction builderAction,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
 
         // Convert generic conditions to non-generic
@@ -201,7 +201,7 @@ public partial class LSProcessTreeBuilder {
     public LSProcessTreeBuilder Selector<TProcess>(
             LSProcessBuilderAction builderAction,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
 
         string nodeID = LSProcessManager.CreateNodeID<LSProcessNodeSelector>(_rootNode);

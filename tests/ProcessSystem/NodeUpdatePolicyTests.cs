@@ -35,14 +35,14 @@ public class NodeUpdatePolicyTests {
         // Core system registers protected handler
         _manager!.Register<BasicProcess>(b => b
             .Handler("core-validation",
-                session => { log.Add("core"); return LSProcessResultStatus.SUCCESS; },
+                session => { log.Add("core"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.READONLY)
         );
 
         // Plugin tries to override (should fail silently)
         _manager.Register<BasicProcess>(b => b
             .Handler("core-validation",
-                session => { log.Add("plugin"); return LSProcessResultStatus.SUCCESS; },
+                session => { log.Add("plugin"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.DEFAULT_HANDLER)
         );
 
@@ -63,15 +63,15 @@ public class NodeUpdatePolicyTests {
         // Initial registration with READONLY and builder
         _manager!.Register<BasicProcess>(b => b
             .Sequence("protected-flow", seq => seq
-                .Handler("step1", s => { log.Add("step1"); return LSProcessResultStatus.SUCCESS; })
-                .Handler("step2", s => { log.Add("step2"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("step1", s => { log.Add("step1"); return LSProcessResult.Success; })
+                .Handler("step2", s => { log.Add("step2"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.READONLY)
         );
 
         // Try to add more handlers (should be ignored)
         _manager.Register<BasicProcess>(b => b
             .Sequence("protected-flow", seq => seq
-                .Handler("step3", s => { log.Add("step3"); return LSProcessResultStatus.SUCCESS; }))
+                .Handler("step3", s => { log.Add("step3"); return LSProcessResult.Success; }))
         );
 
         // Act
@@ -95,7 +95,7 @@ public class NodeUpdatePolicyTests {
         // Register with IGNORE_CHANGES
         _manager!.Register<BasicProcess>(b => b
             .Sequence("extendable-flow", seq => seq
-                .Handler("original", s => { log.Add("original"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("original", s => { log.Add("original"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.IGNORE_CHANGES,
                 LSProcessPriority.LOW)
         );
@@ -103,7 +103,7 @@ public class NodeUpdatePolicyTests {
         // Try to change priority but add new handler
         _manager.Register<BasicProcess>(b => b
             .Sequence("extendable-flow", seq => seq
-                .Handler("added", s => { log.Add("added"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("added", s => { log.Add("added"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.OVERRIDE_PRIORITY,
                 LSProcessPriority.HIGH)
         );
@@ -129,7 +129,7 @@ public class NodeUpdatePolicyTests {
         // Register with IGNORE_BUILDER
         _manager!.Register<BasicProcess>(b => b
             .Sequence("fixed-structure", seq => seq
-                .Handler("only-child", s => { log.Add("original"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("only-child", s => { log.Add("original"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.IGNORE_BUILDER,
                 LSProcessPriority.LOW)
         );
@@ -137,7 +137,7 @@ public class NodeUpdatePolicyTests {
         // Try to add children via builder (should be ignored) but change priority (should work)
         _manager.Register<BasicProcess>(b => b
             .Sequence("fixed-structure", seq => seq
-                .Handler("should-not-appear", s => { log.Add("new"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("should-not-appear", s => { log.Add("new"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.OVERRIDE_PRIORITY,
                 LSProcessPriority.HIGH)
         );
@@ -163,15 +163,15 @@ public class NodeUpdatePolicyTests {
         // Initially register as sequence
         _manager!.Register<BasicProcess>(b => b
             .Sequence("changeable-layer", seq => seq
-                .Handler("first", s => { log.Add("first-fail"); return LSProcessResultStatus.FAILURE; })
-                .Handler("second", s => { log.Add("second-success"); return LSProcessResultStatus.SUCCESS; }))
+                .Handler("first", s => { log.Add("first-fail"); return LSProcessResult.Failure; })
+                .Handler("second", s => { log.Add("second-success"); return LSProcessResult.Success; }))
         );
 
         // Replace with selector
         _manager.Register<BasicProcess>(b => b
             .Selector("changeable-layer", sel => sel
-                .Handler("first", s => { log.Add("first-fail"); return LSProcessResultStatus.FAILURE; })
-                .Handler("second", s => { log.Add("second-success"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("first", s => { log.Add("first-fail"); return LSProcessResult.Failure; })
+                .Handler("second", s => { log.Add("second-success"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.REPLACE_NODE)
         );
 
@@ -192,14 +192,14 @@ public class NodeUpdatePolicyTests {
         // Register as sequence
         _manager!.Register<BasicProcess>(b => b
             .Sequence("fixed-type", seq => seq
-                .Handler("first", s => { log.Add("first-fail"); return LSProcessResultStatus.FAILURE; })
-                .Handler("second", s => { log.Add("second-success"); return LSProcessResultStatus.SUCCESS; }))
+                .Handler("first", s => { log.Add("first-fail"); return LSProcessResult.Failure; })
+                .Handler("second", s => { log.Add("second-success"); return LSProcessResult.Success; }))
         );
 
         // Try to replace with selector without REPLACE_LAYER (should be ignored)
         _manager.Register<BasicProcess>(b => b
             .Selector("fixed-type", sel => sel
-                .Handler("third", s => { log.Add("third"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("third", s => { log.Add("third"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.DEFAULT_LAYER)
         );
 
@@ -221,14 +221,14 @@ public class NodeUpdatePolicyTests {
         // Register complex sequence
         _manager!.Register<BasicProcess>(b => b
             .Sequence("simplify-me", seq => seq
-                .Handler("step1", s => { log.Add("step1"); return LSProcessResultStatus.SUCCESS; })
-                .Handler("step2", s => { log.Add("step2"); return LSProcessResultStatus.SUCCESS; }))
+                .Handler("step1", s => { log.Add("step1"); return LSProcessResult.Success; })
+                .Handler("step2", s => { log.Add("step2"); return LSProcessResult.Success; }))
         );
 
         // Replace entire sequence with simple handler
         _manager.Register<BasicProcess>(b => b
             .Handler("simplify-me",
-                s => { log.Add("simple"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("simple"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.REPLACE_NODE)
         );
 
@@ -253,13 +253,13 @@ public class NodeUpdatePolicyTests {
         // Original handler
         _manager!.Register<BasicProcess>(b => b
             .Handler("patchable",
-                s => { log.Add("v1"); return LSProcessResultStatus.SUCCESS; })
+                s => { log.Add("v1"); return LSProcessResult.Success; })
         );
 
         // Patch with new implementation
         _manager.Register<BasicProcess>(b => b
             .Handler("patchable",
-                s => { log.Add("v2-patched"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("v2-patched"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.OVERRIDE_HANDLER)
         );
 
@@ -278,12 +278,12 @@ public class NodeUpdatePolicyTests {
         var process = new BasicProcess();
 
         _manager!.Register<BasicProcess>(b => b
-            .Handler("auto-override", s => { log.Add("original"); return LSProcessResultStatus.SUCCESS; })
+            .Handler("auto-override", s => { log.Add("original"); return LSProcessResult.Success; })
         );
 
         // Using default policy (which includes OVERRIDE_HANDLER)
         _manager.Register<BasicProcess>(b => b
-            .Handler("auto-override", s => { log.Add("replacement"); return LSProcessResultStatus.SUCCESS; })
+            .Handler("auto-override", s => { log.Add("replacement"); return LSProcessResult.Success; })
         );
 
         // Act
@@ -309,7 +309,7 @@ public class NodeUpdatePolicyTests {
         // Original with condition
         _manager!.Register<BasicProcess>(b => b
             .Handler("conditional",
-                s => { log.Add("executed"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("executed"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.DEFAULT_HANDLER,
                 conditions: p => p.TryGetData<bool>("allow-v1", out var allow) && allow)
         );
@@ -317,7 +317,7 @@ public class NodeUpdatePolicyTests {
         // Replace condition
         _manager.Register<BasicProcess>(b => b
             .Handler("conditional",
-                s => { log.Add("executed"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("executed"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.OVERRIDE_HANDLER | NodeUpdatePolicy.OVERRIDE_CONDITIONS,
                 conditions: p => p.TryGetData<bool>("allow-v2", out var allow) && allow)
         );
@@ -341,7 +341,7 @@ public class NodeUpdatePolicyTests {
         // Original with one condition
         _manager!.Register<BasicProcess>(b => b
             .Handler("multi-conditional",
-                s => { log.Add("executed"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("executed"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.DEFAULT_HANDLER,
                 conditions: p => p.TryGetData<bool>("condition-a", out var a) && a)
         );
@@ -349,7 +349,7 @@ public class NodeUpdatePolicyTests {
         // Add another condition (both must be true)
         _manager.Register<BasicProcess>(b => b
             .Handler("multi-conditional",
-                s => { log.Add("executed"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("executed"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.OVERRIDE_HANDLER | NodeUpdatePolicy.MERGE_CONDITIONS,
                 conditions: p => p.TryGetData<bool>("condition-b", out var b) && b)
         );
@@ -371,7 +371,7 @@ public class NodeUpdatePolicyTests {
         // Original with condition
         _manager!.Register<BasicProcess>(b => b
             .Handler("preserve-condition",
-                s => { log.Add("v1"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("v1"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.DEFAULT_HANDLER,
                 conditions: p => p.TryGetData<bool>("enabled", out var e) && e)
         );
@@ -379,7 +379,7 @@ public class NodeUpdatePolicyTests {
         // Update handler without condition policy
         _manager.Register<BasicProcess>(b => b
             .Handler("preserve-condition",
-                s => { log.Add("v2"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("v2"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.OVERRIDE_HANDLER)
         );
 
@@ -402,9 +402,9 @@ public class NodeUpdatePolicyTests {
 
         // Register two handlers with different priorities
         _manager!.Register<BasicProcess>(b => {
-            b.Handler("low-priority", s => { log.Add("low"); return LSProcessResultStatus.SUCCESS; },
+            b.Handler("low-priority", s => { log.Add("low"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.DEFAULT_HANDLER, LSProcessPriority.LOW);
-            b.Handler("high-priority", s => { log.Add("high"); return LSProcessResultStatus.SUCCESS; },
+            b.Handler("high-priority", s => { log.Add("high"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.DEFAULT_HANDLER, LSProcessPriority.HIGH);
             return b;
         });
@@ -412,7 +412,7 @@ public class NodeUpdatePolicyTests {
         // Change low to critical
         _manager.Register<BasicProcess>(b => b
             .Handler("low-priority",
-                s => { log.Add("now-critical"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("now-critical"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.OVERRIDE_HANDLER | NodeUpdatePolicy.OVERRIDE_PRIORITY,
                 LSProcessPriority.CRITICAL)
         );
@@ -431,9 +431,9 @@ public class NodeUpdatePolicyTests {
         var process = new BasicProcess();
 
         _manager!.Register<BasicProcess>(b => {
-            b.Handler("preserve-priority", s => { log.Add("low-v1"); return LSProcessResultStatus.SUCCESS; },
+            b.Handler("preserve-priority", s => { log.Add("low-v1"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.DEFAULT_HANDLER, LSProcessPriority.LOW);
-            b.Handler("other", s => { log.Add("high"); return LSProcessResultStatus.SUCCESS; },
+            b.Handler("other", s => { log.Add("high"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.DEFAULT_HANDLER, LSProcessPriority.HIGH);
             return b;
         });
@@ -441,7 +441,7 @@ public class NodeUpdatePolicyTests {
         // Update handler without OVERRIDE_PRIORITY
         _manager.Register<BasicProcess>(b => b
             .Handler("preserve-priority",
-                s => { log.Add("low-v2"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("low-v2"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.OVERRIDE_HANDLER,
                 LSProcessPriority.CRITICAL) // This should be ignored
         );
@@ -467,12 +467,12 @@ public class NodeUpdatePolicyTests {
         // Core system (protected)
         _manager!.Register<BasicProcess>(b => b
             .Sequence("game-loop", seq => seq
-                .Handler("core-init", s => { log.Add("core-init"); return LSProcessResultStatus.SUCCESS; },
+                .Handler("core-init", s => { log.Add("core-init"); return LSProcessResult.Success; },
                     NodeUpdatePolicy.READONLY)
                 .Sequence("plugin-hooks", pluginSeq => pluginSeq
-                    .Handler("default-plugin", s => { log.Add("default"); return LSProcessResultStatus.SUCCESS; }),
+                    .Handler("default-plugin", s => { log.Add("default"); return LSProcessResult.Success; }),
                     NodeUpdatePolicy.IGNORE_CHANGES) // Allow adding plugins but not changing the sequence itself
-                .Handler("core-cleanup", s => { log.Add("core-cleanup"); return LSProcessResultStatus.SUCCESS; },
+                .Handler("core-cleanup", s => { log.Add("core-cleanup"); return LSProcessResult.Success; },
                     NodeUpdatePolicy.READONLY),
                 NodeUpdatePolicy.IGNORE_CHANGES) // Protect overall structure
         );
@@ -480,14 +480,14 @@ public class NodeUpdatePolicyTests {
         // Plugin 1 tries to modify core (should fail)
         _manager.Register<BasicProcess>(b => b
             .Sequence("game-loop", seq => seq
-                .Handler("core-init", s => { log.Add("hacked-init"); return LSProcessResultStatus.SUCCESS; }))
+                .Handler("core-init", s => { log.Add("hacked-init"); return LSProcessResult.Success; }))
         );
 
         // Plugin 2 adds to plugin hooks (should succeed)
         _manager.Register<BasicProcess>(b => b
             .Sequence("game-loop", seq => seq
                 .Sequence("plugin-hooks", pluginSeq => pluginSeq
-                    .Handler("custom-plugin", s => { log.Add("custom-plugin"); return LSProcessResultStatus.SUCCESS; })))
+                    .Handler("custom-plugin", s => { log.Add("custom-plugin"); return LSProcessResult.Success; })))
         );
 
         // Act
@@ -509,10 +509,10 @@ public class NodeUpdatePolicyTests {
         // Base AI behavior
         _manager!.Register<BasicProcess>(b => b
             .Selector("ai-behavior", sel => sel
-                .Handler("flee", s => { log.Add("flee"); return LSProcessResultStatus.SUCCESS; },
+                .Handler("flee", s => { log.Add("flee"); return LSProcessResult.Success; },
                     NodeUpdatePolicy.DEFAULT_HANDLER,
                     conditions: p => p.TryGetData<bool>("health-low", out var low) && low)
-                .Handler("attack", s => { log.Add("attack"); return LSProcessResultStatus.SUCCESS; },
+                .Handler("attack", s => { log.Add("attack"); return LSProcessResult.Success; },
                     NodeUpdatePolicy.DEFAULT_HANDLER,
                     conditions: p => p.TryGetData<bool>("enemies-near", out var near) && near))
         );
@@ -520,7 +520,7 @@ public class NodeUpdatePolicyTests {
         // Advanced AI modification: add weapon requirement to attack
         _manager.Register<BasicProcess>(b => b
             .Selector("ai-behavior", sel => sel
-                .Handler("attack", s => { log.Add("armed-attack"); return LSProcessResultStatus.SUCCESS; },
+                .Handler("attack", s => { log.Add("armed-attack"); return LSProcessResult.Success; },
                     NodeUpdatePolicy.OVERRIDE_HANDLER | NodeUpdatePolicy.MERGE_CONDITIONS,
                     conditions: p => p.TryGetData<bool>("has-weapon", out var weapon) && weapon))
         );
@@ -541,15 +541,15 @@ public class NodeUpdatePolicyTests {
         // Original sequence
         _manager!.Register<BasicProcess>(b => b
             .Sequence("refactor-target", seq => seq
-                .Handler("keep-me", s => { log.Add("kept"); return LSProcessResultStatus.FAILURE; },
+                .Handler("keep-me", s => { log.Add("kept"); return LSProcessResult.Failure; },
                     NodeUpdatePolicy.READONLY)
-                .Handler("replace-me", s => { log.Add("old"); return LSProcessResultStatus.SUCCESS; }))
+                .Handler("replace-me", s => { log.Add("old"); return LSProcessResult.Success; }))
         );
 
         // Transform to selector
         _manager.Register<BasicProcess>(b => b
             .Selector("refactor-target", sel => sel
-                .Handler("new-child", s => { log.Add("new"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("new-child", s => { log.Add("new"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.REPLACE_NODE)
         );
 
@@ -570,14 +570,14 @@ public class NodeUpdatePolicyTests {
         // Protected inverter
         _manager!.Register<BasicProcess>(b => b
             .Inverter("critical-negation", inv => inv
-                .Handler("check", s => { log.Add("original-check"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("check", s => { log.Add("original-check"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.READONLY)
         );
 
         // Try to modify inverter child
         _manager.Register<BasicProcess>(b => b
             .Inverter("critical-negation", inv => inv
-                .Handler("check", s => { log.Add("hacked-check"); return LSProcessResultStatus.FAILURE; }))
+                .Handler("check", s => { log.Add("hacked-check"); return LSProcessResult.Failure; }))
         );
 
         // Act
@@ -586,7 +586,7 @@ public class NodeUpdatePolicyTests {
         // Assert: Original check executes and gets inverted (SUCCESS -> FAILURE)
         using (Assert.EnterMultipleScope()) {
             Assert.That(log, Is.EqualTo(expected));
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Failure));
         }
     }
 
@@ -599,17 +599,17 @@ public class NodeUpdatePolicyTests {
         // Nested protected structure
         _manager!.Register<BasicProcess>(b => b
             .Sequence("outer-protected", outerSeq => outerSeq
-                .Handler("outer-handler", s => { log.Add("outer"); return LSProcessResultStatus.SUCCESS; },
+                .Handler("outer-handler", s => { log.Add("outer"); return LSProcessResult.Success; },
                     NodeUpdatePolicy.READONLY)
                 .Sequence("inner-modifiable", innerSeq => innerSeq
-                    .Handler("inner-handler", s => { log.Add("inner-v1"); return LSProcessResultStatus.SUCCESS; })),
+                    .Handler("inner-handler", s => { log.Add("inner-v1"); return LSProcessResult.Success; })),
                 NodeUpdatePolicy.IGNORE_CHANGES)
         );
 
         // Try to modify outer handler (should fail)
         _manager.Register<BasicProcess>(b => b
             .Sequence("outer-protected", outerSeq => outerSeq
-                .Handler("outer-handler", s => { log.Add("hacked-outer"); return LSProcessResultStatus.SUCCESS; },
+                .Handler("outer-handler", s => { log.Add("hacked-outer"); return LSProcessResult.Success; },
                     NodeUpdatePolicy.OVERRIDE_HANDLER))
         );
 
@@ -617,7 +617,7 @@ public class NodeUpdatePolicyTests {
         _manager.Register<BasicProcess>(b => b
             .Sequence("outer-protected", outerSeq => outerSeq
                 .Sequence("inner-modifiable", innerSeq => innerSeq
-                    .Handler("inner-handler", s => { log.Add("inner-v2"); return LSProcessResultStatus.SUCCESS; },
+                    .Handler("inner-handler", s => { log.Add("inner-v2"); return LSProcessResult.Success; },
                         NodeUpdatePolicy.OVERRIDE_HANDLER)))
         );
 
@@ -644,7 +644,7 @@ public class NodeUpdatePolicyTests {
         var originalConditionPassed = false;
         _manager!.Register<BasicProcess>(b => b
             .Handler("conflicting-policy",
-                s => { log.Add("original-executed"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("original-executed"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.DEFAULT_HANDLER,
                 conditions: p => { originalConditionPassed = true; return true; })
         );
@@ -653,7 +653,7 @@ public class NodeUpdatePolicyTests {
         var newConditionEvaluated = false;
         _manager.Register<BasicProcess>(b => b
             .Handler("conflicting-policy",
-                s => { log.Add("override-executed"); return LSProcessResultStatus.SUCCESS; },
+                s => { log.Add("override-executed"); return LSProcessResult.Success; },
                 NodeUpdatePolicy.OVERRIDE_HANDLER | NodeUpdatePolicy.OVERRIDE_CONDITIONS | NodeUpdatePolicy.MERGE_CONDITIONS,
                 conditions: p => { newConditionEvaluated = true; return false; })
         );
@@ -679,16 +679,16 @@ public class NodeUpdatePolicyTests {
         // Existing sequence with two successful steps; IGNORE_CHANGES prevents structural changes
         _manager!.Register<BasicProcess>(b => b
             .Sequence("protected-type", seq => seq
-                .Handler("original-1", s => { log.Add("sequence-1"); return LSProcessResultStatus.SUCCESS; })
-                .Handler("original-2", s => { log.Add("sequence-2"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("original-1", s => { log.Add("sequence-1"); return LSProcessResult.Success; })
+                .Handler("original-2", s => { log.Add("sequence-2"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.IGNORE_CHANGES)
         );
 
         // Attempt to replace with selector that would short-circuit on first success
         _manager.Register<BasicProcess>(b => b
             .Selector("protected-type", sel => sel
-                .Handler("selector-fail", s => { log.Add("selector-fail"); return LSProcessResultStatus.FAILURE; })
-                .Handler("selector-success", s => { log.Add("selector-success"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("selector-fail", s => { log.Add("selector-fail"); return LSProcessResult.Failure; })
+                .Handler("selector-success", s => { log.Add("selector-success"); return LSProcessResult.Success; }),
                 NodeUpdatePolicy.REPLACE_NODE)
         );
 

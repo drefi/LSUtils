@@ -41,7 +41,7 @@ public partial class LSProcessTreeBuilder {
     public LSProcessTreeBuilder Sequence(string nodeID,
             LSProcessBuilderAction? builderAction = null,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             params LSProcessNodeCondition?[] conditions) {
         if (_rootNode == null) {
             LSLogger.Singleton.Warning($"Root not found [{nodeID}].",
@@ -161,7 +161,7 @@ public partial class LSProcessTreeBuilder {
     }
 
     public LSProcessTreeBuilder Sequence(LSProcessBuilderAction builderAction,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
             params LSProcessNodeCondition?[] conditions) {
         string nodeID = LSProcessManager.CreateNodeID<LSProcessNodeSequence>(_rootNode);
@@ -169,7 +169,7 @@ public partial class LSProcessTreeBuilder {
     }
     public LSProcessTreeBuilder Sequence<TProcess>(string nodeID,
             LSProcessBuilderAction? builderAction = null,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
             params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
         var convertedConditions = conditions
@@ -180,7 +180,7 @@ public partial class LSProcessTreeBuilder {
     }
     public LSProcessTreeBuilder Sequence<TProcess>(
             LSProcessBuilderAction? builderAction = null,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
             params LSProcessNodeCondition<TProcess>?[] conditions) where TProcess : LSProcess {
         string nodeID = LSProcessManager.CreateNodeID<LSProcessNodeSequence>(_rootNode);

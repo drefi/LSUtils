@@ -16,18 +16,18 @@ public class SequenceNodeTests {
             .Sequence("sequence", seq => seq
                 .Handler("first", session => {
                     steps.Add("first");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
                 .Handler("second", session => {
                     steps.Add("second");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 }))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(steps, Is.EqualTo(new[] { "first", "second" }));
         }
     }
@@ -42,22 +42,22 @@ public class SequenceNodeTests {
             .Sequence("sequence", seq => seq
                 .Handler("first", session => {
                     steps.Add("first");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
                 .Handler("stop", session => {
                     steps.Add("stop");
-                    return LSProcessResultStatus.FAILURE;
+                    return LSProcessResult.Failure;
                 })
                 .Handler("never", session => {
                     steps.Add("never");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 }))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Failure));
             Assert.That(steps, Is.EqualTo(new[] { "first", "stop" }));
         }
     }
@@ -69,14 +69,14 @@ public class SequenceNodeTests {
 
         process.WithProcessing(builder => builder
             .Sequence("sequence", seq => seq
-                .Handler("first", session => LSProcessResultStatus.SUCCESS)
-                .Handler("wait", session => LSProcessResultStatus.WAITING)
-                .Handler("never", session => LSProcessResultStatus.SUCCESS))
+                .Handler("first", session => LSProcessResult.Success)
+                .Handler("wait", session => LSProcessResult.Waiting)
+                .Handler("never", session => LSProcessResult.Success))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Waiting));
     }
 
     [Test]
@@ -90,19 +90,19 @@ public class SequenceNodeTests {
             .Sequence("gated", seq => seq
                 .Handler("inside", session => {
                     gatedExecuted = true;
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 }),
                 conditions: _ => false)
             .Handler("fallback", session => {
                 fallbackExecuted = true;
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             })
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(gatedExecuted, Is.False);
             Assert.That(fallbackExecuted, Is.True);
         }

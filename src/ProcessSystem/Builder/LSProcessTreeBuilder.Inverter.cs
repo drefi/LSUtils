@@ -15,7 +15,7 @@ public partial class LSProcessTreeBuilder {
     public LSProcessTreeBuilder Inverter(string nodeID,
             LSProcessBuilderAction builderAction,
             NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-            LSProcessPriority priority = LSProcessPriority.NORMAL,
+            LSProcessPriority priority = default,
             params LSProcessNodeCondition?[] conditions) {
         if (_rootNode == null) {
             LSLogger.Singleton.Error($"Root not found [{nodeID}].",
@@ -173,7 +173,7 @@ public partial class LSProcessTreeBuilder {
     public LSProcessTreeBuilder Inverter(
         LSProcessBuilderAction builderAction,
         NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-        LSProcessPriority priority = LSProcessPriority.NORMAL,
+        LSProcessPriority priority = default,
         params LSProcessNodeCondition?[] conditions) {
         string nodeID = $"{_rootNode?.NodeID ?? "root"}-inverter-{System.Guid.NewGuid()}";
         return Inverter(nodeID, builderAction, updatePolicy, priority, conditions);
@@ -194,7 +194,7 @@ public partial class LSProcessTreeBuilder {
     /// <code>
     /// builder.Inverter&lt;MyProcess&gt;("reject-invalid", inv => inv
     ///     .Handler&lt;MyProcess&gt;("validate", session => 
-    ///         session.Process.IsValid ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE),
+    ///         session.Process.IsValid ? LSProcessResult.Success : LSProcessResult.Failure),
     ///     conditions: process => process.IsEnabled);
     /// </code>
     /// </example>
@@ -202,7 +202,7 @@ public partial class LSProcessTreeBuilder {
         string nodeID,
         LSProcessBuilderAction builderAction,
         NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_LAYER,
-        LSProcessPriority priority = LSProcessPriority.NORMAL,
+        LSProcessPriority priority = default,
         params LSProcessNodeCondition<TProcess>?[] conditions)
         where TProcess : LSProcess {
 

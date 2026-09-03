@@ -45,16 +45,16 @@ public class LSProcess_StressTest {
     /// One handler defined via protected override (no manager registration needed).
     private class SingleHandlerProcess : LSProcess {
         protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder b) =>
-            b.Handler("work", _ => { _sink++; return LSProcessResultStatus.SUCCESS; });
+            b.Handler("work", _ => { _sink++; return LSProcessResult.Success; });
     }
 
     /// Three handlers in a Sequence defined via protected override.
     private class TripleSeqProcess : LSProcess {
         protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder b) =>
             b.Sequence("seq", seq => seq
-                .Handler("h1", _ => { _sink++; return LSProcessResultStatus.SUCCESS; })
-                .Handler("h2", _ => { _sink++; return LSProcessResultStatus.SUCCESS; })
-                .Handler("h3", _ => { _sink++; return LSProcessResultStatus.SUCCESS; }));
+                .Handler("h1", _ => { _sink++; return LSProcessResult.Success; })
+                .Handler("h2", _ => { _sink++; return LSProcessResult.Success; })
+                .Handler("h3", _ => { _sink++; return LSProcessResult.Success; }));
     }
 
     /// No built-in handlers — executes whatever is registered in the manager.
@@ -148,7 +148,7 @@ public class LSProcess_StressTest {
 
         // 6 – LSProcess with globally registered handler
         _manager.Register<RegisteredProcess>(b =>
-            b.Handler("global-work", _ => { _sink++; return LSProcessResultStatus.SUCCESS; }));
+            b.Handler("global-work", _ => { _sink++; return LSProcessResult.Success; }));
         Warmup(WARMUP, () =>
             new RegisteredProcess().Execute(_manager, LSProcessManager.LSProcessContextMode.ALL));
         var lsGlobal = Measure(n, () =>
@@ -199,9 +199,9 @@ public class LSProcess_StressTest {
         // 3 – LSProcess Sequence, 3 handlers registered globally
         _manager.Register<RegisteredProcess>(b => b
             .Sequence("seq", seq => seq
-                .Handler("g1", _ => { _sink++; return LSProcessResultStatus.SUCCESS; })
-                .Handler("g2", _ => { _sink++; return LSProcessResultStatus.SUCCESS; })
-                .Handler("g3", _ => { _sink++; return LSProcessResultStatus.SUCCESS; })));
+                .Handler("g1", _ => { _sink++; return LSProcessResult.Success; })
+                .Handler("g2", _ => { _sink++; return LSProcessResult.Success; })
+                .Handler("g3", _ => { _sink++; return LSProcessResult.Success; })));
         Warmup(WARMUP, () =>
             new RegisteredProcess().Execute(_manager, LSProcessManager.LSProcessContextMode.ALL));
         var lsSeqGlobal = Measure(n, () =>

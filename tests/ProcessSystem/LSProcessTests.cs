@@ -21,7 +21,7 @@ internal class TestProcess : LSProcess {
         ProcessingCalled = true;
         return builder.Handler("test-handler", session => {
             TestData = "processed";
-            return LSProcessResultStatus.SUCCESS;
+            return LSProcessResult.Success;
         });
     }
 }
@@ -32,7 +32,7 @@ internal class TestProcess : LSProcess {
 internal class FailingTestProcess : LSProcess {
     protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
         return builder.Handler("failing-handler", session => {
-            return LSProcessResultStatus.FAILURE;
+            return LSProcessResult.Failure;
         });
     }
 }
@@ -43,7 +43,7 @@ internal class FailingTestProcess : LSProcess {
 internal class WaitingTestProcess : LSProcess {
     protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
         return builder.Handler("waiting-handler", session => {
-            return LSProcessResultStatus.WAITING;
+            return LSProcessResult.Waiting;
         });
     }
 }
@@ -62,7 +62,7 @@ internal class ResumableProcess : LSProcess {
     protected override LSProcessTreeBuilder processing(LSProcessTreeBuilder builder) {
         return builder.Handler("resumable-handler", session => {
             ExecutionCount++;
-            return ExecutionCount == 1 ? LSProcessResultStatus.WAITING : LSProcessResultStatus.SUCCESS;
+            return ExecutionCount == 1 ? LSProcessResult.Waiting : LSProcessResult.Success;
         });
     }
 }
@@ -81,11 +81,11 @@ internal class SequenceProcess : LSProcess {
         return builder.Sequence("sequence-root", seq => seq
             .Handler("first", session => {
                 _steps.Add("first");
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             })
             .Handler("second", session => {
                 _steps.Add("second");
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             }));
     }
 }
@@ -104,11 +104,11 @@ internal class ResumableSequenceProcess : LSProcess {
         return builder.Sequence("resumable-sequence", seq => seq
             .Handler("wait", session => {
                 _steps.Add("wait");
-                return LSProcessResultStatus.WAITING;
+                return LSProcessResult.Waiting;
             })
             .Handler("after-wait", session => {
                 _steps.Add("after-wait");
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             }));
     }
 }
@@ -200,7 +200,7 @@ public class LSProcessTests {
 
         // Assert
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(_process.IsExecuted, Is.True);
             Assert.That(_process.IsCompleted, Is.True);
             Assert.That(_process.TestData, Is.EqualTo("processed"));
@@ -215,7 +215,7 @@ public class LSProcessTests {
 
         // Assert
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(_process.IsExecuted, Is.True);
             Assert.That(_process.IsCompleted, Is.True);
         }
@@ -231,7 +231,7 @@ public class LSProcessTests {
 
         // Assert
         Assert.That(firstResult, Is.EqualTo(secondResult));
-        Assert.That(firstResult, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(firstResult, Is.EqualTo(LSProcessResult.Success));
     }
 
     [Test]
@@ -243,7 +243,7 @@ public class LSProcessTests {
         var result = failingProcess.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Failure));
         Assert.That(failingProcess.IsCompleted, Is.True);
     }
 
@@ -256,7 +256,7 @@ public class LSProcessTests {
         var result = waitingProcess.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Waiting));
         Assert.That(waitingProcess.IsCompleted, Is.False);
     }
 
@@ -361,7 +361,7 @@ public class LSProcessTests {
         var result = _process!.WithProcessing(builder =>
             builder.Handler("config-test", session => {
                 configured = true;
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             })
         );
 
@@ -381,11 +381,11 @@ public class LSProcessTests {
         process.WithProcessing(builder => {
             builder.Handler("first", session => {
                 steps.Add("first");
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             });
             builder.Handler("second", session => {
                 steps.Add("second");
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             });
             return builder;
         });
@@ -394,7 +394,7 @@ public class LSProcessTests {
         var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Success));
         Assert.That(steps, Is.EqualTo(new[] { "first", "second" }));
     }
 
@@ -407,15 +407,15 @@ public class LSProcessTests {
         process.WithProcessing(builder => builder.Selector("selector-root", sel => sel
             .Handler("fail", session => {
                 steps.Add("fail");
-                return LSProcessResultStatus.FAILURE;
+                return LSProcessResult.Failure;
             })
             .Handler("win", session => {
                 steps.Add("win");
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             })
             .Handler("skip", session => {
                 steps.Add("skip");
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             })
         ));
 
@@ -423,7 +423,7 @@ public class LSProcessTests {
         var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Success));
         Assert.That(steps, Is.EqualTo(new[] { "fail", "win" }));
     }
 
@@ -433,14 +433,14 @@ public class LSProcessTests {
         var process = new BasicProcess();
         process.WithProcessing(builder =>
             builder.Inverter("invert", inv => inv
-                .Handler("child", session => LSProcessResultStatus.SUCCESS)
+                .Handler("child", session => LSProcessResult.Success)
             ));
 
         // Act
         var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Failure));
     }
 
     [Test]
@@ -449,14 +449,14 @@ public class LSProcessTests {
         var process = new BasicProcess();
         process.WithProcessing(builder =>
             builder.Inverter("invert", inv => inv
-                .Handler("waiting-child", session => LSProcessResultStatus.WAITING)
+                .Handler("waiting-child", session => LSProcessResult.Waiting)
             ));
 
         // Act
         var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Waiting));
     }
 
     [Test]
@@ -469,11 +469,11 @@ public class LSProcessTests {
             builder.Sequence("sequence-root", seq => seq
                 .Handler("skip", session => {
                     skippedExecuted = true;
-                    return LSProcessResultStatus.FAILURE;
+                    return LSProcessResult.Failure;
                 }, conditions: _ => false)
                 .Handler("run", session => {
                     executed = true;
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 }));
             return builder;
         });
@@ -482,7 +482,7 @@ public class LSProcessTests {
         var result = process.Execute(_manager!, LSProcessManager.LSProcessContextMode.ALL);
 
         // Assert
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Success));
         Assert.That(skippedExecuted, Is.False);
         Assert.That(executed, Is.True);
     }
@@ -497,8 +497,8 @@ public class LSProcessTests {
         var resumedResult = process.Resume();
 
         // Assert
-        Assert.That(firstResult, Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(resumedResult, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(firstResult, Is.EqualTo(LSProcessResult.Waiting));
+        Assert.That(resumedResult, Is.EqualTo(LSProcessResult.Success));
         Assert.That(process.ExecutionCount, Is.EqualTo(1));
     }
 
@@ -511,8 +511,8 @@ public class LSProcessTests {
         var resumedResult = process.Resume();
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(firstResult, Is.EqualTo(LSProcessResultStatus.WAITING));
-            Assert.That(resumedResult, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(firstResult, Is.EqualTo(LSProcessResult.Waiting));
+            Assert.That(resumedResult, Is.EqualTo(LSProcessResult.Success));
             Assert.That(process.IsCompleted, Is.True);
             Assert.That(steps, Is.EqualTo(new[] { "wait", "after-wait" }));
         }
@@ -527,13 +527,13 @@ public class LSProcessTests {
             b.Sequence("checkContextMerge", seq =>
                 seq.Handler("Global", session => {
                     log.Add("Global");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
             )
             .Sequence("override", seq =>
                 seq.Handler("overridedHandler", session => {
                     log.Add("GlobalOverride");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
             )
         );
@@ -544,13 +544,13 @@ public class LSProcessTests {
             b.Sequence("checkContextMerge", seq =>
                 seq.Handler("Instanced", session => {
                     log.Add("Instanced");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
             )
             .Sequence("override", seq =>
                 seq.Handler("overridedHandler", session => {
                     log.Add("InstancedOverride");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
             )
         , instance);
@@ -563,13 +563,13 @@ public class LSProcessTests {
             b.Sequence("checkContextMerge", seq =>
                 seq.Handler("WithProcessing", session => {
                     log.Add("WithProcessing");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
             )
             .Sequence("override", seq =>
                 seq.Handler("overridedHandler", session => {
                     log.Add("WithProcessingOverride");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
             )
         );
@@ -583,7 +583,7 @@ public class LSProcessTests {
             "GlobalOverride"
         };
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(log, Is.EqualTo(expected));
         }
     }
@@ -600,7 +600,7 @@ public class LSProcessTests {
             b.Sequence("override", seq =>
                 seq.Handler("Global1", session => {
                     log.Add("Global1");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 }),
                 updatePolicy: NodeUpdatePolicy.IGNORE_BUILDER
             )
@@ -611,7 +611,7 @@ public class LSProcessTests {
             b.Sequence("override", seq =>
                 seq.Handler("Global2", session => {
                     log.Add("Global2");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
             )
         );
@@ -633,7 +633,7 @@ public class LSProcessTests {
         };
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(log, Is.EqualTo(expected));
         }
     }
@@ -647,8 +647,8 @@ public class LSProcessTests {
         // This locks the node type and properties.
         manager.Register<TestProcessWithProcessing>(b =>
             b.Sequence("seq", seq => seq
-               .Handler("h1", s => { log.Add("h1"); return LSProcessResultStatus.SUCCESS; })
-               .Handler("h2", s => { log.Add("h2"); return LSProcessResultStatus.SUCCESS; }),
+               .Handler("h1", s => { log.Add("h1"); return LSProcessResult.Success; })
+               .Handler("h2", s => { log.Add("h2"); return LSProcessResult.Success; }),
             updatePolicy: NodeUpdatePolicy.IGNORE_CHANGES)
         );
 
@@ -656,7 +656,7 @@ public class LSProcessTests {
         // This requires REPLACE_LAYER, but IGNORE_CHANGES should prevent it.
         manager.Register<TestProcessWithProcessing>(b =>
             b.Selector("seq", sel => sel
-                .Handler("h3", s => { log.Add("h3"); return LSProcessResultStatus.SUCCESS; }),
+                .Handler("h3", s => { log.Add("h3"); return LSProcessResult.Success; }),
             updatePolicy: NodeUpdatePolicy.REPLACE_NODE)
         );
 
@@ -677,7 +677,7 @@ public class LSProcessTests {
         };
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(log, Is.EqualTo(expected));
         }
     }
@@ -686,8 +686,8 @@ public class LSProcessTests {
         public Guid ID { get; } = Guid.NewGuid();
 
 
-        public LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitialize = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables) {
-            return LSProcessResultStatus.SUCCESS;
+        public LSProcessResult Initialize(LSProcessBuilderAction? onInitialize = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables) {
+            return LSProcessResult.Success;
         }
     }
     internal class TestProcessWithProcessing : LSProcess {
@@ -698,13 +698,13 @@ public class LSProcessTests {
                 .Sequence("checkContextMerge", seq =>
                     seq.Handler("processing", session => {
                         _log.Add("processing");
-                        return LSProcessResultStatus.SUCCESS;
+                        return LSProcessResult.Success;
                     })
                 )
                 .Sequence("override", seq =>
                     seq.Handler("overridedHandler", session => {
                         _log.Add("processingOverride");
-                        return LSProcessResultStatus.SUCCESS;
+                        return LSProcessResult.Success;
                     })
                 );
         }

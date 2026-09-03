@@ -10,6 +10,7 @@ public class LSProcessSession {
     public LSProcessExecutionNode RootNode => Execution.Root;
     public LSProcessExecutionNode? CurrentNode => Execution.CurrentNode;
     public Guid SessionID => Execution.ID;
+    internal bool IsRunning => Execution.IsRunning;
     public LSProcessManager Manager { get; }
     public LSProcess Process { get; }
     private readonly ILSProcessable[]? _instances;
@@ -43,11 +44,17 @@ public class LSProcessSession {
         _contextInstances = session._contextInstances;
     }
 
-    internal LSProcessResultStatus Execute() => Execution.Run(this);
-    public LSProcessResultStatus Resume() => Execution.Run(this, true);
-    public LSProcessResultStatus Fail() => Execution.Run(this, false);
-    public LSProcessResultStatus Cancel() {
-        RootNode.Cancel();
+    internal LSProcessResult Execute() => Execution.Run(this);
+    public LSProcessResult Resume() => Execution.Run(this, LSProcessResult.Success);
+    public LSProcessResult Resume<T>(T payload) => Execution.Run(this, LSProcessResult.Succeeded(payload));
+    public LSProcessResult Fail() => Execution.Run(this, LSProcessResult.Failure);
+    public LSProcessResult Fail<T>(T payload) => Execution.Run(this, LSProcessResult.Failed(payload));
+    public LSProcessResult Cancel() {
+        RootNode.Cancel(LSProcessResult.Cancelled);
+        return RootNode.Status;
+    }
+    public LSProcessResult Cancel<T>(T payload) {
+        RootNode.Cancel(LSProcessResult.CancelledBy(payload));
         return RootNode.Status;
     }
 }

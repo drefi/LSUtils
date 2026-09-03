@@ -12,13 +12,14 @@ public sealed class LSProcessExecutionNode {
     private int _cursor;
     private bool _started;
     private bool _hasUnknown;
+    private LSProcessResult _lastResult;
 
     public LSProcessNodeDefinition Definition { get; }
     public string NodeID => Definition.NodeID;
-    public LSProcessResultStatus Status { get; private set; }
+    public LSProcessResult Status { get; private set; }
     public int ExecutionCount { get; private set; }
     public ReadOnlyCollection<LSProcessExecutionNode> Children { get; }
-    public LSProcessResultStatus GetNodeStatus() => Status;
+    public LSProcessResult GetNodeStatus() => Status;
     public LSProcessExecutionNode? GetChild(string nodeID) => Array.Find(_children, child => child.NodeID == nodeID);
 
     internal LSProcessExecutionNode(LSProcessNodeDefinition definition) {
@@ -27,8 +28,8 @@ public sealed class LSProcessExecutionNode {
         Children = Array.AsReadOnly(_children);
     }
 
-    internal LSProcessResultStatus Execute(LSProcessSession session) {
-        if (_started || Status == LSProcessResultStatus.CANCELLED) return Status;
+    internal LSProcessResult Execute(LSProcessSession session) {
+        if (_started || Status == LSProcessResult.Cancelled) return Status;
         _started = true;
         switch (Definition.Kind) {
             case LSProcessDefinitionNodeKind.Handler:
@@ -37,7 +38,7 @@ public sealed class LSProcessExecutionNode {
                 try {
                     var result = Definition.Handler!(session);
                     ExecutionCount++;
-                    if (Status != LSProcessResultStatus.CANCELLED) Status = result;
+                    if (Status != LSProcessResult.Cancelled) Status = result;
                     return Status;
                 } finally {
                     session.Execution.CurrentNode = previous;
@@ -45,8 +46,8 @@ public sealed class LSProcessExecutionNode {
             case LSProcessDefinitionNodeKind.Inverter:
                 // Preserve the original inverter's own eligibility check; its child's
                 // conditions are not evaluated as they are in sequence/selector layers.
-                if (!IsEligible(Definition, session.Process)) return Status = LSProcessResultStatus.FAILURE;
-                if (_children.Length == 0) return Status;
+                if (!IsEligible(Definition, session.Process)) return Status = LSProcessResult.Failure;
+                if (_children.Length == 0) return Status = LSProcessResult.Undetermined;
                 return Status = Invert(_children[0].Execute(session));
             default:
                 _eligible = _children.Where(child => IsEligible(child.Definition, session.Process))
@@ -56,44 +57,49 @@ public sealed class LSProcessExecutionNode {
         }
     }
 
-    internal LSProcessResultStatus Resolve(LSProcessSession session, bool success) {
-        if (Status != LSProcessResultStatus.WAITING) return Status;
+    internal LSProcessResult Resolve(LSProcessSession session, LSProcessResult resolution) {
+        if (!Status.IsWaiting) return Status;
         if (Definition.Kind == LSProcessDefinitionNodeKind.Handler)
-            return Status = success ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
+            return Status = resolution;
         if (Definition.Kind == LSProcessDefinitionNodeKind.Inverter)
-            return Status = Invert(_children[0].Resolve(session, success));
+            return Status = Invert(_children[0].Resolve(session, resolution));
 
-        var result = _eligible![_cursor].Resolve(session, success);
+        var result = _eligible![_cursor].Resolve(session, resolution);
+        _lastResult = result;
         if (ShouldStop(result)) return Status = result;
-        _hasUnknown |= result == LSProcessResultStatus.UNKNOWN;
+        _hasUnknown |= result.IsUndetermined;
         _cursor++;
         return Continue(session);
     }
 
-    private LSProcessResultStatus Continue(LSProcessSession session) {
+    private LSProcessResult Continue(LSProcessSession session) {
         while (_cursor < _eligible!.Length) {
-            if (Status == LSProcessResultStatus.CANCELLED) return Status;
+            if (Status == LSProcessResult.Cancelled) return Status;
             var result = _eligible[_cursor].Execute(session);
-            if (Status == LSProcessResultStatus.CANCELLED) return Status;
+            _lastResult = result;
+            if (Status == LSProcessResult.Cancelled) return Status;
             if (ShouldStop(result)) return Status = result;
-            _hasUnknown |= result == LSProcessResultStatus.UNKNOWN;
+            _hasUnknown |= result.IsUndetermined;
             _cursor++;
         }
-        return Status = _hasUnknown ? LSProcessResultStatus.UNKNOWN
-            : Definition.Kind == LSProcessDefinitionNodeKind.Sequence
-                ? LSProcessResultStatus.SUCCESS : LSProcessResultStatus.FAILURE;
+        if (_hasUnknown) return Status = LSProcessResult.Undetermined;
+        if (Definition.Kind == LSProcessDefinitionNodeKind.Sequence)
+            return Status = _lastResult.IsSuccess ? _lastResult : LSProcessResult.Success;
+        return Status = _lastResult.IsFailure ? _lastResult : LSProcessResult.Failure;
     }
 
-    private bool ShouldStop(LSProcessResultStatus result) =>
-        result == LSProcessResultStatus.WAITING || result == LSProcessResultStatus.CANCELLED ||
+    private bool ShouldStop(LSProcessResult result) =>
+        result == LSProcessResult.Waiting || result == LSProcessResult.Cancelled ||
         result == (Definition.Kind == LSProcessDefinitionNodeKind.Sequence
-            ? LSProcessResultStatus.FAILURE : LSProcessResultStatus.SUCCESS);
+            ? LSProcessResult.Failure : LSProcessResult.Success);
 
-    internal void Cancel() {
+    internal void Cancel(LSProcessResult cancellation) {
+        if (!cancellation.IsCancelled)
+            throw new ArgumentException("Cancellation must carry a cancelled result.", nameof(cancellation));
         // Preserve explicit cancellation of completed processes as supported by LSProcess.
-        if (Status == LSProcessResultStatus.CANCELLED) return;
-        Status = LSProcessResultStatus.CANCELLED;
-        foreach (var child in _children) child.Cancel();
+        if (Status.IsCancelled) return;
+        Status = cancellation;
+        foreach (var child in _children) child.Cancel(cancellation);
     }
 
     private static bool IsEligible(LSProcessNodeDefinition node, LSProcess process) {
@@ -103,9 +109,9 @@ public sealed class LSProcessExecutionNode {
         return true;
     }
 
-    private static LSProcessResultStatus Invert(LSProcessResultStatus status) => status switch {
-        LSProcessResultStatus.SUCCESS => LSProcessResultStatus.FAILURE,
-        LSProcessResultStatus.FAILURE => LSProcessResultStatus.SUCCESS,
-        _ => status
-    };
+    private static LSProcessResult Invert(LSProcessResult result) {
+        if (result.IsSuccess) return LSProcessResult.Failed(new LSProcessInversion(result));
+        if (result.IsFailure) return LSProcessResult.Succeeded(new LSProcessInversion(result));
+        return result;
+    }
 }

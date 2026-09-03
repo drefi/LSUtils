@@ -14,14 +14,14 @@ public class HandlerNodeTests {
         process.WithProcessing(builder => builder
             .Handler("guarded", session => {
                 executed = true;
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             }, conditions: _ => false)
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(executed, Is.False);
         }
     }
@@ -35,14 +35,14 @@ public class HandlerNodeTests {
         process.WithProcessing(builder => builder
             .Handler("guarded", session => {
                 executed = true;
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             }, conditions: new LSProcessNodeCondition[] { _ => true, _ => false })
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(executed, Is.False);
         }
     }
@@ -56,7 +56,7 @@ public class HandlerNodeTests {
         process.WithProcessing(builder => builder
             .Handler("counted", session => {
                 executionCount++;
-                return LSProcessResultStatus.SUCCESS;
+                return LSProcessResult.Success;
             })
         );
 
@@ -64,8 +64,8 @@ public class HandlerNodeTests {
         var second = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(first, Is.EqualTo(LSProcessResultStatus.SUCCESS));
-            Assert.That(second, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(first, Is.EqualTo(LSProcessResult.Success));
+            Assert.That(second, Is.EqualTo(LSProcessResult.Success));
             Assert.That(executionCount, Is.EqualTo(1));
         }
     }
@@ -80,8 +80,8 @@ public class HandlerNodeTests {
             .Handler("wait", session => {
                 calls++;
                 return calls == 1
-                    ? LSProcessResultStatus.WAITING
-                    : LSProcessResultStatus.SUCCESS;
+                    ? LSProcessResult.Waiting
+                    : LSProcessResult.Success;
             })
         );
 
@@ -89,8 +89,8 @@ public class HandlerNodeTests {
         var resumed = process.Resume();
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(first, Is.EqualTo(LSProcessResultStatus.WAITING));
-            Assert.That(resumed, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(first, Is.EqualTo(LSProcessResult.Waiting));
+            Assert.That(resumed, Is.EqualTo(LSProcessResult.Success));
         }
     }
 
@@ -100,15 +100,15 @@ public class HandlerNodeTests {
         var process = new PipelineTestProcess();
 
         process.WithProcessing(builder => builder
-            .Handler("wait", session => LSProcessResultStatus.WAITING)
+            .Handler("wait", session => LSProcessResult.Waiting)
         );
 
         var first = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
         var failed = process.Fail();
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(first, Is.EqualTo(LSProcessResultStatus.WAITING));
-            Assert.That(failed, Is.EqualTo(LSProcessResultStatus.FAILURE));
+            Assert.That(first, Is.EqualTo(LSProcessResult.Waiting));
+            Assert.That(failed, Is.EqualTo(LSProcessResult.Failure));
         }
     }
 }

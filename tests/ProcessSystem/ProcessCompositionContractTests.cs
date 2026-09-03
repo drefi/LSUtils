@@ -12,9 +12,9 @@ public class ProcessCompositionContractTests {
             .Handler("builtin", s => Record(s, "builtin"));
     }
 
-    private static LSProcessResultStatus Record(LSProcessSession s, string value) {
+    private static LSProcessResult Record(LSProcessSession s, string value) {
         ((ComposedProcess)s.Process).Trace.Add(value);
-        return LSProcessResultStatus.SUCCESS;
+        return LSProcessResult.Success;
     }
 
     [TestCase(LSProcessManager.LSProcessContextMode.LOCAL, "local,builtin")]
@@ -35,7 +35,7 @@ public class ProcessCompositionContractTests {
         process.WithProcessing(b => b.Handler("local", s => Record(s, "local")));
 
         Assert.That(process.Execute(manager, mode, new TestProcessable(), one, two),
-            Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Is.EqualTo(LSProcessResult.Success));
         Assert.That(string.Join(",", process.Trace), Is.EqualTo(expected));
     }
 
@@ -50,7 +50,7 @@ public class ProcessCompositionContractTests {
         process.WithProcessing(b => b.Handler("builtin", s => Record(s, "local"), policy));
 
         Assert.That(process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL, actor),
-            Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Is.EqualTo(LSProcessResult.Success));
         Assert.That(process.Trace, Is.EqualTo(new[] { expected }));
     }
 
@@ -58,15 +58,15 @@ public class ProcessCompositionContractTests {
     public void ManagerChangesDuringWait_OnlyAffectNextExecution() {
         var manager = new LSProcessManager();
         manager.Register<ComposedProcess>(b => b
-            .Handler("wait", _ => LSProcessResultStatus.WAITING)
+            .Handler("wait", _ => LSProcessResult.Waiting)
             .Handler("result", s => Record(s, "original")));
         var first = new ComposedProcess();
-        Assert.That(first.Execute(manager), Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(first.Execute(manager), Is.EqualTo(LSProcessResult.Waiting));
         manager.Register<ComposedProcess>(b => b.Handler("result", s => Record(s, "replacement")));
         var second = new ComposedProcess();
-        Assert.That(second.Execute(manager), Is.EqualTo(LSProcessResultStatus.WAITING));
-        Assert.That(second.Resume(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
-        Assert.That(first.Resume(), Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(second.Execute(manager), Is.EqualTo(LSProcessResult.Waiting));
+        Assert.That(second.Resume(), Is.EqualTo(LSProcessResult.Success));
+        Assert.That(first.Resume(), Is.EqualTo(LSProcessResult.Success));
         Assert.That(first.Trace, Is.EqualTo(new[] { "builtin", "original" }));
         Assert.That(second.Trace, Is.EqualTo(new[] { "builtin", "replacement" }));
     }

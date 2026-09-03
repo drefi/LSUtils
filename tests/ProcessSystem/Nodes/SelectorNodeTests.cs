@@ -16,22 +16,22 @@ public class SelectorNodeTests {
             .Selector("selector", sel => sel
                 .Handler("fail", session => {
                     steps.Add("fail");
-                    return LSProcessResultStatus.FAILURE;
+                    return LSProcessResult.Failure;
                 })
                 .Handler("win", session => {
                     steps.Add("win");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 })
                 .Handler("skip", session => {
                     steps.Add("skip");
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 }))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(steps, Is.EqualTo(new[] { "fail", "win" }));
         }
     }
@@ -43,13 +43,13 @@ public class SelectorNodeTests {
 
         process.WithProcessing(builder => builder
             .Selector("selector", sel => sel
-                .Handler("a", session => LSProcessResultStatus.FAILURE)
-                .Handler("b", session => LSProcessResultStatus.FAILURE))
+                .Handler("a", session => LSProcessResult.Failure)
+                .Handler("b", session => LSProcessResult.Failure))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Failure));
     }
 
     [Test]
@@ -63,18 +63,18 @@ public class SelectorNodeTests {
             .Selector("selector", sel => sel
                 .Handler("gated", session => {
                     firstExecuted = true;
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 }, conditions: _ => false)
                 .Handler("next", session => {
                     secondExecuted = true;
-                    return LSProcessResultStatus.SUCCESS;
+                    return LSProcessResult.Success;
                 }))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
         using (Assert.EnterMultipleScope()) {
-            Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+            Assert.That(result, Is.EqualTo(LSProcessResult.Success));
             Assert.That(firstExecuted, Is.False);
             Assert.That(secondExecuted, Is.True);
         }
@@ -87,12 +87,12 @@ public class SelectorNodeTests {
 
         process.WithProcessing(builder => builder
             .Selector("selector", sel => sel
-                .Handler("wait", session => LSProcessResultStatus.WAITING)
-                .Handler("next", session => LSProcessResultStatus.SUCCESS))
+                .Handler("wait", session => LSProcessResult.Waiting)
+                .Handler("next", session => LSProcessResult.Success))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Waiting));
     }
 }

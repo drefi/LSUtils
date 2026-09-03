@@ -14,15 +14,15 @@ namespace LSUtils.ProcessSystem;
 /// LSProcessHandler&lt;EngageTask&gt; stronglyTypedHandler = (session) => {
 ///     // session.Process is already EngageTask, no casting needed
 ///     if (!session.Process.Entity.CanAttack) {
-///         return LSProcessResultStatus.FAILURE;
+///         return LSProcessResult.Failure;
 ///     }
 ///     session.Process.Entity.Attack(session.Process.Target);
-///     return LSProcessResultStatus.SUCCESS;
+///     return LSProcessResult.Success;
 /// };
 ///
 /// // Usage in builder
 /// builder.Handler("attack", stronglyTypedHandler);
 /// </code>
 /// </example>
-public delegate LSProcessResultStatus LSProcessHandler<TProcess>(LSProcessSession<TProcess> session)
+public delegate LSProcessResult LSProcessHandler<TProcess>(LSProcessSession<TProcess> session)
     where TProcess : LSProcess;

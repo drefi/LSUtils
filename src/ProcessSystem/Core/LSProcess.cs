@@ -76,21 +76,20 @@ public abstract class LSProcess {
     public bool IsCancelled {
         get {
             if (_processSession == null) return false;
-            return _processSession.RootNode.GetNodeStatus() == LSProcessResultStatus.CANCELLED;
+            return _processSession.RootNode.GetNodeStatus().IsCancelled;
         }
     }
 
     /// <summary>
     /// Determines completion by checking if the session's root node has reached any terminal state.
     /// Returns false if no execution session exists (process not yet executed).
-    /// Terminal states: SUCCESS, FAILURE, CANCELLED
-    /// Non-terminal states: UNKNOWN, WAITING
+    /// Terminal outcomes: success, failure, and cancellation.
+    /// Non-terminal outcomes: not executed, undetermined, and waiting.
     /// </summary>
     public bool IsCompleted {
         get {
             if (_processSession == null) return false;
-            var status = _processSession.RootNode.GetNodeStatus();
-            return status == LSProcessResultStatus.SUCCESS || status == LSProcessResultStatus.FAILURE || status == LSProcessResultStatus.CANCELLED;
+            return _processSession.RootNode.GetNodeStatus().IsTerminal;
         }
     }
     /// <summary>
@@ -144,13 +143,15 @@ public abstract class LSProcess {
     /// <param name="instance">Target entity for context resolution (may be null for global context)</param>
     /// <param name="contextMode">Flags controlling which context levels to include in the merge</param>
     /// <param name="manager">Process manager for context merging (uses singleton if null)</param>
-    /// <returns>Final execution status (may be WAITING if contains async operations)</returns>
-    public LSProcessResultStatus Execute(LSProcessManager? manager = null, LSProcessManager.LSProcessContextMode contextMode = LSProcessManager.LSProcessContextMode.ALL, params ILSProcessable[]? instances) {
+    /// <returns>Final result, which may be waiting when external intervention is required.</returns>
+    public LSProcessResult Execute(LSProcessManager? manager = null, LSProcessManager.LSProcessContextMode contextMode = LSProcessManager.LSProcessContextMode.ALL, params ILSProcessable[]? instances) {
         // Flow debug logging LSProcessSystem
         LSLogger.Singleton.Debug($"{ClassName}.Execute: [{_root?.NodeID ?? _processSession?.RootNode.NodeID}] instance: {(instances == null ? "n/a" : $"{string.Join(", ", instances.Select(i => i.ID))}")}.",
             source: ("LSProcessSystem", null),
             properties: ("hideNodeID", true));
         _manager = manager ?? LSProcessManager.Singleton;
+        if (_processSession?.IsRunning == true)
+            throw new System.InvalidOperationException("Cannot execute a process reentrantly.");
         if (IsExecuted) {
             //log warning
             LSLogger.Singleton.Warning($"Process already executed. Returning current status.",
@@ -220,16 +221,16 @@ public abstract class LSProcess {
     /// </summary>
     /// <param name="instances"></param>
     /// <returns></returns>
-    public LSProcessResultStatus Execute(params ILSProcessable[]? instances) {
+    public LSProcessResult Execute(params ILSProcessable[]? instances) {
         return Execute(LSProcessManager.Singleton, LSProcessManager.LSProcessContextMode.ALL, instances);
     }
 
     /// <summary>
-    /// Resumes processing from WAITING state for the specified node IDs.
+    /// Resolves the active waiting handler as successful and continues processing.
     /// </summary>
     /// <returns>The processing status after resume attempt.</returns>
     /// <exception cref="LSException">Thrown if the process has not been executed yet.</exception>
-    public LSProcessResultStatus Resume() {
+    public LSProcessResult Resume() {
 
         if (_processSession == null) {
             throw new LSException("Process not yet executed.");
@@ -252,9 +253,14 @@ public abstract class LSProcess {
             });
         return _processSession.Resume();
     }
+    /// <summary>Resumes a waiting process and carries typed completion data through the tree.</summary>
+    public LSProcessResult Resume<T>(T payload) {
+        if (_processSession == null) throw new LSException("Process not yet executed.");
+        return _processSession.Resume(payload);
+    }
     /// <summary>
     /// Cancels the entire process execution immediately.
-    /// Sets the process to CANCELLED state and prevents any further processing.
+    /// Sets the process to a cancelled result and prevents further processing.
     /// </summary>
     /// <exception cref="LSException">Thrown if the process has not been executed yet.</exception>
     /// <remarks>
@@ -282,6 +288,11 @@ public abstract class LSProcess {
                 ("method", nameof(Cancel))
             });
         _processSession.Cancel();
+    }
+    /// <summary>Cancels the process and preserves a typed cancellation reason.</summary>
+    public LSProcessResult Cancel<T>(T payload) {
+        if (_processSession == null) throw new LSException("Process not yet executed.");
+        return _processSession.Cancel(payload);
     }
     /// <summary>
     /// Configures or extends the processing tree for this process using a builder delegate.
@@ -337,7 +348,7 @@ public abstract class LSProcess {
         return this;
     }
     /// <summary>
-    /// Forces transition from WAITING to FAILURE state for the specified node IDs.
+    /// Resolves the active waiting handler as failed and continues processing.
     /// </summary>
     /// <returns>The processing status after failure operation.</returns>
     /// <exception cref="LSException">Thrown if the process has not been executed yet.</exception>
@@ -345,7 +356,7 @@ public abstract class LSProcess {
     /// Used for timeout handling, error conditions, or explicit failure injection.
     /// May trigger cascading status changes in parent nodes based on their aggregation logic.
     /// </remarks>
-    public LSProcessResultStatus Fail() {
+    public LSProcessResult Fail() {
         // Flow debug logging
         LSLogger.Singleton.Debug("LSProcess.Fail",
               source: ("LSProcessSystem", null),
@@ -366,6 +377,11 @@ public abstract class LSProcess {
                 ("method", nameof(Fail))
             });
         return _processSession.Fail();
+    }
+    /// <summary>Fails a waiting process and carries typed failure data through the tree.</summary>
+    public LSProcessResult Fail<T>(T payload) {
+        if (_processSession == null) throw new LSException("Process not yet executed.");
+        return _processSession.Fail(payload);
     }
     /// <summary>
     /// Exception-throwing data retrieval from the internal dictionary.

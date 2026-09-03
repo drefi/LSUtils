@@ -15,7 +15,7 @@ public class LSProcessNodeSequence : ILSProcessLayerNode {
     public bool ReadOnly => UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES);
 
     internal LSProcessNodeSequence(string nodeId, int order,
-        LSProcessPriority priority = LSProcessPriority.NORMAL,
+        LSProcessPriority priority = default,
         NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.NONE, params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeId;
         Order = order;

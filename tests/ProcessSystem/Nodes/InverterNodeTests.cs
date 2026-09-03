@@ -12,12 +12,12 @@ public class InverterNodeTests {
 
         process.WithProcessing(builder => builder
             .Inverter("invert", inv => inv
-                .Handler("child", session => LSProcessResultStatus.SUCCESS))
+                .Handler("child", session => LSProcessResult.Success))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.FAILURE));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Failure));
     }
 
     [Test]
@@ -27,12 +27,12 @@ public class InverterNodeTests {
 
         process.WithProcessing(builder => builder
             .Inverter("invert", inv => inv
-                .Handler("child", session => LSProcessResultStatus.FAILURE))
+                .Handler("child", session => LSProcessResult.Failure))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Success));
     }
 
     [Test]
@@ -42,12 +42,12 @@ public class InverterNodeTests {
 
         process.WithProcessing(builder => builder
             .Inverter("invert", inv => inv
-                .Handler("child", session => LSProcessResultStatus.WAITING))
+                .Handler("child", session => LSProcessResult.Waiting))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.WAITING));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Waiting));
     }
 
     [Test]
@@ -58,11 +58,11 @@ public class InverterNodeTests {
         process.WithProcessing(builder => builder
             .Inverter("outer", outer => outer
                 .Inverter("inner", inner => inner
-                    .Handler("child", session => LSProcessResultStatus.SUCCESS)))
+                    .Handler("child", session => LSProcessResult.Success)))
         );
 
         var result = process.Execute(manager, LSProcessManager.LSProcessContextMode.ALL);
 
-        Assert.That(result, Is.EqualTo(LSProcessResultStatus.SUCCESS));
+        Assert.That(result, Is.EqualTo(LSProcessResult.Success));
     }
 }

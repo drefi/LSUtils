@@ -13,7 +13,7 @@ public class LSProcessNodeInverter : ILSProcessLayerNode {
     public LSProcessNodeCondition?[] Conditions { get; internal set; }
     public bool ReadOnly => UpdatePolicy.HasFlag(NodeUpdatePolicy.IGNORE_CHANGES);
 
-    internal LSProcessNodeInverter(string nodeID, LSProcessPriority priority = LSProcessPriority.NORMAL,
+    internal LSProcessNodeInverter(string nodeID, LSProcessPriority priority = default,
         int order = 0, NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.NONE,
         params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeID;

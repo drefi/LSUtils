@@ -35,7 +35,7 @@ namespace LSUtils.ProcessSystem;
 ///     .Handler("positionDelegate", session => {
 ///         session.Process.SetData("getPosition", getPos);
 ///         session.Process.SetData("setPosition", setPos);
-///         return LSProcessResultStatus.SUCCESS;
+///         return LSProcessResult.Success;
 ///     })
 /// );
 /// 
@@ -70,11 +70,11 @@ public interface ILSProcessable {
     /// </summary>
     /// <param name="onInitialize">Builder action to define instance-specific processing logic during initialization</param>
     /// <param name="manager">Process manager for registration (uses singleton if null)</param>
-    /// <returns>SUCCESS if registration completed, FAILURE if registration failed</returns>
+    /// <returns>A success result when registration completed, otherwise a failure result.</returns>
     /// <example>
     /// Typical implementation pattern from WHEntity:
     /// <code>
-    /// public LSProcessResultStatus Initialize(LSProcessBuilderAction? initBuilderAction = null, LSProcessManager? manager = null) {
+    /// public LSProcessResult Initialize(LSProcessBuilderAction? initBuilderAction = null, LSProcessManager? manager = null) {
     ///     _manager = manager ?? LSProcessManager.Singleton;
     ///     var initializeProcess = new WHEntityProcess(this, INITIALIZE_LABEL);
     ///     
@@ -82,8 +82,8 @@ public interface ILSProcessable {
     ///         .WithProcessing(root => root
     ///             .Sequence(INITIALIZE_LABEL, main => main
     ///                 .Handler("isInitialized", session => {
-    ///                     if (IsInitialized) return LSProcessResultStatus.FAILURE;
-    ///                     return LSProcessResultStatus.SUCCESS;
+    ///                     if (IsInitialized) return LSProcessResult.Failure;
+    ///                     return LSProcessResult.Success;
     ///                 })
     ///                 .Sequence("initializeBuilderAction", initBuilderAction)
     ///                 .Handler("setSpatialDelegates", session => {
@@ -91,12 +91,12 @@ public interface ILSProcessable {
     ///                     session.Process.TryGetData("getPosition", out _getPosition);
     ///                     session.Process.TryGetData("setPosition", out _setPosition);
     ///                     IsInitialized = true;
-    ///                     return LSProcessResultStatus.SUCCESS;
+    ///                     return LSProcessResult.Success;
     ///                 })
     ///             )
     ///         ).Execute(this);
     /// }
     /// </code>
     /// </example>
-    LSProcessResultStatus Initialize(LSProcessBuilderAction? onInitialize = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables);
+    LSProcessResult Initialize(LSProcessBuilderAction? onInitialize = null, LSProcessManager? manager = null, params ILSProcessable[]? forwardProcessables);
 }

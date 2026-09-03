@@ -22,8 +22,8 @@ namespace LSUtils.ProcessSystem;
 /// </para>
 /// <para>
 /// <b>Status Semantics:</b><br/>
-/// Return values control processing flow - SUCCESS continues processing, FAILURE
-/// may terminate sequences, WAITING requires external Resume/Fail, and CANCELLED
+/// Return values control processing flow: success continues processing, failure
+/// may terminate sequences, waiting requires external Resume/Fail, and cancellation
 /// stops processing entirely.
 /// </para>
 /// </summary>
@@ -36,16 +36,16 @@ namespace LSUtils.ProcessSystem;
 /// LSProcessHandler validateInput = (session) => {
 ///     if (!session.Process.TryGetData&lt;string&gt;("input", out var input) || string.IsNullOrEmpty(input)) {
 ///         session.Process.SetData("error", "Input is required");
-///         return LSProcessResultStatus.FAILURE;
+///         return LSProcessResult.Failure;
 ///     }
-///     return LSProcessResultStatus.SUCCESS;
+///     return LSProcessResult.Success;
 /// };
 ///
 /// // Async operation handler
 /// LSProcessHandler asyncOperation = (session) => {
 ///     var taskId = StartAsyncTask(session.Process.GetData&lt;object&gt;("taskData"));
 ///     session.Process.SetData("asyncTaskId", taskId);
-///     return LSProcessResultStatus.WAITING; // Will be resumed when task completes
+///     return LSProcessResult.Waiting; // Will be resumed when task completes
 /// };
 ///
 /// // Conditional business logic
@@ -59,4 +59,4 @@ namespace LSUtils.ProcessSystem;
 /// };
 /// </code>
 /// </example>
-public delegate LSProcessResultStatus LSProcessHandler(LSProcessSession session);
+public delegate LSProcessResult LSProcessHandler(LSProcessSession session);

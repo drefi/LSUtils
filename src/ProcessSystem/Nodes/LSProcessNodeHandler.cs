@@ -11,7 +11,7 @@ public class LSProcessNodeHandler : ILSProcessNode {
     public LSProcessNodeCondition?[] Conditions { get; }
 
     internal LSProcessNodeHandler(string nodeID, LSProcessHandler handler, int order,
-        LSProcessPriority priority = LSProcessPriority.NORMAL,
+        LSProcessPriority priority = default,
         NodeUpdatePolicy updatePolicy = NodeUpdatePolicy.DEFAULT_HANDLER,
         params LSProcessNodeCondition?[] conditions) {
         NodeID = nodeID;
