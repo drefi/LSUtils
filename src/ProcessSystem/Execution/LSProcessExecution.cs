@@ -15,6 +15,33 @@ internal sealed class LSProcessExecution {
         Root = new LSProcessExecutionNode(definition.Root);
     }
 
+    internal LSProcessExecution(
+        LSProcessDefinition definition,
+        LSProcessExecutionMemento memento,
+        LSProcessPayloadCodecRegistry codecs) : this(definition) {
+        if (memento.FormatVersion != LSProcessExecutionMemento.CurrentFormatVersion) {
+            throw new NotSupportedException($"Unsupported process execution memento v{memento.FormatVersion}.");
+        }
+        if (!string.Equals(memento.DefinitionFingerprint, definition.Fingerprint, StringComparison.Ordinal)) {
+            throw new InvalidOperationException("Execution memento belongs to a different process definition.");
+        }
+        Root.Restore(memento.Root, codecs);
+    }
+
+    internal LSProcessExecutionMemento Capture(
+        LSProcessDefinition definition,
+        Guid processId,
+        DateTime processCreatedAtUtc,
+        LSProcessPayloadCodecRegistry codecs) {
+        if (_running) throw new InvalidOperationException("Cannot capture a process while it is running.");
+        return new LSProcessExecutionMemento(
+            LSProcessExecutionMemento.CurrentFormatVersion,
+            processId,
+            processCreatedAtUtc,
+            definition.Fingerprint,
+            Root.Capture(codecs));
+    }
+
     internal LSProcessResult Run(LSProcessSession session, LSProcessResult? resolution = null) {
         _fault?.Throw();
         if (_running) throw new InvalidOperationException("Cannot execute or resolve a process reentrantly; return WAITING first.");

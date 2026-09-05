@@ -102,6 +102,57 @@ public sealed class LSProcessExecutionNode {
         foreach (var child in _children) child.Cancel(cancellation);
     }
 
+    internal LSProcessExecutionNodeMemento Capture(LSProcessPayloadCodecRegistry codecs) => new(
+        NodeID,
+        Definition.Kind,
+        _started,
+        _cursor,
+        _hasUnknown,
+        ExecutionCount,
+        _eligible?.Select(eligible => Array.IndexOf(_children, eligible)).ToArray() ?? Array.Empty<int>(),
+        Status.Capture(codecs),
+        _lastResult.Capture(codecs),
+        _children.Select(child => child.Capture(codecs)).ToArray());
+
+    internal void Restore(LSProcessExecutionNodeMemento memento, LSProcessPayloadCodecRegistry codecs) {
+        if (memento.NodeId != NodeID || memento.Kind != Definition.Kind ||
+            memento.Children.Count != _children.Length) {
+            throw new InvalidOperationException($"Execution memento does not match process node '{NodeID}'.");
+        }
+        if (memento.Cursor < 0 || memento.Cursor > memento.EligibleChildren.Count) {
+            throw new InvalidOperationException($"Execution cursor is invalid for process node '{NodeID}'.");
+        }
+        if (memento.ExecutionCount < 0) {
+            throw new InvalidOperationException($"Execution count is invalid for process node '{NodeID}'.");
+        }
+        if (!memento.Started && (!memento.Status.Outcome.Equals(LSProcessOutcome.NotExecuted) ||
+            memento.Cursor != 0 || memento.EligibleChildren.Count != 0)) {
+            throw new InvalidOperationException($"Unstarted process node '{NodeID}' carries execution state.");
+        }
+        if (Definition.Kind is LSProcessDefinitionNodeKind.Handler or LSProcessDefinitionNodeKind.Inverter &&
+            memento.EligibleChildren.Count != 0) {
+            throw new InvalidOperationException($"Process node '{NodeID}' cannot carry eligible children.");
+        }
+        var eligible = new LSProcessExecutionNode[memento.EligibleChildren.Count];
+        for (var i = 0; i < eligible.Length; i++) {
+            var childIndex = memento.EligibleChildren[i];
+            if (childIndex < 0 || childIndex >= _children.Length ||
+                Array.IndexOf(memento.EligibleChildren.ToArray(), childIndex) != i) {
+                throw new InvalidOperationException($"Eligible child state is invalid for process node '{NodeID}'.");
+            }
+            eligible[i] = _children[childIndex];
+        }
+        for (var i = 0; i < _children.Length; i++) _children[i].Restore(memento.Children[i], codecs);
+        _started = memento.Started;
+        _cursor = memento.Cursor;
+        _hasUnknown = memento.HasUndetermined;
+        ExecutionCount = memento.ExecutionCount;
+        _eligible = memento.Started && Definition.Kind is not LSProcessDefinitionNodeKind.Handler and
+            not LSProcessDefinitionNodeKind.Inverter ? eligible : null;
+        Status = LSProcessResult.Restore(memento.Status, codecs);
+        _lastResult = LSProcessResult.Restore(memento.LastResult, codecs);
+    }
+
     private static bool IsEligible(LSProcessNodeDefinition node, LSProcess process) {
         foreach (var condition in node.Conditions) {
             if (condition != null && !condition(process)) return false;

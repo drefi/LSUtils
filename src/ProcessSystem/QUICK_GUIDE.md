@@ -28,6 +28,12 @@ responsibility. A process may wait for a timer's owner; it does not measure time
   by ILSProcessable instance. Register before executing the operation.
 - **LSProcessTreeBuilder**: named nodes and composition policies.
 - **LSProcessDefinition**: immutable result of composition, with no execution state.
+- **LSProcessExecutionMemento**: versioned checkpoint of node execution state. It
+  stores cursors, eligible children, counters and results, while callbacks remain
+  in the freshly composed definition. Restore rejects a different definition
+  fingerprint. Typed result payloads require an explicit registration in
+  `LSProcessPayloadCodecRegistry`; unregistered payloads fail capture instead of
+  relying on reflection or silently losing data.
 - **LSProcessSession**: operation context supplied to handlers, including Process.
   RootNode/CurrentNode expose read-only execution nodes; typed contexts share the
   original execution and SessionID. This is not a game/world session.

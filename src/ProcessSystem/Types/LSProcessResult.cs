@@ -65,6 +65,21 @@ public readonly struct LSProcessResult : IEquatable<LSProcessResult> {
     public override string ToString() => _payloadType == null
         ? _kind.ToString() : $"{_kind}<{_payloadType.Name}>";
 
+    internal LSProcessResultMemento Capture(LSProcessPayloadCodecRegistry codecs) => new(
+        (LSProcessOutcome)_kind,
+        _payloadType is null ? null : codecs.Encode(_payload, _payloadType));
+
+    internal static LSProcessResult Restore(
+        LSProcessResultMemento memento,
+        LSProcessPayloadCodecRegistry codecs) {
+        if (!Enum.IsDefined(memento.Outcome)) {
+            throw new ArgumentOutOfRangeException(nameof(memento), "Unknown process outcome.");
+        }
+        if (memento.Payload is null) return new LSProcessResult((ResultKind)memento.Outcome);
+        var payload = codecs.Decode(memento.Payload);
+        return new LSProcessResult((ResultKind)memento.Outcome, payload.Value, payload.Type);
+    }
+
     private static LSProcessResult WithPayload<T>(ResultKind kind, T payload) =>
         new(kind, payload, typeof(T));
 }

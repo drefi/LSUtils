@@ -1,5 +1,6 @@
 ﻿namespace LSUtils.ProcessSystem;
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LSUtils.Logging;
@@ -61,13 +62,13 @@ public abstract class LSProcess {
     /// Auto-generated unique identifier assigned at construction.
     /// Used for debugging, logging, and session association.
     /// </summary>
-    public System.Guid ID { get; }
+    public System.Guid ID { get; private set; }
 
     /// <summary>
     /// UTC timestamp of process creation for timing analysis and audit trails.
     /// Set once at construction and never changes.
     /// </summary>
-    public System.DateTime CreatedAt { get; }
+    public System.DateTime CreatedAt { get; private set; }
     public bool IsExecuted => _processSession != null;
     /// <summary>
     /// Delegates to the session's root node status to determine cancellation state.
@@ -167,39 +168,7 @@ public abstract class LSProcess {
             return _processSession.RootNode.GetNodeStatus();
         }
 
-        var type = GetType();
-        if (_root == null) {
-            // create root node if not exists (no WithProcessing override)
-            _root = LSProcessManager.CreateRootNode(type.Name);
-        }
-        // base builder from processing() override and WithProcessing() override
-        LSProcessTreeBuilder baseBuilder = processing(new LSProcessTreeBuilder(_root));
-        List<ILSProcessable> contextInstances = new();
-        // merge instance context
-        // include instances when contextMode is MATCH_FIRST or ALL_INSTANCES, using bitwise operation
-        var instanceMode = contextMode & (LSProcessManager.LSProcessContextMode.MATCH_FIRST | LSProcessManager.LSProcessContextMode.ALL_INSTANCES);
-        if (instances != null && instances.Length > 0 && instanceMode != LSProcessManager.LSProcessContextMode.LOCAL) {
-            var instancesContext = _manager.GetRootNode(type, out var available, contextMode.HasFlag(LSProcessManager.LSProcessContextMode.MATCH_FIRST), instances);
-            if (instancesContext != null) {
-                if (available != null && available.Length > 0) contextInstances.AddRange(available);
-                baseBuilder = baseBuilder.Merge(instancesContext);
-            }
-        }
-        // the last context is Global
-        if (contextMode.HasFlag(LSProcessManager.LSProcessContextMode.GLOBAL)) {
-            var globalContext = _manager.GetRootNode(type, out var globalInstance, false);
-            baseBuilder = baseBuilder.Merge(globalContext);
-            if (globalInstance != null) contextInstances.AddRange(globalInstance);
-        }
-
-        var definition = LSProcessDefinition.Compile(baseBuilder.Build());
-        _processSession = new LSProcessSession(_manager,
-            this,
-            definition,
-            contextMode,
-            instances,
-            contextInstances.ToArray());
-        _root = null;
+        _processSession = ComposeSession(_manager, contextMode, instances);
 
         // Detailed debug logging ClassName
         LSLogger.Singleton.Debug($"Process Execute",
@@ -215,6 +184,70 @@ public abstract class LSProcess {
                 ("method", nameof(Execute))
             });
         return _processSession.Execute();
+    }
+
+    public LSProcessExecutionMemento CaptureExecution(LSProcessPayloadCodecRegistry codecs) {
+        if (_processSession is null) throw new LSException("Process not yet executed.");
+        return _processSession.CaptureExecution(codecs);
+    }
+
+    /// <summary>Restores execution state against a freshly composed, matching definition.</summary>
+    public void RestoreExecution(
+        LSProcessExecutionMemento memento,
+        LSProcessPayloadCodecRegistry codecs,
+        LSProcessManager? manager = null,
+        LSProcessManager.LSProcessContextMode contextMode = LSProcessManager.LSProcessContextMode.ALL,
+        params ILSProcessable[]? instances) {
+        ArgumentNullException.ThrowIfNull(memento);
+        ArgumentNullException.ThrowIfNull(codecs);
+        if (IsExecuted) throw new InvalidOperationException("Cannot restore an already executed process.");
+        _manager = manager ?? LSProcessManager.Singleton;
+        if (memento.ProcessId == Guid.Empty) throw new ArgumentException("A restored process ID is required.", nameof(memento));
+        var originalId = ID;
+        var originalCreatedAt = CreatedAt;
+        try {
+            ID = memento.ProcessId;
+            CreatedAt = memento.ProcessCreatedAtUtc;
+            _processSession = ComposeSession(_manager, contextMode, instances, memento, codecs);
+        } catch {
+            ID = originalId;
+            CreatedAt = originalCreatedAt;
+            throw;
+        }
+    }
+
+    private LSProcessSession ComposeSession(
+        LSProcessManager manager,
+        LSProcessManager.LSProcessContextMode contextMode,
+        ILSProcessable[]? instances,
+        LSProcessExecutionMemento? memento = null,
+        LSProcessPayloadCodecRegistry? codecs = null) {
+        var type = GetType();
+        _root ??= LSProcessManager.CreateRootNode(type.Name);
+        var baseBuilder = processing(new LSProcessTreeBuilder(_root));
+        List<ILSProcessable> contextInstances = new();
+        var instanceMode = contextMode & (LSProcessManager.LSProcessContextMode.MATCH_FIRST |
+            LSProcessManager.LSProcessContextMode.ALL_INSTANCES);
+        if (instances is { Length: > 0 } && instanceMode != LSProcessManager.LSProcessContextMode.LOCAL) {
+            var instancesContext = manager.GetRootNode(type, out var available,
+                contextMode.HasFlag(LSProcessManager.LSProcessContextMode.MATCH_FIRST), instances);
+            if (instancesContext != null) {
+                if (available is { Length: > 0 }) contextInstances.AddRange(available);
+                baseBuilder = baseBuilder.Merge(instancesContext);
+            }
+        }
+        if (contextMode.HasFlag(LSProcessManager.LSProcessContextMode.GLOBAL)) {
+            var globalContext = manager.GetRootNode(type, out var globalInstance, false);
+            baseBuilder = baseBuilder.Merge(globalContext);
+            if (globalInstance != null) contextInstances.AddRange(globalInstance);
+        }
+        var definition = LSProcessDefinition.Compile(baseBuilder.Build());
+        var session = memento is null
+            ? new LSProcessSession(manager, this, definition, contextMode, instances, contextInstances.ToArray())
+            : new LSProcessSession(manager, this, definition, contextMode, instances, contextInstances.ToArray(),
+                memento, codecs!);
+        _root = null;
+        return session;
     }
     /// <summary>
     /// Executes the process using the singleton LSProcessManager and ALL instance behaviour.

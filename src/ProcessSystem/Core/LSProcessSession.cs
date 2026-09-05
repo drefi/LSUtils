@@ -34,6 +34,19 @@ public class LSProcessSession {
         _contextInstances = (ILSProcessable[]?)contextInstances?.Clone();
     }
 
+    internal LSProcessSession(LSProcessManager manager, LSProcess process, LSProcessDefinition definition,
+        LSProcessManager.LSProcessContextMode behaviour, ILSProcessable[]? instances,
+        ILSProcessable[]? contextInstances, LSProcessExecutionMemento memento,
+        LSProcessPayloadCodecRegistry codecs) {
+        Manager = manager;
+        Process = process;
+        Definition = definition;
+        Execution = new LSProcessExecution(definition, memento, codecs);
+        ContextMode = behaviour;
+        _instances = (ILSProcessable[]?)instances?.Clone();
+        _contextInstances = (ILSProcessable[]?)contextInstances?.Clone();
+    }
+
     internal LSProcessSession(LSProcessSession session) {
         Manager = session.Manager;
         Process = session.Process;
@@ -45,6 +58,10 @@ public class LSProcessSession {
     }
 
     internal LSProcessResult Execute() => Execution.Run(this);
+    public LSProcessExecutionMemento CaptureExecution(LSProcessPayloadCodecRegistry codecs) {
+        ArgumentNullException.ThrowIfNull(codecs);
+        return Execution.Capture(Definition, Process.ID, Process.CreatedAt, codecs);
+    }
     public LSProcessResult Resume() => Execution.Run(this, LSProcessResult.Success);
     public LSProcessResult Resume<T>(T payload) => Execution.Run(this, LSProcessResult.Succeeded(payload));
     public LSProcessResult Fail() => Execution.Run(this, LSProcessResult.Failure);

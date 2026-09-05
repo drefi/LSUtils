@@ -1,15 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace LSUtils.ProcessSystem;
 
 /// <summary>Finalized topology and callbacks, independent of any execution state.</summary>
 public sealed class LSProcessDefinition {
     public LSProcessNodeDefinition Root { get; }
+    public string Fingerprint { get; }
 
     private LSProcessDefinition(LSProcessNodeDefinition root) {
         Root = root;
+        Fingerprint = ComputeFingerprint(root);
     }
 
     internal static LSProcessDefinition Compile(ILSProcessNode root) {
@@ -48,6 +52,23 @@ public sealed class LSProcessDefinition {
         } finally {
             ancestors.Remove(source);
         }
+    }
+
+    private static string ComputeFingerprint(LSProcessNodeDefinition root) {
+        var topology = new StringBuilder();
+        Append(root, topology);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(topology.ToString())));
+    }
+
+    private static void Append(LSProcessNodeDefinition node, StringBuilder target) {
+        target.Append(node.NodeID.Length).Append(':').Append(node.NodeID)
+            .Append('|').Append((int)node.Kind)
+            .Append('|').Append(node.Order)
+            .Append('|').Append(node.Priority.Value)
+            .Append('|').Append((int)node.UpdatePolicy)
+            .Append('|').Append(node.Conditions.Count)
+            .Append('|').Append(node.Children.Count).Append(';');
+        foreach (var child in node.Children) Append(child, target);
     }
 }
 
