@@ -35,6 +35,9 @@ public sealed record LSProcessExecutionMemento(
     int FormatVersion,
     Guid ProcessId,
     DateTime ProcessCreatedAtUtc,
+    IReadOnlyDictionary<string, LSProcessPayloadMemento> ProcessData,
+    IReadOnlyList<Guid> InstanceIds,
+    IReadOnlyList<Guid> ContextInstanceIds,
     string DefinitionFingerprint,
     LSProcessExecutionNodeMemento Root) {
     public const int CurrentFormatVersion = 1;

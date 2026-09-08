@@ -46,6 +46,7 @@ public abstract class LSProcess {
     /// Isolated per process instance and persists throughout execution lifecycle.
     /// </summary>
     private Dictionary<string, object> _data = new();
+    private Dictionary<string, Type> _dataTypes = new();
 
     /// <summary>
     /// Local processing tree defined via WithProcessing(). Merged with registered
@@ -106,6 +107,7 @@ public abstract class LSProcess {
     }
     protected LSProcess(IReadOnlyDictionary<string, object> data) : this() {
         _data = new Dictionary<string, object>(data);
+        _dataTypes = data.ToDictionary(pair => pair.Key, pair => pair.Value.GetType());
     }
 
     /// <summary>
@@ -188,7 +190,11 @@ public abstract class LSProcess {
 
     public LSProcessExecutionMemento CaptureExecution(LSProcessPayloadCodecRegistry codecs) {
         if (_processSession is null) throw new LSException("Process not yet executed.");
-        return _processSession.CaptureExecution(codecs);
+        var data = new Dictionary<string, LSProcessPayloadMemento>(StringComparer.Ordinal);
+        foreach (var pair in _data.OrderBy(pair => pair.Key, StringComparer.Ordinal)) {
+            data.Add(pair.Key, codecs.Encode(pair.Value, _dataTypes[pair.Key]));
+        }
+        return _processSession.CaptureExecution(codecs) with { ProcessData = data };
     }
 
     /// <summary>Restores execution state against a freshly composed, matching definition.</summary>
@@ -205,13 +211,24 @@ public abstract class LSProcess {
         if (memento.ProcessId == Guid.Empty) throw new ArgumentException("A restored process ID is required.", nameof(memento));
         var originalId = ID;
         var originalCreatedAt = CreatedAt;
+        var originalData = _data;
+        var originalDataTypes = _dataTypes;
         try {
             ID = memento.ProcessId;
             CreatedAt = memento.ProcessCreatedAtUtc;
+            _data = new Dictionary<string, object>(StringComparer.Ordinal);
+            _dataTypes = new Dictionary<string, Type>(StringComparer.Ordinal);
+            foreach (var pair in memento.ProcessData ?? new Dictionary<string, LSProcessPayloadMemento>()) {
+                var decoded = codecs.Decode(pair.Value);
+                _data.Add(pair.Key, decoded.Value!);
+                _dataTypes.Add(pair.Key, decoded.Type);
+            }
             _processSession = ComposeSession(_manager, contextMode, instances, memento, codecs);
         } catch {
             ID = originalId;
             CreatedAt = originalCreatedAt;
+            _data = originalData;
+            _dataTypes = originalDataTypes;
             throw;
         }
     }
@@ -449,6 +466,7 @@ public abstract class LSProcess {
     /// </remarks>
     public virtual void SetData<T>(string key, T value) {
         _data[key] = value!;
+        _dataTypes[key] = typeof(T);
     }
     /// <summary>
     /// Attempts to retrieve strongly-typed data associated with the specified key.

@@ -1,6 +1,8 @@
 ﻿namespace LSUtils.ProcessSystem;
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>Context for one execution. Typed views share this execution, not a new tree.</summary>
 public class LSProcessSession {
@@ -45,6 +47,9 @@ public class LSProcessSession {
         ContextMode = behaviour;
         _instances = (ILSProcessable[]?)instances?.Clone();
         _contextInstances = (ILSProcessable[]?)contextInstances?.Clone();
+        if (memento.InstanceIds is not null) ValidateContextIds(memento.InstanceIds, _instances, "target");
+        if (memento.ContextInstanceIds is not null)
+            ValidateContextIds(memento.ContextInstanceIds, _contextInstances, "resolved context");
     }
 
     internal LSProcessSession(LSProcessSession session) {
@@ -60,8 +65,28 @@ public class LSProcessSession {
     internal LSProcessResult Execute() => Execution.Run(this);
     public LSProcessExecutionMemento CaptureExecution(LSProcessPayloadCodecRegistry codecs) {
         ArgumentNullException.ThrowIfNull(codecs);
-        return Execution.Capture(Definition, Process.ID, Process.CreatedAt, codecs);
+        return Execution.Capture(Definition, Process.ID, Process.CreatedAt, codecs) with {
+            InstanceIds = PersistentIds(_instances),
+            ContextInstanceIds = PersistentIds(_contextInstances),
+        };
     }
+
+    private static void ValidateContextIds(
+        IReadOnlyList<Guid> expected,
+        ILSProcessable[]? actual,
+        string role) {
+        var actualIds = PersistentIds(actual);
+        if (!expected.SequenceEqual(actualIds)) {
+            throw new InvalidOperationException(
+                $"Restored process {role} identities do not match the captured execution.");
+        }
+    }
+
+    private static Guid[] PersistentIds(ILSProcessable[]? instances) =>
+        (instances ?? Array.Empty<ILSProcessable>())
+            .Where(item => item is not LSProcessManager.GlobalProcessable)
+            .Select(item => item.ID)
+            .ToArray();
     public LSProcessResult Resume() => Execution.Run(this, LSProcessResult.Success);
     public LSProcessResult Resume<T>(T payload) => Execution.Run(this, LSProcessResult.Succeeded(payload));
     public LSProcessResult Fail() => Execution.Run(this, LSProcessResult.Failure);

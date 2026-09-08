@@ -129,6 +129,29 @@ public sealed class ProcessExecutionMementoTests {
         });
     }
 
+    [Test]
+    public void ProcessDataAndTargetIdentitySurviveRestore() {
+        var target = new TestProcessable();
+        var original = Process(() => { });
+        original.SetData("attempt", 7);
+        original.Execute(new LSProcessManager(), LSProcessManager.LSProcessContextMode.LOCAL, target);
+        var codecs = StringCodecs();
+        var memento = original.CaptureExecution(codecs);
+
+        var restored = Process(() => { });
+        restored.RestoreExecution(memento, codecs, new LSProcessManager(),
+            LSProcessManager.LSProcessContextMode.LOCAL, target);
+
+        Assert.Multiple(() => {
+            Assert.That(restored.GetData<int>("attempt"), Is.EqualTo(7));
+            Assert.That(memento.InstanceIds, Is.EqualTo(new[] { target.ID }));
+            Assert.That(() => Process(() => { }).RestoreExecution(
+                memento, codecs, new LSProcessManager(),
+                LSProcessManager.LSProcessContextMode.LOCAL, new TestProcessable()),
+                Throws.InvalidOperationException);
+        });
+    }
+
     private static LSProcessSession WaitingSession(string rootId, string handlerId, LSProcessResult result) {
         var root = LSProcessManager.CreateRootNode(rootId);
         new LSProcessTreeBuilder(root).Handler(handlerId, _ => result);
@@ -137,7 +160,9 @@ public sealed class ProcessExecutionMementoTests {
     }
 
     private static LSProcessPayloadCodecRegistry StringCodecs() =>
-        new LSProcessPayloadCodecRegistry().Register<string>("system.string", 1, value => value, value => value);
+        new LSProcessPayloadCodecRegistry()
+            .Register<string>("system.string", 1, value => value, value => value)
+            .Register<int>("system.int32", 1, value => value.ToString(), int.Parse);
 
     private static PipelineTestProcess Process(Action complete) {
         var process = new PipelineTestProcess();

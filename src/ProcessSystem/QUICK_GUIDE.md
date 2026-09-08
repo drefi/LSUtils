@@ -34,6 +34,11 @@ responsibility. A process may wait for a timer's owner; it does not measure time
   fingerprint. Typed result payloads require an explicit registration in
   `LSProcessPayloadCodecRegistry`; unregistered payloads fail capture instead of
   relying on reflection or silently losing data.
+  Values stored through `SetData` use the same registry and are included in the
+  memento with their declared type. Target and resolved-context IDs are also
+  captured; restore requires the caller to provide the corresponding live
+  `ILSProcessable` instances in the same order. The global sentinel is structural
+  and is deliberately excluded from persistent identity validation.
 - **LSProcessSession**: operation context supplied to handlers, including Process.
   RootNode/CurrentNode expose read-only execution nodes; typed contexts share the
   original execution and SessionID. This is not a game/world session.

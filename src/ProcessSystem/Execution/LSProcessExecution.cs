@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
 
 namespace LSUtils.ProcessSystem;
@@ -38,6 +39,9 @@ internal sealed class LSProcessExecution {
             LSProcessExecutionMemento.CurrentFormatVersion,
             processId,
             processCreatedAtUtc,
+            new Dictionary<string, LSProcessPayloadMemento>(),
+            Array.Empty<Guid>(),
+            Array.Empty<Guid>(),
             definition.Fingerprint,
             Root.Capture(codecs));
     }
