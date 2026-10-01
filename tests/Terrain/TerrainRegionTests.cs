@@ -1,4 +1,4 @@
-namespace LSUtils.Tests.Terrain;
+﻿namespace LSUtils.Tests.Terrain;
 
 using NUnit.Framework;
 using LSUtils.Geometry;
@@ -92,7 +92,7 @@ public class TerrainRegionTests {
 
     [Test]
     public void PolygonCoverageArea_SubtractsPatchHoles() {
-        var shape = new PolygonArea2D(Square(0, 0, 10), new[] { Square(0, 0, 4) });
+        var shape = new LSPolygonArea2D(Square(0, 0, 10), new[] { Square(0, 0, 4) });
         var region = new TerrainRegion<TestTerrainType, TestContentType>(new[] {
             new TerrainPatch<TestTerrainType>(TestTerrainType.Grass, shape),
         });
@@ -101,9 +101,9 @@ public class TerrainRegionTests {
         Assert.That(region.PolygonCoverageArea, Is.EqualTo(84f).Within(0.001f));
     }
 
-    private static Polygon2D Square(float x, float y, float size) {
+    private static LSPolygon2D Square(float x, float y, float size) {
         float half = size * 0.5f;
-        return new Polygon2D(new[] {
+        return new LSPolygon2D(new[] {
             new LSVector2(x - half, y - half),
             new LSVector2(x + half, y - half),
             new LSVector2(x + half, y + half),

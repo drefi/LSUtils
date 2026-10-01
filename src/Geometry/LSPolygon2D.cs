@@ -1,4 +1,4 @@
-namespace LSUtils.Geometry;
+﻿namespace LSUtils.Geometry;
 
 using System;
 using System.Collections.Generic;
@@ -8,10 +8,10 @@ using LSUtils.Spatial;
 /// <summary>
 /// A simple immutable 2D polygon backed by ordered vertices.
 /// </summary>
-public sealed class Polygon2D : IPolygonalShape2D {
+public sealed class LSPolygon2D : ILSPolygonalShape2D {
     private const float BoundaryEpsilon = 0.00001f;
     private readonly List<LSVector2> _vertices;
-    private readonly IReadOnlyList<Polygon2D> _boundaryLoops;
+    private readonly IReadOnlyList<LSPolygon2D> _boundaryLoops;
 
     public IReadOnlyList<LSVector2> Vertices => _vertices;
     public Bounds Bounds { get; }
@@ -19,11 +19,11 @@ public sealed class Polygon2D : IPolygonalShape2D {
     public float SignedArea { get; }
     public bool IsClockwise => SignedArea < 0f;
     public bool IsConvex => CalculateIsConvex(_vertices);
-    public Polygon2D OuterBoundary => this;
-    public IReadOnlyList<Polygon2D> Holes => System.Array.Empty<Polygon2D>();
-    public IReadOnlyList<Polygon2D> BoundaryLoops => _boundaryLoops;
+    public LSPolygon2D OuterBoundary => this;
+    public IReadOnlyList<LSPolygon2D> Holes => System.Array.Empty<LSPolygon2D>();
+    public IReadOnlyList<LSPolygon2D> BoundaryLoops => _boundaryLoops;
 
-    public Polygon2D(IEnumerable<ILSVector2> vertices) {
+    public LSPolygon2D(IEnumerable<ILSVector2> vertices) {
         if (vertices == null) throw new LSArgumentNullException(nameof(vertices));
 
         _vertices = vertices.Select(v => new LSVector2(v)).ToList();
@@ -35,7 +35,7 @@ public sealed class Polygon2D : IPolygonalShape2D {
         _boundaryLoops = new[] { this };
     }
 
-    public Polygon2D(IEnumerable<LSVector2> vertices) {
+    public LSPolygon2D(IEnumerable<LSVector2> vertices) {
         if (vertices == null) throw new LSArgumentNullException(nameof(vertices));
 
         _vertices = vertices.ToList();

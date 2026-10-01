@@ -113,7 +113,7 @@ public class TerrainRegion<TTerrainType, TContentType> : ISpatialObject {
     }
 
     private void RecalculatePolygonCoverageArea() {
-        var polygons = _patches.Select(patch => patch.Shape as IPolygonalShape2D).ToList();
+        var polygons = _patches.Select(patch => patch.Shape as ILSPolygonalShape2D).ToList();
         if (polygons.Any(polygon => polygon == null)) {
             throw new LSInvalidOperationException("PolygonCoverageArea requires every region patch to use IPolygonalShape2D.");
         }
@@ -124,7 +124,7 @@ public class TerrainRegion<TTerrainType, TContentType> : ISpatialObject {
         }
 
         var constraints = new List<TriangulationConstraint>();
-        foreach (var polygon in polygons.Cast<IPolygonalShape2D>()) {
+        foreach (var polygon in polygons.Cast<ILSPolygonalShape2D>()) {
             foreach (var loop in polygon.BoundaryLoops) constraints.AddRange(PolygonTriangulation2D.CreateLoopConstraints(loop));
         }
 

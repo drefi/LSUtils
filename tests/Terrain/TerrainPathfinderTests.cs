@@ -1,4 +1,4 @@
-namespace LSUtils.Tests.Terrain;
+﻿namespace LSUtils.Tests.Terrain;
 
 using System;
 using NUnit.Framework;
@@ -37,7 +37,7 @@ public class TerrainPathfinderTests {
     [Test]
     public void NavigationMesh_BakesWhenPassablePatchCutsAcrossOtherPatches() {
         var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(576, 324, 1056, 560), TerrainType.Water);
-        world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Mud, new Polygon2D(new[] {
+        world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Mud, new LSPolygon2D(new[] {
             new LSVector2(98, 76), new LSVector2(1022, 130),
             new LSVector2(1017, 321), new LSVector2(119, 530),
         })));
@@ -121,7 +121,7 @@ public class TerrainPathfinderTests {
     public void FindPath_AvoidsHoleThatExposesImpassableDefaultTerrain() {
         var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(50, 50, 100, 100), TerrainType.Water);
         var hole = Rectangle(40, 30, 20, 40);
-        var island = new PolygonArea2D(Rectangle(5, 5, 90, 90), new[] { hole });
+        var island = new LSPolygonArea2D(Rectangle(5, 5, 90, 90), new[] { hole });
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, island));
         var settings = new TerrainNavigationSettings<TerrainType, ContentType>(
             patch => patch?.Type == TerrainType.Grass ? 1f : 0f,
@@ -142,7 +142,7 @@ public class TerrainPathfinderTests {
         var hole = Rectangle(40, 30, 20, 40);
         var upper = new TerrainPatch<TerrainType>(
             TerrainType.Grass,
-            new PolygonArea2D(Rectangle(5, 5, 90, 90), new[] { hole }),
+            new LSPolygonArea2D(Rectangle(5, 5, 90, 90), new[] { hole }),
             layer: 1);
         world.AddPatch(lower);
         world.AddPatch(upper);
@@ -267,7 +267,7 @@ public class TerrainPathfinderTests {
     public void FindPath_BetweenRoomWalls_ChoosesNearSideOfObstacle() {
         var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(576, 324, 1056, 560), TerrainType.Water);
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, Rectangle(70, 145, 1010, 430)));
-        world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Water, new Polygon2D(new[] {
+        world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Water, new LSPolygon2D(new[] {
             new LSVector2(785, 245), new LSVector2(965, 225),
             new LSVector2(1010, 355), new LSVector2(815, 385),
         }), layer: 1));
@@ -366,8 +366,8 @@ public class TerrainPathfinderTests {
             agentRadius: 4f);
     }
 
-    private static Polygon2D Rectangle(float x, float y, float width, float height) {
-        return new Polygon2D(new[] {
+    private static LSPolygon2D Rectangle(float x, float y, float width, float height) {
+        return new LSPolygon2D(new[] {
             new LSVector2(x, y), new LSVector2(x + width, y),
             new LSVector2(x + width, y + height), new LSVector2(x, y + height),
         });
@@ -383,7 +383,7 @@ public class TerrainPathfinderTests {
         return false;
     }
 
-    private static void AssertTriangleDoesNotCrossBoundary(TerrainNavigationTriangle triangle, Polygon2D boundary) {
+    private static void AssertTriangleDoesNotCrossBoundary(TerrainNavigationTriangle triangle, LSPolygon2D boundary) {
         var triangleEdges = new[] { (triangle.A, triangle.B), (triangle.B, triangle.C), (triangle.C, triangle.A) };
         foreach (var edge in triangleEdges) {
             for (int index = 0; index < boundary.Vertices.Count; index++) {

@@ -1,4 +1,4 @@
-namespace LSUtils.Tests.Terrain;
+﻿namespace LSUtils.Tests.Terrain;
 
 using NUnit.Framework;
 using LSUtils.Geometry;
@@ -45,7 +45,7 @@ public class TerrainWorldTests {
     public void ResolveTerrainTypeAt_InsideHoleExposesLowerPatch() {
         var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
         var lower = new TerrainPatch<TestTerrainType>(TestTerrainType.Sand, Square(0, 0, 60), layer: 0);
-        var upperShape = new PolygonArea2D(Square(0, 0, 40), new[] { Square(0, 0, 10) });
+        var upperShape = new LSPolygonArea2D(Square(0, 0, 40), new[] { Square(0, 0, 10) });
         var upper = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, upperShape, layer: 1);
         world.AddPatch(lower);
         world.AddPatch(upper);
@@ -118,7 +118,7 @@ public class TerrainWorldTests {
 
     [Test]
     public void TerrainContent_PolygonalFootprintCanExposeInternalCourtyard() {
-        var footprint = new PolygonArea2D(Square(0, 0, 20), new[] { Square(0, 0, 8) });
+        var footprint = new LSPolygonArea2D(Square(0, 0, 20), new[] { Square(0, 0, 8) });
         var structure = new TerrainContent<TestContentType>(TestContentType.Tree, footprint);
 
         Assert.That(structure.Contains(8, 0), Is.True);
@@ -126,9 +126,9 @@ public class TerrainWorldTests {
         Assert.That(structure.Area, Is.EqualTo(336f).Within(0.001f));
     }
 
-    private static Polygon2D Square(float x, float y, float size) {
+    private static LSPolygon2D Square(float x, float y, float size) {
         float half = size * 0.5f;
-        return new Polygon2D(new[] {
+        return new LSPolygon2D(new[] {
             new LSVector2(x - half, y - half),
             new LSVector2(x + half, y - half),
             new LSVector2(x + half, y + half),

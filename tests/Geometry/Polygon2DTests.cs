@@ -10,7 +10,7 @@ using LSUtils.Spatial;
 public class Polygon2DTests {
     [Test]
     public void Constructor_WithLessThanThreeVertices_Throws() {
-        Assert.Throws<LSArgumentException>(() => new Polygon2D(new[] {
+        Assert.Throws<LSArgumentException>(() => new LSPolygon2D(new[] {
             new LSVector2(0, 0),
             new LSVector2(1, 0),
         }));
@@ -18,7 +18,7 @@ public class Polygon2DTests {
 
     [Test]
     public void Area_ReturnsShoelaceArea() {
-        var polygon = new Polygon2D(new[] {
+        var polygon = new LSPolygon2D(new[] {
             new LSVector2(0, 0),
             new LSVector2(4, 0),
             new LSVector2(4, 3),
@@ -30,7 +30,7 @@ public class Polygon2DTests {
 
     [Test]
     public void Bounds_ContainsAllVertices() {
-        var polygon = new Polygon2D(new[] {
+        var polygon = new LSPolygon2D(new[] {
             new LSVector2(-2, -1),
             new LSVector2(4, 0),
             new LSVector2(1, 5),
@@ -41,7 +41,7 @@ public class Polygon2DTests {
 
     [Test]
     public void Contains_PointInside_ReturnsTrue() {
-        var polygon = new Polygon2D(new[] {
+        var polygon = new LSPolygon2D(new[] {
             new LSVector2(0, 0),
             new LSVector2(4, 0),
             new LSVector2(4, 4),
@@ -53,7 +53,7 @@ public class Polygon2DTests {
 
     [Test]
     public void Contains_PointOutside_ReturnsFalse() {
-        var polygon = new Polygon2D(new[] {
+        var polygon = new LSPolygon2D(new[] {
             new LSVector2(0, 0),
             new LSVector2(4, 0),
             new LSVector2(4, 4),
@@ -65,7 +65,7 @@ public class Polygon2DTests {
 
     [Test]
     public void Contains_PointsOnVerticesAndEdges_ReturnsTrue() {
-        var polygon = new Polygon2D(new[] {
+        var polygon = new LSPolygon2D(new[] {
             new LSVector2(0, 0), new LSVector2(4, 0),
             new LSVector2(4, 4), new LSVector2(0, 4),
         });
@@ -80,11 +80,11 @@ public class Polygon2DTests {
 
     [Test]
     public void ConvexityAndWinding_DescribeThePolygonTopology() {
-        var clockwise = new Polygon2D(new[] {
+        var clockwise = new LSPolygon2D(new[] {
             new LSVector2(0, 0), new LSVector2(0, 4),
             new LSVector2(4, 4), new LSVector2(4, 0),
         });
-        var concave = new Polygon2D(new[] {
+        var concave = new LSPolygon2D(new[] {
             new LSVector2(0, 0), new LSVector2(4, 0), new LSVector2(2, 2),
             new LSVector2(4, 4), new LSVector2(0, 4),
         });

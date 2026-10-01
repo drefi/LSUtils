@@ -1,4 +1,4 @@
-namespace LSUtils.Geometry;
+﻿namespace LSUtils.Geometry;
 
 using System;
 using System.Collections.Generic;
@@ -6,20 +6,20 @@ using System.Linq;
 using LSUtils.Spatial;
 
 /// <summary>An immutable polygonal area with one outer boundary and optional holes.</summary>
-public sealed class PolygonArea2D : IPolygonalShape2D {
+public sealed class LSPolygonArea2D : ILSPolygonalShape2D {
     private const float Epsilon = 0.00001f;
-    private readonly IReadOnlyList<Polygon2D> _holes;
-    private readonly IReadOnlyList<Polygon2D> _boundaryLoops;
+    private readonly IReadOnlyList<LSPolygon2D> _holes;
+    private readonly IReadOnlyList<LSPolygon2D> _boundaryLoops;
 
-    public Polygon2D OuterBoundary { get; }
-    public IReadOnlyList<Polygon2D> Holes => _holes;
-    public IReadOnlyList<Polygon2D> BoundaryLoops => _boundaryLoops;
+    public LSPolygon2D OuterBoundary { get; }
+    public IReadOnlyList<LSPolygon2D> Holes => _holes;
+    public IReadOnlyList<LSPolygon2D> BoundaryLoops => _boundaryLoops;
     public Bounds Bounds => OuterBoundary.Bounds;
     public float Area { get; }
 
-    public PolygonArea2D(Polygon2D outerBoundary, IEnumerable<Polygon2D>? holes = null) {
+    public LSPolygonArea2D(LSPolygon2D outerBoundary, IEnumerable<LSPolygon2D>? holes = null) {
         if (outerBoundary == null) throw new LSArgumentNullException(nameof(outerBoundary));
-        var holeList = holes?.ToList() ?? new List<Polygon2D>();
+        var holeList = holes?.ToList() ?? new List<LSPolygon2D>();
         if (holeList.Any(hole => hole == null)) throw new LSArgumentException("Hole boundaries cannot be null.", nameof(holes));
 
         OuterBoundary = Normalize(outerBoundary, clockwise: false);
@@ -32,27 +32,27 @@ public sealed class PolygonArea2D : IPolygonalShape2D {
         Area = OuterBoundary.Area - _holes.Sum(hole => hole.Area);
     }
 
-    public PolygonArea2D(IEnumerable<LSVector2> outerBoundary, IEnumerable<IEnumerable<LSVector2>>? holes = null)
-        : this(new Polygon2D(outerBoundary), holes?.Select(vertices => new Polygon2D(vertices))) { }
+    public LSPolygonArea2D(IEnumerable<LSVector2> outerBoundary, IEnumerable<IEnumerable<LSVector2>>? holes = null)
+        : this(new LSPolygon2D(outerBoundary), holes?.Select(vertices => new LSPolygon2D(vertices))) { }
 
     public bool Contains(float x, float y) => Locate(x, y) != PointLocation.Outside;
 
-    public PolygonArea2D WithHole(Polygon2D hole) {
+    public LSPolygonArea2D WithHole(LSPolygon2D hole) {
         if (hole == null) throw new LSArgumentNullException(nameof(hole));
-        return new PolygonArea2D(OuterBoundary, _holes.Concat(new[] { hole }));
+        return new LSPolygonArea2D(OuterBoundary, _holes.Concat(new[] { hole }));
     }
 
-    public PolygonArea2D WithHole(int index, Polygon2D hole) {
+    public LSPolygonArea2D WithHole(int index, LSPolygon2D hole) {
         if (index < 0 || index >= _holes.Count) throw new ArgumentOutOfRangeException(nameof(index));
         if (hole == null) throw new LSArgumentNullException(nameof(hole));
         var next = _holes.ToList();
         next[index] = hole;
-        return new PolygonArea2D(OuterBoundary, next);
+        return new LSPolygonArea2D(OuterBoundary, next);
     }
 
-    public PolygonArea2D WithoutHole(int index) {
+    public LSPolygonArea2D WithoutHole(int index) {
         if (index < 0 || index >= _holes.Count) throw new ArgumentOutOfRangeException(nameof(index));
-        return new PolygonArea2D(OuterBoundary, _holes.Where((_, holeIndex) => holeIndex != index));
+        return new LSPolygonArea2D(OuterBoundary, _holes.Where((_, holeIndex) => holeIndex != index));
     }
 
     public PointLocation Locate(float x, float y) {
@@ -66,12 +66,12 @@ public sealed class PolygonArea2D : IPolygonalShape2D {
         return PointLocation.Inside;
     }
 
-    private static Polygon2D Normalize(Polygon2D polygon, bool clockwise) {
+    private static LSPolygon2D Normalize(LSPolygon2D polygon, bool clockwise) {
         if (polygon.IsClockwise == clockwise) return polygon;
-        return new Polygon2D(polygon.Vertices.Reverse());
+        return new LSPolygon2D(polygon.Vertices.Reverse());
     }
 
-    private static void ValidateSimple(Polygon2D polygon, string name) {
+    private static void ValidateSimple(LSPolygon2D polygon, string name) {
         if (polygon.Area <= Epsilon) throw new LSArgumentException($"The {name} must have a positive area.");
         var vertices = polygon.Vertices;
         for (int index = 0; index < vertices.Count; index++) {
@@ -92,7 +92,7 @@ public sealed class PolygonArea2D : IPolygonalShape2D {
         }
     }
 
-    private static void ValidateTopology(Polygon2D outerBoundary, IReadOnlyList<Polygon2D> holes) {
+    private static void ValidateTopology(LSPolygon2D outerBoundary, IReadOnlyList<LSPolygon2D> holes) {
         for (int index = 0; index < holes.Count; index++) {
             var hole = holes[index];
             if (hole.Vertices.Any(vertex => outerBoundary.Locate(vertex.X, vertex.Y) != PointLocation.Inside)
@@ -111,7 +111,7 @@ public sealed class PolygonArea2D : IPolygonalShape2D {
         }
     }
 
-    private static bool BoundariesIntersect(Polygon2D first, Polygon2D second) {
+    private static bool BoundariesIntersect(LSPolygon2D first, LSPolygon2D second) {
         for (int firstIndex = 0; firstIndex < first.Vertices.Count; firstIndex++) {
             var firstFrom = first.Vertices[firstIndex];
             var firstTo = first.Vertices[(firstIndex + 1) % first.Vertices.Count];

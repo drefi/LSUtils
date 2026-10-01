@@ -1,4 +1,4 @@
-namespace LSUtils.Terrain.Navigation;
+﻿namespace LSUtils.Terrain.Navigation;
 
 using System;
 using System.Collections.Generic;
@@ -23,8 +23,8 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
     private const float TerrainCostSampleSpacing = 4f;
     private readonly TerrainWorld<TTerrainType, TContentType> _world;
     private readonly TerrainNavigationSettings<TTerrainType, TContentType> _settings;
-    private readonly Dictionary<TerrainPatch<TTerrainType>, IReadOnlyList<Polygon2D>> _impassableHoles;
-    private readonly List<Polygon2D> _obstacles;
+    private readonly Dictionary<TerrainPatch<TTerrainType>, IReadOnlyList<LSPolygon2D>> _impassableHoles;
+    private readonly List<LSPolygon2D> _obstacles;
     private readonly Dictionary<LSVector2, List<LSVector2>> _topology = new();
     private readonly Dictionary<(LSVector2 From, LSVector2 To), float> _staticTravelCosts = new();
     private readonly List<NavigationTriangle> _navigationTriangles = new();
@@ -530,7 +530,7 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         }
     }
 
-    private IEnumerable<Polygon2D> GetObstacles() {
+    private IEnumerable<LSPolygon2D> GetObstacles() {
         foreach (var patch in _world.Patches) {
             if (_settings.GetTerrainCost(patch) <= 0f) {
                 yield return RequireConvexPolygon(patch.Shape, "terrain patch");
@@ -543,7 +543,7 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         }
     }
 
-    private IEnumerable<Polygon2D> GetDynamicObstacles() {
+    private IEnumerable<LSPolygon2D> GetDynamicObstacles() {
         foreach (var content in _world.Contents) {
             if (_settings.BlocksContent(content) && content.Mobility == TerrainContentMobility.Dynamic) {
                 yield return RequireConvexPolygon(content.Shape, "dynamic terrain content");
@@ -551,23 +551,23 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         }
     }
 
-    private static Polygon2D RequirePolygon(IShape2D shape, string source) {
-        if (shape is not Polygon2D polygon) throw new LSArgumentException($"Navigation requires Polygon2D shapes; {source} uses {shape.GetType().Name}.");
+    private static LSPolygon2D RequirePolygon(ILSShape2D shape, string source) {
+        if (shape is not LSPolygon2D polygon) throw new LSArgumentException($"Navigation requires Polygon2D shapes; {source} uses {shape.GetType().Name}.");
         return polygon;
     }
 
-    private static IPolygonalShape2D RequirePolygonalShape(IShape2D shape, string source) {
-        if (shape is not IPolygonalShape2D polygon) throw new LSArgumentException($"Navigation requires polygonal shapes; {source} uses {shape.GetType().Name}.");
+    private static ILSPolygonalShape2D RequirePolygonalShape(ILSShape2D shape, string source) {
+        if (shape is not ILSPolygonalShape2D polygon) throw new LSArgumentException($"Navigation requires polygonal shapes; {source} uses {shape.GetType().Name}.");
         return polygon;
     }
 
-    private static Polygon2D RequireConvexPolygon(IShape2D shape, string source) {
+    private static LSPolygon2D RequireConvexPolygon(ILSShape2D shape, string source) {
         var polygon = RequirePolygon(shape, source);
         if (!polygon.IsConvex) throw new LSArgumentException($"Navigation requires convex Polygon2D obstacles; decompose concave {source} before pathfinding.");
         return polygon;
     }
 
-    private IEnumerable<LSVector2> GetClearanceArcVertices(Polygon2D polygon) {
+    private IEnumerable<LSVector2> GetClearanceArcVertices(LSPolygon2D polygon) {
         for (int index = 0; index < polygon.Vertices.Count; index++) {
             var previous = polygon.Vertices[(index + polygon.Vertices.Count - 1) % polygon.Vertices.Count];
             var current = polygon.Vertices[index];
@@ -635,7 +635,7 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         return cost;
     }
 
-    private IEnumerable<Polygon2D> GetObstacleCandidates(Bounds area) {
+    private IEnumerable<LSPolygon2D> GetObstacleCandidates(Bounds area) {
         foreach (var patch in _world.QueryPatches(area)) {
             if (_settings.GetTerrainCost(patch) <= 0f) {
                 yield return RequireConvexPolygon(patch.Shape, "terrain patch");
@@ -652,11 +652,11 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         }
     }
 
-    private Dictionary<TerrainPatch<TTerrainType>, IReadOnlyList<Polygon2D>> BuildImpassableHoleMap() {
-        var result = new Dictionary<TerrainPatch<TTerrainType>, IReadOnlyList<Polygon2D>>();
+    private Dictionary<TerrainPatch<TTerrainType>, IReadOnlyList<LSPolygon2D>> BuildImpassableHoleMap() {
+        var result = new Dictionary<TerrainPatch<TTerrainType>, IReadOnlyList<LSPolygon2D>>();
         foreach (var patch in _world.Patches) {
-            if (_settings.GetTerrainCost(patch) <= 0f || patch.Shape is not IPolygonalShape2D polygonal || polygonal.Holes.Count == 0) continue;
-            var holes = new List<Polygon2D>();
+            if (_settings.GetTerrainCost(patch) <= 0f || patch.Shape is not ILSPolygonalShape2D polygonal || polygonal.Holes.Count == 0) continue;
+            var holes = new List<LSPolygon2D>();
             foreach (var hole in polygonal.Holes) {
                 var triangulation = PolygonTriangulation2D.Triangulate(hole);
                 if (triangulation.Triangles.Count == 0) continue;
@@ -669,11 +669,11 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         return result;
     }
 
-    private IReadOnlyList<Polygon2D> GetImpassableHoles(TerrainPatch<TTerrainType> patch) {
-        return _impassableHoles.TryGetValue(patch, out var holes) ? holes : Array.Empty<Polygon2D>();
+    private IReadOnlyList<LSPolygon2D> GetImpassableHoles(TerrainPatch<TTerrainType> patch) {
+        return _impassableHoles.TryGetValue(patch, out var holes) ? holes : Array.Empty<LSPolygon2D>();
     }
 
-    private bool HasObstacleWithin(Bounds area, Func<Polygon2D, bool> predicate) {
+    private bool HasObstacleWithin(Bounds area, Func<LSPolygon2D, bool> predicate) {
         foreach (var obstacle in GetObstacleCandidates(area)) {
             _obstacleCandidateChecks++;
             if (predicate(obstacle)) return true;
@@ -687,14 +687,14 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         return new Bounds((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, maxX - minX, maxY - minY);
     }
 
-    private static float PointToPolygonDistance(LSVector2 point, Polygon2D polygon) {
+    private static float PointToPolygonDistance(LSVector2 point, LSPolygon2D polygon) {
         if (polygon.Contains(point.X, point.Y)) return 0f;
         float distance = float.PositiveInfinity;
         for (int index = 0; index < polygon.Vertices.Count; index++) distance = MathF.Min(distance, PointToSegmentDistance(point, polygon.Vertices[index], polygon.Vertices[(index + 1) % polygon.Vertices.Count]));
         return distance;
     }
 
-    private static float SegmentToPolygonDistance(LSVector2 from, LSVector2 to, Polygon2D polygon) {
+    private static float SegmentToPolygonDistance(LSVector2 from, LSVector2 to, LSPolygon2D polygon) {
         if (polygon.Contains(from.X, from.Y) || polygon.Contains(to.X, to.Y)) return 0f;
         float distance = float.PositiveInfinity;
         for (int index = 0; index < polygon.Vertices.Count; index++) {

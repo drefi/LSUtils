@@ -28,9 +28,9 @@ public class TerrainPatchTests {
         Assert.That(patch.Contains(1.5f, 1.5f), Is.True);
     }
 
-    private static Polygon2D Square(float x, float y, float size) {
+    private static LSPolygon2D Square(float x, float y, float size) {
         float half = size * 0.5f;
-        return new Polygon2D(new[] {
+        return new LSPolygon2D(new[] {
             new LSVector2(x - half, y - half),
             new LSVector2(x + half, y - half),
             new LSVector2(x + half, y + half),

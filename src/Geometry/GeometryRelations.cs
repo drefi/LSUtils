@@ -1,4 +1,4 @@
-namespace LSUtils.Geometry;
+﻿namespace LSUtils.Geometry;
 
 using LSUtils.Spatial;
 
@@ -14,7 +14,7 @@ public static class GeometryRelations {
         return ShapeRelation.Intersects;
     }
 
-    public static ShapeRelation Classify(IShape2D a, IShape2D b) {
+    public static ShapeRelation Classify(ILSShape2D a, ILSShape2D b) {
         return Classify(a.Bounds, b.Bounds);
     }
 

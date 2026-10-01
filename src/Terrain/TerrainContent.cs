@@ -11,12 +11,12 @@ public class TerrainContent<TContentType> : ISpatialObject {
     public System.Guid ID { get; } = System.Guid.NewGuid();
     public long Version { get; private set; }
     public TContentType Type { get; private set; }
-    public IShape2D Shape { get; private set; }
+    public ILSShape2D Shape { get; private set; }
     public TerrainContentMobility Mobility { get; private set; }
     public Bounds Bounds => Shape.Bounds;
     public float Area => Shape.Area;
 
-    public TerrainContent(TContentType type, IShape2D shape, TerrainContentMobility mobility = TerrainContentMobility.Static) {
+    public TerrainContent(TContentType type, ILSShape2D shape, TerrainContentMobility mobility = TerrainContentMobility.Static) {
         Type = type;
         Shape = shape ?? throw new LSArgumentNullException(nameof(shape));
         Mobility = mobility;
@@ -26,7 +26,7 @@ public class TerrainContent<TContentType> : ISpatialObject {
         return Shape.Contains(x, y);
     }
 
-    public void SetShape(IShape2D shape) {
+    public void SetShape(ILSShape2D shape) {
         if (shape == null) throw new LSArgumentNullException(nameof(shape));
         if (ReferenceEquals(Shape, shape)) return;
         Shape = shape;

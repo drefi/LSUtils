@@ -11,13 +11,13 @@ public class TerrainPatch<TTerrainType> : ISpatialObject {
     public System.Guid ID { get; } = System.Guid.NewGuid();
     public long Version { get; private set; }
     public TTerrainType Type { get; private set; }
-    public IShape2D Shape { get; private set; }
+    public ILSShape2D Shape { get; private set; }
     public int Layer { get; private set; }
     public int Priority { get; private set; }
     public Bounds Bounds => Shape.Bounds;
     public float Area => Shape.Area;
 
-    public TerrainPatch(TTerrainType type, IShape2D shape, int layer = 0, int priority = 0) {
+    public TerrainPatch(TTerrainType type, ILSShape2D shape, int layer = 0, int priority = 0) {
         Type = type;
         Shape = shape ?? throw new LSArgumentNullException(nameof(shape));
         Layer = layer;
@@ -28,7 +28,7 @@ public class TerrainPatch<TTerrainType> : ISpatialObject {
         return Shape.Contains(x, y);
     }
 
-    public void SetShape(IShape2D shape) {
+    public void SetShape(ILSShape2D shape) {
         if (shape == null) throw new LSArgumentNullException(nameof(shape));
         if (ReferenceEquals(Shape, shape)) return;
         Shape = shape;
