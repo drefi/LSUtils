@@ -9,7 +9,7 @@ using LSUtils.Terrain;
 public class TerrainWorldTests {
     [Test]
     public void QueryPatchesAt_ReturnsAllContainingPatches() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
         var sand = new TerrainPatch<TestTerrainType>(TestTerrainType.Sand, Square(0, 0, 20), layer: 0);
         var water = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, Square(0, 0, 4), layer: 1);
         world.AddPatch(sand);
@@ -23,7 +23,7 @@ public class TerrainWorldTests {
 
     [Test]
     public void ResolveTerrainTypeAt_ReturnsHighestLayerPatch() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
         world.AddPatch(new TerrainPatch<TestTerrainType>(TestTerrainType.Sand, Square(0, 0, 20), layer: 0));
         world.AddPatch(new TerrainPatch<TestTerrainType>(TestTerrainType.Water, Square(0, 0, 4), layer: 1));
 
@@ -34,7 +34,7 @@ public class TerrainWorldTests {
 
     [Test]
     public void ResolveTerrainTypeAt_WhenNoPatchContainsPoint_ReturnsDefault() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
 
         var terrainType = world.ResolveTerrainTypeAt(20, 20);
 
@@ -43,7 +43,7 @@ public class TerrainWorldTests {
 
     [Test]
     public void ResolveTerrainTypeAt_InsideHoleExposesLowerPatch() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
         var lower = new TerrainPatch<TestTerrainType>(TestTerrainType.Sand, Square(0, 0, 60), layer: 0);
         var upperShape = new LSPolygonArea2D(Square(0, 0, 40), new[] { Square(0, 0, 10) });
         var upper = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, upperShape, layer: 1);
@@ -57,7 +57,7 @@ public class TerrainWorldTests {
 
     [Test]
     public void UpdatePatch_UpdatesSpatialIndexAfterGrowth() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
         var water = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, Square(0, 0, 2));
         world.AddPatch(water);
 
@@ -69,7 +69,7 @@ public class TerrainWorldTests {
 
     [Test]
     public void SetShape_AutomaticallyUpdatesWorldSpatialIndex() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
         var water = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, Square(0, 0, 2));
         world.AddPatch(water);
 
@@ -81,7 +81,7 @@ public class TerrainWorldTests {
 
     [Test]
     public void UpdatePatch_AfterAutomaticUpdate_IsIdempotent() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
         var water = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, Square(0, 0, 2));
         world.AddPatch(water);
         water.SetShape(Square(0, 0, 20));
@@ -95,24 +95,24 @@ public class TerrainWorldTests {
 
     [Test]
     public void QueryContents_ReturnsContentsInArea() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
         var tree = new TerrainContent<TestContentType>(TestContentType.Tree, Square(0, 0, 2));
         world.AddContent(tree);
 
-        var contents = world.QueryContents(new Bounds(0, 0, 4, 4));
+        var contents = world.QueryContents(new LSBounds(0, 0, 4, 4));
 
         Assert.That(contents, Does.Contain(tree));
     }
 
     [Test]
     public void SetShape_AutomaticallyUpdatesContentSpatialIndex() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
         var tree = new TerrainContent<TestContentType>(TestContentType.Tree, Square(0, 0, 2));
         world.AddContent(tree);
 
         tree.SetShape(Square(0, 0, 20));
 
-        Assert.That(world.QueryContents(new Bounds(8, 0, 1, 1)), Does.Contain(tree));
+        Assert.That(world.QueryContents(new LSBounds(8, 0, 1, 1)), Does.Contain(tree));
         Assert.That(world.StaticNavigationVersion, Is.EqualTo(2));
     }
 

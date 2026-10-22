@@ -14,7 +14,7 @@ public sealed class LSPolygonArea2D : ILSPolygonalShape2D {
     public LSPolygon2D OuterBoundary { get; }
     public IReadOnlyList<LSPolygon2D> Holes => _holes;
     public IReadOnlyList<LSPolygon2D> BoundaryLoops => _boundaryLoops;
-    public Bounds Bounds => OuterBoundary.Bounds;
+    public LSBounds Bounds => OuterBoundary.Bounds;
     public float Area { get; }
 
     public LSPolygonArea2D(LSPolygon2D outerBoundary, IEnumerable<LSPolygon2D>? holes = null) {

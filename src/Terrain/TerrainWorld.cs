@@ -16,7 +16,7 @@ public class TerrainWorld<TTerrainType, TContentType> {
     private readonly Dictionary<TerrainContent<TContentType>, TerrainContentMobility> _contentMobility = new();
     private readonly HashSet<TerrainRegion<TTerrainType, TContentType>> _regions = new();
 
-    public Bounds Bounds { get; }
+    public LSBounds Bounds { get; }
     public TTerrainType DefaultTerrainType { get; }
     /// <summary>Changes whenever terrain or content geometry that may affect navigation changes.</summary>
     public long NavigationVersion { get; private set; }
@@ -26,7 +26,7 @@ public class TerrainWorld<TTerrainType, TContentType> {
     public IReadOnlyCollection<TerrainContent<TContentType>> Contents => _contents;
     public IReadOnlyCollection<TerrainRegion<TTerrainType, TContentType>> Regions => _regions;
 
-    public TerrainWorld(Bounds bounds, TTerrainType defaultTerrainType, float spatialCellSize = 64f) {
+    public TerrainWorld(LSBounds bounds, TTerrainType defaultTerrainType, float spatialCellSize = 64f) {
         Bounds = bounds;
         DefaultTerrainType = defaultTerrainType;
         _patchIndex = new SpatialHashGrid<TerrainPatch<TTerrainType>>(spatialCellSize);
@@ -120,16 +120,16 @@ public class TerrainWorld<TTerrainType, TContentType> {
         return _regions.Remove(region);
     }
 
-    public List<TerrainPatch<TTerrainType>> QueryPatches(Bounds area) {
+    public List<TerrainPatch<TTerrainType>> QueryPatches(LSBounds area) {
         return _patchIndex.Query(area);
     }
 
-    public List<TerrainContent<TContentType>> QueryContents(Bounds area) {
+    public List<TerrainContent<TContentType>> QueryContents(LSBounds area) {
         return _contentIndex.Query(area);
     }
 
     public List<TerrainPatch<TTerrainType>> QueryPatchesAt(float x, float y) {
-        return QueryPatches(new Bounds(x, y, 0, 0))
+        return QueryPatches(new LSBounds(x, y, 0, 0))
             .Where(patch => patch.Contains(x, y))
             .ToList();
     }

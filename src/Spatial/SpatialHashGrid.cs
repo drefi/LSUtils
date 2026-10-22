@@ -26,7 +26,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         _queryId = 0;
     }
 
-    public bool Insert(T item, Bounds bounds) {
+    public bool Insert(T item, LSBounds bounds) {
 
         if (!_entries.TryGetValue(item, out var entry)) {
             int newMinX = ToCell(bounds.MinX);
@@ -46,7 +46,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         }
         return false;
     }
-    public bool Update(T item, Bounds bounds) {
+    public bool Update(T item, LSBounds bounds) {
         if (!_entries.TryGetValue(item, out var entry)) return false;
 
         int oldMinX = ToCell(entry.Bounds.MinX);
@@ -136,7 +136,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         entry.CellKeys.Clear();
     }
 
-    public bool IsAreaAvailable(Bounds area, T[]? mask = null) {
+    public bool IsAreaAvailable(LSBounds area, T[]? mask = null) {
         int minX = ToCell(area.MinX);
         int maxX = ToCell(area.MaxX);
         int minY = ToCell(area.MinY);
@@ -168,7 +168,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         }
         return true;
     }
-    public void Query(Bounds area, ICollection<T> result, T[]? mask = null) {
+    public void Query(LSBounds area, ICollection<T> result, T[]? mask = null) {
         _queryId++;
 
         int minX = ToCell(area.MinX);
@@ -231,7 +231,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         return true;
     }
 
-    public bool TryGetBounds(T item, out Bounds bounds) {
+    public bool TryGetBounds(T item, out LSBounds bounds) {
         if (!_entries.TryGetValue(item, out var entry) || entry == null) {
             bounds = default;
             return false;
@@ -239,7 +239,7 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
         bounds = entry.Bounds;
         return true;
     }
-    public Bounds GetBounds(T item) {
+    public LSBounds GetBounds(T item) {
         return TryGetBounds(item, out var bounds) ? bounds : throw new LSException($"{item} not found.");
     }
 
@@ -273,14 +273,14 @@ public class SpatialHashGrid<T> : ISpatialIndex<T> where T : notnull {
 
     public sealed class Entry {
         public readonly T Item;
-        public Bounds Bounds;
+        public LSBounds Bounds;
 
         public uint LastQueryId;
 
         // células ocupadas
         public readonly List<long> CellKeys = new();
 
-        internal Entry(T item, Bounds bounds) {
+        internal Entry(T item, LSBounds bounds) {
             Item = item;
             Bounds = bounds;
         }

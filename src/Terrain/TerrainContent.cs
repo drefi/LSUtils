@@ -13,7 +13,7 @@ public class TerrainContent<TContentType> : ISpatialObject {
     public TContentType Type { get; private set; }
     public ILSShape2D Shape { get; private set; }
     public TerrainContentMobility Mobility { get; private set; }
-    public Bounds Bounds => Shape.Bounds;
+    public LSBounds Bounds => Shape.Bounds;
     public float Area => Shape.Area;
 
     public TerrainContent(TContentType type, ILSShape2D shape, TerrainContentMobility mobility = TerrainContentMobility.Static) {

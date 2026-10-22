@@ -6,7 +6,7 @@ using LSUtils.Spatial;
 /// Helpers for broad-phase geometric relation checks.
 /// </summary>
 public static class GeometryRelations {
-    public static ShapeRelation Classify(Bounds a, Bounds b) {
+    public static ShapeRelation Classify(LSBounds a, LSBounds b) {
         if (!a.Intersects(b)) return ShapeRelation.Disjoint;
         if (a.Contains(b)) return ShapeRelation.Contains;
         if (b.Contains(a)) return ShapeRelation.ContainedBy;
@@ -18,7 +18,7 @@ public static class GeometryRelations {
         return Classify(a.Bounds, b.Bounds);
     }
 
-    private static bool Touches(Bounds a, Bounds b) {
+    private static bool Touches(LSBounds a, LSBounds b) {
         bool xTouches = a.MaxX == b.MinX || a.MinX == b.MaxX;
         bool yOverlaps = a.MaxY >= b.MinY && a.MinY <= b.MaxY;
         bool yTouches = a.MaxY == b.MinY || a.MinY == b.MaxY;

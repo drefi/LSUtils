@@ -36,7 +36,7 @@ public class Polygon2DTests {
             new LSVector2(1, 5),
         });
 
-        Assert.That(polygon.Bounds, Is.EqualTo(new Bounds(1, 2, 6, 6)));
+        Assert.That(polygon.Bounds, Is.EqualTo(new LSBounds(1, 2, 6, 6)));
     }
 
     [Test]

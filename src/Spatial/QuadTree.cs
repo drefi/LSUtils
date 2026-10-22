@@ -11,10 +11,10 @@ using System.Linq;
 /// <typeparam name="T">Tipo dos objetos armazenados.</typeparam>
 public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     private (QuadTree<T> NW, QuadTree<T> NE, QuadTree<T> SW, QuadTree<T> SE)? _quadrants = null;
-    public readonly record struct QuadTreeEntry(QuadTree<T> Node, Bounds Bounds);
-    private (Bounds NW, Bounds NE, Bounds SW, Bounds SE) _quadrantBounds;
+    public readonly record struct QuadTreeEntry(QuadTree<T> Node, LSBounds Bounds);
+    private (LSBounds NW, LSBounds NE, LSBounds SW, LSBounds SE) _quadrantBounds;
 
-    private readonly Bounds _bounds;
+    private readonly LSBounds _bounds;
     private readonly int _capacity;
     //private int _count;
     private readonly Dictionary<T, QuadTreeEntry> _quadTreeEntries = new();
@@ -29,7 +29,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// <summary>
     /// Limites espaciais desta árvore.
     /// </summary>
-    public Bounds Bounds => _bounds;
+    public LSBounds Bounds => _bounds;
 
     /// <summary>
     /// Capacidade máxima de objetos antes de subdividir.
@@ -37,7 +37,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     public int Capacity => _capacity;
     public int Depth { get; }
 
-    protected QuadTree(QuadTree<T> parent, Bounds bounds, int depth, Dictionary<T, QuadTreeEntry> entries) {
+    protected QuadTree(QuadTree<T> parent, LSBounds bounds, int depth, Dictionary<T, QuadTreeEntry> entries) {
         _parent = parent;
         _bounds = bounds;
         _capacity = parent.Capacity;
@@ -50,13 +50,13 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         var hw = w / 2;
         _quadrantBounds = (
             // NW (cima-esquerda)
-            new Bounds(_bounds.X - hw, _bounds.Y + hh, w, h),
+            new LSBounds(_bounds.X - hw, _bounds.Y + hh, w, h),
             // NE (cima-direita)
-            new Bounds(_bounds.X + hw, _bounds.Y + hh, w, h),
+            new LSBounds(_bounds.X + hw, _bounds.Y + hh, w, h),
             // SW (baixo-esquerda)
-            new Bounds(_bounds.X - hw, _bounds.Y - hh, w, h),
+            new LSBounds(_bounds.X - hw, _bounds.Y - hh, w, h),
             // SE (baixo-direita)
-            new Bounds(_bounds.X + hw, _bounds.Y - hh, w, h)
+            new LSBounds(_bounds.X + hw, _bounds.Y - hh, w, h)
     );
         Depth = depth;
     }
@@ -66,7 +66,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// </summary>
     /// <param name="bounds">Limites espaciais da árvore.</param>
     /// <param name="capacity">Número máximo de objetos por nó antes de subdividir (padrão: 64).</param>
-    public QuadTree(int depth, Bounds bounds, int capacity = 64) {
+    public QuadTree(int depth, LSBounds bounds, int capacity = 64) {
         if (capacity <= 0)
             throw new LSArgumentException("Capacity must be greater than 0", nameof(capacity));
         _parent = null;
@@ -91,7 +91,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// <summary>
     /// Checks if bounds can fit into any of the child quadrants.
     /// </summary>
-    private bool CanFitInQuadrants(Bounds bounds) {
+    private bool CanFitInQuadrants(LSBounds bounds) {
         return _quadrantBounds.NW.Contains(bounds) ||
                _quadrantBounds.NE.Contains(bounds) ||
                _quadrantBounds.SW.Contains(bounds) ||
@@ -102,7 +102,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// Tenta subdividir o nó atual.
     /// Retorna true se a subdivisão ocorreu.
     /// </summary>
-    private bool trySubdivide(Bounds newItemBounds) {
+    private bool trySubdivide(LSBounds newItemBounds) {
         // Já subdividido ou sem profundidade restante
         if (_quadrants.HasValue || Depth <= 0)
             return false;
@@ -162,7 +162,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// <param name="item">O objeto a ser inserido.</param>
     /// <param name="bounds">Os limites espaciais do objeto.</param>
     /// <returns>True se inserido com sucesso, false caso contrário.</returns>
-    public bool Insert(T item, Bounds bounds) {
+    public bool Insert(T item, LSBounds bounds) {
         // 1. Rejeição rápida
         if (!_bounds.Intersects(bounds))
             return false;
@@ -197,7 +197,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     /// Atualiza os bounds de um item já presente na árvore.
     /// Tenta manter o item no mesmo nó quando possível.
     /// </summary>
-    public bool Update(T item, Bounds newBounds) {
+    public bool Update(T item, LSBounds newBounds) {
         if (!_quadTreeEntries.TryGetValue(item, out var entry))
             return false;
 
@@ -241,7 +241,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
     }
 
     // Variante interna usada só pelo Update
-    private bool InsertAfterMove(T item, Bounds bounds) {
+    private bool InsertAfterMove(T item, LSBounds bounds) {
         if (!_bounds.Intersects(bounds))
             return false;
 
@@ -261,7 +261,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         _quadTreeEntries[item] = new QuadTreeEntry(this, bounds);
         return true;
     }
-    public void Query(Bounds area, ICollection<T> result, T[]? mask = null) {
+    public void Query(LSBounds area, ICollection<T> result, T[]? mask = null) {
         HashSet<T> seen = new HashSet<T>();
         if (!_bounds.Intersects(area)) return;
 
@@ -281,7 +281,7 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         }
     }
 
-    public bool TryGetBounds(T item, out Bounds bounds) {
+    public bool TryGetBounds(T item, out LSBounds bounds) {
         if (_quadTreeEntries.TryGetValue(item, out var quadTreeEntry)) {
             bounds = quadTreeEntry.Bounds;
             return true;
@@ -289,10 +289,10 @@ public class QuadTree<T> : ISpatialIndex<T> where T : notnull {
         bounds = default;
         return false;
     }
-    public Bounds GetBounds(T item) {
-        return TryGetBounds(item, out Bounds bounds) ? bounds : throw new LSException($"{item} not exist.");
+    public LSBounds GetBounds(T item) {
+        return TryGetBounds(item, out LSBounds bounds) ? bounds : throw new LSException($"{item} not exist.");
     }
-    public QuadTree<T>? GetQuadrant(Bounds bounds) {
+    public QuadTree<T>? GetQuadrant(LSBounds bounds) {
         if (!_quadrants.HasValue) return null;
         if (_quadrants.Value.NW.Bounds.Contains(bounds))
             return _quadrants.Value.NW;

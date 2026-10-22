@@ -53,10 +53,10 @@ public readonly record struct CollisionShape2D(
         return new(CollisionShapeKind.Polygon, CalculateCenter(loops[0]), 0f, LSVector2.Zero, loops[0], loops.AsReadOnly());
     }
 
-    public Bounds Bounds => Kind == CollisionShapeKind.Circle
-        ? new Bounds(Center.X, Center.Y, Radius * 2f, Radius * 2f)
+    public LSBounds Bounds => Kind == CollisionShapeKind.Circle
+        ? new LSBounds(Center.X, Center.Y, Radius * 2f, Radius * 2f)
         : Kind == CollisionShapeKind.Rectangle
-            ? new Bounds(Center.X, Center.Y, Size.X, Size.Y)
+            ? new LSBounds(Center.X, Center.Y, Size.X, Size.Y)
             : CalculateBounds(BoundaryLoops ?? new[] { Vertices! });
 
     private static LSVector2 CalculateCenter(IReadOnlyList<LSVector2> vertices) {
@@ -69,7 +69,7 @@ public readonly record struct CollisionShape2D(
         return new LSVector2(x / vertices.Count, y / vertices.Count);
     }
 
-    private static Bounds CalculateBounds(IReadOnlyList<IReadOnlyList<LSVector2>> loops) {
+    private static LSBounds CalculateBounds(IReadOnlyList<IReadOnlyList<LSVector2>> loops) {
         float minX = loops[0][0].X;
         float maxX = minX;
         float minY = loops[0][0].Y;
@@ -80,6 +80,6 @@ public readonly record struct CollisionShape2D(
             minY = MathF.Min(minY, vertex.Y);
             maxY = MathF.Max(maxY, vertex.Y);
         }
-        return new Bounds((minX + maxX) / 2f, (minY + maxY) / 2f, maxX - minX, maxY - minY);
+        return new LSBounds((minX + maxX) / 2f, (minY + maxY) / 2f, maxX - minX, maxY - minY);
     }
 }

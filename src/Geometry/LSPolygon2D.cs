@@ -14,7 +14,7 @@ public sealed class LSPolygon2D : ILSPolygonalShape2D {
     private readonly IReadOnlyList<LSPolygon2D> _boundaryLoops;
 
     public IReadOnlyList<LSVector2> Vertices => _vertices;
-    public Bounds Bounds { get; }
+    public LSBounds Bounds { get; }
     public float Area { get; }
     public float SignedArea { get; }
     public bool IsClockwise => SignedArea < 0f;
@@ -86,7 +86,7 @@ public sealed class LSPolygon2D : ILSPolygonalShape2D {
         return (point - closest).LengthSquared() <= BoundaryEpsilon * BoundaryEpsilon;
     }
 
-    private static Bounds CalculateBounds(IReadOnlyList<LSVector2> vertices) {
+    private static LSBounds CalculateBounds(IReadOnlyList<LSVector2> vertices) {
         float minX = vertices[0].X;
         float maxX = vertices[0].X;
         float minY = vertices[0].Y;
@@ -102,7 +102,7 @@ public sealed class LSPolygon2D : ILSPolygonalShape2D {
 
         float width = maxX - minX;
         float height = maxY - minY;
-        return new Bounds(minX + width * 0.5f, minY + height * 0.5f, width, height);
+        return new LSBounds(minX + width * 0.5f, minY + height * 0.5f, width, height);
     }
 
     private static float CalculateSignedArea(IReadOnlyList<LSVector2> vertices) {

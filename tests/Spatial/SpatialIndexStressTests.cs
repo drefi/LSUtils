@@ -25,7 +25,7 @@ public class SpatialIndexStressTests {
     private const int RemoveCount = 2_500;
     private const float WorldSize = 4_096f;
     private const float CellSize = 32f;
-    private static readonly Bounds WorldBounds = new(0, 0, WorldSize, WorldSize);
+    private static readonly LSBounds WorldBounds = new(0, 0, WorldSize, WorldSize);
 
     private static readonly Func<ISpatialIndex<int>> QuadTreeFactory =
         () => new QuadTree<int>(16, WorldBounds, capacity: 8);
@@ -33,7 +33,7 @@ public class SpatialIndexStressTests {
     private static readonly Func<ISpatialIndex<int>> SpatialHashGridFactory =
         () => new SpatialHashGrid<int>(CellSize);
 
-    private readonly record struct IndexedItem(int Id, Bounds Bounds);
+    private readonly record struct IndexedItem(int Id, LSBounds Bounds);
 
     private readonly record struct BenchResult(
         long ElapsedMs,
@@ -167,8 +167,8 @@ public class SpatialIndexStressTests {
 
         for (int step = 0; step < 250; step++) {
             int id = step % items.Length;
-            Bounds oldBounds = currentBounds[id];
-            Bounds newBounds = NudgeBounds(oldBounds, random, maxDelta: 20);
+            LSBounds oldBounds = currentBounds[id];
+            LSBounds newBounds = NudgeBounds(oldBounds, random, maxDelta: 20);
 
             // Remove old position and insert at new position (no in-place updates)
             bool quadRemoved = quadTree.Remove(id);
@@ -182,7 +182,7 @@ public class SpatialIndexStressTests {
             Assert.That(gridInserted, Is.True, $"Failed to insert grid item {id}");
             currentBounds[id] = newBounds;
 
-            Bounds probe = new Bounds(newBounds.X, newBounds.Y, 80, 80);
+            LSBounds probe = new LSBounds(newBounds.X, newBounds.Y, 80, 80);
             var hitsQuad = new HashSet<int>();
             var hitsGrid = new HashSet<int>();
             quadTree.Query(probe, hitsQuad);
@@ -198,8 +198,8 @@ public class SpatialIndexStressTests {
         string name,
         Func<ISpatialIndex<int>> factory,
         IndexedItem[] items,
-        Bounds[] queries,
-        Bounds[] updatedBounds,
+        LSBounds[] queries,
+        LSBounds[] updatedBounds,
         int removeCount) {
 
         Warmup(factory, items, queries, updatedBounds, Math.Min(removeCount, 64));
@@ -247,8 +247,8 @@ public class SpatialIndexStressTests {
         string name,
         Func<ISpatialIndex<int>> factory,
         IndexedItem[] items,
-        Bounds[] queries,
-        Bounds[] updatedBounds,
+        LSBounds[] queries,
+        LSBounds[] updatedBounds,
         int updateCount,
         int removeCount) {
 
@@ -296,8 +296,8 @@ public class SpatialIndexStressTests {
     private static void Warmup(
         Func<ISpatialIndex<int>> factory,
         IndexedItem[] items,
-        Bounds[] queries,
-        Bounds[] updatedBounds,
+        LSBounds[] queries,
+        LSBounds[] updatedBounds,
         int removeCount) {
 
         for (int i = 0; i < WarmupIterations; i++) {
@@ -383,7 +383,7 @@ public class SpatialIndexStressTests {
         return discovered;
     }
 
-    private static int ExecuteQueries(ISpatialIndex<int> index, Bounds[] queries) {
+    private static int ExecuteQueries(ISpatialIndex<int> index, LSBounds[] queries) {
         int checksum = 0;
         HashSet<int> hits = new();
         foreach (var query in queries) {
@@ -399,7 +399,7 @@ public class SpatialIndexStressTests {
         return checksum;
     }
 
-    private static int ExecuteUpdates(ISpatialIndex<int> index, IndexedItem[] items, Bounds[] updatedBounds) {
+    private static int ExecuteUpdates(ISpatialIndex<int> index, IndexedItem[] items, LSBounds[] updatedBounds) {
         int updated = 0;
         int updateCount = Math.Min(UpdateCount, Math.Min(items.Length, updatedBounds.Length));
         for (int i = 0; i < updateCount; i++) {
@@ -411,7 +411,7 @@ public class SpatialIndexStressTests {
         return updated;
     }
 
-    private static int ExecuteUpdatesWithCount(ISpatialIndex<int> index, IndexedItem[] items, Bounds[] updatedBounds, int updateCount) {
+    private static int ExecuteUpdatesWithCount(ISpatialIndex<int> index, IndexedItem[] items, LSBounds[] updatedBounds, int updateCount) {
         int updated = 0;
         int actualUpdateCount = Math.Min(updateCount, Math.Min(items.Length, updatedBounds.Length));
         for (int i = 0; i < actualUpdateCount; i++) {
@@ -532,7 +532,7 @@ public class SpatialIndexStressTests {
             int row = i / columns;
             float x = originX + column * spacingX;
             float y = originY + row * spacingY;
-            items[i] = new IndexedItem(i, new Bounds(x, y, 0f, 0f));
+            items[i] = new IndexedItem(i, new LSBounds(x, y, 0f, 0f));
         }
 
         return items;
@@ -561,7 +561,7 @@ public class SpatialIndexStressTests {
             var cluster = clusterCenters[clusterIndex % clusterCenters.Length];
             float x = cluster.Item1 - clusterWidth / 2f + column * spacing;
             float y = cluster.Item2 - clusterHeight / 2f + row * spacing;
-            items[i] = new IndexedItem(i, new Bounds(x, y, 0f, 0f));
+            items[i] = new IndexedItem(i, new LSBounds(x, y, 0f, 0f));
         }
 
         return items;
@@ -582,7 +582,7 @@ public class SpatialIndexStressTests {
             float radius = (float)(random.NextDouble() * denseAreaRadius);
             float x = centerX + radius * (float)Math.Cos(angle);
             float y = centerY + radius * (float)Math.Sin(angle);
-            items[i] = new IndexedItem(i, new Bounds(x, y, 0f, 0f));
+            items[i] = new IndexedItem(i, new LSBounds(x, y, 0f, 0f));
         }
 
         return items;
@@ -602,7 +602,7 @@ public class SpatialIndexStressTests {
             int row = i / columns;
             float x = originX + column * spacingX;
             float y = originY + row * spacingY;
-            items[i] = new IndexedItem(i, new Bounds(x, y, 5f, 5f));
+            items[i] = new IndexedItem(i, new LSBounds(x, y, 5f, 5f));
         }
 
         return items;
@@ -631,7 +631,7 @@ public class SpatialIndexStressTests {
             var cluster = clusterCenters[clusterIndex % clusterCenters.Length];
             float x = cluster.Item1 - clusterWidth / 2f + column * spacing;
             float y = cluster.Item2 - clusterHeight / 2f + row * spacing;
-            items[i] = new IndexedItem(i, new Bounds(x, y, 5f, 5f));
+            items[i] = new IndexedItem(i, new LSBounds(x, y, 5f, 5f));
         }
 
         return items;
@@ -649,28 +649,28 @@ public class SpatialIndexStressTests {
             float radius = (float)(random.NextDouble() * denseAreaRadius);
             float x = centerX + radius * (float)Math.Cos(angle);
             float y = centerY + radius * (float)Math.Sin(angle);
-            items[i] = new IndexedItem(i, new Bounds(x, y, 5f, 5f));
+            items[i] = new IndexedItem(i, new LSBounds(x, y, 5f, 5f));
         }
 
         return items;
     }
 
-    private static Bounds[] CreateQueryAreas(int count, float areaWidth, float areaHeight, int seed) {
-        var queries = new Bounds[count];
+    private static LSBounds[] CreateQueryAreas(int count, float areaWidth, float areaHeight, int seed) {
+        var queries = new LSBounds[count];
         var random = new Random(seed);
         float half = WorldSize / 2f;
 
         for (int i = 0; i < count; i++) {
             float x = (float)(random.NextDouble() * (WorldSize - areaWidth) - (half - areaWidth / 2f));
             float y = (float)(random.NextDouble() * (WorldSize - areaHeight) - (half - areaHeight / 2f));
-            queries[i] = new Bounds(x, y, areaWidth, areaHeight);
+            queries[i] = new LSBounds(x, y, areaWidth, areaHeight);
         }
 
         return queries;
     }
 
-    private static Bounds[] CreateClusteredQueryAreas(int count, float areaWidth, float areaHeight) {
-        var queries = new Bounds[count];
+    private static LSBounds[] CreateClusteredQueryAreas(int count, float areaWidth, float areaHeight) {
+        var queries = new LSBounds[count];
         var random = new Random(33);
         var centers = new[] {
             (-1150f, -850f),
@@ -683,14 +683,14 @@ public class SpatialIndexStressTests {
             var center = centers[i % centers.Length];
             float x = center.Item1 + (float)(random.NextDouble() * 180 - 90);
             float y = center.Item2 + (float)(random.NextDouble() * 180 - 90);
-            queries[i] = new Bounds(x, y, areaWidth, areaHeight);
+            queries[i] = new LSBounds(x, y, areaWidth, areaHeight);
         }
 
         return queries;
     }
 
-    private static Bounds[] CreateUpdatedBounds(IndexedItem[] items, float maxDelta, int seed) {
-        var updated = new Bounds[Math.Min(UpdateCount, items.Length)];
+    private static LSBounds[] CreateUpdatedBounds(IndexedItem[] items, float maxDelta, int seed) {
+        var updated = new LSBounds[Math.Min(UpdateCount, items.Length)];
         var random = new Random(seed);
         for (int i = 0; i < updated.Length; i++) {
             updated[i] = NudgeBounds(items[i].Bounds, random, maxDelta);
@@ -699,7 +699,7 @@ public class SpatialIndexStressTests {
         return updated;
     }
 
-    private static Bounds NudgeBounds(Bounds source, Random random, float maxDelta) {
+    private static LSBounds NudgeBounds(LSBounds source, Random random, float maxDelta) {
         float dx = (float)(random.NextDouble() * maxDelta * 2 - maxDelta);
         float dy = (float)(random.NextDouble() * maxDelta * 2 - maxDelta);
 
@@ -711,7 +711,7 @@ public class SpatialIndexStressTests {
 
         float x = Math.Clamp(source.X + dx, minX, maxX);
         float y = Math.Clamp(source.Y + dy, minY, maxY);
-        return new Bounds(x, y, source.Width, source.Height);
+        return new LSBounds(x, y, source.Width, source.Height);
     }
 
     private readonly record struct ScenarioResult(

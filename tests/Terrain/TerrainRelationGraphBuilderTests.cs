@@ -55,7 +55,7 @@ public class TerrainRelationGraphBuilderTests {
 
     [Test]
     public void Build_FromWorld_UsesSpatialQueriesAndAddsNodes() {
-        var world = new TerrainWorld<TestTerrainType, TestContentType>(new Bounds(0, 0, 100, 100), TestTerrainType.Dry);
+        var world = new TerrainWorld<TestTerrainType, TestContentType>(new LSBounds(0, 0, 100, 100), TestTerrainType.Dry);
         var grass = new TerrainPatch<TestTerrainType>(TestTerrainType.Grass, Square(0, 0, 4));
         var sand = new TerrainPatch<TestTerrainType>(TestTerrainType.Sand, Square(4, 0, 4));
         var water = new TerrainPatch<TestTerrainType>(TestTerrainType.Water, Square(40, 0, 4));

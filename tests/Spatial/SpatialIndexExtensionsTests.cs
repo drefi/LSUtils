@@ -9,10 +9,10 @@ public class SpatialIndexExtensionsTests {
     [Test]
     public void Query_ReturnsItemsIntersectingArea() {
         ISpatialIndex<TestSpatialObject> index = new SpatialHashGrid<TestSpatialObject>(10);
-        var item = new TestSpatialObject(new Bounds(0, 0, 2, 2));
+        var item = new TestSpatialObject(new LSBounds(0, 0, 2, 2));
         index.Insert(item);
 
-        var result = index.Query(new Bounds(0, 0, 4, 4));
+        var result = index.Query(new LSBounds(0, 0, 4, 4));
 
         Assert.That(result, Does.Contain(item));
     }
@@ -20,10 +20,10 @@ public class SpatialIndexExtensionsTests {
     [Test]
     public void Query_WithMask_ExcludesMaskedItems() {
         ISpatialIndex<TestSpatialObject> index = new SpatialHashGrid<TestSpatialObject>(10);
-        var item = new TestSpatialObject(new Bounds(0, 0, 2, 2));
+        var item = new TestSpatialObject(new LSBounds(0, 0, 2, 2));
         index.Insert(item);
 
-        var result = SpatialIndexExtensions.Query(index, new Bounds(0, 0, 4, 4), new[] { item });
+        var result = SpatialIndexExtensions.Query(index, new LSBounds(0, 0, 4, 4), new[] { item });
 
         Assert.That(result, Is.Empty);
     }
@@ -31,21 +31,21 @@ public class SpatialIndexExtensionsTests {
     [Test]
     public void Update_UsesCurrentObjectBounds() {
         ISpatialIndex<TestSpatialObject> index = new SpatialHashGrid<TestSpatialObject>(10);
-        var item = new TestSpatialObject(new Bounds(0, 0, 2, 2));
+        var item = new TestSpatialObject(new LSBounds(0, 0, 2, 2));
         index.Insert(item);
 
-        item.Bounds = new Bounds(50, 50, 2, 2);
+        item.Bounds = new LSBounds(50, 50, 2, 2);
         index.Update(item);
 
-        Assert.That(index.Query(new Bounds(0, 0, 4, 4)), Is.Empty);
-        Assert.That(index.Query(new Bounds(50, 50, 4, 4)), Does.Contain(item));
+        Assert.That(index.Query(new LSBounds(0, 0, 4, 4)), Is.Empty);
+        Assert.That(index.Query(new LSBounds(50, 50, 4, 4)), Does.Contain(item));
     }
 
     private sealed class TestSpatialObject : ISpatialObject {
         public Guid ID { get; } = Guid.NewGuid();
-        public Bounds Bounds { get; set; }
+        public LSBounds Bounds { get; set; }
 
-        public TestSpatialObject(Bounds bounds) {
+        public TestSpatialObject(LSBounds bounds) {
             Bounds = bounds;
         }
     }

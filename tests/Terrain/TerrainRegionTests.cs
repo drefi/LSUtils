@@ -26,7 +26,7 @@ public class TerrainRegionTests {
         region.AddPatch(new TerrainPatch<TestTerrainType>(TestTerrainType.Grass, Square(0, 0, 4)));
         region.AddContent(new TerrainContent<TestContentType>(TestContentType.Tree, Square(10, 0, 2)));
 
-        Assert.That(region.Bounds, Is.EqualTo(new Bounds(4.5f, 0, 13, 4)));
+        Assert.That(region.Bounds, Is.EqualTo(new LSBounds(4.5f, 0, 13, 4)));
     }
 
     [Test]
@@ -77,7 +77,7 @@ public class TerrainRegionTests {
 
         patch.SetShape(Square(10, 0, 4));
 
-        Assert.That(region.Bounds, Is.EqualTo(new Bounds(10, 0, 4, 4)));
+        Assert.That(region.Bounds, Is.EqualTo(new LSBounds(10, 0, 4, 4)));
     }
 
     [Test]

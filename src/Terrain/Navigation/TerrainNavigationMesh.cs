@@ -149,14 +149,14 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         }
     }
 
-    private bool TryGetNavigationBounds(out Bounds navigationBounds) {
+    private bool TryGetNavigationBounds(out LSBounds navigationBounds) {
         float inset = _settings.AgentRadius + Epsilon;
         var bounds = _world.Bounds;
-        navigationBounds = new Bounds(bounds.X, bounds.Y, bounds.Width - inset * 2f, bounds.Height - inset * 2f);
+        navigationBounds = new LSBounds(bounds.X, bounds.Y, bounds.Width - inset * 2f, bounds.Height - inset * 2f);
         return navigationBounds.Width > 0f && navigationBounds.Height > 0f;
     }
 
-    private static void AddConstraintLoop(List<TriangulationConstraint> constraints, IReadOnlyList<LSVector2> vertices, Bounds clipBounds) {
+    private static void AddConstraintLoop(List<TriangulationConstraint> constraints, IReadOnlyList<LSVector2> vertices, LSBounds clipBounds) {
         for (int index = 0; index < vertices.Count; index++) {
             if (TryClipSegment(vertices[index], vertices[(index + 1) % vertices.Count], clipBounds, out var from, out var to)) {
                 constraints.Add(new TriangulationConstraint(from, to));
@@ -164,7 +164,7 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         }
     }
 
-    private static bool TryClipSegment(LSVector2 from, LSVector2 to, Bounds bounds, out LSVector2 clippedFrom, out LSVector2 clippedTo) {
+    private static bool TryClipSegment(LSVector2 from, LSVector2 to, LSBounds bounds, out LSVector2 clippedFrom, out LSVector2 clippedTo) {
         double minimum = 0d, maximum = 1d;
         double deltaX = to.X - from.X, deltaY = to.Y - from.Y;
         if (!Clip(-deltaX, from.X - bounds.MinX, ref minimum, ref maximum)
@@ -609,7 +609,7 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
 
     private bool IsWalkable(LSVector2 point) {
         if (!_world.Bounds.Contains(point.X, point.Y) || _settings.GetTerrainCost(_world.ResolvePatchAt(point.X, point.Y)) <= 0f) return false;
-        var area = new Bounds(point.X, point.Y, _settings.AgentRadius * 2f + Epsilon, _settings.AgentRadius * 2f + Epsilon);
+        var area = new LSBounds(point.X, point.Y, _settings.AgentRadius * 2f + Epsilon, _settings.AgentRadius * 2f + Epsilon);
         return !HasObstacleWithin(area, obstacle => PointToPolygonDistance(point, obstacle) <= _settings.AgentRadius + Epsilon);
     }
 
@@ -635,7 +635,7 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         return cost;
     }
 
-    private IEnumerable<LSPolygon2D> GetObstacleCandidates(Bounds area) {
+    private IEnumerable<LSPolygon2D> GetObstacleCandidates(LSBounds area) {
         foreach (var patch in _world.QueryPatches(area)) {
             if (_settings.GetTerrainCost(patch) <= 0f) {
                 yield return RequireConvexPolygon(patch.Shape, "terrain patch");
@@ -673,7 +673,7 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         return _impassableHoles.TryGetValue(patch, out var holes) ? holes : Array.Empty<LSPolygon2D>();
     }
 
-    private bool HasObstacleWithin(Bounds area, Func<LSPolygon2D, bool> predicate) {
+    private bool HasObstacleWithin(LSBounds area, Func<LSPolygon2D, bool> predicate) {
         foreach (var obstacle in GetObstacleCandidates(area)) {
             _obstacleCandidateChecks++;
             if (predicate(obstacle)) return true;
@@ -681,10 +681,10 @@ public sealed class TerrainNavigationMesh<TTerrainType, TContentType> {
         return false;
     }
 
-    private static Bounds SegmentBounds(LSVector2 from, LSVector2 to, float padding) {
+    private static LSBounds SegmentBounds(LSVector2 from, LSVector2 to, float padding) {
         float minX = MathF.Min(from.X, to.X) - padding, maxX = MathF.Max(from.X, to.X) + padding;
         float minY = MathF.Min(from.Y, to.Y) - padding, maxY = MathF.Max(from.Y, to.Y) + padding;
-        return new Bounds((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, maxX - minX, maxY - minY);
+        return new LSBounds((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, maxX - minX, maxY - minY);
     }
 
     private static float PointToPolygonDistance(LSVector2 point, LSPolygon2D polygon) {

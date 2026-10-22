@@ -15,7 +15,7 @@ public class TerrainRegion<TTerrainType, TContentType> : ISpatialObject {
 
     public System.Guid ID { get; } = System.Guid.NewGuid();
     public TerrainRegion<TTerrainType, TContentType>? Parent { get; private set; }
-    public Bounds Bounds { get; private set; }
+    public LSBounds Bounds { get; private set; }
     /// <summary>Sum of patch areas. Overlapping portions are counted once per member.</summary>
     public float MembershipArea => _patches.Sum(patch => patch.Area);
     /// <summary>Compatibility alias for <see cref="MembershipArea"/>.</summary>
@@ -142,7 +142,7 @@ public class TerrainRegion<TTerrainType, TContentType> : ISpatialObject {
         _coverageAreaDirty = false;
     }
 
-    private static Bounds Combine(IReadOnlyList<Bounds> bounds) {
+    private static LSBounds Combine(IReadOnlyList<LSBounds> bounds) {
         float minX = bounds[0].MinX;
         float maxX = bounds[0].MaxX;
         float minY = bounds[0].MinY;
@@ -158,6 +158,6 @@ public class TerrainRegion<TTerrainType, TContentType> : ISpatialObject {
 
         float width = maxX - minX;
         float height = maxY - minY;
-        return new Bounds(minX + width * 0.5f, minY + height * 0.5f, width, height);
+        return new LSBounds(minX + width * 0.5f, minY + height * 0.5f, width, height);
     }
 }

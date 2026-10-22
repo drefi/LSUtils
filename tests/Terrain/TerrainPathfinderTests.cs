@@ -12,7 +12,7 @@ using LSUtils.Terrain.Navigation;
 public class TerrainPathfinderTests {
     [Test]
     public void NavigationMesh_BakesWhiteHorseExampleGeometry() {
-        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(576, 324, 1056, 560), TerrainType.Water);
+        var world = new TerrainWorld<TerrainType, ContentType>(new LSBounds(576, 324, 1056, 560), TerrainType.Water);
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Mud, Rectangle(120, 120, 850, 410)));
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, Rectangle(170, 160, 325, 310), priority: 1));
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Water, Rectangle(575, 260, 240, 145), layer: 1));
@@ -36,7 +36,7 @@ public class TerrainPathfinderTests {
 
     [Test]
     public void NavigationMesh_BakesWhenPassablePatchCutsAcrossOtherPatches() {
-        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(576, 324, 1056, 560), TerrainType.Water);
+        var world = new TerrainWorld<TerrainType, ContentType>(new LSBounds(576, 324, 1056, 560), TerrainType.Water);
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Mud, new LSPolygon2D(new[] {
             new LSVector2(98, 76), new LSVector2(1022, 130),
             new LSVector2(1017, 321), new LSVector2(119, 530),
@@ -119,7 +119,7 @@ public class TerrainPathfinderTests {
 
     [Test]
     public void FindPath_AvoidsHoleThatExposesImpassableDefaultTerrain() {
-        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(50, 50, 100, 100), TerrainType.Water);
+        var world = new TerrainWorld<TerrainType, ContentType>(new LSBounds(50, 50, 100, 100), TerrainType.Water);
         var hole = Rectangle(40, 30, 20, 40);
         var island = new LSPolygonArea2D(Rectangle(5, 5, 90, 90), new[] { hole });
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, island));
@@ -137,7 +137,7 @@ public class TerrainPathfinderTests {
 
     [Test]
     public void NavigationMesh_HoleCanExposePassableLowerCostLayer() {
-        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(50, 50, 100, 100), TerrainType.Water);
+        var world = new TerrainWorld<TerrainType, ContentType>(new LSBounds(50, 50, 100, 100), TerrainType.Water);
         var lower = new TerrainPatch<TerrainType>(TerrainType.Mud, Rectangle(5, 5, 90, 90), layer: 0);
         var hole = Rectangle(40, 30, 20, 40);
         var upper = new TerrainPatch<TerrainType>(
@@ -227,7 +227,7 @@ public class TerrainPathfinderTests {
 
     [Test]
     public void NavigationMesh_IncludesOuterVerticesOfStandalonePassablePatch() {
-        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(50, 50, 100, 100), TerrainType.Water);
+        var world = new TerrainWorld<TerrainType, ContentType>(new LSBounds(50, 50, 100, 100), TerrainType.Water);
         var grass = Rectangle(10, 10, 60, 60);
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, grass));
         var settings = new TerrainNavigationSettings<TerrainType, ContentType>(
@@ -265,7 +265,7 @@ public class TerrainPathfinderTests {
 
     [Test]
     public void FindPath_BetweenRoomWalls_ChoosesNearSideOfObstacle() {
-        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(576, 324, 1056, 560), TerrainType.Water);
+        var world = new TerrainWorld<TerrainType, ContentType>(new LSBounds(576, 324, 1056, 560), TerrainType.Water);
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, Rectangle(70, 145, 1010, 430)));
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Water, new LSPolygon2D(new[] {
             new LSVector2(785, 245), new LSVector2(965, 225),
@@ -290,7 +290,7 @@ public class TerrainPathfinderTests {
 
     [Test]
     public void FindPath_FromWorldCorner_ReachesDestinationBehindObstacle() {
-        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(545, 325, 850, 410), TerrainType.Grass);
+        var world = new TerrainWorld<TerrainType, ContentType>(new LSBounds(545, 325, 850, 410), TerrainType.Grass);
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, Rectangle(120, 120, 850, 410)));
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Water, Rectangle(575, 260, 240, 145), layer: 1));
         var mesh = world.BuildNavigationMesh(Settings());
@@ -351,7 +351,7 @@ public class TerrainPathfinderTests {
     }
 
     private static TerrainWorld<TerrainType, ContentType> CreateWorld() {
-        var world = new TerrainWorld<TerrainType, ContentType>(new Bounds(50, 50, 100, 100), TerrainType.Grass);
+        var world = new TerrainWorld<TerrainType, ContentType>(new LSBounds(50, 50, 100, 100), TerrainType.Grass);
         world.AddPatch(new TerrainPatch<TerrainType>(TerrainType.Grass, Rectangle(0, 0, 100, 100)));
         return world;
     }

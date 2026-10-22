@@ -14,7 +14,7 @@ public class TerrainPatch<TTerrainType> : ISpatialObject {
     public ILSShape2D Shape { get; private set; }
     public int Layer { get; private set; }
     public int Priority { get; private set; }
-    public Bounds Bounds => Shape.Bounds;
+    public LSBounds Bounds => Shape.Bounds;
     public float Area => Shape.Area;
 
     public TerrainPatch(TTerrainType type, ILSShape2D shape, int layer = 0, int priority = 0) {

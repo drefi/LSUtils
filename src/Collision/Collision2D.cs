@@ -109,7 +109,7 @@ public static class Collision2D {
             return TryGetSegmentPolygonFraction(from, to, radius, target.BoundaryLoops!, out fraction);
 
         var bounds = target.Bounds;
-        var expanded = new Bounds(bounds.X, bounds.Y, bounds.Width + radius * 2f, bounds.Height + radius * 2f);
+        var expanded = new LSBounds(bounds.X, bounds.Y, bounds.Width + radius * 2f, bounds.Height + radius * 2f);
         return TryGetSegmentBoundsFraction(from, to, expanded, out fraction);
     }
 
@@ -149,7 +149,7 @@ public static class Collision2D {
         return false;
     }
 
-    private static bool RectangleIntersectsPolygon(Bounds rectangle, IReadOnlyList<IReadOnlyList<LSVector2>> loops) {
+    private static bool RectangleIntersectsPolygon(LSBounds rectangle, IReadOnlyList<IReadOnlyList<LSVector2>> loops) {
         var corners = new[] {
             new LSVector2(rectangle.MinX, rectangle.MinY), new LSVector2(rectangle.MaxX, rectangle.MinY),
             new LSVector2(rectangle.MaxX, rectangle.MaxY), new LSVector2(rectangle.MinX, rectangle.MaxY)
@@ -238,7 +238,7 @@ public static class Collision2D {
         return t >= 0f && t <= 1f && u >= 0f && u <= 1f;
     }
 
-    private static bool TryGetSegmentBoundsFraction(LSVector2 from, LSVector2 to, Bounds bounds, out float fraction) {
+    private static bool TryGetSegmentBoundsFraction(LSVector2 from, LSVector2 to, LSBounds bounds, out float fraction) {
         var directionX = to.X - from.X;
         var directionY = to.Y - from.Y;
         var tMin = 0f;

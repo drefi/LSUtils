@@ -3,7 +3,7 @@ namespace LSUtils.Spatial;
 using System.Collections.Generic;
 
 public static class SpatialIndexExtensions {
-    public static List<T> Query<T>(this ISpatialIndex<T> index, Bounds area, T[]? mask = null) where T : notnull {
+    public static List<T> Query<T>(this ISpatialIndex<T> index, LSBounds area, T[]? mask = null) where T : notnull {
         var result = new List<T>();
         index.Query(area, result, mask);
         return result;

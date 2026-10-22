@@ -5,5 +5,5 @@ namespace LSUtils.Spatial;
 /// </summary>
 public interface ISpatialObject {
     System.Guid ID { get; }
-    Bounds Bounds { get; }
+    LSBounds Bounds { get; }
 }

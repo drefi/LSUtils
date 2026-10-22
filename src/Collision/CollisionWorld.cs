@@ -74,7 +74,7 @@ public sealed class CollisionWorld<T> where T : notnull {
 
     public bool TrySweepCircle(LSVector2 from, LSVector2 to, float radius, CollisionFilter queryFilter, out T? hit, Func<T, bool>? predicate = null) {
         hit = default;
-        var sweepBounds = new Bounds(
+        var sweepBounds = new LSBounds(
             (from.X + to.X) / 2f,
             (from.Y + to.Y) / 2f,
             MathF.Abs(to.X - from.X) + radius * 2f,
