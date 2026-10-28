@@ -1,11 +1,8 @@
-namespace LSUtils;
+﻿namespace LSUtils;
 
-public class LSArgumentNullException : LSException {
+public class LSArgumentNullException : LSArgumentException {
     public LSArgumentNullException() { }
-    public LSArgumentNullException(string paramName) : base(paramName) { }
+    public LSArgumentNullException(string? paramName) : base(paramName) { }
     public LSArgumentNullException(string message, LSException innerException) : base(message, innerException) { }
-    public LSArgumentNullException(string paramName, string message) : base(message) {
-        ParamName = paramName;
-    }
-    public string? ParamName { get; }
+    public LSArgumentNullException(string paramName, string message) : base(paramName, message) { }
 }
